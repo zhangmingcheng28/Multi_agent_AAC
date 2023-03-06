@@ -22,8 +22,19 @@ class env_simulator:
         self.all_agents = None
 
     def create_world(self, total_agentNum):
-        # initialize agent
-        pass
+        self.all_agents = []
+        for agent_i in range(total_agentNum):
+            print("here")
+
+            self.all_agents.append()
+
+
+
+
+
+
+
+        self.reset_world()
 
     def reset_world(self):
         pass

@@ -37,9 +37,8 @@ def initialize_parameters():
     ylow = 255
     yhigh = 385
     bound = [xlow, xhigh, ylow, yhigh]
-    total_agentNum = 5
     env = env_simulator(staticEnv[0], staticEnv[1], staticEnv[2], bound, staticEnv[3])
-    return n_episodes, max_t, eps_start, eps_end, eps_period, eps, env, total_agentNum, agent_grid_obs, BUFFER_SIZE, BATCH_SIZE, GAMMA, TAU, learning_rate, UPDATE_EVERY
+    return n_episodes, max_t, eps_start, eps_end, eps_period, eps, env, agent_grid_obs, BUFFER_SIZE, BATCH_SIZE, GAMMA, TAU, learning_rate, UPDATE_EVERY, seed
 
 # if __name__ == '__main__':
 #     initialize_parameters()

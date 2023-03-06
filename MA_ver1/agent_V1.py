@@ -12,15 +12,17 @@ from Nnetworks import ActorNetwork
 
 
 class Agent:
-    def __init__(self, actor_dim, critic_dims, n_actions, agent_idx, totalAgent, actorNet_lr, criticNet_lr, gamma, tau):
+    def __init__(self, actor_obs, critic_obs, n_actions, agent_idx, totalAgent, actorNet_lr, criticNet_lr, gamma, tau):
         self.gamma = gamma
         self.tau = tau
-        self.n_actions = n_actions
+        self.n_actions = n_actions  # this n_actions is the dimension of the action space
         self.agent_name = 'agent_%s' % agent_idx
-        self.actorNet = ActorNetwork(actorNet_lr, actor_dim, n_actions, name=self.agent_name+'_actorNet')
-        self.target_actorNet = ActorNetwork(actorNet_lr, actor_dim, n_actions, name=self.agent_name+'_target_actorNet')
-        self.criticNet = CriticNetwork(criticNet_lr, critic_dims, totalAgent, n_actions, name=self.agent_name+'_criticNet')
-        self.target_criticNet = CriticNetwork(criticNet_lr, critic_dims, totalAgent, n_actions, name=self.agent_name+'_target_criticNet')
+        self.agent_size = 1.5  # meter in radius
+        self.agent_grid_obs = None
+        self.actorNet = ActorNetwork(actorNet_lr, actor_obs, n_actions, name=self.agent_name+'_actorNet')
+        self.target_actorNet = ActorNetwork(actorNet_lr, actor_obs, n_actions, name=self.agent_name+'_target_actorNet')
+        self.criticNet = CriticNetwork(criticNet_lr, critic_obs, totalAgent, n_actions, name=self.agent_name+'_criticNet')
+        self.target_criticNet = CriticNetwork(criticNet_lr, critic_obs, totalAgent, n_actions, name=self.agent_name+'_target_criticNet')
         self.update_network_parameters()
 
     def choose_actions(self, observation):
