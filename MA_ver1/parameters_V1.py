@@ -20,6 +20,7 @@ def initialize_parameters():
     eps_period = 250000  # The number of steps needed for the epsilon to drop until the minimum number of the "eps_end"
     eps = eps_start  # initialize epsilon
     agent_grid_obs = np.zeros((7, 7))
+    agent_obs_dim = 6  # Vx, Vy, delta_Gx, delta_Gy, Acc_x, Acc_y
     BUFFER_SIZE = int(1e5)  # replay buffer size
     BATCH_SIZE = 64  # minibatch size, changed to 16 in V7
     GAMMA = 0.99  # discount factor
