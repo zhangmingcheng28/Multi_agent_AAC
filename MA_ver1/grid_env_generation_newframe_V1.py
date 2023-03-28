@@ -157,19 +157,24 @@ def env_generation(shapeFilePath):  # input: string of file path, output: STRtre
 
     # After the prelimary world map has been build, we need to cover-up the holes that is surrounded by the occupied grids
     env_map = ndimage.binary_fill_holes(envMatrix[:, :, 0])  # env_layer fill holes
-    gridPoly_filled = []
+    gridPoly_ones = []
+    gridPoly_zero = []
+    outPoly = []
     for ix in range(env_map.shape[0]):
         for iy in range(env_map.shape[1]):
+            grid_point_toTest = Point(ix * gridLength, iy * gridLength)
+            grid_poly_toTest = grid_point_toTest.buffer(gridLength / 2, cap_style=3)
             if env_map[ix][iy] == 1:  # get the grid index that is occupied, meaning yield 1 in the index position
                 # transform these grid index information to the actual size map
-                grid_point_toTest = Point(ix * gridLength, iy * gridLength)
-                grid_poly_toTest = grid_point_toTest.buffer(gridLength / 2, cap_style=3)
-                gridPoly_filled.append(grid_poly_toTest)
+                gridPoly_ones.append(grid_poly_toTest)
+            else:
+                gridPoly_zero.append(grid_poly_toTest)
+    outPoly.append([gridPoly_ones, gridPoly_zero])
 
         # display all building polygon
     # for poly in polySet:
     #     ax.add_patch(PolygonPatch(poly))
-    return env_map, polySet_buildings, gridLength, gridPoly_filled  # return an occupied 3D array
+    return env_map, polySet_buildings, gridLength, outPoly  # return an occupied 3D array
 
 def pointgen(p1, p2, p3, totalnum):
     xySet = []

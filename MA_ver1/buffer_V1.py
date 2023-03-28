@@ -7,6 +7,7 @@
 @Package dependency:
 """
 import numpy as np
+from collections import deque
 
 
 class MultiAgentReplayBuffer:  # centralized training, so this replay memeory only stores information from critics
@@ -16,11 +17,7 @@ class MultiAgentReplayBuffer:  # centralized training, so this replay memeory on
         self.actor_dims = actor_dim
         self.batch_size = batch_size
         self.n_actions = n_actions
-
-        self.state_memory = np.zeros((self.mem_size, critic_dims))
-        self.new_state_memory = np.zeros((self.mem_size, critic_dims))
-        self.reward_memory = np.zeros((self.mem_size, n_agents))
-        self.terminal_memory = np.zeros((self.mem_size, n_agents), dtype=bool)
+        self.memory = deque(maxlen=self.mem_size)
 
     def store_transition(self, cur_obs, cur_state, cur_action, cur_reward, next_obs, next_state, done):
         pass
