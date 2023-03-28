@@ -179,7 +179,14 @@ class CriticNetwork(nn.Module):
 
         self.sum_own_fc = nn.Sequential(nn.Linear(critic_obs[0]*n_agents, 256), nn.ReLU())  # may be here can be replaced with another attention mechanism
         self.sum_env_fc = nn.Sequential(nn.Flatten(), nn.Linear(critic_obs[1]*n_agents, 256), nn.ReLU())
+        self.sum_sur_fc = nn.Sequential(nn.Linear(critic_obs[2]*n_agents, 256), nn.ReLU())
 
+        self.n_heads = 3
+        self.single_head_dim = int((256+256+256) / self.n_heads)
+        self.com_k = nn.Linear(self.single_head_dim, self.single_head_dim, bias=False)
+        self.com_q = nn.Linear(self.single_head_dim, self.single_head_dim, bias=False)
+        self.com_v = nn.Linear(self.single_head_dim, self.single_head_dim, bias=False)
+        self.multi_att_out = nn.Linear(self.n_heads * self.single_head_dim, 128)
 
 
         self.combine_own_env_fc = nn.Sequential(nn.Linear(256+256, 256), nn.ReLU())
@@ -190,8 +197,7 @@ class CriticNetwork(nn.Module):
 
         # the input of this judgement layer is 256+256 because this is right after the multi-head attention layer
         # the output dimension of the multi-head attention is default to be the dimension of the "embed_dim"
-        self.judgement_fc = nn.Sequential(nn.Linear(256+256, 256), nn.ReLU(),
-                                          nn.Linear(256, 1))
+        self.judgement_fc = nn.Sequential(nn.Linear(128, 64), nn.ReLU(), nn.Linear(64, 1))
 
         self.name = name
 
@@ -215,21 +221,47 @@ class CriticNetwork(nn.Module):
         afterPro_surr_neigh = []
         for single_sur_nei in enumerate(state[2]):
             if len(single_sur_nei[1]) == 0:
-                padding_surNeigh = np.zeros((1,32))
-                afterPro_surr_neigh.append(padding_surNeigh)
+                padding_surNeigh = np.zeros((1,6))
+                afterPro_surr_neigh.append(padding_surNeigh)  # length of this depends on the total agent in the simulation
             else:  # use attention to convert the nx6 to 1x32
-                # perform attention here
+                # perform attention here; observation of the neighbor UAV vectors for individual agents
                 pass
+        # sur_nei is a horizontal stacking of the encoded vector of the neighboring UAV for the individual agents in the current environment
         sur_nei = torch.tensor(np.array(afterPro_surr_neigh), dtype=torch.float).view(-1, np.array(afterPro_surr_neigh).size).to(self.device)
+        sum_sur_nei = self.sum_sur_fc(sur_nei)
+        critic_concat = torch.cat((sum_own_e, sum_env_e, sum_sur_nei), dim=1)
 
+        raw_k = critic_concat
+        raw_q = critic_concat
+        raw_v = critic_concat
+        batch_size, inputDim = critic_concat.shape
+        seq_length = 1
+        raw_k = raw_k.view(batch_size, seq_length, self.n_heads,
+                       self.single_head_dim)  # batch_size x sequence_length x n_heads x single_head_dim
+        raw_q = raw_q.view(batch_size, seq_length, self.n_heads, self.single_head_dim)
+        raw_v = raw_v.view(batch_size, seq_length, self.n_heads, self.single_head_dim)
+        # linear transform
+        comQ = self.com_q(raw_k)
+        comK = self.com_k(raw_q)
+        comV = self.com_v(raw_v)
+        comQ = comQ.transpose(1, 2)  # (batch_size, n_heads, seq_len, single_head_dim)
+        comK = comK.transpose(1, 2)  # (batch_size, n_heads, seq_len, single_head_dim)
+        comV = comV.transpose(1, 2)  # (batch_size, n_heads, seq_len, single_head_dim)
+        # computes attention
+        # adjust key for matrix multiplication
+        k_adjusted = comK.transpose(-1, -2)  # (batch_size, n_heads, single_head_dim, seq_len)
+        product = torch.matmul(comQ, k_adjusted)  # (32 x 8 x 10 x 64) x (32 x 8 x 64 x 10)
+        # divising by square root of key dimension
+        product = product / math.sqrt(self.single_head_dim)  # / sqrt(64)
+        # applying softmax
+        scores = F.softmax(product, dim=-1)
+        # mutiply with value matrix
+        scores = torch.matmul(scores, comV)  ##(32x8x 10x 10) x (32 x 8 x 10 x 64) = (32 x 8 x 10 x 64)
+        # concatenated output
+        concat_multiAtt = scores.transpose(1, 2).contiguous().view(batch_size, seq_length,
+                                                          self.single_head_dim * self.n_heads)  # (32x8x10x64) -> (32x10x8x64)  -> (32,10,512)
+        multiAtt_out = self.multi_att_out(concat_multiAtt)
 
-
-
-
-
-        combine_state_e = self.combine_own_env_fc([sum_own_e, sum_env_e])
-        sum_action_e = self.sum_agents_action_fc(state[2])
-        multi_dim_out = self.multi_attention([combine_state_e, sum_action_e])
-        q = self.judgement_fc(multi_dim_out)
+        q = self.judgement_fc(multiAtt_out)
 
         return q
