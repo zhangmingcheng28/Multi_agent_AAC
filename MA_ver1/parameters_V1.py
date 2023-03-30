@@ -28,8 +28,8 @@ def initialize_parameters():
     learning_rate = 1e-5  # learning rate, previous = 0.0005 or 5e-4, now changed to 0.002
     UPDATE_EVERY = 50  # how often to update the network
     # generate static env from shape file
-    shapePath = 'D:\deep_Q_learning\lakesideMap\lakeSide.shp'
-    # shapePath = 'F:\githubClone\deep_Q_learning\DQN_new_framework\lakesideMap\lakeSide.shp'
+    # shapePath = 'D:\deep_Q_learning\lakesideMap\lakeSide.shp'
+    shapePath = 'F:\githubClone\deep_Q_learning\DQN_new_framework\lakesideMap\lakeSide.shp'
     staticEnv = env_generation(shapePath)  # it is a tuple of 4 element, 1st is the 2D binary array of the filled map, 2nd is the list of all buildings expressed as polygons, 3rd is the gird length, last is list of square grids in the map that has overlapped with the building polygons.
     seed = 3407  # this seed is only used for torch manuel.seed
     # set boundary

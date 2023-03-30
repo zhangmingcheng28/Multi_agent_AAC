@@ -18,7 +18,7 @@ class Agent:
         self.tau = tau
         self.n_actions = n_actions  # this n_actions is the dimension of the action space
         self.agent_name = 'agent_%s' % agent_idx
-        self.agent_size = 1.5  # meter in radius
+        #self.agent_size = 1.5  # meter in radius
         self.agent_grid_obs = None
         self.max_grid_obs_dim = actor_obs[1]  # The 2nd element is the maximum grid observation dimension
         self.actorNet = ActorNetwork(actorNet_lr, actor_obs, n_actions, name=self.agent_name+'_actorNet')
@@ -29,6 +29,8 @@ class Agent:
 
         # state information
         self.pos = None
+        self.ini_pos = None
+        self.pre_pos = None
         self.vel = None
         self.pre_vel = None
         self.maxSpeed = 15
@@ -42,7 +44,7 @@ class Agent:
 
     def choose_actions(self, observation):
         actions = None
-        ownObs = T.tensor(observation[0], dtype=T.float).to(self.actorNet.device)
+        ownObs = T.tensor(observation[0].reshape(1,-1), dtype=T.float).to(self.actorNet.device)
         # padding actions
         tobePad_gridObs = list(np.zeros(self.max_grid_obs_dim-len(observation[1]), dtype=int))
         padded_gridObs = observation[1]+tobePad_gridObs
