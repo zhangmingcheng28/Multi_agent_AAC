@@ -38,8 +38,10 @@ class Agent:
         self.heading = None
         self.detectionRange = 30  # in meters, this is the in diameter
         self.protectiveBound = 2.5  # diameter is 2.5*2, this is radius
-        self.surroundingNeighbor = {}  # a dictionary, key is the agent idx, value is the array of 1x4,
-                                        # which correspond to the observation vector of that neighbor
+        # a dictionary, key is the agent idx, value is the array of 1x6,
+        # which correspond to the observation vector of that neighbor
+        self.pre_surroundingNeighbor = {}
+        self.surroundingNeighbor = {}
         self.observableSpace = []
 
     def choose_actions(self, observation):

@@ -23,7 +23,9 @@ import matplotlib.pyplot as plt
 import matplotlib
 import re
 import time
-from Utilities_V1 import sort_polygons, shapelypoly_to_matpoly, extract_individual_obs
+from Utilities_V1 import sort_polygons, shapelypoly_to_matpoly, \
+    extract_individual_obs, map_range, compute_potential_conflict
+import torch as T
 
 
 class env_simulator:
@@ -65,7 +67,6 @@ class env_simulator:
         agentsCoor_list = []  # for store all agents as circle polygon
         agentRefer_dict = {}  # A dictionary to use agent's current pos as key, their agent name (idx) as value
         for agentIdx in self.all_agents.keys():
-
             self.all_agents[agentIdx].pos = custom_agent_data[agentIdx][0:2]
             self.all_agents[agentIdx].ini_pos = custom_agent_data[agentIdx][0:2]
             self.all_agents[agentIdx].goal = [custom_agent_data[agentIdx][2:4]]
@@ -100,27 +101,11 @@ class env_simulator:
                 agent_idx = None
                 raise ValueError('No number found in string')
 
-            # # identify neighbors
-            # agent_cur_cir = Point(agent.pos[0], agent.pos[1]).buffer(agent.detectionRange/2, cap_style='round')
-            # possible_matches = agent_cirSTR.query(agent_cur_cir)
-            # for other_agent_cir in agent_cirSTR.geometries.take(possible_matches):
-            #     if agent_cur_cir.intersects(other_agent_cir):
-            #         polyCen = (round(other_agent_cir.centroid.x, 1), round(other_agent_cir.centroid.y, 1))
-            #         # get the other agent's idx from the dictionary
-            #         other_agent_name = agentRefer_dict.get(polyCen)
-            #         if other_agent_name != agent.agent_name:
-            #             # get other_agent's idx in integer
-            #             other_agent_idx = int(re.search(r'\d+(\.\d+)?', other_agent_name).group())
-            #             agent.surroundingNeighbor[other_agent_idx] = np.array([self.all_agents[other_agent_idx].pos[0],
-            #                                                                 self.all_agents[other_agent_idx].pos[1],
-            #                                                                 self.all_agents[other_agent_idx].vel[0],
-            #                                                                 self.all_agents[other_agent_idx].vel[1]])
-            # # end of identify neighbors
-
             # identify neighbors (use distance)
-            # query for surrounding neighbors
-            cur_agent_surroundingNeigh = self.get_current_agent_nei(agent, agentRefer_dict)
-            agent.surroundingNeighbor = cur_agent_surroundingNeigh  # update the "surroundingNeighbor" attribute
+            # update the "surroundingNeighbor" attribute
+            agent.surroundingNeighbor = self.get_current_agent_nei(agent, agentRefer_dict)
+            # reset_world function we initialized both "surroundingNeighbor" and "pre_surroundingNeighbor" identically
+            agent.pre_surroundingNeighbor = agent.surroundingNeighbor
 
             # populate the output states
             agent_own = [agent.pos[0], agent.pos[1], agent.goal[0][0], agent.goal[0][1], agent.vel[0], agent.vel[1]]
@@ -139,12 +124,12 @@ class env_simulator:
                                                                             math.degrees(agent.heading))), color='y')
                 plt.text(agent.pos[0], agent.pos[1], agent.agent_name)
                 # plot self_circle of the drone
-                self_circle = Point(agent.pos[0], agent.pos[1]).buffer(2.5, cap_style='round')
+                self_circle = Point(agent.pos[0], agent.pos[1]).buffer(agent.protectiveBound, cap_style='round')
                 grid_mat_Scir = shapelypoly_to_matpoly(self_circle, False, 'k')
                 ax.add_patch(grid_mat_Scir)
 
                 # plot drone's detection range
-                detec_circle = Point(agent.pos[0], agent.pos[1]).buffer(30/2, cap_style='round')
+                detec_circle = Point(agent.pos[0], agent.pos[1]).buffer(agent.detectionRange / 2, cap_style='round')
                 detec_circle_mat = shapelypoly_to_matpoly(detec_circle, False, 'r')
                 ax.add_patch(detec_circle_mat)
 
@@ -184,7 +169,7 @@ class env_simulator:
         # identify neighbors (use distance)
         point_to_search = cur_agent.pos
         # subtract a small value to exclude point at exactly "search_distance"
-        search_distance = cur_agent.detectionRange + cur_agent.protectiveBound - 1e-6
+        search_distance = (cur_agent.detectionRange / 2) + cur_agent.protectiveBound - 1e-6
         indices_from_KDtree = self.cur_allAgentCoor_KD.query_ball_point(point_to_search, search_distance)
         for possible_idx in indices_from_KDtree:
             # ensure the same agent will not goes into its surrounding neighbor attribute
@@ -257,74 +242,124 @@ class env_simulator:
             # obtain the observation for each individual actor
             individual_obs = extract_individual_obs(combine_state, agent_idx)
             chosen_action = agent.choose_actions(individual_obs)
+            # squeeze(0) is to remove the batch information
+            # then convert to numpy
+            chosen_action = chosen_action.squeeze(0).detach().numpy()
             outActions[agent_idx] = chosen_action
-        print("all agent out action done")
         return outActions
 
-    def map_range(self, value, coe_a):
-        # Calculate the normalized value
-        out_min = -coe_a
-        out_max = coe_a
-        # tanh() has range of -1 to 1
-        in_min = -1
-        in_max = 1
-        normalized = (value - in_min) / (in_max - in_min)
-        # Map the normalized value to the output range
-        mapped = out_min + (normalized * (out_max - out_min))
-        # Return the mapped value
-        return mapped
-
-    def get_overall_step_reward(self):  # this is for individual drones
-        reward, done, intruCause_DC, accumulated_DC = [], [], [], []
+    def get_step_reward(self, current_ts):  # this is for individual drones, current_ts = current time step
+        reward, done = [], []
         crash_penalty = -100
         reach_target = 1000
         potential_conflict_count = 0
-        collision_drones = []  # re-initialize this list whenever all agents has taken one step
-        collide_wall = 0
+        fixed_domino_reward = 1
 
         for drone_idx, drone_obj in self.all_agents.items():
-
-            # for each drone get its t_cpa
+            # re-initialize these two list for individual agents at each time step,this is to ensure collision
+            # condition is reset for each agent at every time step
+            collision_drones = []
+            collide_building = 0
+            pc_before, pc_after = [], []
+            # we assume the maximum potential conflict the current drone could have at each time step is equals
+            # to the total number of its neighbour at each time step
+            pc_max_before = len(drone_obj.pre_surroundingNeighbor)
+            pc_max_after = len(drone_obj.surroundingNeighbor)
 
             # calculate the deviation from the reference path after an action has been taken
             curPoint = Point(self.all_agents[drone_idx].pos)
             host_refline = LineString([self.all_agents[drone_idx].ini_pos, self.all_agents[drone_idx].goal[0]])
-            cross_track_error = curPoint.distance(host_refline)  # deviation from the reference line, cross track error
+            cross_track_deviation = curPoint.distance(host_refline)  # deviation from the reference line, cross track error
 
             host_pass_line = LineString([self.all_agents[drone_idx].pre_pos, self.all_agents[drone_idx].pos])
             host_passed_volume = host_pass_line.buffer(self.all_agents[drone_idx].protectiveBound, cap_style='round')
 
-            # check whether the current drone has collide with its surrounding neighbors
+            # neigh_keys is the drone_idx for current neighbors
+            # loop through neighbors from previous time step
+            for neigh_keys in self.all_agents[drone_idx].pre_surroundingNeighbor:
+                # compute potential conflicts before and after the action for the current drone with its neighbours
+                pc_before = compute_potential_conflict(pc_before, drone_obj.pre_pos, drone_obj.pre_vel,
+                                                       drone_obj.protectiveBound, self.all_agents[neigh_keys].pre_pos,
+                                                       self.all_agents[neigh_keys].pre_vel,
+                                                       self.all_agents[neigh_keys].protectiveBound, neigh_keys,
+                                                       current_ts)
+            # loop through neighbors from current time step
             for neigh_keys in self.all_agents[drone_idx].surroundingNeighbor:
+                # compute potential conflicts before and after the action for the current drone with its neighbours
+                pc_after = compute_potential_conflict(pc_after, drone_obj.pos, drone_obj.vel,
+                                                      drone_obj.protectiveBound, self.all_agents[neigh_keys].pos,
+                                                      self.all_agents[neigh_keys].vel,
+                                                      self.all_agents[neigh_keys].protectiveBound, neigh_keys,
+                                                      current_ts)
+
+                # check whether the current drone has collide with any surrounding neighbors due to current action
                 neigh_pass_line = LineString([self.all_agents[neigh_keys].pre_pos, self.all_agents[neigh_keys].pos])
                 neigh_passed_volume = neigh_pass_line.buffer(self.all_agents[neigh_keys].protectiveBound,
                                                              cap_style='round')
                 if host_passed_volume.intersects(neigh_passed_volume):
+                    print("drone_{} collide with drone_{} at time step {}".format(drone_idx, neigh_keys, current_ts))
                     collision_drones.append(neigh_keys)
 
+            if pc_max_after == 0:  # upper bound in terms of value case for dominoTerm
+                dominoTerm = fixed_domino_reward
+            elif pc_max_before == 0:  # lower bound in terms of value case for dominoTerm
+                dominoTerm = -1
+            elif (len(pc_after)/pc_max_after) == 0:  # check if denominator of the dominoTerm equals to 0
+                # if denominator equals to 0, meaning initial velocity is 0,
+                # so is like initial condition, then we can just assign this dominoTerm as 0.
+                dominoTerm = 0
+            else:
+                dominoTerm = ((len(pc_before)/pc_max_before) -
+                              (len(pc_after)/pc_max_after)) / (len(pc_after)/pc_max_after)
+
+            # check whether current actions leads to a collision with any buildings in the airspace
+            allBuildingSTR = STRtree(self.world_map_2D_polyList[0][0])
+            possiblePoly = allBuildingSTR.query(host_passed_volume)
+            for element in possiblePoly:
+                if allBuildingSTR.geometries.take(element).intersection(host_passed_volume):
+                    collide_building = 1
+                    print("drone_{} crash into building when moving from {} to {} at time step {}".format(drone_idx, self.all_agents[drone_idx].pre_pos, self.all_agents[drone_idx].pos, current_ts))
+                    break
+
             tar_circle = Point(self.all_agents[drone_idx].goal[0]).buffer(1, cap_style='round')
+            # when there is no intersection between two geometries, "RuntimeWarning" will appear
+            # RuntimeWarning is, "invalid value encountered in intersection"
             goal_cur_intru_intersect = host_passed_volume.intersection(tar_circle)
             if not goal_cur_intru_intersect.is_empty:  # reached goal?
+                print("drone_{} has reached its goal at time step {}".format(drone_idx, current_ts))
                 done.append(1)
                 reward.append(reach_target)
             # exceed bound or crash into buildings or crash with other neighbors
             elif (self.all_agents[drone_idx].pos[0] <= self.bound[0] or self.all_agents[drone_idx].pos[0] >= self.bound[1] or
                   self.all_agents[drone_idx].pos[1] <= self.bound[2] or self.all_agents[drone_idx].pos[1] >= self.bound[3] or
-                  collide_wall == 1 or len(collision_drones) > 0):
+                  collide_building == 1 or len(collision_drones) > 0):
                 reward.append(crash_penalty)
                 done.append(1)
+                if (collide_building == 0) or len(collision_drones) == 0:
+                    print("drone_{} has crash into boundary at time step {}". format(drone_idx, current_ts))
             else:  # a normal step taken
                 done.append(0)
+                crossCoefficient = 1
+                goalCoefficient = 6
+                # cross track error term
+                cross_track_error = (20 / ((cross_track_deviation * cross_track_deviation) / 200 + 1)) - 3.5
+                # Distance between drone and its goal for two consecutive time step
+                before_dist_hg = np.linalg.norm(drone_obj.pre_pos - drone_obj.goal[0])
+                after_dist_hg = np.linalg.norm(drone_obj.pos - drone_obj.goal[0])  # distance to goal after action
+                delta_hg = goalCoefficient * (before_dist_hg - after_dist_hg)
+                # a small penalty for discourage the agent to stay in one single spot
+                if (before_dist_hg - after_dist_hg) <= 2:
+                    small_step_penalty = 50
+                else:
+                    small_step_penalty = 0
+                # Try: Domino term also use as an indicator for agent to avoid other drones.
+                step_reward = crossCoefficient*cross_track_error + delta_hg + dominoTerm - small_step_penalty
+                reward.append(step_reward)
 
+        return reward, done
 
-
-
-
-
-        return reward, done, intruCause_DC, accumulated_DC
-
-    def step(self, actions, max_t):
-        next_combine_state, reward, done = None, None, None
+    def step(self, actions, current_ts):
+        next_combine_state = []
         agentCoorKD_list_update = []
         agentRefer_dict = {}  # A dictionary to use agent's current pos as key, their agent name (idx) as value
         # we use 4 here, because the time-step for the simulation is 0.5 sec.
@@ -332,16 +367,19 @@ class env_simulator:
         coe_a = 4  # coe_a is the coefficient of action is 4.
         # based on the input stack of actions we propagate all agents forward
         for drone_idx, drone_act in actions.items():
+            # let current neighbor become neighbor record before action
+            self.all_agents[drone_idx].pre_surroundingNeighbor = self.all_agents[drone_idx].surroundingNeighbor
             # fill previous velocities
             self.all_agents[drone_idx].pre_vel = self.all_agents[drone_idx].vel
-            ax = actions[0].squeeze(0).detach().numpy()[0, 0]  # squeeze(0) is to remove the batch information
-            ay = actions[0].squeeze(0).detach().numpy()[0, 1]
+            ax, ay = drone_act[0, 0], drone_act[0, 1]
             # map output action from NN to actual range
-            ax = self.map_range(ax, coe_a)
-            ay = self.map_range(ay, coe_a)
+            ax = map_range(ax, coe_a)
+            ay = map_range(ay, coe_a)
             # check velocity limit
             curVelx = self.all_agents[drone_idx].vel[0] + ax * self.time_step
             curVely = self.all_agents[drone_idx].vel[1] + ay * self.time_step
+
+
             if np.linalg.norm([curVelx, curVely]) >= self.all_agents[drone_idx].maxSpeed:
                 next_heading = math.atan2(curVely, curVelx)
                 # update host velocity when chosen speed has exceed the max speed
@@ -351,23 +389,31 @@ class env_simulator:
             else:
                 # update host velocity when max speed is not exceeded
                 self.all_agents[drone_idx].vel = np.array([curVelx, curVely])
+
+            #print("At time step {} the drone_{}'s output speed is {}".format(current_ts, drone_idx, np.linalg.norm(self.all_agents[drone_idx].vel)))
+
             # update the drone's position based on the update velocities
             self.all_agents[drone_idx].pre_pos = self.all_agents[drone_idx].pos
             delta_x = self.all_agents[drone_idx].vel[0] * self.time_step
             delta_y = self.all_agents[drone_idx].vel[1] * self.time_step
-            self.all_agents[drone_idx].pos = [self.all_agents[drone_idx].pos[0] + delta_x,
-                                              self.all_agents[drone_idx].pos[1] + delta_y]
+            self.all_agents[drone_idx].pos = np.array([self.all_agents[drone_idx].pos[0] + delta_x,
+                                                       self.all_agents[drone_idx].pos[1] + delta_y])
 
-            cur_circle = Point(self.all_agents[drone_idx].pos[0],
-                               self.all_agents[drone_idx].pos[1]).buffer(self.all_agents[drone_idx].protectiveBound,
-                                                                        cap_style='round')
+            # cur_circle = Point(self.all_agents[drone_idx].pos[0],
+            #                    self.all_agents[drone_idx].pos[1]).buffer(self.all_agents[drone_idx].protectiveBound,
+            #                                                             cap_style='round')
 
             agentCoorKD_list_update.append(self.all_agents[drone_idx].pos)
             agentRefer_dict[(self.all_agents[drone_idx].pos[0],
                              self.all_agents[drone_idx].pos[1])] = self.all_agents[drone_idx].agent_name
         self.cur_allAgentCoor_KD = KDTree(agentCoorKD_list_update)  # update all agent coordinate KDtree
-        print("all agent step taken")
-        # re-populate neighbors for all agents
+
+        # initiate for next state
+        cur_ObsState = np.zeros((len(self.all_agents), 6))  # totalAgent * 6, 2D array
+        cur_ObsGrids = []
+        actor_obs = []
+
+        # re-populate neighbors for all agents after action, and update states
         for agentIdx, agent in self.all_agents.items():
             # get current agent's name in term of integer
             match = re.search(r'\d+(\.\d+)?', agent.agent_name)
@@ -376,9 +422,22 @@ class env_simulator:
             else:
                 agent_idx = None
                 raise ValueError('No number found in string')
+            # update current agent's own state
+            agent_own = [agent.pos[0], agent.pos[1], agent.goal[0][0], agent.goal[0][1], agent.vel[0], agent.vel[1]]
+            cur_ObsState[agent_idx, :] = agent_own
 
-            cur_agent_surroundingNeigh = self.get_current_agent_nei(agent, agentRefer_dict)
-            agent.surroundingNeighbor = cur_agent_surroundingNeigh  # update the "surroundingNeighbor" attribute
+            # update current agent's observable space state
+            agent.observableSpace = self.current_observable_space(agent)
+            cur_ObsGrids.append(agent.observableSpace)
+
+            # update the "surroundingNeighbor" attribute
+            agent.surroundingNeighbor = self.get_current_agent_nei(agent, agentRefer_dict)
+            actor_obs.append(agent.surroundingNeighbor)
+
+            # populate overall state
+            next_combine_state = [cur_ObsState, cur_ObsGrids, actor_obs]
+
+
 
         # matplotlib.use('TkAgg')
         # plt.ion()
@@ -457,7 +516,37 @@ class env_simulator:
         #     time.sleep(2)
         #     fig.canvas.flush_events()
         #     ax.cla()
-        return next_combine_state, reward, done
+        return next_combine_state
+
+    def central_learning(self, ReplayBuffer, batch_size):
+        critic_losses, actor_losses = [], []
+        cur_state, action, reward, next_state, done = ReplayBuffer.sample(batch_size)
+
+        actor_cur_state = []
+        actor_next_state = []
+        # spilt out the actor state from cur_state
+        # list of 5 for 5 agents, each list have another 3 list, inside each list, there is batch_size * feature_dim
+        for batch_element in cur_state:
+            actor_cur_state.append(batch_element[0])
+
+        # spilt out the actor state from next_state
+        for nxt_batch_element in next_state:
+            actor_next_state.append(nxt_batch_element[0])
+
+
+        # all these three different actions are needed to calculate the loss function
+        all_agents_new_actions = []  # actions according to the target network for the new state
+        all_agents_new_mu_actions = []  # actions according to the regular actor network for the current state
+        old_agents_actions = []  # actions the agent actually tooks
+
+        for agent_idx, agent in self.all_agents.items():
+            # actions according to the target network for the new state
+            new_states = T.tensor(actor_new_states[agent_idx], dtype=T.float).to(device)  # we need it to have batch_size * individual actor's feature size
+            new_pi = agent.target_actor.forward(new_states)
+            all_agents_new_actions.append(new_pi)
+
+
+        return critic_losses, actor_losses  # These two losses will be recorded for each agent at each time step
 
 
 
