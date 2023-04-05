@@ -43,8 +43,13 @@ class MultiAgentReplayBuffer:
         # transform every batch into another arrangement
         agent_batch_cur_state = []
         for batch_element in raw_cur_state:
-            for agent_idx in range(self.n_agents):
-                
+            for each_row in batch_element:
+                for agent_idx in range(self.n_agents):
+                    own_state_arr = each_row[agent_idx, :]
+                    own_state_arr = np.vstack
+
+
+
 
 
 
