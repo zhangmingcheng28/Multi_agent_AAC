@@ -7,6 +7,7 @@
 @Package dependency:
 """
 from matplotlib.patches import Polygon as matPolygon
+import torch as T
 import numpy as np
 
 
@@ -27,9 +28,9 @@ def shapelypoly_to_matpoly(ShapelyPolgon, inFill=False, Edgecolor='black', FcCol
 
 def extract_individual_obs(combine_state, agent_idx):
     individual_obs = []
-    self_obs = combine_state[0][agent_idx, :]
-    self_obs_grid = combine_state[1][agent_idx]
-    self_surround = combine_state[2][agent_idx]
+    self_obs = combine_state[agent_idx][0]
+    self_obs_grid = combine_state[agent_idx][1]
+    self_surround = combine_state[agent_idx][2]
     individual_obs = [self_obs, self_obs_grid, self_surround]
     return individual_obs
 
@@ -65,4 +66,57 @@ def compute_potential_conflict(pc_list, cur_drone_pos, cur_drone_vel, cur_drone_
         if (t_cpa_before >= 1) and (d_cpa_before < (cur_drone_protRad + cur_neigh_protRad)):
             pc_list.append(cur_neigh_idx)
     return pc_list
+
+
+def padding_list(max_grid_obs_dim, input_list):
+    # padding actions
+    tobePad_gridObs = list(np.zeros(max_grid_obs_dim - len(input_list), dtype=int))
+    padded_gridObs = input_list + tobePad_gridObs
+    return padded_gridObs
+
+
+def preprocess_batch_for_critic_net(input_state, batch_size):
+    critic_own_batched_cur_state = []  # batch_size X one_agent_feature * max_num_agents
+    critic_grid_batched_cur_state = []  # batch_size X one_agent_feature * max_num_agents
+    critic_neigh_batched_cur_state = []  # batch_size X one_agent_feature * max_num_agents
+    for batch_idx in range(batch_size):
+        critic_own_cur_state = []
+        critic_own_grid_state = []
+        critic_own_neigh_state = []
+        for agent_cur in input_state:
+            critic_own_cur_state.append(agent_cur[0][batch_idx, :])
+            critic_own_grid_state.append(agent_cur[1][batch_idx, :])
+            # for neigh, first: max_nei_num X single_nei_features flatten to 1D array
+            flat_nei = agent_cur[2][batch_idx, :].flatten()  # default is flatten in a row.
+            critic_own_neigh_state.append(flat_nei)
+        critic_own_batched_cur_state.append(np.array(critic_own_cur_state).reshape((1, -1)))
+        critic_grid_batched_cur_state.append(np.array(critic_own_grid_state).reshape((1, -1)))
+        critic_neigh_batched_cur_state.append(np.array(critic_own_neigh_state).reshape((1, -1)))
+
+    cur_state_pre_processed = [T.tensor(critic_own_batched_cur_state), T.tensor(critic_grid_batched_cur_state),
+                               T.tensor(critic_neigh_batched_cur_state)]
+    return cur_state_pre_processed
+
+
+def neighbour_preprocess(neighbor_info, neighbor_feature):
+    if len(neighbor_info) == 0:
+        zero_tensor = T.zeros((1, neighbor_feature))  # 1x6 zero vector
+        # when actor is picking an action, we only use actor's own observation + own grid_observation
+        # + neighbors observation, if there is no neighbor detected, we use all zero vector to represent
+        actions = self.actorNet.forward([ownObs, onwGridObs, zero_tensor])
+    else:
+        # handle n x 6
+        neigh_arr = np.zeros((len(self.surroundingNeighbor), ownObs.shape[1]))
+        # # ----------------------------------------------------------------------- # #
+        # # to do: surrounding neighbour arrange in a way nearest neighbor at 1st or last  # #
+        # # ------------------------------------------------------------------------# #
+        for neigh_obs_idx, dict_keys in enumerate(
+                self.surroundingNeighbor):  # loop through the dictionary in order, top first
+            neigh_arr[neigh_obs_idx, :] = self.surroundingNeighbor[dict_keys]
+        neigh_Obs = T.from_numpy(neigh_arr).float().to(self.actorNet.device)
+        actions = self.actorNet.forward([ownObs, onwGridObs, neigh_Obs])
+
+
+
+
 

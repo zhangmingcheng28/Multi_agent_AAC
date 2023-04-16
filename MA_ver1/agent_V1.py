@@ -10,6 +10,7 @@ import numpy as np
 import torch as T
 from Nnetworks import CriticNetwork
 from Nnetworks import ActorNetwork
+from Utilities_V1 import padding_list, neighbour_preprocess
 
 
 class Agent:
@@ -46,14 +47,15 @@ class Agent:
 
     def choose_actions(self, observation):
         actions = None
-        ownObs = T.tensor(observation[0].reshape(1,-1), dtype=T.float).to(self.actorNet.device)
+        ownObs = T.tensor(observation[0].reshape(1, -1), dtype=T.float).to(self.actorNet.device)
         # padding actions
-        tobePad_gridObs = list(np.zeros(self.max_grid_obs_dim-len(observation[1]), dtype=int))
-        padded_gridObs = observation[1]+tobePad_gridObs
+        padded_gridObs = padding_list(self.max_grid_obs_dim, observation[1])
+        # tobePad_gridObs = list(np.zeros(self.max_grid_obs_dim-len(observation[1]), dtype=int))
+        # padded_gridObs = observation[1]+tobePad_gridObs
         onwGridObs = T.tensor([padded_gridObs], dtype=T.float).to(self.actorNet.device)  # Vector in the form of 1xm
 
         if len(observation[2]) == 0:
-            zero_tensor = T.zeros((1, ownObs.shape[1]))  # 1x6 zero vector
+            zero_tensor = T.zeros((1, ownObs.shape[1])).unsqueeze(0)  # 1x6 zero vector
             # when actor is picking an action, we only use actor's own observation + own grid_observation
             # + neighbors observation, if there is no neighbor detected, we use all zero vector to represent
             actions = self.actorNet.forward([ownObs, onwGridObs, zero_tensor])
@@ -62,10 +64,13 @@ class Agent:
             neigh_arr = np.zeros((len(self.surroundingNeighbor), ownObs.shape[1]))
             # # ----------------------------------------------------------------------- # #
             # # to do: surrounding neighbour arrange in a way nearest neighbor at 1st or last  # #
+            # may not need to do, and make it a novelty such that drone's decision do not depends on
+            # arranged input vector. But this cannot consider an novelty, unless, we make a comparison of results
+            # between arranged input vector and non-arranged input vectors
             # # ------------------------------------------------------------------------# #
             for neigh_obs_idx, dict_keys in enumerate(self.surroundingNeighbor):  # loop through the dictionary in order, top first
                 neigh_arr[neigh_obs_idx, :] = self.surroundingNeighbor[dict_keys]
-            neigh_Obs = T.from_numpy(neigh_arr).float().to(self.actorNet.device)
+            neigh_Obs = T.from_numpy(neigh_arr).float().unsqueeze(0).to(self.actorNet.device)
             actions = self.actorNet.forward([ownObs, onwGridObs, neigh_Obs])
         return actions
 

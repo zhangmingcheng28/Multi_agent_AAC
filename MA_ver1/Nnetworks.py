@@ -106,7 +106,7 @@ class ActorNetwork(nn.Module):
         # # Apply attention to values for grids
         # env_e = torch.matmul(attention_weights, grid_V)
 
-        intru_e = self.surr_drone(state[2]).unsqueeze(0)
+        intru_e = self.surr_drone(state[2])
 
         # mask attention embedding for surrounding drones
         q = self.q(own_e)
@@ -176,10 +176,17 @@ class CriticNetwork(nn.Module):
         # critic_obs[1] is sum of all agent's observed grid maps
         # critic_obs[3] is sum of all agent's action taken
 
-
         self.sum_own_fc = nn.Sequential(nn.Linear(critic_obs[0]*n_agents, 256), nn.ReLU())  # may be here can be replaced with another attention mechanism
-        self.sum_env_fc = nn.Sequential(nn.Flatten(), nn.Linear(critic_obs[1]*n_agents, 256), nn.ReLU())
-        self.sum_sur_fc = nn.Sequential(nn.Linear(critic_obs[2]*n_agents, 256), nn.ReLU())
+        self.sum_env_fc = nn.Sequential(nn.Linear(critic_obs[1]*n_agents, 256), nn.ReLU())
+        # for surrounding agents' encoding, for each agent, we there are n-neighbours, each neighbour is represented by
+        # a vector of length = 6. Before we put into an experience replay, we pad it up to max_num_neigh * 6 array.
+        # so, one agent will have an array of max_num_neigh * 6, after flatten, then for one batch, there are a total of
+        # n_agents exist in the airspace, therefore, the final dimension will be max_num_neigh * 6 * max_num_neigh.
+        self.sum_sur_fc = nn.Sequential(nn.Linear(critic_obs[2]*n_agents*n_agents, 256), nn.ReLU())
+        # critic attention for overall sur_neighbours with overall own_state
+        self.sum_k = nn.Linear(256, 256, bias=False)
+        self.sum_q = nn.Linear(256, 256, bias=False)
+        self.sum_v = nn.Linear(256, 256, bias=False)
 
         self.n_heads = 3
         self.single_head_dim = int((256+256+256) / self.n_heads)
@@ -187,7 +194,6 @@ class CriticNetwork(nn.Module):
         self.com_q = nn.Linear(self.single_head_dim, self.single_head_dim, bias=False)
         self.com_v = nn.Linear(self.single_head_dim, self.single_head_dim, bias=False)
         self.multi_att_out = nn.Linear(self.n_heads * self.single_head_dim, 128)
-
 
         self.combine_own_env_fc = nn.Sequential(nn.Linear(256+256, 256), nn.ReLU())
 
@@ -207,30 +213,26 @@ class CriticNetwork(nn.Module):
         self.to(self.device)
 
     def forward(self, state, actor_obs):  # state[0] is sum of all agent's own observed states, state[1] is is sum of all agent's observed grid maps
-        # preprocess of the input data "state", may be shifted to other places
-        pre_own_e = torch.tensor(state[0], dtype=torch.float).view(-1, state[0].size).to(self.device)
-        sum_own_e = self.sum_own_fc(pre_own_e)
-        # preprocess: padding of env_state (for all element in the states)
-        for env_state in enumerate(state[1]):
-            tobePad_gridObs = list(np.zeros(actor_obs[1] - len(env_state[1]), dtype=int))
-            padded_gridObs = env_state[1] + tobePad_gridObs
-            state[1][env_state[0]] = padded_gridObs
-        pre_env_e = torch.tensor(np.array(state[1]), dtype=torch.float).view(-1, np.array(state[1]).size).to(self.device)
-        sum_env_e = self.sum_env_fc(pre_env_e)
-        # preprocess for surr neighbours
-        afterPro_surr_neigh = []
-        for single_sur_nei in enumerate(state[2]):
-            if len(single_sur_nei[1]) == 0:
-                padding_surNeigh = np.zeros((1,6))
-                afterPro_surr_neigh.append(padding_surNeigh)  # length of this depends on the total agent in the simulation
-            else:  # use attention to convert the nx6 to 1x32
-                # perform attention here; observation of the neighbor UAV vectors for individual agents
-                pass
-        # sur_nei is a horizontal stacking of the encoded vector of the neighboring UAV for the individual agents in the current environment
-        sur_nei = torch.tensor(np.array(afterPro_surr_neigh), dtype=torch.float).view(-1, np.array(afterPro_surr_neigh).size).to(self.device)
-        sum_sur_nei = self.sum_sur_fc(sur_nei)
-        critic_concat = torch.cat((sum_own_e, sum_env_e, sum_sur_nei), dim=1)
+        sum_own_e = self.sum_own_fc(state[0])
+        sum_env_e = self.sum_env_fc(state[1])
+        sum_sur_nei = self.sum_sur_fc(state[2])
 
+        # mask attention embedding
+        sum_query = self.sum_q(sum_own_e)
+        sum_key = self.sum_k(sum_sur_nei)
+        sum_value = self.sum_v(sum_sur_nei)
+        mask = state[2].mean(axis=2, keepdim=True).bool()
+        score = torch.bmm(sum_key, sum_query.transpose(1, 2))
+        score_mask = score.clone()  # clone操作很必要
+        score_mask[~mask] = float('-inf')  # 不然赋值操作后会无法计算梯度
+
+        alpha = F.softmax(score_mask / np.sqrt(sum_key.size(-1)), dim=1)
+        alpha_mask = alpha.clone()
+        alpha_mask[~mask] = 0
+        v_att = torch.sum(sum_value * alpha_mask, axis=1)
+
+        critic_concat = torch.cat((sum_own_e.squeeze(dim=1), sum_env_e.squeeze(dim=1), v_att), dim=1)
+        # perform self attention on concatenated
         raw_k = critic_concat
         raw_q = critic_concat
         raw_v = critic_concat

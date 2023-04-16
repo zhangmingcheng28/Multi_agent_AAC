@@ -24,7 +24,7 @@ import matplotlib
 import re
 import time
 from Utilities_V1 import sort_polygons, shapelypoly_to_matpoly, \
-    extract_individual_obs, map_range, compute_potential_conflict
+    extract_individual_obs, map_range, compute_potential_conflict, padding_list, preprocess_batch_for_critic_net
 import torch as T
 
 
@@ -51,10 +51,7 @@ class env_simulator:
         self.global_time = 0.0
         self.time_step = 0.5
         # prepare for output states
-        cur_ObsState = np.zeros((len(self.all_agents), 6))  # totalAgent * 6, 2D array
         overall_state = []
-        cur_ObsGrids = []
-        actor_obs = []
 
         #  custom agent position
         # x-bound: [0, 1800), y-bound: [0, 1300)
@@ -107,12 +104,9 @@ class env_simulator:
             # reset_world function we initialized both "surroundingNeighbor" and "pre_surroundingNeighbor" identically
             agent.pre_surroundingNeighbor = agent.surroundingNeighbor
 
-            # populate the output states
-            agent_own = [agent.pos[0], agent.pos[1], agent.goal[0][0], agent.goal[0][1], agent.vel[0], agent.vel[1]]
-            cur_ObsState[agent_idx, :] = agent_own
-            cur_ObsGrids.append(agent.observableSpace)
-            actor_obs.append(agent.surroundingNeighbor)
-            overall_state = [cur_ObsState, cur_ObsGrids, actor_obs]
+            # populate the output stateV2 overall_state is a list of length equals to total number of agents
+            agent_own = np.array([agent.pos[0], agent.pos[1], agent.goal[0][0], agent.goal[0][1], agent.vel[0], agent.vel[1]])
+            overall_state.append(np.array([agent_own, agent.observableSpace, agent.surroundingNeighbor], dtype=object))
 
         if show:
             os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
@@ -327,18 +321,18 @@ class env_simulator:
             goal_cur_intru_intersect = host_passed_volume.intersection(tar_circle)
             if not goal_cur_intru_intersect.is_empty:  # reached goal?
                 print("drone_{} has reached its goal at time step {}".format(drone_idx, current_ts))
-                done.append(1)
-                reward.append(reach_target)
+                done.append(True)
+                reward.append(np.array(reach_target))
             # exceed bound or crash into buildings or crash with other neighbors
             elif (self.all_agents[drone_idx].pos[0] <= self.bound[0] or self.all_agents[drone_idx].pos[0] >= self.bound[1] or
                   self.all_agents[drone_idx].pos[1] <= self.bound[2] or self.all_agents[drone_idx].pos[1] >= self.bound[3] or
                   collide_building == 1 or len(collision_drones) > 0):
-                reward.append(crash_penalty)
-                done.append(1)
+                reward.append(np.array(crash_penalty))
+                done.append(True)
                 if (collide_building == 0) or len(collision_drones) == 0:
                     print("drone_{} has crash into boundary at time step {}". format(drone_idx, current_ts))
             else:  # a normal step taken
-                done.append(0)
+                done.append(False)
                 crossCoefficient = 1
                 goalCoefficient = 6
                 # cross track error term
@@ -352,8 +346,11 @@ class env_simulator:
                     small_step_penalty = 50
                 else:
                     small_step_penalty = 0
-                # Try: Domino term also use as an indicator for agent to avoid other drones.
+                # Domino term also use as an indicator for agent to avoid other drones. so no need to specifically
+                # add an term to avoid surrounding drones
                 step_reward = crossCoefficient*cross_track_error + delta_hg + dominoTerm - small_step_penalty
+                # convert to arr
+                step_reward = np.array(step_reward)
                 reward.append(step_reward)
 
         return reward, done
@@ -423,19 +420,21 @@ class env_simulator:
                 agent_idx = None
                 raise ValueError('No number found in string')
             # update current agent's own state
-            agent_own = [agent.pos[0], agent.pos[1], agent.goal[0][0], agent.goal[0][1], agent.vel[0], agent.vel[1]]
-            cur_ObsState[agent_idx, :] = agent_own
+            # agent_own = [agent.pos[0], agent.pos[1], agent.goal[0][0], agent.goal[0][1], agent.vel[0], agent.vel[1]]
+            # cur_ObsState[agent_idx, :] = agent_own
+            agent_own = np.array([agent.pos[0], agent.pos[1], agent.goal[0][0], agent.goal[0][1], agent.vel[0], agent.vel[1]])
+
 
             # update current agent's observable space state
             agent.observableSpace = self.current_observable_space(agent)
-            cur_ObsGrids.append(agent.observableSpace)
+            #cur_ObsGrids.append(agent.observableSpace)
 
             # update the "surroundingNeighbor" attribute
             agent.surroundingNeighbor = self.get_current_agent_nei(agent, agentRefer_dict)
-            actor_obs.append(agent.surroundingNeighbor)
+            #actor_obs.append(agent.surroundingNeighbor)
 
             # populate overall state
-            next_combine_state = [cur_ObsState, cur_ObsGrids, actor_obs]
+            next_combine_state.append(np.array([agent_own, agent.observableSpace, agent.surroundingNeighbor], dtype=object))
 
 
 
@@ -518,21 +517,18 @@ class env_simulator:
         #     ax.cla()
         return next_combine_state
 
-    def central_learning(self, ReplayBuffer, batch_size):
+    def central_learning(self, ReplayBuffer, batch_size, maxIntruNum, intruFeature):
         critic_losses, actor_losses = [], []
-        cur_state, action, reward, next_state, done = ReplayBuffer.sample(batch_size)
+        cur_state, action, reward, next_state, done = ReplayBuffer.sample(batch_size, maxIntruNum, intruFeature, self.all_agents[0].max_grid_obs_dim)
 
-        actor_cur_state = []
-        actor_next_state = []
-        # spilt out the actor state from cur_state
-        # list of 5 for 5 agents, each list have another 3 list, inside each list, there is batch_size * feature_dim
-        for batch_element in cur_state:
-            actor_cur_state.append(batch_element[0])
+        device = self.all_agents[0].actorNet.device
 
-        # spilt out the actor state from next_state
-        for nxt_batch_element in next_state:
-            actor_next_state.append(nxt_batch_element[0])
+        # pre-process cur_state and next_state so that they can be used as input for every agent's critic network
+        cur_state_pre_processed = preprocess_batch_for_critic_net(cur_state, batch_size)
+        next_state_pre_processed = preprocess_batch_for_critic_net(next_state, batch_size)
 
+        # load action to tensor
+        action = T.tensor(action, dtype=T.float).to(device)
 
         # all these three different actions are needed to calculate the loss function
         all_agents_new_actions = []  # actions according to the target network for the new state
@@ -541,9 +537,55 @@ class env_simulator:
 
         for agent_idx, agent in self.all_agents.items():
             # actions according to the target network for the new state
-            new_states = T.tensor(actor_new_states[agent_idx], dtype=T.float).to(device)  # we need it to have batch_size * individual actor's feature size
-            new_pi = agent.target_actor.forward(new_states)
-            all_agents_new_actions.append(new_pi)
+            next_own = T.tensor(next_state[agent_idx][0], dtype=T.float).to(device)
+            next_grid = T.tensor(next_state[agent_idx][1], dtype=T.float).to(device)
+            next_nei = T.tensor(next_state[agent_idx][2], dtype=T.float).to(device)
+            agent_new_states = [next_own, next_grid, next_nei]
+
+            new_pi = agent.target_actorNet.forward(agent_new_states)  # individual agent's target network
+
+            all_agents_new_actions.append(new_pi)  # record actions generated by each agent's target network
+            # actions according to the regular actor network for the current state
+            cur_own = T.tensor(cur_state[agent_idx][0], dtype=T.float).to(device)
+            cur_grid = T.tensor(cur_state[agent_idx][1], dtype=T.float).to(device)
+            cur_nei = T.tensor(cur_state[agent_idx][2], dtype=T.float).to(device)
+            mu_states = [cur_own, cur_grid, cur_nei]
+
+            pi = agent.actorNet.forward(mu_states)  # using agent's predict network
+
+            all_agents_new_mu_actions.append(pi)
+            # record actions the agent actually took
+            old_agents_actions.append(action[agent_idx])
+
+        new_actions = T.cat([acts for acts in all_agents_new_actions], dim=1)  # batch_size X agent_num X action dim
+        mu = T.cat([acts for acts in all_agents_new_mu_actions], dim=1)
+        old_actions = T.cat([acts for acts in old_agents_actions], dim=1)
+
+        critic_losses = []
+        actor_losses = []
+        # handle cost function
+        for agent_idx, agent in self.all_agents.items():
+            in_order_count = 0
+
+            # squeeze() will remove all dimensions with size 1
+            # without squeeze() is 10x1x1, so is batch_number x 1 by 1 array.
+            # using individual agent's critic prediction network
+            # current Q estimate
+            critic_value = agent.criticNet.forward(cur_state_pre_processed, old_actions).squeeze()
+            # get target Q value for each agent
+            with T.no_grad():
+                # next_state_pre_processed is arranged in a way that, always from 1st agent to last agent and ...
+                # agent's idx is ignored, that's why they were stored in a list.
+                # hence, "for agent_idx, agent in self.all_agents.items():" is just to loop through all agents in order
+                # DO NOT use "agent_idx" as index, or else it will produce error, when add/remove agents are added.
+                # First line for critic_value_prime does not involved any individual agent's attributes
+                # because we using centralized critic
+                critic_value_prime = agent.target_criticNet.forward(next_state_pre_processed, new_actions).squeeze()
+                critic_value_prime[done[in_order_count].squeeze()] = 0.0
+                target = reward[:, in_order_count] + agent.gamma * critic_value_prime
+                in_order_count = in_order_count + 1
+                print("reached")
+
 
 
         return critic_losses, actor_losses  # These two losses will be recorded for each agent at each time step
