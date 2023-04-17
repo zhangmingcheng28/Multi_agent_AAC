@@ -24,7 +24,7 @@ import matplotlib
 import re
 import time
 from Utilities_V1 import sort_polygons, shapelypoly_to_matpoly, \
-    extract_individual_obs, map_range, compute_potential_conflict, padding_list, preprocess_batch_for_critic_net
+    extract_individual_obs, map_range, compute_potential_conflict, padding_list, preprocess_batch_for_critic_net, OUNoise
 import torch as T
 import torch.nn.functional as F
 
@@ -40,8 +40,11 @@ class env_simulator:
         self.time_step = 0.5  # in second as well
         self.all_agents = None
         self.cur_allAgentCoor_KD = None
+        self.OU_noise = None
 
     def create_world(self, total_agentNum, critic_obs, actor_obs, n_actions, actorNet_lr, criticNet_lr, gamma, tau):
+        # config OU_noise
+        self.OU_noise = OUNoise(n_actions)
         self.all_agents = {}
         for agent_i in range(total_agentNum):
             agent = Agent(actor_obs, critic_obs, n_actions, agent_i, total_agentNum, actorNet_lr, criticNet_lr, gamma, tau)
@@ -51,6 +54,8 @@ class env_simulator:
     def reset_world(self, show):  # set initialize position and observation for all agents
         self.global_time = 0.0
         self.time_step = 0.5
+        # reset OU_noise as well
+        self.OU_noise.reset()
         # prepare for output states
         overall_state = []
 
@@ -231,16 +236,31 @@ class env_simulator:
             outActions[agent_idx] = np.array([agent.vel[0], agent.vel[1]])
         return outActions, noCR
 
-    def get_actions_NN(self, combine_state):  # decentralized execution, only actor net is used here
+    def get_actions_NN(self, combine_state, eps):  # decentralized execution, only actor net is used here
         outActions = {}
         for agent_idx, agent in self.all_agents.items():
             # obtain the observation for each individual actor
             individual_obs = extract_individual_obs(combine_state, agent_idx)
+
             chosen_action = agent.choose_actions(individual_obs)
             # squeeze(0) is to remove the batch information
             # then convert to numpy
             chosen_action = chosen_action.squeeze(0).detach().numpy()
-            outActions[agent_idx] = chosen_action
+            chosen_action = chosen_action + self.OU_noise.noise()  # add noise for exploration
+
+            # update current sigma used for the exploration
+            self.OU_noise.sigma = self.OU_noise.largest_sigma * eps + (1 - eps) * self.OU_noise.smallest_sigma
+            outActions[agent_idx] = chosen_action  # load to output dict
+            # # # may in cooperate eps-greedy, it is used to slowly reduce the amount of noise added to the action
+            # if np.random.rand() < cur_eps:
+            #     pass
+            #     # take random action
+            # else:
+            #     chosen_action = agent.choose_actions(individual_obs)
+            #     # squeeze(0) is to remove the batch information
+            #     # then convert to numpy
+            #     chosen_action = chosen_action.squeeze(0).detach().numpy()
+            #     outActions[agent_idx] = chosen_action
         return outActions
 
     def get_step_reward(self, current_ts):  # this is for individual drones, current_ts = current time step

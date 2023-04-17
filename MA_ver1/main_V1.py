@@ -37,6 +37,11 @@ if __name__ == '__main__':
     n_actions = 2
     actorNet_lr = learning_rate
     criticNet_lr = learning_rate
+
+    # noise_parameter
+    largest_sigma = 0.5
+    minimum_sigma = 0.01
+
     # create agents, reset environment
     env.create_world(total_agentNum, critic_obs, actor_obs, n_actions, actorNet_lr, criticNet_lr, GAMMA, TAU)
 
@@ -107,16 +112,15 @@ if __name__ == '__main__':
     for i in range(n_episodes):
         episode_score = 0  # Each episode, this is a sum of rewards at individual step of a play
         trajectory_eachPlay = []
-
         cur_state = env.reset_world(show=0)
 
         for ts in range(max_t):  # steps inside an episode
-            print("Episode {}, current time step is {}".format(i, ts))
+            #print("Episode {}, current time step is {}".format(i, ts))
             #  get action, no CR is used, output is the velocity
             #  actions, noCR = env.get_actions_noCR(combine_state)
             start_action_time = time.time()
             #  get action with neural networks
-            actions = env.get_actions_NN(cur_state)
+            actions = env.get_actions_NN(cur_state, eps)
             # proceed with the environment step, should output the new / next combine_state
             # after moving one step, every single drone should re-scan their surroundings to ensure they have capture
             # change in their surrounding neighbor changes
@@ -141,6 +145,7 @@ if __name__ == '__main__':
 
             # recording of trajectory and score must before the "break" action, so that the collision
             # or goal reaching step can be recorded
+
             if 1 in done_aft_action:
                 # display trajectory of all agents in the environment
                 # os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
@@ -207,6 +212,11 @@ if __name__ == '__main__':
                 # plt.ylabel("Y axis")
                 # plt.show()
                 break  # terminate current episode.
+
+        # check eps decay
+        print("current episode is {}, current eps is {}, current sigma is {}".format(i, eps, env.OU_noise.sigma))
+        # compute eps-decay
+        eps = max(eps_end, eps - (eps_start - eps_end) / eps_period)
 
         # here onwards is end of an episode's play
         score_history.append(episode_score)

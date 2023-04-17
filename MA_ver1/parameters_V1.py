@@ -12,12 +12,12 @@ from env_simulator_V1 import env_simulator
 
 
 def initialize_parameters():
-    n_episodes = 500000
+    n_episodes = 5000
     max_t = 45
     eps_start = 1.0
     eps_end = 0.05  # The minimum number of epsilon
     #eps_decay = 0.99992
-    eps_period = 250000  # The number of steps needed for the epsilon to drop until the minimum number of the "eps_end"
+    eps_period = 3500  # The number of steps needed for the epsilon to drop until the minimum number of the "eps_end"
     eps = eps_start  # initialize epsilon
     agent_grid_obs = np.zeros((7, 7))
     agent_obs_dim = 6  # Vx, Vy, delta_Gx, delta_Gy, Acc_x, Acc_y
@@ -40,6 +40,3 @@ def initialize_parameters():
     bound = [xlow, xhigh, ylow, yhigh]
     env = env_simulator(staticEnv[0], staticEnv[1], staticEnv[2], bound, staticEnv[3])
     return n_episodes, max_t, eps_start, eps_end, eps_period, eps, env, agent_grid_obs, BUFFER_SIZE, BATCH_SIZE, GAMMA, TAU, learning_rate, UPDATE_EVERY, seed
-
-# if __name__ == '__main__':
-#     initialize_parameters()

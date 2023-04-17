@@ -3,9 +3,11 @@
   <component name="ChangeListManager">
     <list default="true" id="f4b70a76-8539-4f85-9a24-01358cebe64d" name="Changes" comment="Changes">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/MA_ver1/Multi_Agent_replaybuffer_V1.py" beforeDir="false" afterPath="$PROJECT_DIR$/MA_ver1/Multi_Agent_replaybuffer_V1.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/MA_ver1/Utilities_V1.py" beforeDir="false" afterPath="$PROJECT_DIR$/MA_ver1/Utilities_V1.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/MA_ver1/env_simulator_V1.py" beforeDir="false" afterPath="$PROJECT_DIR$/MA_ver1/env_simulator_V1.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/MA_ver1/main_V1.py" beforeDir="false" afterPath="$PROJECT_DIR$/MA_ver1/main_V1.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/MA_ver1/parameters_V1.py" beforeDir="false" afterPath="$PROJECT_DIR$/MA_ver1/parameters_V1.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/MA_ver1/test.py" beforeDir="false" afterPath="$PROJECT_DIR$/MA_ver1/test.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -39,7 +41,7 @@
     <property name="node.js.selected.package.tslint" value="(autodetect)" />
     <property name="settings.editor.selected.configurable" value="com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable" />
   </component>
-  <component name="RunManager" selected="Python.main_V1">
+  <component name="RunManager" selected="Python.OU_noise_test">
     <configuration name="Nnetworks" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="Multi_agent_AAC" />
       <option name="INTERPRETER_OPTIONS" value="" />
@@ -54,6 +56,28 @@
       <option name="ADD_SOURCE_ROOTS" value="true" />
       <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
       <option name="SCRIPT_NAME" value="$PROJECT_DIR$/MA_ver1/Nnetworks.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
+    <configuration name="OU_noise_test" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+      <module name="Multi_agent_AAC" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/MA_ver1" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/MA_ver1/OU_noise_test.py" />
       <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
@@ -106,7 +130,7 @@
       <option name="INPUT_FILE" value="" />
       <method v="2" />
     </configuration>
-    <configuration name="self-attention-test" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+    <configuration name="test" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="Multi_agent_AAC" />
       <option name="INTERPRETER_OPTIONS" value="" />
       <option name="PARENT_ENVS" value="true" />
@@ -119,29 +143,7 @@
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
       <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/MA_ver1/self-attention-test.py" />
-      <option name="PARAMETERS" value="" />
-      <option name="SHOW_COMMAND_LINE" value="false" />
-      <option name="EMULATE_TERMINAL" value="false" />
-      <option name="MODULE_MODE" value="false" />
-      <option name="REDIRECT_INPUT" value="false" />
-      <option name="INPUT_FILE" value="" />
-      <method v="2" />
-    </configuration>
-    <configuration name="test_transform" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
-      <module name="Multi_agent_AAC" />
-      <option name="INTERPRETER_OPTIONS" value="" />
-      <option name="PARENT_ENVS" value="true" />
-      <envs>
-        <env name="PYTHONUNBUFFERED" value="1" />
-      </envs>
-      <option name="SDK_HOME" value="" />
-      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/MA_ver1" />
-      <option name="IS_MODULE_SDK" value="true" />
-      <option name="ADD_CONTENT_ROOTS" value="true" />
-      <option name="ADD_SOURCE_ROOTS" value="true" />
-      <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/MA_ver1/test_transform.py" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/MA_ver1/test.py" />
       <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
@@ -153,10 +155,10 @@
     <recent_temporary>
       <list>
         <item itemvalue="Python.main_V1" />
+        <item itemvalue="Python.OU_noise_test" />
+        <item itemvalue="Python.test" />
         <item itemvalue="Python.mc_test" />
         <item itemvalue="Python.Nnetworks" />
-        <item itemvalue="Python.test_transform" />
-        <item itemvalue="Python.self-attention-test" />
       </list>
     </recent_temporary>
   </component>
@@ -173,7 +175,7 @@
       <workItem from="1678840494476" duration="73826000" />
       <workItem from="1679810023962" duration="13471000" />
       <workItem from="1680010370983" duration="3727000" />
-      <workItem from="1681624825221" duration="18465000" />
+      <workItem from="1681624825221" duration="31750000" />
     </task>
     <servers />
   </component>
@@ -196,16 +198,6 @@
     <breakpoint-manager>
       <breakpoints>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/MA_ver1/test.py</url>
-          <line>59</line>
-          <option name="timeStamp" value="46" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/MA_ver1/test.py</url>
-          <line>163</line>
-          <option name="timeStamp" value="81" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/MA_ver1/self-attention-test.py</url>
           <line>87</line>
           <option name="timeStamp" value="94" />
@@ -226,9 +218,14 @@
           <option name="timeStamp" value="149" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/MA_ver1/Utilities_V1.py</url>
-          <line>95</line>
-          <option name="timeStamp" value="321" />
+          <url>file://$PROJECT_DIR$/MA_ver1/test.py</url>
+          <line>67</line>
+          <option name="timeStamp" value="323" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/MA_ver1/OU_noise_test.py</url>
+          <line>59</line>
+          <option name="timeStamp" value="326" />
         </line-breakpoint>
       </breakpoints>
       <default-breakpoints>
@@ -241,13 +238,14 @@
     </breakpoint-manager>
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
-    <SUITE FILE_PATH="coverage/Multi_agent_AAC$test.coverage" NAME="test Coverage Results" MODIFIED="1679538415227" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/MA_ver1" />
+    <SUITE FILE_PATH="coverage/Multi_agent_AAC$test.coverage" NAME="test Coverage Results" MODIFIED="1681731830711" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/MA_ver1" />
     <SUITE FILE_PATH="coverage/Multi_agent_AAC$Nnetworks.coverage" NAME="Nnetworks Coverage Results" MODIFIED="1680071054929" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/MA_ver1" />
     <SUITE FILE_PATH="coverage/Multi_agent_AAC$env_simulator_V1.coverage" NAME="env_simulator_V1 Coverage Results" MODIFIED="1678435922267" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/MA_ver1" />
     <SUITE FILE_PATH="coverage/Multi_agent_AAC$self_attention_test.coverage" NAME="self-attention-test Coverage Results" MODIFIED="1679570279227" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/MA_ver1" />
     <SUITE FILE_PATH="coverage/Multi_agent_AAC$data_analysis.coverage" NAME="data_analysis Coverage Results" MODIFIED="1678935912879" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/data_analysis" />
     <SUITE FILE_PATH="coverage/Multi_agent_AAC$mc_test.coverage" NAME="mc_test Coverage Results" MODIFIED="1680155125085" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/MA_ver1" />
-    <SUITE FILE_PATH="coverage/Multi_agent_AAC$main_V1.coverage" NAME="main_V1 Coverage Results" MODIFIED="1681719077366" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/MA_ver1" />
+    <SUITE FILE_PATH="coverage/Multi_agent_AAC$OU_noise_test.coverage" NAME="OU_noise_test Coverage Results" MODIFIED="1681738716507" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/MA_ver1" />
+    <SUITE FILE_PATH="coverage/Multi_agent_AAC$main_V1.coverage" NAME="main_V1 Coverage Results" MODIFIED="1681741227429" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/MA_ver1" />
     <SUITE FILE_PATH="coverage/Multi_agent_AAC$test_transform.coverage" NAME="test_transform Coverage Results" MODIFIED="1679646150036" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/MA_ver1" />
   </component>
 </project>
