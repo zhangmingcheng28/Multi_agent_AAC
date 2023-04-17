@@ -93,8 +93,9 @@ def preprocess_batch_for_critic_net(input_state, batch_size):
         critic_grid_batched_cur_state.append(np.array(critic_own_grid_state).reshape((1, -1)))
         critic_neigh_batched_cur_state.append(np.array(critic_own_neigh_state).reshape((1, -1)))
 
-    cur_state_pre_processed = [T.tensor(critic_own_batched_cur_state), T.tensor(critic_grid_batched_cur_state),
-                               T.tensor(critic_neigh_batched_cur_state)]
+    cur_state_pre_processed = [T.tensor(np.array(critic_own_batched_cur_state)),
+                               T.tensor(np.array(critic_grid_batched_cur_state)),
+                               T.tensor(np.array(critic_neigh_batched_cur_state))]
     return cur_state_pre_processed
 
 

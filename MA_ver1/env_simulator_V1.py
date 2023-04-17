@@ -26,6 +26,7 @@ import time
 from Utilities_V1 import sort_polygons, shapelypoly_to_matpoly, \
     extract_individual_obs, map_range, compute_potential_conflict, padding_list, preprocess_batch_for_critic_net
 import torch as T
+import torch.nn.functional as F
 
 
 class env_simulator:
@@ -527,8 +528,10 @@ class env_simulator:
         cur_state_pre_processed = preprocess_batch_for_critic_net(cur_state, batch_size)
         next_state_pre_processed = preprocess_batch_for_critic_net(next_state, batch_size)
 
-        # load action to tensor
+        # load action, reward, done to tensor
         action = T.tensor(action, dtype=T.float).to(device)
+        reward = T.tensor(reward, dtype=T.float).to(device)
+        done = T.tensor(done).to(device)
 
         # all these three different actions are needed to calculate the loss function
         all_agents_new_actions = []  # actions according to the target network for the new state
@@ -551,7 +554,8 @@ class env_simulator:
             cur_nei = T.tensor(cur_state[agent_idx][2], dtype=T.float).to(device)
             mu_states = [cur_own, cur_grid, cur_nei]
 
-            pi = agent.actorNet.forward(mu_states)  # using agent's predict network
+            # using agent's predict network to generate action based off current states
+            pi = agent.actorNet.forward(mu_states)
 
             all_agents_new_mu_actions.append(pi)
             # record actions the agent actually took
@@ -561,17 +565,17 @@ class env_simulator:
         mu = T.cat([acts for acts in all_agents_new_mu_actions], dim=1)
         old_actions = T.cat([acts for acts in old_agents_actions], dim=1)
 
+        # These two losses are used to record overall losses for entire system at each learning step
         critic_losses = []
         actor_losses = []
+        in_order_count = 0
         # handle cost function
         for agent_idx, agent in self.all_agents.items():
-            in_order_count = 0
-
             # squeeze() will remove all dimensions with size 1
             # without squeeze() is 10x1x1, so is batch_number x 1 by 1 array.
             # using individual agent's critic prediction network
-            # current Q estimate
-            critic_value = agent.criticNet.forward(cur_state_pre_processed, old_actions).squeeze()
+            # current Q estimate, shape is batch_size X 1
+            critic_value = agent.criticNet.forward(cur_state_pre_processed, old_actions).squeeze(1)
             # get target Q value for each agent
             with T.no_grad():
                 # next_state_pre_processed is arranged in a way that, always from 1st agent to last agent and ...
@@ -579,16 +583,32 @@ class env_simulator:
                 # hence, "for agent_idx, agent in self.all_agents.items():" is just to loop through all agents in order
                 # DO NOT use "agent_idx" as index, or else it will produce error, when add/remove agents are added.
                 # First line for critic_value_prime does not involved any individual agent's attributes
-                # because we using centralized critic
-                critic_value_prime = agent.target_criticNet.forward(next_state_pre_processed, new_actions).squeeze()
-                critic_value_prime[done[in_order_count].squeeze()] = 0.0
-                target = reward[:, in_order_count] + agent.gamma * critic_value_prime
+                # because we using centralized critic, shape is batch_size X 1
+                critic_value_prime = agent.target_criticNet.forward(next_state_pre_processed, new_actions).squeeze(1)
+                critic_value_prime[done[in_order_count]] = 0.0
+                target = reward[in_order_count] + agent.gamma * critic_value_prime
                 in_order_count = in_order_count + 1
-                print("reached")
 
+            # calculate critic loss for each agent
+            critic_loss = F.mse_loss(critic_value, target)
+            # optimization
+            agent.criticNet.optimizer.zero_grad()
+            critic_loss.backward()
+            agent.criticNet.optimizer.step()
 
+            # actor loss
+            actor_loss = agent.criticNet.forward(cur_state_pre_processed, mu).squeeze()
+            actor_loss = -T.mean(actor_loss)
+            # actor optimization
+            agent.actorNet.optimizer.zero_grad()
+            actor_loss.backward(retain_graph=True)
+            # actor_loss.backward()
+            agent.actorNet.optimizer.step()
 
-        return critic_losses, actor_losses  # These two losses will be recorded for each agent at each time step
+            agent.update_network_parameters()
+            critic_losses.append(critic_loss)
+            actor_losses.append(actor_loss)
+        return critic_losses, actor_losses
 
 
 

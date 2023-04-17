@@ -91,8 +91,10 @@ class MultiAgentReplayBuffer:
                                     np.array(sur_nei_batch, dtype=np.float32)])
             elif indicator == 1:
                 batched_exp.append(np.array(oneAgent_other_batch, dtype=np.float32))
-            else:
+            elif indicator == 2:
                 batched_exp.append(np.array(oneAgent_other_batch, dtype=np.float32).reshape(-1, 1))
+            else:  # for indicator = 3
+                batched_exp.append(np.array(oneAgent_other_batch).reshape(-1, 1))
         return batched_exp
 
 
