@@ -26,6 +26,7 @@ import time
 from Utilities_V1 import sort_polygons, shapelypoly_to_matpoly, \
     extract_individual_obs, map_range, compute_potential_conflict, padding_list, preprocess_batch_for_critic_net, OUNoise
 import torch as T
+import torch
 import torch.nn.functional as F
 
 
@@ -251,16 +252,7 @@ class env_simulator:
             # update current sigma used for the exploration
             self.OU_noise.sigma = self.OU_noise.largest_sigma * eps + (1 - eps) * self.OU_noise.smallest_sigma
             outActions[agent_idx] = chosen_action  # load to output dict
-            # # # may in cooperate eps-greedy, it is used to slowly reduce the amount of noise added to the action
-            # if np.random.rand() < cur_eps:
-            #     pass
-            #     # take random action
-            # else:
-            #     chosen_action = agent.choose_actions(individual_obs)
-            #     # squeeze(0) is to remove the batch information
-            #     # then convert to numpy
-            #     chosen_action = chosen_action.squeeze(0).detach().numpy()
-            #     outActions[agent_idx] = chosen_action
+
         return outActions
 
     def get_step_reward(self, current_ts):  # this is for individual drones, current_ts = current time step
@@ -549,9 +541,9 @@ class env_simulator:
         next_state_pre_processed = preprocess_batch_for_critic_net(next_state, batch_size)
 
         # load action, reward, done to tensor
-        action = T.tensor(action, dtype=T.float).to(device)
-        reward = T.tensor(reward, dtype=T.float).to(device)
-        done = T.tensor(done).to(device)
+        action = T.tensor(np.array(action), dtype=T.float).to(device)
+        reward = T.tensor(np.array(reward), dtype=T.float).to(device)
+        done = T.tensor(np.array(done)).to(device)
 
         # all these three different actions are needed to calculate the loss function
         all_agents_new_actions = []  # actions according to the target network for the new state
@@ -629,6 +621,21 @@ class env_simulator:
             critic_losses.append(critic_loss)
             actor_losses.append(actor_loss)
         return critic_losses, actor_losses
+
+    def save_model_actor_net(self, file_path):
+        if not os.path.exists(file_path):
+            os.makedirs(file_path)
+        # only actor net is required to be saved, because when evaluation, only actor network is required
+        for agent_idx, agent_obj in self.all_agents.items():
+            torch.save(agent_obj.actorNet.state_dict(), file_path + '/' +agent_obj.agent_name + 'actor_net')
+            # torch.save(agent_obj.target_actorNet.state_dict(), file_path + '/' +agent_obj.agent_name + 'target_actor_net')
+            # torch.save(agent_obj.criticNet.state_dict(), file_path + '/' +agent_obj.agent_name + 'critic_net')
+            # torch.save(agent_obj.target_criticNet.state_dict(), file_path + '/' +agent_obj.agent_name + 'target_critic_net')
+
+
+
+
+
 
 
 

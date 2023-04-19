@@ -6,6 +6,7 @@
 @Description: 
 @Package dependency:
 """
+import csv
 from parameters_V1 import initialize_parameters
 from Multi_Agent_replaybuffer_V1 import MultiAgentReplayBuffer
 from shapely.geometry import LineString, Point, Polygon
@@ -15,10 +16,12 @@ import matplotlib.pyplot as plt
 import matplotlib
 from matplotlib.transforms import Affine2D
 import pickle
+import numpy as np
 from matplotlib.markers import MarkerStyle
 import math
 import time
 import random
+import datetime
 from Utilities_V1 import sort_polygons, shapelypoly_to_matpoly, \
     extract_individual_obs, map_range, compute_potential_conflict
 
@@ -49,10 +52,18 @@ if __name__ == '__main__':
     actor_dims = 3  # A list of 3 list, each 1st list has length 3, 2nd has length 20, 3rd has length 6
     critic_dims = total_agentNum * actor_dims  # critic is centralized, so we combine dim of all agents
     ReplayBuffer = MultiAgentReplayBuffer(BUFFER_SIZE, actor_dims, critic_dims, total_agentNum, n_actions, batch_size=BATCH_SIZE)
-    print("time to initiate is {}".format(time.time()-start_time))
+    #print("time to initiate is {}".format(time.time()-start_time))
     score_history = []
     Trajectory_history = []
 
+    # simulation result saving
+    today = datetime.date.today()
+    current_date = today.strftime("%d%m%y")
+    saveSimulationRoot = 'D:\MADDPG_2nd_jp/'+str(current_date)
+    file_name = saveSimulationRoot + '/first_run'
+    if not os.path.exists(file_name):
+        os.makedirs(file_name)
+    score_best_avg = float("-inf")
     # simulation / episode start
 
     # # critic network test
@@ -213,6 +224,8 @@ if __name__ == '__main__':
                 # plt.show()
                 break  # terminate current episode.
 
+
+
         # check eps decay
         print("current episode is {}, current eps is {}, current sigma is {}".format(i, eps, env.OU_noise.sigma))
         # compute eps-decay
@@ -222,5 +235,31 @@ if __name__ == '__main__':
         score_history.append(episode_score)
         Trajectory_history.append(trajectory_eachPlay)
 
+        # save all the trajectory history
+        with open(file_name+'all_episode_trajectory.pickle', 'wb') as handle:
+            pickle.dump(Trajectory_history, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+        # save episodes reward for entire system
+        with open(file_name+'episodes_reward.csv', 'w') as f:
+            write = csv.writer(f)
+            write.writerows([score_history])
+
+        # save episodes loss for entire system
+        with open(file_name+'episodes_loss.csv', 'w') as f:
+            write = csv.writer(f)
+            write.writerows([])
+
+        # get average score for the past 100 episode
+        score_avg = np.mean(score_history[-100:])
+        if score_avg > score_best_avg:
+            # save best average score check point
+            score_best_avg = score_avg
+            # save actor's model when best average appears model
+            env.save_model_actor_net(file_name)
+
+        # save the models at a predefined interval
+        if (i+1) % 100 == 0:
+            env.save_model_actor_net(file_name+'/interval_record')
+            print('episode', i, 'average score {:.1f}'.format(score_avg))
     print('done')
 

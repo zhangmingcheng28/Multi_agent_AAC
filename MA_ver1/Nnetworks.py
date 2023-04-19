@@ -164,6 +164,7 @@ class ActorNetwork(nn.Module):
 
         return action_out
 
+
 class CriticNetwork(nn.Module):
     def __init__(self, critic_lr, critic_obs, n_agents, n_actions, name):
         super(CriticNetwork, self).__init__()
