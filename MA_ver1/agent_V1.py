@@ -44,6 +44,8 @@ class Agent:
         self.pre_surroundingNeighbor = {}
         self.surroundingNeighbor = {}
         self.observableSpace = []
+        self.target_update_step = None
+        self.update_count = 0
 
     def choose_actions(self, observation):
         actions = None

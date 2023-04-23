@@ -7,6 +7,7 @@
 @Package dependency:
 """
 import csv
+import wandb
 from parameters_V1 import initialize_parameters
 from Multi_Agent_replaybuffer_V1 import MultiAgentReplayBuffer
 from shapely.geometry import LineString, Point, Polygon
@@ -25,6 +26,7 @@ import datetime
 from Utilities_V1 import sort_polygons, shapelypoly_to_matpoly, \
     extract_individual_obs, map_range, compute_potential_conflict
 
+# NOTE change batch_size and change update rate, update count go with agent class
 if __name__ == '__main__':
     start_time = time.time()
     # initialize parameters
@@ -46,7 +48,7 @@ if __name__ == '__main__':
     minimum_sigma = 0.01
 
     # create agents, reset environment
-    env.create_world(total_agentNum, critic_obs, actor_obs, n_actions, actorNet_lr, criticNet_lr, GAMMA, TAU)
+    env.create_world(total_agentNum, critic_obs, actor_obs, n_actions, actorNet_lr, criticNet_lr, GAMMA, TAU, UPDATE_EVERY)
 
     # initialized memory replay
     actor_dims = 3  # A list of 3 list, each 1st list has length 3, 2nd has length 20, 3rd has length 6
@@ -59,11 +61,28 @@ if __name__ == '__main__':
     # simulation result saving
     today = datetime.date.today()
     current_date = today.strftime("%d%m%y")
-    saveSimulationRoot = 'D:\MADDPG_2nd_jp/'+str(current_date)
-    file_name = saveSimulationRoot + '/first_run'
+    file_name = 'D:\MADDPG_2nd_jp/' + str(current_date)
     if not os.path.exists(file_name):
         os.makedirs(file_name)
+    plot_file_name = file_name + '/toplot'
+    if not os.path.exists(plot_file_name):
+        os.makedirs(plot_file_name)
+
+    wandb.init(
+        # set the wandb project where this run will be logged
+        project="MADDPG_fixedDroneNum_env",
+        name='MADDPG_test',
+        # track hyperparameters and run metadata
+        config={
+            "learning_rate": learning_rate,
+            "epochs": n_episodes,
+        }
+    )
+
     score_best_avg = float("-inf")
+    actor_losses = None
+    critic_losses = None
+
     # simulation / episode start
 
     # # critic network test
@@ -142,7 +161,7 @@ if __name__ == '__main__':
             # add current play result to experience replay
             ReplayBuffer.add(cur_state, actions, reward_aft_action, next_state, done_aft_action)
             if len(ReplayBuffer.memory) >= BATCH_SIZE:
-                critic_losses, actor_losses = env.central_learning(ReplayBuffer, BATCH_SIZE, total_agentNum, actor_obs[2])
+                critic_losses, actor_losses = env.central_learning(ReplayBuffer, BATCH_SIZE, total_agentNum, actor_obs[2], UPDATE_EVERY)
 
             # record reward each step
             episode_score = episode_score + sum(reward_aft_action)
@@ -235,19 +254,28 @@ if __name__ == '__main__':
         score_history.append(episode_score)
         Trajectory_history.append(trajectory_eachPlay)
 
-        # save all the trajectory history
-        with open(file_name+'all_episode_trajectory.pickle', 'wb') as handle:
-            pickle.dump(Trajectory_history, handle, protocol=pickle.HIGHEST_PROTOCOL)
-
         # save episodes reward for entire system
-        with open(file_name+'episodes_reward.csv', 'w') as f:
+        with open(plot_file_name+'/episodes_reward.csv', 'w+') as f:
             write = csv.writer(f)
             write.writerows([score_history])
+        wandb.log({'overall_reward': float(episode_score)})
+
+        # save all the trajectory history
+        with open(plot_file_name+'/all_episode_trajectory.pickle', 'wb') as handle:
+            pickle.dump(Trajectory_history, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
         # save episodes loss for entire system
-        with open(file_name+'episodes_loss.csv', 'w') as f:
-            write = csv.writer(f)
-            write.writerows([])
+        if (actor_losses != None) & (critic_losses != None):
+            for individual_actor, individual_critic, agent_obj in zip(actor_losses, critic_losses, env.all_agents.values()):
+                with open(plot_file_name + '/' + agent_obj.agent_name + 'actor_loss.csv', 'w') as f:
+                    write = csv.writer(f)
+                    write.writerows([[float(individual_actor)]])
+                    # log metrics to wandb
+                    wandb.log({agent_obj.agent_name + 'actor_loss': float(individual_actor)})
+                with open(plot_file_name + '/' + agent_obj.agent_name + 'critic_loss.csv', 'w') as f:
+                    write = csv.writer(f)
+                    write.writerows([[float(individual_critic)]])
+                    wandb.log({agent_obj.agent_name + 'critic_loss': float(individual_critic)})
 
         # get average score for the past 100 episode
         score_avg = np.mean(score_history[-100:])
@@ -259,7 +287,9 @@ if __name__ == '__main__':
 
         # save the models at a predefined interval
         if (i+1) % 100 == 0:
-            env.save_model_actor_net(file_name+'/interval_record')
+            env.save_model_actor_net(file_name+'/interval_record_eps_'+str(i))
             print('episode', i, 'average score {:.1f}'.format(score_avg))
     print('done')
+    # [optional] finish the wandb run, necessary in notebooks
+    wandb.finish()
 

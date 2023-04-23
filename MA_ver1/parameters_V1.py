@@ -22,14 +22,14 @@ def initialize_parameters():
     agent_grid_obs = np.zeros((7, 7))
     agent_obs_dim = 6  # Vx, Vy, delta_Gx, delta_Gy, Acc_x, Acc_y
     BUFFER_SIZE = int(1e6)  # replay buffer size
-    BATCH_SIZE = 10  # minibatch size, changed to 16 in V7
+    BATCH_SIZE = 32  # minibatch size, changed to 16 in V7
     GAMMA = 0.99  # discount factor
     TAU = 1e-3  # for soft update of target parameters, 0.001, so 99.9% of the weights in the target network is
     learning_rate = 1e-5  # learning rate, previous = 0.0005 or 5e-4, now changed to 0.002
-    UPDATE_EVERY = 50  # how often to update the network
+    UPDATE_EVERY = 5  # how often to update the network
     # generate static env from shape file
-    # shapePath = 'D:\deep_Q_learning\lakesideMap\lakeSide.shp'
-    shapePath = 'F:\githubClone\deep_Q_learning\DQN_new_framework\lakesideMap\lakeSide.shp'
+    shapePath = 'D:\deep_Q_learning\DQN_new_framework\lakesideMap\lakeSide.shp'
+    # shapePath = 'F:\githubClone\deep_Q_learning\DQN_new_framework\lakesideMap\lakeSide.shp'
     staticEnv = env_generation(shapePath)  # it is a tuple of 4 element, 1st is the 2D binary array of the filled map, 2nd is the list of all buildings expressed as polygons, 3rd is the gird length, last is list of square grids in the map that has overlapped with the building polygons.
     seed = 3407  # this seed is only used for torch manuel.seed
     # set boundary

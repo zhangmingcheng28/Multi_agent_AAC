@@ -43,12 +43,13 @@ class env_simulator:
         self.cur_allAgentCoor_KD = None
         self.OU_noise = None
 
-    def create_world(self, total_agentNum, critic_obs, actor_obs, n_actions, actorNet_lr, criticNet_lr, gamma, tau):
+    def create_world(self, total_agentNum, critic_obs, actor_obs, n_actions, actorNet_lr, criticNet_lr, gamma, tau, target_update):
         # config OU_noise
         self.OU_noise = OUNoise(n_actions)
         self.all_agents = {}
         for agent_i in range(total_agentNum):
             agent = Agent(actor_obs, critic_obs, n_actions, agent_i, total_agentNum, actorNet_lr, criticNet_lr, gamma, tau)
+            agent.target_update_step = target_update
             self.all_agents[agent_i] = agent
         global_state = self.reset_world(show=0)
 
@@ -63,8 +64,8 @@ class env_simulator:
         #  custom agent position
         # x-bound: [0, 1800), y-bound: [0, 1300)
         # read the Excel file into a pandas dataframe
-        df = pd.read_excel(r'F:\githubClone\Multi_agent_AAC\MA_ver1\fixedDrone.xlsx')
-        # df = pd.read_excel(r'D:\Multi_agent_AAC\MA_ver1\fixedDrone.xlsx')
+        # df = pd.read_excel(r'F:\githubClone\Multi_agent_AAC\MA_ver1\fixedDrone.xlsx')
+        df = pd.read_excel(r'D:\Multi_agent_AAC\MA_ver1\fixedDrone.xlsx')
         # convert the dataframe to a NumPy array
         custom_agent_data = np.array(df)
         custom_agent_data = custom_agent_data.astype(float)
@@ -530,7 +531,7 @@ class env_simulator:
         #     ax.cla()
         return next_combine_state
 
-    def central_learning(self, ReplayBuffer, batch_size, maxIntruNum, intruFeature):
+    def central_learning(self, ReplayBuffer, batch_size, maxIntruNum, intruFeature, UPDATE_EVERY):
         critic_losses, actor_losses = [], []
         cur_state, action, reward, next_state, done = ReplayBuffer.sample(batch_size, maxIntruNum, intruFeature, self.all_agents[0].max_grid_obs_dim)
 
@@ -594,8 +595,8 @@ class env_simulator:
                 # agent's idx is ignored, that's why they were stored in a list.
                 # hence, "for agent_idx, agent in self.all_agents.items():" is just to loop through all agents in order
                 # DO NOT use "agent_idx" as index, or else it will produce error, when add/remove agents are added.
-                # First line for critic_value_prime does not involved any individual agent's attributes
-                # because we using centralized critic, shape is batch_size X 1
+                # First line for critic_value_prime did not involve any individual agent's attributes
+                # because we are using centralized critic, shape is batch_size X 1
                 critic_value_prime = agent.target_criticNet.forward(next_state_pre_processed, new_actions).squeeze(1)
                 critic_value_prime[done[in_order_count]] = 0.0
                 target = reward[in_order_count] + agent.gamma * critic_value_prime
@@ -617,9 +618,15 @@ class env_simulator:
             # actor_loss.backward()
             agent.actorNet.optimizer.step()
 
-            agent.update_network_parameters()
+            agent.update_count = agent.update_count + 1
+            if agent.update_count == agent.target_update_step:
+                agent.update_network_parameters()  # soft-update is used here
+                print("{} network updated".format(agent.agent_name))
+                agent.update_count = 0  # reset update count
+
             critic_losses.append(critic_loss)
             actor_losses.append(actor_loss)
+
         return critic_losses, actor_losses
 
     def save_model_actor_net(self, file_path):
