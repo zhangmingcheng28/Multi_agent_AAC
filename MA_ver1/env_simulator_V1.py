@@ -223,7 +223,7 @@ class env_simulator:
                 currentObservableState.append(occupied_building_val)
             else:
                 currentObservableState.append(non_occupied_val)
-        # currently we using arranged polygonSet and 1D array
+        # currently we are using arranged polygonSet and 1D array
         return currentObservableState
 
     def get_actions_noCR(self, combine_state):
@@ -300,7 +300,7 @@ class env_simulator:
                                                       self.all_agents[neigh_keys].protectiveBound, neigh_keys,
                                                       current_ts)
 
-                # check whether the current drone has collide with any surrounding neighbors due to current action
+                # check whether the current drone has collides with any surrounding neighbors due to current action
                 neigh_pass_line = LineString([self.all_agents[neigh_keys].pre_pos, self.all_agents[neigh_keys].pos])
                 neigh_passed_volume = neigh_pass_line.buffer(self.all_agents[neigh_keys].protectiveBound,
                                                              cap_style='round')
@@ -361,7 +361,7 @@ class env_simulator:
                 else:
                     small_step_penalty = 0
                 # Domino term also use as an indicator for agent to avoid other drones. so no need to specifically
-                # add an term to avoid surrounding drones
+                # add a term to avoid surrounding drones
                 step_reward = crossCoefficient*cross_track_error + delta_hg + dominoTerm - small_step_penalty
                 # convert to arr
                 step_reward = np.array(step_reward)
@@ -549,7 +549,7 @@ class env_simulator:
         # all these three different actions are needed to calculate the loss function
         all_agents_new_actions = []  # actions according to the target network for the new state
         all_agents_new_mu_actions = []  # actions according to the regular actor network for the current state
-        old_agents_actions = []  # actions the agent actually tooks
+        old_agents_actions = []  # actions the agent actually took
 
         for agent_idx, agent in self.all_agents.items():
             # actions according to the target network for the new state

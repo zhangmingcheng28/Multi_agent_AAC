@@ -61,7 +61,9 @@ if __name__ == '__main__':
     # simulation result saving
     today = datetime.date.today()
     current_date = today.strftime("%d%m%y")
-    file_name = 'D:\MADDPG_2nd_jp/' + str(current_date)
+    current_time = datetime.datetime.now()
+    formatted_time = current_time.strftime("%H_%M_%S")
+    file_name = 'D:\MADDPG_2nd_jp/' + str(current_date) + '_' + str(formatted_time)
     if not os.path.exists(file_name):
         os.makedirs(file_name)
     plot_file_name = file_name + '/toplot'
@@ -71,7 +73,7 @@ if __name__ == '__main__':
     wandb.init(
         # set the wandb project where this run will be logged
         project="MADDPG_fixedDroneNum_env",
-        name='MADDPG_test',
+        name='MADDPG_test_'+str(current_date)+ '_' + str(formatted_time),
         # track hyperparameters and run metadata
         config={
             "learning_rate": learning_rate,
