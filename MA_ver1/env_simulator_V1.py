@@ -249,10 +249,17 @@ class env_simulator:
             # then convert to numpy
             chosen_action = chosen_action.squeeze(0).detach().numpy()
             chosen_action = chosen_action + self.OU_noise.noise()  # add noise for exploration
+            # clip the action
+            for ea_idx, ea_a in enumerate(chosen_action[0]):
+                if ea_a < -1:
+                    chosen_action[0][ea_idx] = -1
+                if ea_a > 1:
+                    chosen_action[0][ea_idx] = 1
 
             # update current sigma used for the exploration
             self.OU_noise.sigma = self.OU_noise.largest_sigma * eps + (1 - eps) * self.OU_noise.smallest_sigma
             outActions[agent_idx] = chosen_action  # load to output dict
+
 
         return outActions
 

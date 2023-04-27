@@ -1,0 +1,4 @@
+D:\anaconda\envs\d2l_39\lib\site-packages\shapely\set_operations.py:133: RuntimeWarning: invalid value encountered in intersection
+  return lib.intersection(a, b, **kwargs)
+drone_4 crash into building when moving from [496.44398061 328.72948245] to [502.68464405 325.94309258] at time step 6
+drone_4 has crash into boundary at time step 6

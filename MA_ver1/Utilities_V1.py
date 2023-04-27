@@ -10,6 +10,11 @@ from matplotlib.patches import Polygon as matPolygon
 import torch as T
 import numpy as np
 import torch
+import os
+import matplotlib
+import matplotlib.pyplot as plt
+from shapely.strtree import STRtree
+from shapely.geometry import LineString, Point, Polygon
 
 
 def sort_polygons(polygons):  # this sorting is left to right, but bottom to top. so, 0th is below 2nd. [[2,3],
@@ -157,25 +162,49 @@ def WeightedNoise(action, noise_scale, action_type):
                 1 - noise_scale) * action.detach().numpy()  # take a weighted average with noise_scale as the noise weight
     return torch.tensor(action).float()
 
-def neighbour_preprocess(neighbor_info, neighbor_feature):
-    if len(neighbor_info) == 0:
-        zero_tensor = T.zeros((1, neighbor_feature))  # 1x6 zero vector
-        # when actor is picking an action, we only use actor's own observation + own grid_observation
-        # + neighbors observation, if there is no neighbor detected, we use all zero vector to represent
-        actions = self.actorNet.forward([ownObs, onwGridObs, zero_tensor])
-    else:
-        # handle n x 6
-        neigh_arr = np.zeros((len(self.surroundingNeighbor), ownObs.shape[1]))
-        # # ----------------------------------------------------------------------- # #
-        # # to do: surrounding neighbour arrange in a way nearest neighbor at 1st or last  # #
-        # # ------------------------------------------------------------------------# #
-        for neigh_obs_idx, dict_keys in enumerate(
-                self.surroundingNeighbor):  # loop through the dictionary in order, top first
-            neigh_arr[neigh_obs_idx, :] = self.surroundingNeighbor[dict_keys]
-        neigh_Obs = T.from_numpy(neigh_arr).float().to(self.actorNet.device)
-        actions = self.actorNet.forward([ownObs, onwGridObs, neigh_Obs])
+def display_trajectory(cur_env, combined_trajectory):
+    episode_to_show = 4999
+    episode_steps = combined_trajectory[episode_to_show]
+    os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
+    matplotlib.use('TkAgg')
+    fig, ax = plt.subplots(1, 1)
+    # draw link towards destination for all drones, destination for each drone didn't change
+    for eachAgent_link in episode_steps[0]:
+        plt.plot([eachAgent_link[0], eachAgent_link[2]],
+                 [eachAgent_link[1], eachAgent_link[3]], '--', color='c')
 
+    for step_idx, agents_traj in enumerate(episode_steps):
+        for ea_idx, each_agent in enumerate(agents_traj):
+            # plot self_circle of the drone
+            self_circle = Point(each_agent[0], each_agent[1]).buffer(2.5, cap_style='round')
+            grid_mat_Scir = shapelypoly_to_matpoly(self_circle, False, 'k')
+            # label drone time step for the position
+            plt.text(each_agent[0], each_agent[1], str(ea_idx))
+            plt.text(each_agent[0]+5, each_agent[1], str(step_idx))
+            ax.add_patch(grid_mat_Scir)
 
+    # draw occupied_poly
+    for one_poly in cur_env.world_map_2D_polyList[0][0]:
+        one_poly_mat = shapelypoly_to_matpoly(one_poly, True, 'y', 'b')
+        ax.add_patch(one_poly_mat)
+    # draw non-occupied_poly
+    for zero_poly in cur_env.world_map_2D_polyList[0][1]:
+        zero_poly_mat = shapelypoly_to_matpoly(zero_poly, False, 'y')
+        # ax.add_patch(zero_poly_mat)
 
+    # show building obstacles
+    for poly in cur_env.buildingPolygons:
+        matp_poly = shapelypoly_to_matpoly(poly, False, 'red')  # the 3rd parameter is the edge color
+        ax.add_patch(matp_poly)
 
+    plt.axis('equal')
+    plt.xlim(cur_env.bound[0], cur_env.bound[1])
+    plt.ylim(cur_env.bound[2], cur_env.bound[3])
+    plt.axvline(x=cur_env.bound[0], c="green")
+    plt.axvline(x=cur_env.bound[1], c="green")
+    plt.axhline(y=cur_env.bound[2], c="green")
+    plt.axhline(y=cur_env.bound[3], c="green")
+    plt.xlabel("X axis")
+    plt.ylabel("Y axis")
+    plt.show()
 

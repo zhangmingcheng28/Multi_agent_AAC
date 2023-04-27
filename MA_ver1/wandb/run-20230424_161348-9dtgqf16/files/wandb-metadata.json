@@ -1,0 +1,50 @@
+{
+    "os": "Windows-10-10.0.19044-SP0",
+    "python": "3.9.16",
+    "heartbeatAt": "2023-04-24T08:13:49.957719",
+    "startedAt": "2023-04-24T08:13:48.777516",
+    "docker": null,
+    "cuda": null,
+    "args": [],
+    "state": "running",
+    "program": "D:\\Multi_agent_AAC\\MA_ver1\\main_V1.py",
+    "codePath": "MA_ver1\\main_V1.py",
+    "git": {
+        "remote": "https://github.com/zhangmingcheng28/Multi_agent_AAC.git",
+        "commit": "025ad6c96c4ca52e9fee8f5c1bfa9558880492ba"
+    },
+    "email": "zhangmingcheng28@hotmail.com",
+    "root": "D:/Multi_agent_AAC",
+    "host": "DESKTOP-GADD1BP",
+    "username": "zhang",
+    "executable": "D:\\anaconda\\envs\\d2l_39\\python.exe",
+    "cpu_count": 14,
+    "cpu_count_logical": 20,
+    "cpu_freq": {
+        "current": 2300.0,
+        "min": 0.0,
+        "max": 2300.0
+    },
+    "cpu_freq_per_core": [
+        {
+            "current": 2300.0,
+            "min": 0.0,
+            "max": 2300.0
+        }
+    ],
+    "disk": {
+        "total": 585.9365196228027,
+        "used": 503.89013290405273
+    },
+    "gpu": "NVIDIA GeForce RTX 3060 Laptop GPU",
+    "gpu_count": 1,
+    "gpu_devices": [
+        {
+            "name": "NVIDIA GeForce RTX 3060 Laptop GPU",
+            "memory_total": 6442450944
+        }
+    ],
+    "memory": {
+        "total": 15.692127227783203
+    }
+}

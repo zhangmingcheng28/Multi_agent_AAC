@@ -24,7 +24,7 @@ import time
 import random
 import datetime
 from Utilities_V1 import sort_polygons, shapelypoly_to_matpoly, \
-    extract_individual_obs, map_range, compute_potential_conflict
+    extract_individual_obs, map_range, compute_potential_conflict, display_trajectory
 
 # NOTE change batch_size and change update rate, update count go with agent class
 if __name__ == '__main__':
@@ -57,6 +57,7 @@ if __name__ == '__main__':
     #print("time to initiate is {}".format(time.time()-start_time))
     score_history = []
     Trajectory_history = []
+    Trajectory_action_record = []
 
     # simulation result saving
     today = datetime.date.today()
@@ -70,10 +71,16 @@ if __name__ == '__main__':
     if not os.path.exists(plot_file_name):
         os.makedirs(plot_file_name)
 
+    # # get navigate to plot file and load pickle
+    # with open(r'D:\MADDPG_2nd_jp\230423_16_31_01\toplot\all_episode_trajectory.pickle', 'rb') as handle:
+    #     all_trajectory = pickle.load(handle)
+
+    # display_trajectory(env, all_trajectory)
+
     wandb.init(
         # set the wandb project where this run will be logged
         project="MADDPG_fixedDroneNum_env",
-        name='MADDPG_test_'+str(current_date)+ '_' + str(formatted_time),
+        name='MADDPG_test_'+str(current_date) + '_' + str(formatted_time),
         # track hyperparameters and run metadata
         config={
             "learning_rate": learning_rate,
@@ -144,6 +151,7 @@ if __name__ == '__main__':
     for i in range(n_episodes):
         episode_score = 0  # Each episode, this is a sum of rewards at individual step of a play
         trajectory_eachPlay = []
+        action_eachPlay = []
         cur_state = env.reset_world(show=0)
 
         for ts in range(max_t):  # steps inside an episode
@@ -174,7 +182,7 @@ if __name__ == '__main__':
             # record trajectory for each drone in the play
             # trajectory_eachPlay.append(cur_state[0])
             trajectory_eachPlay.append([each_agent_traj[0] for each_agent_traj in cur_state])
-
+            action_eachPlay.append(actions)
             # recording of trajectory and score must before the "break" action, so that the collision
             # or goal reaching step can be recorded
 
@@ -245,8 +253,6 @@ if __name__ == '__main__':
                 # plt.show()
                 break  # terminate current episode.
 
-
-
         # check eps decay
         print("current episode is {}, current eps is {}, current sigma is {}".format(i, eps, env.OU_noise.sigma))
         # compute eps-decay
@@ -255,6 +261,7 @@ if __name__ == '__main__':
         # here onwards is end of an episode's play
         score_history.append(episode_score)
         Trajectory_history.append(trajectory_eachPlay)
+        Trajectory_action_record.append(action_eachPlay)
 
         # save episodes reward for entire system
         with open(plot_file_name+'/episodes_reward.csv', 'w+') as f:
@@ -265,6 +272,9 @@ if __name__ == '__main__':
         # save all the trajectory history
         with open(plot_file_name+'/all_episode_trajectory.pickle', 'wb') as handle:
             pickle.dump(Trajectory_history, handle, protocol=pickle.HIGHEST_PROTOCOL)
+        # save all the actions taken by all agents in 5000 episodes
+        with open(plot_file_name+'/all_episode_action_taken.pickle', 'wb') as handle:
+            pickle.dump(Trajectory_action_record, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
         # save episodes loss for entire system
         if (actor_losses != None) & (critic_losses != None):
