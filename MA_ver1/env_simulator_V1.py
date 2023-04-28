@@ -43,9 +43,9 @@ class env_simulator:
         self.cur_allAgentCoor_KD = None
         self.OU_noise = None
 
-    def create_world(self, total_agentNum, critic_obs, actor_obs, n_actions, actorNet_lr, criticNet_lr, gamma, tau, target_update):
+    def create_world(self, total_agentNum, critic_obs, actor_obs, n_actions, actorNet_lr, criticNet_lr, gamma, tau, target_update, largest_Nsigma, smallest_Nsigma, ini_Nsigma):
         # config OU_noise
-        self.OU_noise = OUNoise(n_actions)
+        self.OU_noise = OUNoise(n_actions, largest_Nsigma, smallest_Nsigma, ini_Nsigma)
         self.all_agents = {}
         for agent_i in range(total_agentNum):
             agent = Agent(actor_obs, critic_obs, n_actions, agent_i, total_agentNum, actorNet_lr, criticNet_lr, gamma, tau)
@@ -400,7 +400,7 @@ class env_simulator:
 
             if np.linalg.norm([curVelx, curVely]) >= self.all_agents[drone_idx].maxSpeed:
                 next_heading = math.atan2(curVely, curVelx)
-                # update host velocity when chosen speed has exceed the max speed
+                # update host velocity when chosen speed has exceeded the max speed
                 hvx = self.all_agents[drone_idx].maxSpeed * math.cos(next_heading)
                 hvy = self.all_agents[drone_idx].maxSpeed * math.sin(next_heading)
                 self.all_agents[drone_idx].vel = np.array([hvx, hvy])

@@ -107,13 +107,13 @@ def preprocess_batch_for_critic_net(input_state, batch_size):
 
 class OUNoise:
 
-    def __init__(self, action_dimension, mu=0, theta=0.15, sigma=0.5):  # sigma is the initial magnitude of the OU_noise
+    def __init__(self, action_dimension, largest_Nsigma, smallest_Nsigma, ini_sigma, mu=0, theta=0.15):  # sigma is the initial magnitude of the OU_noise
         self.action_dimension = action_dimension
         self.mu = mu
         self.theta = theta
-        self.sigma = sigma
-        self.largest_sigma = 0.5
-        self.smallest_sigma = 0.01
+        self.sigma = ini_sigma
+        self.largest_sigma = largest_Nsigma
+        self.smallest_sigma = smallest_Nsigma
         self.state = np.ones(self.action_dimension) * self.mu
         self.reset()
 
@@ -207,4 +207,39 @@ def display_trajectory(cur_env, combined_trajectory):
     plt.xlabel("X axis")
     plt.ylabel("Y axis")
     plt.show()
+
+
+def action_selection_statistics(action_selection_collection):
+    all_action_collection_x = []
+    all_action_collection_y = []
+    os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
+    matplotlib.use('TkAgg')
+    fig, ax = plt.subplots(1, 1)
+    for each_eps_collection in action_selection_collection:
+        for each_step in each_eps_collection:
+            for agent_idx, agent_val in each_step.items():
+                all_action_collection_x.append(agent_val[0][0])
+                all_action_collection_y.append(agent_val[0][1])
+
+    # Set the number of bins for x and y
+    num_bins = 20
+    # Create the 2D histogram
+    plt.hist2d(all_action_collection_x, all_action_collection_y, bins=num_bins)
+
+    # Set the x-axis and y-axis labels
+    plt.xlabel('X')
+    plt.ylabel('Y')
+
+    # Set the title of the histogram
+    plt.title('2D Histogram of X and Y')
+
+    # Add a colorbar
+    plt.colorbar()
+
+    # Show the histogram
+    plt.show()
+
+
+
+
 

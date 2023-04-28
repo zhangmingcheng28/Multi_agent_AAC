@@ -24,7 +24,7 @@ import time
 import random
 import datetime
 from Utilities_V1 import sort_polygons, shapelypoly_to_matpoly, \
-    extract_individual_obs, map_range, compute_potential_conflict, display_trajectory
+    extract_individual_obs, map_range, compute_potential_conflict, display_trajectory, action_selection_statistics
 
 # NOTE change batch_size and change update rate, update count go with agent class
 if __name__ == '__main__':
@@ -42,13 +42,13 @@ if __name__ == '__main__':
     n_actions = 2
     actorNet_lr = learning_rate
     criticNet_lr = learning_rate
-
-    # noise_parameter
-    largest_sigma = 0.5
-    minimum_sigma = 0.01
+    # noise parameter ini
+    largest_Nsigma = 0.15
+    smallest_Nsigma = 0.01
+    ini_Nsigma = largest_Nsigma
 
     # create agents, reset environment
-    env.create_world(total_agentNum, critic_obs, actor_obs, n_actions, actorNet_lr, criticNet_lr, GAMMA, TAU, UPDATE_EVERY)
+    env.create_world(total_agentNum, critic_obs, actor_obs, n_actions, actorNet_lr, criticNet_lr, GAMMA, TAU, UPDATE_EVERY, largest_Nsigma, smallest_Nsigma, ini_Nsigma)
 
     # initialized memory replay
     actor_dims = 3  # A list of 3 list, each 1st list has length 3, 2nd has length 20, 3rd has length 6
@@ -58,6 +58,16 @@ if __name__ == '__main__':
     score_history = []
     Trajectory_history = []
     Trajectory_action_record = []
+
+    # # get navigate to plot file and load pickle
+    # with open(r'D:\MADDPG_2nd_jp\240423_16_13_47\toplot\all_episode_trajectory.pickle', 'rb') as handle:
+    #     all_trajectory = pickle.load(handle)
+    #
+    with open(r'D:\MADDPG_2nd_jp\270423_15_15_28\toplot\all_episode_action_taken.pickle', 'rb') as handle:
+        action_collection = pickle.load(handle)
+
+    # display_trajectory(env, all_trajectory)
+    action_selection_statistics(action_collection)
 
     # simulation result saving
     today = datetime.date.today()
@@ -70,12 +80,6 @@ if __name__ == '__main__':
     plot_file_name = file_name + '/toplot'
     if not os.path.exists(plot_file_name):
         os.makedirs(plot_file_name)
-
-    # # get navigate to plot file and load pickle
-    # with open(r'D:\MADDPG_2nd_jp\230423_16_31_01\toplot\all_episode_trajectory.pickle', 'rb') as handle:
-    #     all_trajectory = pickle.load(handle)
-
-    # display_trajectory(env, all_trajectory)
 
     wandb.init(
         # set the wandb project where this run will be logged

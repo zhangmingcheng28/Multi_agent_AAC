@@ -170,7 +170,7 @@ class CriticNetwork(nn.Module):
         super(CriticNetwork, self).__init__()
         # in critic network we should use multi-head attention mechanism to help to capture more complex relationship
         # between different inputs, in the context of this paper, the input consists of many drone's states as well as
-        # there actions. This is two group of inputs, therefore my hypothesis is that using multi-head attention is
+        # their actions. This is two group of inputs, therefore my hypothesis is that using multi-head attention is
         # better here.
 
         # critic_obs[0] is sum of all agent's own observed states

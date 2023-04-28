@@ -6,78 +6,31 @@
 @Description: 
 @Package dependency:
 """
-import random
 import numpy as np
-import numpy.random as nr
 import matplotlib.pyplot as plt
 import matplotlib
 
+matplotlib.use('TkAgg')
 
-class OUNoise:
-    def __init__(self, action_dimension, mu=0, theta=0.15, sigma=0.05):
-        """
-        Create Ornstein-Uhlenbeck noise
-        :param action_dimension: number of actions
-        :param mu: mean value of OU noise, default value is 0
-        :param theta: a constant which should be bigger than 0: theta > 0
-        :param sigma: standard deviation of OU noise, default value is 0.2
-        """
-        self.action_dimension = action_dimension
-        self.mu = mu
-        self.theta = theta
-        self.sigma = sigma
-        self.state = np.ones(self.action_dimension) * self.mu
-        self.reset()
+# Generate some random data
+x = np.random.normal(size=1000)
+y = np.random.normal(size=1000)
 
-    def reset(self):
-        self.state = np.ones(self.action_dimension) * self.mu
+# Set the number of bins for x and y
+num_bins = 20
 
-    def noise(self):
-        x = self.state
-        dx = self.theta * (self.mu - x) + self.sigma * nr.randn(len(x))
-        self.state = x + dx
-        return self.state
+# Create the 2D histogram
+plt.hist2d(x, y, bins=num_bins)
 
+# Set the x-axis and y-axis labels
+plt.xlabel('X')
+plt.ylabel('Y')
 
-class GaussNoise:
-    def __init__(self, action_dimension, mu=0, sigma=0.2):
-        self.action_dimension = action_dimension
-        self.mu = mu
-        self.sigma = sigma
+# Set the title of the histogram
+plt.title('2D Histogram of X and Y')
 
-    def noise(self):
-        """
-        Create Gauss white noise
-        :param action_dimension: number of actions
-        :param mu: mean value of OU noise, default value is 0
-        :param sigma: standard deviation of OU noise, default value is 0.2
-        """
-        noises = []
-        for i in range(self.action_dimension):
-            noise = random.gauss(self.mu, self.sigma)
-            noises.append(noise)
-        return noises
+# Add a colorbar
+plt.colorbar()
 
-
-if __name__ == '__main__':
-    # create a figure with two subplots
-    matplotlib.use('TkAgg')
-    fig, ax = plt.subplots(nrows=2, ncols=1)
-
-    time = 500
-    ou = OUNoise(2)  # if action dimension is 1
-    ou_states = []
-    for i in range(time):
-        ou_states.append(ou.noise())
-
-    ga = GaussNoise(1)
-    ga_states = []
-    for i in range(time):
-        ga_states.append(ga.noise())
-
-    ax[0].plot(ou_states)
-    ax[0].set_title('OUNoise')
-    ax[1].plot(ga_states)
-    ax[1].set_title('GaussNoise')
-    plt.tight_layout()
-    plt.show()
+# Show the histogram
+plt.show()
