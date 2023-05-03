@@ -29,6 +29,7 @@ from Utilities_V1 import sort_polygons, shapelypoly_to_matpoly, \
 # NOTE change batch_size and change update rate, update count go with agent class
 if __name__ == '__main__':
     start_time = time.time()
+    wandb.login(key="efb76db851374f93228250eda60639c70a93d1ec")
     # initialize parameters
     n_episodes, max_t, eps_start, eps_end, eps_period, eps, env, \
     agent_grid_obs, BUFFER_SIZE, BATCH_SIZE, GAMMA, TAU, learning_rate, UPDATE_EVERY, seed_used = initialize_parameters()
@@ -63,11 +64,11 @@ if __name__ == '__main__':
     # with open(r'D:\MADDPG_2nd_jp\240423_16_13_47\toplot\all_episode_trajectory.pickle', 'rb') as handle:
     #     all_trajectory = pickle.load(handle)
     #
-    with open(r'D:\MADDPG_2nd_jp\270423_15_15_28\toplot\all_episode_action_taken.pickle', 'rb') as handle:
-        action_collection = pickle.load(handle)
-
-    # display_trajectory(env, all_trajectory)
-    action_selection_statistics(action_collection)
+    # with open(r'D:\MADDPG_2nd_jp\270423_15_15_28\toplot\all_episode_action_taken.pickle', 'rb') as handle:
+    #     action_collection = pickle.load(handle)
+    #
+    # # display_trajectory(env, all_trajectory)
+    # action_selection_statistics(action_collection)
 
     # simulation result saving
     today = datetime.date.today()
@@ -81,16 +82,16 @@ if __name__ == '__main__':
     if not os.path.exists(plot_file_name):
         os.makedirs(plot_file_name)
 
-    wandb.init(
-        # set the wandb project where this run will be logged
-        project="MADDPG_fixedDroneNum_env",
-        name='MADDPG_test_'+str(current_date) + '_' + str(formatted_time),
-        # track hyperparameters and run metadata
-        config={
-            "learning_rate": learning_rate,
-            "epochs": n_episodes,
-        }
-    )
+    # wandb.init(
+    #     # set the wandb project where this run will be logged
+    #     project="MADDPG_fixedDroneNum_env",
+    #     name='MADDPG_test_'+str(current_date) + '_' + str(formatted_time),
+    #     # track hyperparameters and run metadata
+    #     config={
+    #         "learning_rate": learning_rate,
+    #         "epochs": n_episodes,
+    #     }
+    # )
 
     score_best_avg = float("-inf")
     actor_losses = None
@@ -271,7 +272,7 @@ if __name__ == '__main__':
         with open(plot_file_name+'/episodes_reward.csv', 'w+') as f:
             write = csv.writer(f)
             write.writerows([score_history])
-        wandb.log({'overall_reward': float(episode_score)})
+        # wandb.log({'overall_reward': float(episode_score)})
 
         # save all the trajectory history
         with open(plot_file_name+'/all_episode_trajectory.pickle', 'wb') as handle:
@@ -287,11 +288,11 @@ if __name__ == '__main__':
                     write = csv.writer(f)
                     write.writerows([[float(individual_actor)]])
                     # log metrics to wandb
-                    wandb.log({agent_obj.agent_name + 'actor_loss': float(individual_actor)})
+                    # wandb.log({agent_obj.agent_name + 'actor_loss': float(individual_actor)})
                 with open(plot_file_name + '/' + agent_obj.agent_name + 'critic_loss.csv', 'w') as f:
                     write = csv.writer(f)
                     write.writerows([[float(individual_critic)]])
-                    wandb.log({agent_obj.agent_name + 'critic_loss': float(individual_critic)})
+                    # wandb.log({agent_obj.agent_name + 'critic_loss': float(individual_critic)})
 
         # get average score for the past 100 episode
         score_avg = np.mean(score_history[-100:])
@@ -307,5 +308,5 @@ if __name__ == '__main__':
             print('episode', i, 'average score {:.1f}'.format(score_avg))
     print('done')
     # [optional] finish the wandb run, necessary in notebooks
-    wandb.finish()
+    # wandb.finish()
 

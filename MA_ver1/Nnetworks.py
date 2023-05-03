@@ -194,7 +194,8 @@ class CriticNetwork(nn.Module):
         self.com_k = nn.Linear(self.single_head_dim, self.single_head_dim, bias=False)
         self.com_q = nn.Linear(self.single_head_dim, self.single_head_dim, bias=False)
         self.com_v = nn.Linear(self.single_head_dim, self.single_head_dim, bias=False)
-        self.multi_att_out = nn.Linear(self.n_heads * self.single_head_dim, 128)
+        self.multi_att_out = nn.Sequential(nn.Linear(self.n_heads * self.single_head_dim + n_agents * n_actions, 128),
+                                           nn.ReLU())
 
         self.combine_own_env_fc = nn.Sequential(nn.Linear(256+256, 256), nn.ReLU())
 
@@ -214,6 +215,9 @@ class CriticNetwork(nn.Module):
         self.to(self.device)
 
     def forward(self, state, actor_obs):  # state[0] is sum of all agent's own observed states, state[1] is is sum of all agent's observed grid maps
+        # NOTE: for critic network, we must include all individual drone's action (which is actor_obs),
+        # as dimension: (batch X actor's combined action)
+        combine_obs = actor_obs.view(actor_obs.shape[0], 1, -1)
         sum_own_e = self.sum_own_fc(state[0])
         sum_env_e = self.sum_env_fc(state[1])
         sum_sur_nei = self.sum_sur_fc(state[2])
@@ -263,7 +267,10 @@ class CriticNetwork(nn.Module):
         # concatenated output
         concat_multiAtt = scores.transpose(1, 2).contiguous().view(batch_size, seq_length,
                                                           self.single_head_dim * self.n_heads)  # (32x8x10x64) -> (32x10x8x64)  -> (32,10,512)
-        multiAtt_out = self.multi_att_out(concat_multiAtt)
+        # concat combine_state with combine_action
+        concat_Att_act = torch.cat([concat_multiAtt, combine_obs], dim=2)
+
+        multiAtt_out = self.multi_att_out(concat_Att_act)
 
         q = self.judgement_fc(multiAtt_out)
 
