@@ -112,16 +112,16 @@ class ActorNetwork(nn.Module):
         q = self.q(own_e)
         k = self.k(intru_e)
         v = self.v(intru_e)
-        mask = intru_e.mean(axis=2, keepdim=True).bool()  # this line requires the input vector to have a batch size
+        # mask = intru_e.mean(axis=2, keepdim=True).bool()  # this line requires the input vector to have a batch size
                                                            # at left most dimension
         score = torch.bmm(k, q.unsqueeze(axis=2))
-        score_mask = score.clone()  # clone操作很必要
-        score_mask[~mask] = float('-inf')  # 不然赋值操作后会无法计算梯度
+        # score_mask = score.clone()  # clone操作很必要
+        # score_mask[~mask] = float('-inf')  # 不然赋值操作后会无法计算梯度
 
-        alpha = F.softmax(score_mask / np.sqrt(k.size(-1)), dim=1)
-        alpha_mask = alpha.clone()
-        alpha_mask[~mask] = 0
-        v_att = torch.sum(v * alpha_mask, axis=1)  # 1x64
+        alpha = F.softmax(score / np.sqrt(k.size(-1)), dim=1)
+        # alpha_mask = alpha.clone()
+        # alpha_mask[~mask] = 0
+        v_att = torch.sum(v * alpha, axis=1)  # 1x64
 
         # 1 more layer of attention (not consider self attention, as input and output sequence are not the same)
         # I have 3 inputs (embeded): own_e, env_e, and v_att
@@ -217,7 +217,10 @@ class CriticNetwork(nn.Module):
     def forward(self, state, actor_obs):  # state[0] is sum of all agent's own observed states, state[1] is is sum of all agent's observed grid maps
         # NOTE: for critic network, we must include all individual drone's action (which is actor_obs),
         # as dimension: (batch X actor's combined action)
-        combine_obs = actor_obs.view(actor_obs.shape[0], 1, -1)
+        # NOTE: here, this detach() is a must, in order to avoid "inplace operation during backpropergation"
+        actor_obs_detached = actor_obs.detach()
+        combine_obs = actor_obs_detached.view(actor_obs_detached.shape[0], 1, -1)
+        # combine_obs = torch.randn(64, 1, 10)
         sum_own_e = self.sum_own_fc(state[0])
         sum_env_e = self.sum_env_fc(state[1])
         sum_sur_nei = self.sum_sur_fc(state[2])
@@ -226,15 +229,16 @@ class CriticNetwork(nn.Module):
         sum_query = self.sum_q(sum_own_e)
         sum_key = self.sum_k(sum_sur_nei)
         sum_value = self.sum_v(sum_sur_nei)
-        mask = state[2].mean(axis=2, keepdim=True).bool()
+        #mask = state[2].mean(axis=2, keepdim=True).bool()  # this mask is a problem, why we need to add this mask
         score = torch.bmm(sum_key, sum_query.transpose(1, 2))
-        score_mask = score.clone()  # clone操作很必要
-        score_mask[~mask] = float('-inf')  # 不然赋值操作后会无法计算梯度
+        # score_mask = score.clone()  # clone操作很必要
+        # score_mask[~mask] = float('-inf')  # 不然赋值操作后会无法计算梯度
 
-        alpha = F.softmax(score_mask / np.sqrt(sum_key.size(-1)), dim=1)
-        alpha_mask = alpha.clone()
-        alpha_mask[~mask] = 0
-        v_att = torch.sum(sum_value * alpha_mask, axis=1)
+        alpha = F.softmax(score / np.sqrt(sum_key.size(-1)), dim=1)
+        #alpha_mask = alpha.clone()
+        #alpha_mask[~mask] = 0
+        #v_att = torch.sum(sum_value * alpha_mask, axis=1)
+        v_att = torch.sum(sum_value * alpha, axis=1)
 
         critic_concat = torch.cat((sum_own_e.squeeze(dim=1), sum_env_e.squeeze(dim=1), v_att), dim=1)
         # perform self attention on concatenated
@@ -243,14 +247,14 @@ class CriticNetwork(nn.Module):
         raw_v = critic_concat
         batch_size, inputDim = critic_concat.shape
         seq_length = 1
-        raw_k = raw_k.view(batch_size, seq_length, self.n_heads,
+        act_k = raw_k.view(batch_size, seq_length, self.n_heads,
                        self.single_head_dim)  # batch_size x sequence_length x n_heads x single_head_dim
-        raw_q = raw_q.view(batch_size, seq_length, self.n_heads, self.single_head_dim)
-        raw_v = raw_v.view(batch_size, seq_length, self.n_heads, self.single_head_dim)
+        act_q = raw_q.view(batch_size, seq_length, self.n_heads, self.single_head_dim)
+        act_v = raw_v.view(batch_size, seq_length, self.n_heads, self.single_head_dim)
         # linear transform
-        comQ = self.com_q(raw_k)
-        comK = self.com_k(raw_q)
-        comV = self.com_v(raw_v)
+        comQ = self.com_q(act_k)
+        comK = self.com_k(act_q)
+        comV = self.com_v(act_v)
         comQ = comQ.transpose(1, 2)  # (batch_size, n_heads, seq_len, single_head_dim)
         comK = comK.transpose(1, 2)  # (batch_size, n_heads, seq_len, single_head_dim)
         comV = comV.transpose(1, 2)  # (batch_size, n_heads, seq_len, single_head_dim)
