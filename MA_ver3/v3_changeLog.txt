@@ -1,0 +1,1 @@
+neural network is simplified. Remove unnecessary attention network
