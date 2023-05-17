@@ -1,0 +1,3 @@
+-Remove surrounding static obstacles
+-simplified input, so only collision to wall & to other agent is considered
+-able to switch between new & old framework, for centralized_learning()
