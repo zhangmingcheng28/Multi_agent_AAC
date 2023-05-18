@@ -5,8 +5,10 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="f4b70a76-8539-4f85-9a24-01358cebe64d" name="Changes" comment="Changes">
+      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/MA_ver3/env_simulator_V3.py" beforeDir="false" afterPath="$PROJECT_DIR$/MA_ver3/env_simulator_V3.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/titanic.csv" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/zh_hw.py" beforeDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -184,7 +186,7 @@
       <workItem from="1681882855439" duration="16774000" />
       <workItem from="1682214090216" duration="22689000" />
       <workItem from="1682991558421" duration="82619000" />
-      <workItem from="1683867401964" duration="16014000" />
+      <workItem from="1683867401964" duration="16666000" />
     </task>
     <servers />
   </component>
@@ -265,31 +267,6 @@
           <url>file://$PROJECT_DIR$/MA_ver4/agent_V4.py</url>
           <line>77</line>
           <option name="timeStamp" value="415" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/agent_linear.py</url>
-          <line>148</line>
-          <option name="timeStamp" value="418" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/zh_hw.py</url>
-          <line>119</line>
-          <option name="timeStamp" value="419" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/zh_hw.py</url>
-          <line>118</line>
-          <option name="timeStamp" value="420" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/zh_hw.py</url>
-          <line>117</line>
-          <option name="timeStamp" value="421" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/zh_hw.py</url>
-          <line>105</line>
-          <option name="timeStamp" value="425" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/MA_ver4/main_V4.py</url>
