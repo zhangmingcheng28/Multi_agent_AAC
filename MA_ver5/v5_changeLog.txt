@@ -1,0 +1,1 @@
+-Input states only left with own state encoding which is a 1x6 vector.
