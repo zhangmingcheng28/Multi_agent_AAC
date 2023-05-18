@@ -65,8 +65,8 @@ class env_simulator:
         #  custom agent position
         # x-bound: [0, 1800), y-bound: [0, 1300)
         # read the Excel file into a pandas dataframe
-        df = pd.read_excel(r'F:\githubClone\Multi_agent_AAC\MA_ver1\fixedDrone.xlsx')
-        # df = pd.read_excel(r'D:\Multi_agent_AAC\MA_ver1\fixedDrone.xlsx')
+        # df = pd.read_excel(r'F:\githubClone\Multi_agent_AAC\MA_ver1\fixedDrone.xlsx')
+        df = pd.read_excel(r'D:\Multi_agent_AAC\MA_ver1\fixedDrone.xlsx')
         # convert the dataframe to a NumPy array
         custom_agent_data = np.array(df)
         custom_agent_data = custom_agent_data.astype(float)

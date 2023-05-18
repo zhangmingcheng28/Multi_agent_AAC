@@ -65,8 +65,8 @@ class env_simulator:
         #  custom agent position
         # x-bound: [0, 1800), y-bound: [0, 1300)
         # read the Excel file into a pandas dataframe
-        df = pd.read_excel(r'F:\githubClone\Multi_agent_AAC\MA_ver1\fixedDrone.xlsx')
-        # df = pd.read_excel(r'D:\Multi_agent_AAC\MA_ver1\fixedDrone.xlsx')
+        # df = pd.read_excel(r'F:\githubClone\Multi_agent_AAC\MA_ver1\fixedDrone.xlsx')
+        df = pd.read_excel(r'D:\Multi_agent_AAC\MA_ver1\fixedDrone.xlsx')
         # convert the dataframe to a NumPy array
         custom_agent_data = np.array(df)
         custom_agent_data = custom_agent_data.astype(float)
@@ -370,7 +370,8 @@ class env_simulator:
                     small_step_penalty = 0
                 # Domino term also use as an indicator for agent to avoid other drones. so no need to specifically
                 # add a term to avoid surrounding drones
-                step_reward = crossCoefficient*cross_track_error + delta_hg + dominoTerm - small_step_penalty
+                # step_reward = crossCoefficient*cross_track_error + delta_hg + dominoTerm - small_step_penalty
+                step_reward = - small_step_penalty
                 # convert to arr
                 step_reward = np.array(step_reward)
                 reward.append(step_reward)

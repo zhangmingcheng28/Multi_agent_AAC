@@ -164,8 +164,8 @@ def WeightedNoise(action, noise_scale, action_type):
                 1 - noise_scale) * action.detach().numpy()  # take a weighted average with noise_scale as the noise weight
     return torch.tensor(action).float()
 
-def display_trajectory(cur_env, combined_trajectory):
-    episode_to_show = 4999
+def display_trajectory(cur_env, combined_trajectory,episode_to_show):
+    # episode_to_show = 4999
     episode_steps = combined_trajectory[episode_to_show]
     os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
     matplotlib.use('TkAgg')
@@ -220,8 +220,8 @@ def action_selection_statistics(action_selection_collection):
     for each_eps_collection in action_selection_collection:
         for each_step in each_eps_collection:
             for agent_idx, agent_val in each_step.items():
-                all_action_collection_x.append(agent_val[0][0])
-                all_action_collection_y.append(agent_val[0][1])
+                all_action_collection_x.append(agent_val[0])
+                all_action_collection_y.append(agent_val[1])
 
     # Set the number of bins for x and y
     num_bins = 20
