@@ -1,1 +1,3 @@
 -Input states only left with own state encoding which is a 1x6 vector.
+-Input states changes to 1x14, that input to actor NN, then input to critic NN will be 1x(14*5)
+-simplified network

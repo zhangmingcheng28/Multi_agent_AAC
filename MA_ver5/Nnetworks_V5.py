@@ -49,7 +49,7 @@ class ActorNetwork(nn.Module):
         self.single_head_dim = int((64+64+64) / self.n_heads)
 
         # self.own_fc = nn.Sequential(nn.Linear(actor_obs[0], 64), nn.ReLU())
-        self.own_fc = nn.Sequential(nn.Linear(actor_obs[0], 64), nn.ReLU())
+        self.own_fc = nn.Sequential(nn.Linear(actor_obs[0], 512), nn.ReLU())
 
         # perform a self-attention for own obs_grids, actor_obs[1], assume actor_obs = [6, 6, 6]
 
@@ -78,7 +78,7 @@ class ActorNetwork(nn.Module):
 
         self.action_out_V3 = nn.Sequential(nn.Linear(64+64+64, 64), nn.ReLU(), nn.Linear(64, n_actions), nn.Tanh())
         self.action_out_V4 = nn.Sequential(nn.Linear(64+64, 64), nn.ReLU(), nn.Linear(64, n_actions), nn.Tanh())
-        self.action_out_V5 = nn.Sequential(nn.Linear(64, 64), nn.ReLU(), nn.Linear(64, n_actions), nn.Tanh())
+        self.action_out_V5 = nn.Sequential(nn.Linear(512, 128), nn.ReLU(), nn.Linear(128, n_actions), nn.Tanh())
 
         # attention for surr_drones
         # the number here is 64 because we need to align with the output neural number of the "surr_done" NN
@@ -123,7 +123,7 @@ class CriticNetwork(nn.Module):
         # critic_obs[1] is sum of all agent's observed grid maps
         # critic_obs[3] is sum of all agent's action taken
 
-        self.sum_own_fc = nn.Sequential(nn.Linear(critic_obs[0]*n_agents, 256), nn.ReLU())  # may be here can be replaced with another attention mechanism
+        self.sum_own_fc = nn.Sequential(nn.Linear(critic_obs[0]*n_agents, 1024), nn.ReLU())  # may be here can be replaced with another attention mechanism
         self.sum_env_fc = nn.Sequential(nn.Linear(critic_obs[1]*n_agents, 256), nn.ReLU())
         # for surrounding agents' encoding, for each agent, we there are n-neighbours, each neighbour is represented by
         # a vector of length = 6. Before we put into an experience replay, we pad it up to max_num_neigh * 6 array.
@@ -148,8 +148,8 @@ class CriticNetwork(nn.Module):
         self.combine_env_fc = nn.Sequential(nn.Linear(256+256, 256), nn.ReLU(), nn.Linear(256, 128), nn.ReLU(),
                                             nn.Linear(128, 64), nn.ReLU())
 
-        self.combine_all = nn.Sequential(nn.Linear(256+n_agents * n_actions, 32), nn.ReLU(),
-                                         nn.Linear(32, 32), nn.ReLU(), nn.Linear(32, 1))
+        self.combine_all = nn.Sequential(nn.Linear(1024+n_agents * n_actions, 512), nn.ReLU(),
+                                         nn.Linear(512, 256), nn.ReLU(), nn.Linear(256, 1))
 
         self.sum_agents_action_fc = nn.Sequential(nn.Linear(critic_obs[2]*n_agents, 256), nn.ReLU())
 
