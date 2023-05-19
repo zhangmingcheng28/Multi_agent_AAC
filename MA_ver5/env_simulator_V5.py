@@ -24,7 +24,7 @@ import matplotlib
 import re
 import time
 from Utilities_V5 import sort_polygons, shapelypoly_to_matpoly, \
-    extract_individual_obs, map_range, compute_potential_conflict, padding_list, preprocess_batch_for_critic_net, OUNoise
+    extract_individual_obs, map_range, compute_potential_conflict, padding_list, preprocess_batch_for_critic_net_v2, OUNoise
 import torch as T
 import torch
 import torch.nn.functional as F
@@ -114,8 +114,17 @@ class env_simulator:
             agent.pre_surroundingNeighbor = agent.surroundingNeighbor
 
             # populate the output stateV2 overall_state is a list of length equals to total number of agents
-            agent_own = np.array([agent.pos[0], agent.pos[1], agent.goal[0][0], agent.goal[0][1], agent.vel[0], agent.vel[1]])
-            overall_state.append(np.array([agent_own, agent.observableSpace, agent.surroundingNeighbor], dtype=object))
+            agent_own = np.array([agent.pos[0], agent.pos[1], agent.goal[0][0]-agent.pos[0], agent.goal[0][1]-agent.pos[1], agent.vel[0], agent.vel[1]])
+            other_pos = []
+            for other_agentIdx, other_agent in self.all_agents.items():
+                if other_agentIdx != agent_idx:
+                    other_pos.append(other_agent.pos - agent.pos)
+
+
+
+            # overall_state.append(np.array([agent_own, agent.observableSpace, agent.surroundingNeighbor], dtype=object))
+            overall_state.append(np.concatenate((agent_own, np.array(other_pos).flatten())))
+
 
         if show:
             os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
@@ -244,8 +253,9 @@ class env_simulator:
         for agent_idx, agent in self.all_agents.items():
             # obtain the observation for each individual actor
             individual_obs = extract_individual_obs(combine_state, agent_idx)
-
-            chosen_action = agent.choose_actions(individual_obs)
+            # chosen_action = agent.choose_actions(individual_obs)  # when deals with three different section of inputs
+            chosen_action = T.tensor(individual_obs.reshape(1, -1), dtype=T.float).to(agent.actorNet.device)
+            chosen_action = agent.actorNet.forward(chosen_action)
             # squeeze(0) is to remove the batch information
             # then convert to numpy
             chosen_action = chosen_action.squeeze(0).detach().numpy()
@@ -261,7 +271,6 @@ class env_simulator:
             # update current sigma used for the exploration
             self.OU_noise.sigma = self.OU_noise.largest_sigma * eps + (1 - eps) * self.OU_noise.smallest_sigma
             outActions[agent_idx] = chosen_action  # load to output dict
-
 
         return outActions
 
@@ -371,7 +380,8 @@ class env_simulator:
                     small_step_penalty = 0
                 # Domino term also use as an indicator for agent to avoid other drones. so no need to specifically
                 # add a term to avoid surrounding drones
-                step_reward = crossCoefficient*cross_track_error + delta_hg + dominoTerm - small_step_penalty
+                # step_reward = crossCoefficient*cross_track_error + delta_hg + dominoTerm - small_step_penalty
+                step_reward = delta_hg
                 # convert to arr
                 step_reward = np.array(step_reward)
                 reward.append(step_reward)
@@ -445,8 +455,11 @@ class env_simulator:
             # update current agent's own state
             # agent_own = [agent.pos[0], agent.pos[1], agent.goal[0][0], agent.goal[0][1], agent.vel[0], agent.vel[1]]
             # cur_ObsState[agent_idx, :] = agent_own
-            agent_own = np.array([agent.pos[0], agent.pos[1], agent.goal[0][0], agent.goal[0][1], agent.vel[0], agent.vel[1]])
-
+            agent_own = np.array([agent.pos[0], agent.pos[1], agent.goal[0][0]-agent.pos[0], agent.goal[0][1]-agent.pos[1], agent.vel[0], agent.vel[1]])
+            other_pos = []
+            for other_agentIdx, other_agent in self.all_agents.items():
+                if other_agentIdx != agent_idx:
+                    other_pos.append(other_agent.pos - agent.pos)
 
             # update current agent's observable space state
             agent.observableSpace = self.current_observable_space(agent)
@@ -457,7 +470,8 @@ class env_simulator:
             #actor_obs.append(agent.surroundingNeighbor)
 
             # populate overall state
-            next_combine_state.append(np.array([agent_own, agent.observableSpace, agent.surroundingNeighbor], dtype=object))
+            # next_combine_state.append(np.array([agent_own, agent.observableSpace, agent.surroundingNeighbor], dtype=object))
+            next_combine_state.append(np.concatenate((agent_own, np.array(other_pos).flatten())))
 
 
 
@@ -540,6 +554,7 @@ class env_simulator:
         #     ax.cla()
         return next_combine_state
 
+
     def central_learning(self, ReplayBuffer, batch_size, maxIntruNum, intruFeature, UPDATE_EVERY):
         with torch.autograd.set_detect_anomaly(True):
             critic_losses, actor_losses = [], []
@@ -549,8 +564,8 @@ class env_simulator:
             device = self.all_agents[0].actorNet.device
 
             # pre-process cur_state and next_state so that they can be used as input for every agent's critic network
-            cur_state_pre_processed = preprocess_batch_for_critic_net(cur_state, batch_size)
-            next_state_pre_processed = preprocess_batch_for_critic_net(next_state, batch_size)
+            cur_state_pre_processed = preprocess_batch_for_critic_net_v2(cur_state, batch_size)
+            next_state_pre_processed = preprocess_batch_for_critic_net_v2(next_state, batch_size)
 
             # load action, reward, done to tensor
             action = T.tensor(np.array(action), dtype=T.float).to(device)
@@ -564,35 +579,38 @@ class env_simulator:
 
             for agent_idx, agent in self.all_agents.items():
                 # actions according to the target network for the new state
-                next_own = T.tensor(next_state[agent_idx][0], dtype=T.float).to(device)
-                next_grid = T.tensor(next_state[agent_idx][1], dtype=T.float).to(device)
-                next_nei = T.tensor(next_state[agent_idx][2], dtype=T.float).to(device)
-                agent_new_states = [next_own, next_grid, next_nei]
+                # next_own = T.tensor(next_state[agent_idx][0], dtype=T.float).to(device)
+                # next_grid = T.tensor(next_state[agent_idx][1], dtype=T.float).to(device)
+                # next_nei = T.tensor(next_state[agent_idx][2], dtype=T.float).to(device)
+                # agent_new_states = [next_own, next_grid, next_nei]
 
-                new_pi = agent.target_actorNet.forward(agent_new_states)  # individual agent's target network
+                next_own = T.tensor(next_state[agent_idx], dtype=T.float).to(device)
+                new_pi = agent.target_actorNet.forward(next_own)  # individual agent's target network
 
                 all_agents_new_actions.append(new_pi)  # record actions generated by each agent's target network
                 # actions according to the regular actor network for the current state
-                cur_own = T.tensor(cur_state[agent_idx][0], dtype=T.float).to(device)
-                cur_grid = T.tensor(cur_state[agent_idx][1], dtype=T.float).to(device)
-                cur_nei = T.tensor(cur_state[agent_idx][2], dtype=T.float).to(device)
-                mu_states = [cur_own, cur_grid, cur_nei]
+                # cur_own = T.tensor(cur_state[agent_idx][0], dtype=T.float).to(device)
+                # cur_grid = T.tensor(cur_state[agent_idx][1], dtype=T.float).to(device)
+                # cur_nei = T.tensor(cur_state[agent_idx][2], dtype=T.float).to(device)
+
+                # mu_states = [cur_own, cur_grid, cur_nei]
+                cur_own = T.tensor(cur_state[agent_idx], dtype=T.float).to(device)
 
                 # using agent's predict network to generate action based off current states
-                pi = agent.actorNet.forward(mu_states)
+                pi = agent.actorNet.forward(cur_own)
 
                 all_agents_new_mu_actions.append(pi)
                 # record actions the agent actually took
                 old_agents_actions.append(action[agent_idx])
 
-            new_actions = T.cat([acts for acts in all_agents_new_actions], dim=1)  # batch_size X agent_num X action dim
+            new_actions = T.cat([acts for acts in all_agents_new_actions], dim=1)  # batch_size X (agent_num X action dim)
             mu = T.cat([acts for acts in all_agents_new_mu_actions], dim=1)
             old_actions = T.cat([acts for acts in old_agents_actions], dim=1)
 
             # These two losses are used to record overall losses for entire system at each learning step
             critic_losses = []
             actor_losses = []
-            in_order_count = 0
+            # in_order_count = 0
             # handle cost function
             for agent_idx, agent in self.all_agents.items():
                 # squeeze() will remove all dimensions with size 1
@@ -609,9 +627,9 @@ class env_simulator:
                     # First line for critic_value_prime did not involve any individual agent's attributes
                     # because we are using centralized critic, shape is batch_size X 1
                     critic_value_prime = agent.target_criticNet.forward(next_state_pre_processed, new_actions)
-                    critic_value_prime[done[in_order_count]] = 0.0
-                    target = reward[in_order_count] + agent.gamma * critic_value_prime
-                    in_order_count = in_order_count + 1
+                    critic_value_prime[done[agent_idx]] = 0.0
+                    target = reward[agent_idx] + agent.gamma * critic_value_prime
+
 
                 # calculate critic loss for each agent
                 critic_loss = F.mse_loss(critic_value, target)

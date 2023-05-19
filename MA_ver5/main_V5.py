@@ -39,8 +39,8 @@ if __name__ == '__main__':
     total_agentNum = 5
     max_nei_num = 5
     # create world
-    actor_obs = [6, 20, 6]  # dim host, maximum dim grid, dim other drones
-    critic_obs = [6, 20, 6]
+    actor_obs = [6+(total_agentNum-1)*2, 20, 6]  # dim host, maximum dim grid, dim other drones
+    critic_obs = [6+(total_agentNum-1)*2, 20, 6]
     n_actions = 2
     actorNet_lr = learning_rate
     criticNet_lr = learning_rate

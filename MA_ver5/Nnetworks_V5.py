@@ -48,6 +48,7 @@ class ActorNetwork(nn.Module):
         self.n_heads = 3
         self.single_head_dim = int((64+64+64) / self.n_heads)
 
+        # self.own_fc = nn.Sequential(nn.Linear(actor_obs[0], 64), nn.ReLU())
         self.own_fc = nn.Sequential(nn.Linear(actor_obs[0], 64), nn.ReLU())
 
         # perform a self-attention for own obs_grids, actor_obs[1], assume actor_obs = [6, 6, 6]
@@ -93,7 +94,8 @@ class ActorNetwork(nn.Module):
         self.to(self.device)
 
     def forward(self, state):
-        own_e = self.own_fc(state[0])
+        # own_e = self.own_fc(state[0])
+        own_e = self.own_fc(state)
 
         # when padding is used for drone's own grid
         # env_e = self.own_grid(state[1])
@@ -171,7 +173,8 @@ class CriticNetwork(nn.Module):
         actor_obs_detached = actor_obs.detach()
         combine_obs = actor_obs_detached.view(actor_obs_detached.shape[0], -1)
         # combine_obs = torch.randn(64, 1, 10)
-        sum_own_e = self.sum_own_fc(state[0]).squeeze(1)
+        sum_own_e = self.sum_own_fc(state).squeeze(1)
+        # sum_own_e = self.sum_own_fc(state[0]).squeeze(1)
         #sum_env_e = self.sum_env_fc(state[1])
         # sum_sur_nei = self.sum_sur_fc(state[2])
 

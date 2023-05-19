@@ -42,12 +42,12 @@ class MultiAgentReplayBuffer:
         raw_cur_state, raw_action, raw_reward, raw_next_state, raw_done = zip(*one_batch)
 
         # then perform a small preprocess to these states so that they can be easily input into to NN
-        cur_state = self.experience_transform_state(raw_cur_state, maxIntruNum, intruFeature, max_grid_obs_dim)
-        next_state = self.experience_transform_state(raw_next_state, maxIntruNum, intruFeature, max_grid_obs_dim)
+        cur_state = self.experience_transform_state_v2(raw_cur_state, maxIntruNum, intruFeature, max_grid_obs_dim)
+        next_state = self.experience_transform_state_v2(raw_next_state, maxIntruNum, intruFeature, max_grid_obs_dim)
         action = self.experience_transform_action(raw_action)
         done = self.experience_transform_done(raw_done)
         reward = self.experience_transform_reward(raw_reward)
-        return cur_state, action, reward, next_state, done
+        return cur_state, action, reward, next_state, done  # num_agent X (batch_num x num_features)
 
     def experience_transform_state(self, input_exp, maxIntruNum, intruFeature, max_grid_obs_dim):
         batched_exp = []
@@ -71,6 +71,20 @@ class MultiAgentReplayBuffer:
                     sur_nei_batch.append(neigh_coding)
             batched_exp.append([np.array(own_state_batch, dtype=np.float32), np.array(obs_batch, dtype=np.float32),
                                 np.array(sur_nei_batch, dtype=np.float32)])
+        return batched_exp
+
+    def experience_transform_state_v2(self, input_exp, maxIntruNum, intruFeature, max_grid_obs_dim):
+        batched_exp = []
+        for agent_idx in range(self.n_agents):
+            neigh_coding = np.zeros((maxIntruNum, intruFeature))
+            # below 3 are used for individual agent's state or state_ so we need to initialized them for every agent.
+            own_state_batch = []
+            obs_batch = []
+            sur_nei_batch = []
+            for batch_idx, batch_val in enumerate(input_exp):
+                own_state_batch.append(batch_val[agent_idx])
+
+            batched_exp.append(np.array(own_state_batch, dtype=np.float32))
         return batched_exp
 
     def experience_transform_action(self, input_exp):

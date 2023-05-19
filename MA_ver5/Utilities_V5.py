@@ -38,7 +38,8 @@ def extract_individual_obs(combine_state, agent_idx):
     self_obs_grid = combine_state[agent_idx][1]
     self_surround = combine_state[agent_idx][2]
     individual_obs = [self_obs, self_obs_grid, self_surround]
-    return individual_obs
+    # return individual_obs  # for old V5
+    return combine_state[agent_idx]
 
 
 def map_range(value, coe_a):
@@ -104,6 +105,26 @@ def preprocess_batch_for_critic_net(input_state, batch_size):
     cur_state_pre_processed = [T.tensor(np.array(critic_own_batched_cur_state)),
                                T.tensor(np.array(critic_grid_batched_cur_state)),
                                T.tensor(np.array(critic_neigh_batched_cur_state))]
+    return cur_state_pre_processed
+
+
+def preprocess_batch_for_critic_net_v2(input_state, batch_size):
+    critic_own_batched_cur_state = []  # batch_size X one_agent_feature * max_num_agents
+
+    for batch_idx in range(batch_size):
+        critic_own_cur_state = []
+
+        for agent_cur in input_state:
+            critic_own_cur_state.append(agent_cur[batch_idx, :])
+
+
+
+
+        critic_own_batched_cur_state.append(np.array(critic_own_cur_state).reshape((1, -1)))
+
+
+    cur_state_pre_processed = T.tensor(np.array(critic_own_batched_cur_state))  # batch X (1 x no_agent x feature size)
+
     return cur_state_pre_processed
 
 
