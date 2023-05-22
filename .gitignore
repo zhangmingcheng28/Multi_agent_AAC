@@ -8,3 +8,6 @@
 /old_framework_test/algo/runs/
 /old_framework_test/algo/wandb/
 /old_framework_test/algo/trained_model/
+/combine_learningfw_ownenv/algo/runs/
+/combine_learningfw_ownenv/algo/trained_model/
+/combine_learningfw_ownenv/algo/wandb/

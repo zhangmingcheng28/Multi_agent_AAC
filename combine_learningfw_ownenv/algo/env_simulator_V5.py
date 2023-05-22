@@ -667,8 +667,8 @@ class env_simulator:
         device = self.all_agents[0].actorNet.device
 
         # pre-process cur_state and next_state so that they can be used as input for every agent's critic network
-        cur_state_pre_processed = preprocess_batch_for_critic_net(cur_state, batch_size)
-        next_state_pre_processed = preprocess_batch_for_critic_net(next_state, batch_size)
+        cur_state_pre_processed = preprocess_batch_for_critic_net_v2(cur_state, batch_size)
+        next_state_pre_processed = preprocess_batch_for_critic_net_v2(next_state, batch_size)
 
         # load action, reward, done to tensor
         action = T.tensor(np.array(action), dtype=T.float).to(device)
@@ -747,6 +747,82 @@ class env_simulator:
                 agent.update_count = 0  # reset update count
 
         return critic_losses, actor_losses
+
+    def central_update(self, ReplayBuffer, batch_size, maxIntruNum, intruFeature):
+        critic_losses, actor_losses = [], []
+        cur_state, action, reward, next_state, done = ReplayBuffer.sample(batch_size, maxIntruNum, intruFeature,
+                                                                          self.all_agents[0].max_grid_obs_dim)
+
+        device = self.all_agents[0].actorNet.device
+        # load action, reward, done to tensor
+        action = T.tensor(np.array(action), dtype=T.float).to(device)
+        reward = T.tensor(np.array(reward), dtype=T.float).to(device)
+        done = T.tensor(np.array(done)).to(device)
+
+        # pre-process cur_state and next_state so that they can be used as input for every agent's critic network
+        cur_state_pre_processed = preprocess_batch_for_critic_net_v2(cur_state, batch_size)
+        next_state_pre_processed = preprocess_batch_for_critic_net_v2(next_state, batch_size)
+
+        all_agents_next_actions = []
+        all_agents_new_mu_actions = []
+        old_agents_actions = []  # actions the agent actually took
+
+        for agent_idx, agent in self.all_agents.items():  # for generate next actions
+            # for next action, from next state go into actor's target net
+            next_own = T.tensor(next_state[agent_idx], dtype=T.float).to(device)
+            new_pi = agent.target_actorNet.forward(next_own)  # individual agent's target network
+            all_agents_next_actions.append(new_pi)
+            # for current action, from current state go into actor's prediction net
+            cur_own = T.tensor(cur_state[agent_idx], dtype=T.float).to(device)
+            pi = agent.actorNet.forward(cur_own)
+            all_agents_new_mu_actions.append(pi)
+
+            # record actions the agent actually took
+            old_agents_actions.append(action[agent_idx])
+
+        next_actions = T.cat([acts for acts in all_agents_next_actions], dim=1)
+        mu = T.cat([acts for acts in all_agents_new_mu_actions], dim=1)
+        cur_action = T.cat([acts for acts in old_agents_actions], dim=1)
+
+        for agent_idx, agent in self.all_agents.items():
+            agent.actorNet.optimizer.zero_grad()
+            agent.criticNet.optimizer.zero_grad()
+            agent.actorNet.zero_grad()
+            agent.actorNet.zero_grad()
+
+            # current Q estimate, shape is batch_size X 1
+            critic_value = agent.criticNet.forward(cur_state_pre_processed, cur_action)
+            critic_value_prime = agent.target_criticNet.forward(next_state_pre_processed, next_actions)
+            critic_value_prime[done[agent_idx]] = 0.0
+            target = reward[agent_idx] + agent.gamma * critic_value_prime
+
+            critic_loss = F.mse_loss(critic_value, target.detach())
+            critic_loss.backward()
+            torch.nn.utils.clip_grad_norm_(agent.criticNet.parameters(), 1)
+            agent.criticNet.optimizer.step()
+
+            agent.actorNet.optimizer.zero_grad()
+            agent.criticNet.optimizer.zero_grad()
+            agent.actorNet.zero_grad()
+            agent.actorNet.zero_grad()
+
+            actor_loss = -agent.criticNet(cur_state_pre_processed, mu).mean()
+            actor_loss.backward()
+            torch.nn.utils.clip_grad_norm_(agent.actorNet.parameters(), 1)
+            torch.nn.utils.clip_grad_norm_(agent.criticNet.parameters(), 1)
+            agent.actorNet.optimizer.step()
+
+            critic_losses.append(critic_loss)
+            actor_losses.append(actor_loss)
+
+            agent.update_count = agent.update_count + 1
+            if agent.update_count == agent.target_update_step:
+                agent.update_network_parameters()  # soft-update is used here
+                print("{} network updated".format(agent.agent_name))
+                agent.update_count = 0  # reset update count
+
+        return critic_losses, actor_losses
+
 
     def save_model_actor_net(self, file_path):
         if not os.path.exists(file_path):
