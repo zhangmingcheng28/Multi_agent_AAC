@@ -237,11 +237,13 @@ class MADDPG:
             loss_Q = nn.MSELoss()(current_Q, target_Q.detach())
             self.critic_optimizer[agent].zero_grad()
             loss_Q.backward(retain_graph=True)
+            torch.nn.utils.clip_grad_norm_(self.critics[agent].parameters(), 1)
             self.critic_optimizer[agent].zero_grad()
 
             actor_loss = -self.critics[agent](whole_state, whole_action).mean()
             self.actor_optimizer[agent].zero_grad()
             actor_loss.backward()
+            torch.nn.utils.clip_grad_norm_(self.actors[agent].parameters(), 1)
             self.actor_optimizer[agent].step()
             c_loss.append(loss_Q)
             a_loss.append(actor_loss)

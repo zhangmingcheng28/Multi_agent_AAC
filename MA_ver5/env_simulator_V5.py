@@ -65,8 +65,8 @@ class env_simulator:
         #  custom agent position
         # x-bound: [0, 1800), y-bound: [0, 1300)
         # read the Excel file into a pandas dataframe
-        df = pd.read_excel(r'F:\githubClone\Multi_agent_AAC\MA_ver1\fixedDrone.xlsx')
-        # df = pd.read_excel(r'D:\Multi_agent_AAC\MA_ver1\fixedDrone.xlsx')
+        # df = pd.read_excel(r'F:\githubClone\Multi_agent_AAC\MA_ver1\fixedDrone.xlsx')
+        df = pd.read_excel(r'D:\Multi_agent_AAC\MA_ver1\fixedDrone.xlsx')
         # convert the dataframe to a NumPy array
         custom_agent_data = np.array(df)
         custom_agent_data = custom_agent_data.astype(float)
@@ -341,11 +341,11 @@ class env_simulator:
             # check whether current actions leads to a collision with any buildings in the airspace
             allBuildingSTR = STRtree(self.world_map_2D_polyList[0][0])
             possiblePoly = allBuildingSTR.query(host_passed_volume)
-            for element in possiblePoly:
-                if allBuildingSTR.geometries.take(element).intersection(host_passed_volume):
-                    collide_building = 1
-                    print("drone_{} crash into building when moving from {} to {} at time step {}".format(drone_idx, self.all_agents[drone_idx].pre_pos, self.all_agents[drone_idx].pos, current_ts))
-                    break
+            # for element in possiblePoly:
+            #     if allBuildingSTR.geometries.take(element).intersection(host_passed_volume):
+            #         collide_building = 1
+            #         print("drone_{} crash into building when moving from {} to {} at time step {}".format(drone_idx, self.all_agents[drone_idx].pre_pos, self.all_agents[drone_idx].pos, current_ts))
+            #         break
 
             tar_circle = Point(self.all_agents[drone_idx].goal[0]).buffer(1, cap_style='round')
             # when there is no intersection between two geometries, "RuntimeWarning" will appear

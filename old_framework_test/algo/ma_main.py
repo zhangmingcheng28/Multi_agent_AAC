@@ -3,7 +3,6 @@ import sys
 sys.path.append('D:\Multi_agent_AAC\old_framework_test')
 from env.make_env import make_env
 import argparse, datetime
-from tensorboardX import SummaryWriter
 import numpy as np
 import torch, os
 import wandb
@@ -11,25 +10,36 @@ from algo.maddpg.maddpg_agent import MADDPG
 from algo.normalized_env import ActionNormalizedEnv, ObsEnv, reward_from_state
 from algo.utils import *
 from copy import deepcopy
+import torch
 
 
 def main(args):
-    # simulation result saving
+    num_devices = torch.cuda.device_count()
+    print("Number of GPUs:", num_devices)
+    # Get the names of the available GPUs
+    gpu_names = [torch.cuda.get_device_name(i) for i in range(num_devices)]
+    print("GPU Names:", gpu_names)
+    if torch.cuda.is_available():
+        device = torch.device('cuda')
+        print('Using GPU')
+    else:
+        device = torch.device('cpu')
+        print('Using CPU')
     today = datetime.date.today()
     current_date = today.strftime("%d%m%y")
     current_time = datetime.datetime.now()
     formatted_time = current_time.strftime("%H_%M_%S")
-    # wandb.login(key="efb76db851374f93228250eda60639c70a93d1ec")
-    # wandb.init(
-    #     # set the wandb project where this run will be logged
-    #     project="MADDPG_sample_newFrameWork",
-    #     name='MADDPG_test_'+str(current_date) + '_' + str(formatted_time),
-    #     # track hyperparameters and run metadata
-    #     config={
-    #         "learning_rate": args.a_lr,
-    #         "epochs": args.max_episodes,
-    #     }
-    # )
+    wandb.login(key="efb76db851374f93228250eda60639c70a93d1ec")
+    wandb.init(
+        # set the wandb project where this run will be logged
+        project="MADDPG_sample_newFrameWork",
+        name='MADDPG_test_'+str(current_date) + '_' + str(formatted_time),
+        # track hyperparameters and run metadata
+        config={
+            "learning_rate": args.a_lr,
+            "epochs": args.max_episodes,
+        }
+    )
 
     env = make_env(args.scenario)
     n_agents = env.n
@@ -104,18 +114,18 @@ def main(args):
                     c_loss, a_loss = model.update_myown(episode)
 
                     print("[Episode %05d] reward %6.4f" % (episode, accum_reward))
-                    # wandb.log({'overall_reward': float(accum_reward)})
+                    wandb.log({'overall_reward': float(accum_reward)})
                     if c_loss and a_loss:
                         for idx, val in enumerate(c_loss):
                             print(" agent %s, a_loss %3.2f c_loss %3.2f" % (idx, a_loss[idx].item(), c_loss[idx].item()))
-                            # wandb.log({'agent' + str(idx) + 'actor_loss': float(a_loss[idx].item())})
-                            # wandb.log({'agent' + str(idx) + 'critic_loss': float(c_loss[idx].item())})
+                            wandb.log({'agent' + str(idx) + 'actor_loss': float(a_loss[idx].item())})
+                            wandb.log({'agent' + str(idx) + 'critic_loss': float(c_loss[idx].item())})
                             print(" agent %s, a_loss %3.2f c_loss %3.2f" % (idx, a_loss[idx].item(), c_loss[idx].item()))
-                            # wandb.log({'agent' + str(idx) + 'actor_loss': float(a_loss[idx].item())})
-                            # wandb.log({'agent' + str(idx) + 'critic_loss': float(c_loss[idx].item())})
+                            wandb.log({'agent' + str(idx) + 'actor_loss': float(a_loss[idx].item())})
+                            wandb.log({'agent' + str(idx) + 'critic_loss': float(c_loss[idx].item())})
                             print(" agent %s, a_loss %3.2f c_loss %3.2f" % (idx, a_loss[idx].item(), c_loss[idx].item()))
-                            # wandb.log({'agent' + str(idx) + 'actor_loss': float(a_loss[idx].item())})
-                            # wandb.log({'agent' + str(idx) + 'critic_loss': float(c_loss[idx].item())})
+                            wandb.log({'agent' + str(idx) + 'actor_loss': float(a_loss[idx].item())})
+                            wandb.log({'agent' + str(idx) + 'critic_loss': float(c_loss[idx].item())})
 
                     if episode % args.save_interval == 0 and args.mode == "train":
                         model.save_model(episode)
@@ -145,7 +155,7 @@ def main(args):
                     print("[Episode %05d] reward %6.4f " % (episode, accum_reward))
                     env.reset()
                     break
-    # wandb.finish()
+    wandb.finish()
 
     # if args.tensorboard:
     #     writer.close()
@@ -171,9 +181,9 @@ if __name__ == '__main__':
     parser.add_argument('--ou_sigma', default=0.2, type=float)
     parser.add_argument('--epsilon_decay', default=10000, type=int)
     parser.add_argument('--tensorboard', default=True, action="store_true")
-    parser.add_argument("--save_interval", default=10, type=int)  # save model for every 5000 episodes
+    parser.add_argument("--save_interval", default=5000, type=int)  # save model for every 5000 episodes
     parser.add_argument("--model_episode", default=240000, type=int)
-    parser.add_argument('--episode_before_train', default=10, type=int)  # original 1000
+    parser.add_argument('--episode_before_train', default=1000, type=int)  # original 1000
     parser.add_argument('--log_dir', default=datetime.datetime.now().strftime('%Y%m%d_%H%M%S'))
 
     args = parser.parse_args()

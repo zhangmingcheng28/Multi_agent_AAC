@@ -22,7 +22,7 @@ def initialize_parameters():
     agent_grid_obs = np.zeros((7, 7))
     agent_obs_dim = 6  # Vx, Vy, delta_Gx, delta_Gy, Acc_x, Acc_y
     BUFFER_SIZE = int(1e6)  # replay buffer size
-    BATCH_SIZE = 64  # minibatch size
+    BATCH_SIZE = 128  # minibatch size
     GAMMA = 0.99  # discount factor
     TAU = 1e-3  # for soft update of target parameters, 0.001, so 99.9% of the weights in the target network is
     learning_rate = 1e-5  # learning rate, previous = 0.0005 or 5e-4, now changed to 0.002
