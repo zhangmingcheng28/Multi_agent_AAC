@@ -96,7 +96,8 @@ class MADDPG:
         if not os.path.exists("./trained_model/"):
             os.mkdir("./trained_model/")
         if not os.path.exists("./trained_model/" + str(self.args.algo) + "/"):
-            os.mkdir(r"F:\githubClone\MAProj_myversion\algo/trained_model/" + str(self.args.algo))
+            # os.mkdir(r"F:\githubClone\MAProj_myversion\algo/trained_model/" + str(self.args.algo))
+            os.mkdir(r"D:\Multi_agent_AAC\old_framework_test\algo/trained_model/" + str(self.args.algo))
         for i in range(self.n_agents):
             torch.save(self.actors[i],
                        'trained_model/maddpg/actor[' + str(i) + ']' + '_' + str(episode) + '.pth')
