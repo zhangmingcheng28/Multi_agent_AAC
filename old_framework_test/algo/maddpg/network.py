@@ -32,7 +32,7 @@ class Actor(nn.Module):
 		self.FC1 = nn.Linear(dim_observation,500)
 		self.FC2 = nn.Linear(500,128)
 		self.FC3 = nn.Linear(128,dim_action)
-		
+
 
 	def forward(self,obs):
 		result = F.relu(self.FC1(obs))

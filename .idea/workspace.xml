@@ -6,6 +6,9 @@
   <component name="ChangeListManager">
     <list default="true" id="f4b70a76-8539-4f85-9a24-01358cebe64d" name="Changes" comment="Changes">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/old_framework_test/algo/ma_main.py" beforeDir="false" afterPath="$PROJECT_DIR$/old_framework_test/algo/ma_main.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/old_framework_test/algo/maddpg/maddpg_agent.py" beforeDir="false" afterPath="$PROJECT_DIR$/old_framework_test/algo/maddpg/maddpg_agent.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/old_framework_test/algo/maddpg/network.py" beforeDir="false" afterPath="$PROJECT_DIR$/old_framework_test/algo/maddpg/network.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -187,7 +190,7 @@
       <workItem from="1682214090216" duration="22689000" />
       <workItem from="1682991558421" duration="82619000" />
       <workItem from="1683867401964" duration="17221000" />
-      <workItem from="1684373683840" duration="33882000" />
+      <workItem from="1684373683840" duration="41728000" />
     </task>
     <servers />
   </component>
@@ -276,7 +279,7 @@
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/old_framework_test/algo/maddpg/maddpg_agent.py</url>
-          <line>180</line>
+          <line>184</line>
           <option name="timeStamp" value="474" />
         </line-breakpoint>
       </breakpoints>

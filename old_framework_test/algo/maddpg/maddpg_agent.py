@@ -8,6 +8,7 @@ from torch.autograd import Variable
 import os
 import torch.nn as nn
 import numpy as np
+import torch as T
 from algo.utils import device
 scale_reward = 0.01
 
@@ -133,10 +134,12 @@ class MADDPG:
             self.critic_optimizer[agent].zero_grad()
             self.actors[agent].zero_grad()
             self.critics[agent].zero_grad()
+
             current_Q = self.critics[agent](whole_state, whole_action)
             non_final_next_actions = [self.actors_target[i](non_final_next_states[:, i,:]) for i in range(self.n_agents)]
             non_final_next_actions = torch.stack(non_final_next_actions)
             non_final_next_actions = (non_final_next_actions.transpose(0,1).contiguous())  # using () at outer most will leads to creation of a new tensor, (batch_size X agentNo X action_dim)
+
             target_Q = torch.zeros(self.batch_size).type(FloatTensor)
             target_Q[non_final_mask] = self.critics_target[agent](
                 non_final_next_states.view(-1, self.n_agents * self.n_states), # .view(-1, self.n_agents * self.n_states)
@@ -162,6 +165,7 @@ class MADDPG:
             # ac = action_batch
             ac[:, agent, :] = action_i
             whole_action = ac.view(self.batch_size, -1)
+
             actor_loss = -self.critics[agent](whole_state, whole_action).mean()
             # actor_loss += (action_i ** 2).mean() * 1e-3
             actor_loss.backward()
@@ -178,6 +182,74 @@ class MADDPG:
                 soft_update(self.actors_target[i], self.actors[i], self.tau)
 
         # return sum(c_loss).item()/self.n_agents, sum(a_loss).item()/self.n_agents
+        return c_loss, a_loss
+
+    def update_myown(self, i_episode):
+        self.train_num = i_episode
+        if self.train_num <= self.episodes_before_train:
+            return None, None
+
+        BoolTensor = torch.cuda.BoolTensor if self.use_cuda else torch.BoolTensor
+        FloatTensor = torch.cuda.FloatTensor if self.use_cuda else torch.FloatTensor
+
+        c_loss = []
+        a_loss = []
+
+        transitions = self.memory.sample(self.batch_size)
+        batch = Experience(*zip(*transitions))
+
+        for agent in range(self.n_agents):
+            non_final_mask = BoolTensor(list(map(lambda s: s is not None,
+                                                 batch.next_states)))  # create a boolean tensor, that has same length as the "batch.next_states", if an element is batch.next_state is not "None" then assign a True value, False otherwise.
+            # state_batch: batch_size x n_agents x dim_obs
+            state_batch = torch.stack(batch.states).type(FloatTensor)
+            action_batch = torch.stack(batch.actions).type(FloatTensor)
+            reward_batch = torch.stack(batch.rewards).type(FloatTensor)
+            non_final_next_states = torch.stack([s for s in batch.next_states if s is not None]).type(FloatTensor)  # create a new tensor, but exclude the None values in the old tensor which is "batch.next_states"
+            whole_state = state_batch.view(self.batch_size, -1)
+            whole_action = action_batch.view(self.batch_size, -1)
+
+            non_final_next_actions = [self.actors_target[i](non_final_next_states[:, i,:]) for i in range(self.n_agents)]
+            non_final_next_actions = torch.stack(non_final_next_actions)
+            non_final_next_actions = (non_final_next_actions.transpose(0,1).contiguous())  # using () at outer most will leads to creation of a new tensor, (batch_size X agentNo X action_dim)
+
+            state_i = state_batch[:, agent, :]
+            action_i = self.actors[agent](state_i)
+
+            ac = action_batch.clone()
+            # ac = action_batch
+            ac[:, agent, :] = action_i
+            whole_action = ac.view(self.batch_size, -1)
+
+            # get current Q-estimate, using agent's critic network
+            current_Q = self.critics[agent](whole_state, whole_action)
+            with T.no_grad():
+                target_Q = torch.zeros(self.batch_size).type(FloatTensor)
+                target_Q[non_final_mask] = self.critics_target[agent](
+                    non_final_next_states.view(-1, self.n_agents * self.n_states),
+                    # .view(-1, self.n_agents * self.n_states)
+                    non_final_next_actions.view(-1,
+                                                self.n_agents * self.n_actions)).squeeze()  # .view(-1, self.n_agents * self.n_actions)
+
+                target_Q = (target_Q.unsqueeze(1) * self.GAMMA) + (
+                        reward_batch[:, agent].unsqueeze(1) * 0.1)  # + reward_sum.unsqueeze(1) * 0.1
+            loss_Q = nn.MSELoss()(current_Q, target_Q.detach())
+            self.critic_optimizer[agent].zero_grad()
+            loss_Q.backward()
+            self.critic_optimizer[agent].zero_grad()
+
+            actor_loss = -self.critics[agent](whole_state, whole_action).mean()
+            self.actor_optimizer[agent].zero_grad()
+            actor_loss.backward()
+            self.actor_optimizer[agent].step()
+            c_loss.append(loss_Q)
+            a_loss.append(actor_loss)
+
+        if self.train_num % 100 == 0:  # evert 100 step, do a soft update
+            for i in range(self.n_agents):
+                soft_update(self.critics_target[i], self.critics[i], self.tau)
+                soft_update(self.actors_target[i], self.actors[i], self.tau)
+
         return c_loss, a_loss
 
     def choose_action(self, state, noisy=True):

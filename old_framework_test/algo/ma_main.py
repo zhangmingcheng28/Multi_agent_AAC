@@ -18,17 +18,17 @@ def main(args):
     current_date = today.strftime("%d%m%y")
     current_time = datetime.datetime.now()
     formatted_time = current_time.strftime("%H_%M_%S")
-    wandb.login(key="efb76db851374f93228250eda60639c70a93d1ec")
-    wandb.init(
-        # set the wandb project where this run will be logged
-        project="MADDPG_sample_newFrameWork",
-        name='MADDPG_test_'+str(current_date) + '_' + str(formatted_time),
-        # track hyperparameters and run metadata
-        config={
-            "learning_rate": args.a_lr,
-            "epochs": args.max_episodes,
-        }
-    )
+    # wandb.login(key="efb76db851374f93228250eda60639c70a93d1ec")
+    # wandb.init(
+    #     # set the wandb project where this run will be logged
+    #     project="MADDPG_sample_newFrameWork",
+    #     name='MADDPG_test_'+str(current_date) + '_' + str(formatted_time),
+    #     # track hyperparameters and run metadata
+    #     config={
+    #         "learning_rate": args.a_lr,
+    #         "epochs": args.max_episodes,
+    #     }
+    # )
 
     env = make_env(args.scenario)
     n_agents = env.n
@@ -99,21 +99,22 @@ def main(args):
                 state = next_state
 
                 if args.episode_length < step or (True in done):
-                    c_loss, a_loss = model.update(episode)
+                    # c_loss, a_loss = model.update(episode)
+                    c_loss, a_loss = model.update_myown(episode)
 
                     print("[Episode %05d] reward %6.4f" % (episode, accum_reward))
-                    wandb.log({'overall_reward': float(accum_reward)})
+                    # wandb.log({'overall_reward': float(accum_reward)})
                     if c_loss and a_loss:
                         for idx, val in enumerate(c_loss):
                             print(" agent %s, a_loss %3.2f c_loss %3.2f" % (idx, a_loss[idx].item(), c_loss[idx].item()))
-                            wandb.log({'agent' + str(idx) + 'actor_loss': float(a_loss[idx].item())})
-                            wandb.log({'agent' + str(idx) + 'critic_loss': float(c_loss[idx].item())})
+                            # wandb.log({'agent' + str(idx) + 'actor_loss': float(a_loss[idx].item())})
+                            # wandb.log({'agent' + str(idx) + 'critic_loss': float(c_loss[idx].item())})
                             print(" agent %s, a_loss %3.2f c_loss %3.2f" % (idx, a_loss[idx].item(), c_loss[idx].item()))
-                            wandb.log({'agent' + str(idx) + 'actor_loss': float(a_loss[idx].item())})
-                            wandb.log({'agent' + str(idx) + 'critic_loss': float(c_loss[idx].item())})
+                            # wandb.log({'agent' + str(idx) + 'actor_loss': float(a_loss[idx].item())})
+                            # wandb.log({'agent' + str(idx) + 'critic_loss': float(c_loss[idx].item())})
                             print(" agent %s, a_loss %3.2f c_loss %3.2f" % (idx, a_loss[idx].item(), c_loss[idx].item()))
-                            wandb.log({'agent' + str(idx) + 'actor_loss': float(a_loss[idx].item())})
-                            wandb.log({'agent' + str(idx) + 'critic_loss': float(c_loss[idx].item())})
+                            # wandb.log({'agent' + str(idx) + 'actor_loss': float(a_loss[idx].item())})
+                            # wandb.log({'agent' + str(idx) + 'critic_loss': float(c_loss[idx].item())})
 
                     if episode % args.save_interval == 0 and args.mode == "train":
                         model.save_model(episode)
@@ -144,6 +145,7 @@ def main(args):
                     env.reset()
                     break
     # wandb.finish()
+
     # if args.tensorboard:
     #     writer.close()
 
