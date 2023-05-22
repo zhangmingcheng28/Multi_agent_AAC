@@ -8,7 +8,6 @@
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/old_framework_test/algo/ma_main.py" beforeDir="false" afterPath="$PROJECT_DIR$/old_framework_test/algo/ma_main.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/old_framework_test/algo/maddpg/maddpg_agent.py" beforeDir="false" afterPath="$PROJECT_DIR$/old_framework_test/algo/maddpg/maddpg_agent.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/old_framework_test/algo/maddpg/network.py" beforeDir="false" afterPath="$PROJECT_DIR$/old_framework_test/algo/maddpg/network.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -190,7 +189,7 @@
       <workItem from="1682214090216" duration="22689000" />
       <workItem from="1682991558421" duration="82619000" />
       <workItem from="1683867401964" duration="17221000" />
-      <workItem from="1684373683840" duration="41728000" />
+      <workItem from="1684373683840" duration="42105000" />
     </task>
     <servers />
   </component>
@@ -305,7 +304,7 @@
     <SUITE FILE_PATH="coverage/Multi_agent_AAC$test.coverage" NAME="test Coverage Results" MODIFIED="1682575898327" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/MA_ver1" />
     <SUITE FILE_PATH="coverage/Multi_agent_AAC$agent_linear.coverage" NAME="agent_linear Coverage Results" MODIFIED="1683697136859" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
     <SUITE FILE_PATH="coverage/Multi_agent_AAC$env_simulator_V2.coverage" NAME="env_simulator_V2 Coverage Results" MODIFIED="1683535139868" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/MA_ver2" />
-    <SUITE FILE_PATH="coverage/Multi_agent_AAC$ma_main.coverage" NAME="ma_main Coverage Results" MODIFIED="1684658804319" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/old_framework_test/algo" />
+    <SUITE FILE_PATH="coverage/Multi_agent_AAC$ma_main.coverage" NAME="ma_main Coverage Results" MODIFIED="1684732876013" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/old_framework_test/algo" />
     <SUITE FILE_PATH="coverage/Multi_agent_AAC$self_attention_test.coverage" NAME="self-attention-test Coverage Results" MODIFIED="1679570279227" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/MA_ver1" />
     <SUITE FILE_PATH="coverage/Multi_agent_AAC$zh_hw.coverage" NAME="zh_hw Coverage Results" MODIFIED="1683881663103" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
     <SUITE FILE_PATH="coverage/Multi_agent_AAC$data_analysis.coverage" NAME="data_analysis Coverage Results" MODIFIED="1678935912879" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/data_analysis" />

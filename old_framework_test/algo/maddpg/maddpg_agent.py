@@ -235,7 +235,7 @@ class MADDPG:
                         reward_batch[:, agent].unsqueeze(1) * 0.1)  # + reward_sum.unsqueeze(1) * 0.1
             loss_Q = nn.MSELoss()(current_Q, target_Q.detach())
             self.critic_optimizer[agent].zero_grad()
-            loss_Q.backward()
+            loss_Q.backward(retain_graph=True)
             self.critic_optimizer[agent].zero_grad()
 
             actor_loss = -self.critics[agent](whole_state, whole_action).mean()

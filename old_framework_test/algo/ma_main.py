@@ -170,9 +170,9 @@ if __name__ == '__main__':
     parser.add_argument('--ou_sigma', default=0.2, type=float)
     parser.add_argument('--epsilon_decay', default=10000, type=int)
     parser.add_argument('--tensorboard', default=True, action="store_true")
-    parser.add_argument("--save_interval", default=5000, type=int)  # save model for every 5000 episodes
+    parser.add_argument("--save_interval", default=10, type=int)  # save model for every 5000 episodes
     parser.add_argument("--model_episode", default=240000, type=int)
-    parser.add_argument('--episode_before_train', default=1000, type=int)  # original 1000
+    parser.add_argument('--episode_before_train', default=10, type=int)  # original 1000
     parser.add_argument('--log_dir', default=datetime.datetime.now().strftime('%Y%m%d_%H%M%S'))
 
     args = parser.parse_args()
