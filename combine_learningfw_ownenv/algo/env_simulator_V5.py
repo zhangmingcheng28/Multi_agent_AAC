@@ -125,7 +125,6 @@ class env_simulator:
             # overall_state.append(np.array([agent_own, agent.observableSpace, agent.surroundingNeighbor], dtype=object))
             overall_state.append(np.concatenate((agent_own, np.array(other_pos).flatten())))
 
-
         if show:
             os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
             matplotlib.use('TkAgg')
@@ -280,6 +279,12 @@ class env_simulator:
         reach_target = 1000
         potential_conflict_count = 0
         fixed_domino_reward = 1
+        x_left_bound = LineString([(self.bound[0], -9999), (self.bound[0], 9999)])
+        x_right_bound = LineString([(self.bound[1], -9999), (self.bound[1], 9999)])
+        y_bottom_bound = LineString([(-9999, self.bound[2]), (9999, self.bound[2])])
+        y_top_bound = LineString([(-9999, self.bound[3]), (9999, self.bound[3])])
+
+
 
         for drone_idx, drone_obj in self.all_agents.items():
             # re-initialize these two list for individual agents at each time step,this is to ensure collision
@@ -355,14 +360,19 @@ class env_simulator:
                 print("drone_{} has reached its goal at time step {}".format(drone_idx, current_ts))
                 done.append(True)
                 reward.append(np.array(reach_target))
-            # exceed bound or crash into buildings or crash with other neighbors
-            elif (self.all_agents[drone_idx].pos[0] <= self.bound[0] or self.all_agents[drone_idx].pos[0] >= self.bound[1] or
-                  self.all_agents[drone_idx].pos[1] <= self.bound[2] or self.all_agents[drone_idx].pos[1] >= self.bound[3] or
-                  collide_building == 1 or len(collision_drones) > 0):
+            # exceed bound condition, don't use current point, use current circle or else will have condition that
+            elif x_left_bound.intersects(host_passed_volume) or x_right_bound.intersects(host_passed_volume) or y_bottom_bound.intersects(host_passed_volume) or y_top_bound.intersects(host_passed_volume):
+                print("drone_{} has crash into boundary at time step {}".format(drone_idx, current_ts))
                 reward.append(np.array(crash_penalty))
                 done.append(True)
-                if (collide_building == 0) or len(collision_drones) == 0:
-                    print("drone_{} has crash into boundary at time step {}". format(drone_idx, current_ts))
+            # exceed bound or crash into buildings or crash with other neighbors
+            # elif (self.all_agents[drone_idx].pos[0] <= self.bound[0] or self.all_agents[drone_idx].pos[0] >= self.bound[1] or
+            #       self.all_agents[drone_idx].pos[1] <= self.bound[2] or self.all_agents[drone_idx].pos[1] >= self.bound[3] or
+            #       collide_building == 1 or len(collision_drones) > 0):
+            #     reward.append(np.array(crash_penalty))
+            #     done.append(True)
+            #     if (collide_building == 0) or len(collision_drones) == 0:
+            #         print("drone_{} has crash into boundary at time step {}". format(drone_idx, current_ts))
             else:  # a normal step taken
                 done.append(False)
                 crossCoefficient = 1
@@ -553,7 +563,6 @@ class env_simulator:
         #     fig.canvas.flush_events()
         #     ax.cla()
         return next_combine_state
-
 
     def central_learning(self, ReplayBuffer, batch_size, maxIntruNum, intruFeature, UPDATE_EVERY):
         with torch.autograd.set_detect_anomaly(True):
@@ -822,7 +831,6 @@ class env_simulator:
                 agent.update_count = 0  # reset update count
 
         return critic_losses, actor_losses
-
 
     def save_model_actor_net(self, file_path):
         if not os.path.exists(file_path):

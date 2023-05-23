@@ -24,7 +24,7 @@ def initialize_parameters():
     BUFFER_SIZE = int(1e6)  # replay buffer size
     BATCH_SIZE = 128  # minibatch size
     GAMMA = 0.99  # discount factor
-    TAU = 1e-3  # for soft update of target parameters, 0.001, so 99.9% of the weights in the target network is
+    TAU = 1e-2  # for soft update of target parameters, 0.001, so 99.9% of the weights in the target network is
     learning_rate = 1e-5  # learning rate, previous = 0.0005 or 5e-4, now changed to 0.002
     UPDATE_EVERY = 5  # how often to update the network
     # generate static env from shape file
