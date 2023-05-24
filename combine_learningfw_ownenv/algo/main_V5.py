@@ -83,16 +83,16 @@ if __name__ == '__main__':
     if not os.path.exists(plot_file_name):
         os.makedirs(plot_file_name)
 
-    # wandb.init(
-    #     # set the wandb project where this run will be logged
-    #     project="MADDPG_fixedDroneNum_env",
-    #     name='MADDPG_test_'+str(current_date) + '_' + str(formatted_time),
-    #     # track hyperparameters and run metadata
-    #     config={
-    #         "learning_rate": learning_rate,
-    #         "epochs": n_episodes,
-    #     }
-    # )
+    wandb.init(
+        # set the wandb project where this run will be logged
+        project="MADDPG_fixedDroneNum_env",
+        name='MADDPG_test_'+str(current_date) + '_' + str(formatted_time),
+        # track hyperparameters and run metadata
+        config={
+            "learning_rate": learning_rate,
+            "epochs": n_episodes,
+        }
+    )
 
     score_best_avg = float("-inf")
     actor_losses = None
@@ -181,7 +181,7 @@ if __name__ == '__main__':
                 # critic_losses, actor_losses = env.central_learning_v2(ReplayBuffer, BATCH_SIZE, total_agentNum, actor_obs[2])  # this is the new framework
                 # critic_losses, actor_losses = env.central_learning(ReplayBuffer, BATCH_SIZE, total_agentNum,
                 #                                                    actor_obs[2], UPDATE_EVERY)  # this is old framework
-                critic_losses, actor_losses = env.central_update(ReplayBuffer, BATCH_SIZE, total_agentNum, actor_obs[2])  # this is version two of the new framework
+                critic_losses, actor_losses = env.central_update(ReplayBuffer, BATCH_SIZE, total_agentNum, actor_obs[2], ts)  # this is version two of the new framework
             # record reward each step
             episode_score = episode_score + sum(reward_aft_action)
 
@@ -198,74 +198,74 @@ if __name__ == '__main__':
             # or goal reaching step can be recorded
 
             if 1 in done_aft_action:
-                # display trajectory of all agents in the environment
-                os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
-                matplotlib.use('TkAgg')
-                fig, ax = plt.subplots(1, 1)
-                # display initial condition
-                for agentIdx, agent in env.all_agents.items():
-
-                    plt.plot(agent.ini_pos[0], agent.ini_pos[1],
-                             marker=MarkerStyle(">",
-                                                fillstyle="right",
-                                                transform=Affine2D().rotate_deg(math.degrees(agent.heading))),
-                             color='y')
-                    plt.text(agent.ini_pos[0], agent.ini_pos[1], agent.agent_name)
-                    # plot self_circle of the drone
-                    self_circle = Point(agent.ini_pos[0],
-                                        agent.ini_pos[1]).buffer(agent.protectiveBound, cap_style='round')
-                    grid_mat_Scir = shapelypoly_to_matpoly(self_circle, inFill=False, Edgecolor='k')
-                    ax.add_patch(grid_mat_Scir)
-
-                    # plot drone's detection range
-                    detec_circle = Point(agent.ini_pos[0],
-                                         agent.ini_pos[1]).buffer(agent.detectionRange / 2, cap_style='round')
-                    detec_circle_mat = shapelypoly_to_matpoly(detec_circle, inFill=False, Edgecolor='g')
-                    ax.add_patch(detec_circle_mat)
-
-                    # link individual drone's starting position with its goal
-                    ini = agent.ini_pos
-                    for wp in agent.goal:
-                        plt.plot(wp[0], wp[1], marker='*', color='y', markersize=10)
-                        plt.plot([wp[0], ini[0]], [wp[1], ini[1]], '--', color='c')
-                        ini = wp
-
-                # draw trajectory in current episode
-                for trajectory_idx, trajectory_val in enumerate(trajectory_eachPlay):  # each time step
-                    for agentIDX, each_agent_traj in enumerate(trajectory_val):  # for each agent's motion in a time step
-                        x, y = each_agent_traj[0], each_agent_traj[1]
-                        plt.plot(x, y, 'o', color='r')
-
-                        plt.text(x-1, y-1, str(round(float(reward_each_agent[trajectory_idx][agentIDX]),2)))
-
-                        self_circle = Point(x, y).buffer(env.all_agents[0].protectiveBound, cap_style='round')
-                        grid_mat_Scir = shapelypoly_to_matpoly(self_circle, False, 'k')
-                        ax.add_patch(grid_mat_Scir)
-
-                # draw occupied_poly
-                for one_poly in env.world_map_2D_polyList[0][0]:
-                    one_poly_mat = shapelypoly_to_matpoly(one_poly, True, 'y', 'b')
-                    ax.add_patch(one_poly_mat)
-                # draw non-occupied_poly
-                for zero_poly in env.world_map_2D_polyList[0][1]:
-                    zero_poly_mat = shapelypoly_to_matpoly(zero_poly, False, 'y')
-                    # ax.add_patch(zero_poly_mat)
-
-                # show building obstacles
-                for poly in env.buildingPolygons:
-                    matp_poly = shapelypoly_to_matpoly(poly, False, 'red')  # the 3rd parameter is the edge color
-                    ax.add_patch(matp_poly)
-
-                plt.axis('equal')
-                plt.xlim(env.bound[0], env.bound[1])
-                plt.ylim(env.bound[2], env.bound[3])
-                plt.axvline(x=env.bound[0], c="green")
-                plt.axvline(x=env.bound[1], c="green")
-                plt.axhline(y=env.bound[2], c="green")
-                plt.axhline(y=env.bound[3], c="green")
-                plt.xlabel("X axis")
-                plt.ylabel("Y axis")
-                plt.show()
+                # # display trajectory of all agents in the environment
+                # os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
+                # matplotlib.use('TkAgg')
+                # fig, ax = plt.subplots(1, 1)
+                # # display initial condition
+                # for agentIdx, agent in env.all_agents.items():
+                #
+                #     plt.plot(agent.ini_pos[0], agent.ini_pos[1],
+                #              marker=MarkerStyle(">",
+                #                                 fillstyle="right",
+                #                                 transform=Affine2D().rotate_deg(math.degrees(agent.heading))),
+                #              color='y')
+                #     plt.text(agent.ini_pos[0], agent.ini_pos[1], agent.agent_name)
+                #     # plot self_circle of the drone
+                #     self_circle = Point(agent.ini_pos[0],
+                #                         agent.ini_pos[1]).buffer(agent.protectiveBound, cap_style='round')
+                #     grid_mat_Scir = shapelypoly_to_matpoly(self_circle, inFill=False, Edgecolor='k')
+                #     ax.add_patch(grid_mat_Scir)
+                #
+                #     # plot drone's detection range
+                #     detec_circle = Point(agent.ini_pos[0],
+                #                          agent.ini_pos[1]).buffer(agent.detectionRange / 2, cap_style='round')
+                #     detec_circle_mat = shapelypoly_to_matpoly(detec_circle, inFill=False, Edgecolor='g')
+                #     ax.add_patch(detec_circle_mat)
+                #
+                #     # link individual drone's starting position with its goal
+                #     ini = agent.ini_pos
+                #     for wp in agent.goal:
+                #         plt.plot(wp[0], wp[1], marker='*', color='y', markersize=10)
+                #         plt.plot([wp[0], ini[0]], [wp[1], ini[1]], '--', color='c')
+                #         ini = wp
+                #
+                # # draw trajectory in current episode
+                # for trajectory_idx, trajectory_val in enumerate(trajectory_eachPlay):  # each time step
+                #     for agentIDX, each_agent_traj in enumerate(trajectory_val):  # for each agent's motion in a time step
+                #         x, y = each_agent_traj[0], each_agent_traj[1]
+                #         plt.plot(x, y, 'o', color='r')
+                #
+                #         plt.text(x-1, y-1, str(round(float(reward_each_agent[trajectory_idx][agentIDX]),2)))
+                #
+                #         self_circle = Point(x, y).buffer(env.all_agents[0].protectiveBound, cap_style='round')
+                #         grid_mat_Scir = shapelypoly_to_matpoly(self_circle, False, 'k')
+                #         ax.add_patch(grid_mat_Scir)
+                #
+                # # draw occupied_poly
+                # for one_poly in env.world_map_2D_polyList[0][0]:
+                #     one_poly_mat = shapelypoly_to_matpoly(one_poly, True, 'y', 'b')
+                #     ax.add_patch(one_poly_mat)
+                # # draw non-occupied_poly
+                # for zero_poly in env.world_map_2D_polyList[0][1]:
+                #     zero_poly_mat = shapelypoly_to_matpoly(zero_poly, False, 'y')
+                #     # ax.add_patch(zero_poly_mat)
+                #
+                # # show building obstacles
+                # for poly in env.buildingPolygons:
+                #     matp_poly = shapelypoly_to_matpoly(poly, False, 'red')  # the 3rd parameter is the edge color
+                #     ax.add_patch(matp_poly)
+                #
+                # plt.axis('equal')
+                # plt.xlim(env.bound[0], env.bound[1])
+                # plt.ylim(env.bound[2], env.bound[3])
+                # plt.axvline(x=env.bound[0], c="green")
+                # plt.axvline(x=env.bound[1], c="green")
+                # plt.axhline(y=env.bound[2], c="green")
+                # plt.axhline(y=env.bound[3], c="green")
+                # plt.xlabel("X axis")
+                # plt.ylabel("Y axis")
+                # plt.show()
                 break  # terminate current episode.
 
         # check eps decay
@@ -283,7 +283,7 @@ if __name__ == '__main__':
             write = csv.writer(f)
             write.writerows([score_history])
             print('episode', i, 'episode score is {:.1f}'.format(episode_score))
-        # wandb.log({'overall_reward': float(episode_score)})
+        wandb.log({'overall_reward': float(episode_score)})
 
         # save all the trajectory history
         with open(plot_file_name+'/all_episode_trajectory.pickle', 'wb') as handle:
@@ -299,11 +299,11 @@ if __name__ == '__main__':
                     write = csv.writer(f)
                     write.writerows([[float(individual_actor)]])
                     # log metrics to wandb
-                    # wandb.log({agent_obj.agent_name + 'actor_loss': float(individual_actor)})
+                    wandb.log({agent_obj.agent_name + 'actor_loss': float(individual_actor)})
                 with open(plot_file_name + '/' + agent_obj.agent_name + 'critic_loss.csv', 'w') as f:
                     write = csv.writer(f)
                     write.writerows([[float(individual_critic)]])
-                    # wandb.log({agent_obj.agent_name + 'critic_loss': float(individual_critic)})
+                    wandb.log({agent_obj.agent_name + 'critic_loss': float(individual_critic)})
 
         # get average score for the past 100 episode
         score_avg = np.mean(score_history[-100:])
@@ -319,5 +319,5 @@ if __name__ == '__main__':
             print('episode', i, 'average score {:.1f}'.format(score_avg))
     print('done')
     # [optional] finish the wandb run, necessary in notebooks
-    # wandb.finish()
+    wandb.finish()
 

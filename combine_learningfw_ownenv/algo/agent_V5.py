@@ -27,7 +27,6 @@ class Agent:
         self.target_actorNet = ActorNetwork(actorNet_lr, actor_obs, n_actions, max_nei_num, name=self.agent_name+'_target_actorNet')
         self.criticNet = CriticNetwork(criticNet_lr, critic_obs, totalAgent, n_actions, name=self.agent_name+'_criticNet')
         self.target_criticNet = CriticNetwork(criticNet_lr, critic_obs, totalAgent, n_actions, name=self.agent_name+'_target_criticNet')
-        self.update_network_parameters()
 
         # state information
         self.pos = None

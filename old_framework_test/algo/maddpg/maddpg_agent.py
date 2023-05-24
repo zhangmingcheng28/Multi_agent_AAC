@@ -160,11 +160,12 @@ class MADDPG:
             self.critic_optimizer[agent].zero_grad()
             self.actors[agent].zero_grad()
             self.critics[agent].zero_grad()
+
             state_i = state_batch[:, agent, :]
             action_i = self.actors[agent](state_i)
             ac = action_batch.clone()
             # ac = action_batch
-            ac[:, agent, :] = action_i
+            ac[:, agent, :] = action_i  # replacing every single element in "ac[:, agent, :]"
             whole_action = ac.view(self.batch_size, -1)
 
             actor_loss = -self.critics[agent](whole_state, whole_action).mean()
@@ -214,14 +215,6 @@ class MADDPG:
             non_final_next_actions = torch.stack(non_final_next_actions)
             non_final_next_actions = (non_final_next_actions.transpose(0,1).contiguous())  # using () at outer most will leads to creation of a new tensor, (batch_size X agentNo X action_dim)
 
-            state_i = state_batch[:, agent, :]
-            action_i = self.actors[agent](state_i)
-
-            ac = action_batch.clone()
-            # ac = action_batch
-            ac[:, agent, :] = action_i
-            whole_action = ac.view(self.batch_size, -1)
-
             # get current Q-estimate, using agent's critic network
             current_Q = self.critics[agent](whole_state, whole_action)
             with T.no_grad():
@@ -237,14 +230,22 @@ class MADDPG:
             loss_Q = nn.MSELoss()(current_Q, target_Q.detach())
             self.critic_optimizer[agent].zero_grad()
             loss_Q.backward(retain_graph=True)
-            torch.nn.utils.clip_grad_norm_(self.critics[agent].parameters(), 1)
-            self.critic_optimizer[agent].zero_grad()
+            # torch.nn.utils.clip_grad_norm_(self.critics[agent].parameters(), 1)
+            self.critic_optimizer[agent].step()
+
+            state_i = state_batch[:, agent, :]
+            action_i = self.actors[agent](state_i)
+            ac = action_batch.clone()
+            # ac = action_batch
+            ac[:, agent, :] = action_i
+            whole_action = ac.view(self.batch_size, -1)
 
             actor_loss = -self.critics[agent](whole_state, whole_action).mean()
             self.actor_optimizer[agent].zero_grad()
             actor_loss.backward()
-            torch.nn.utils.clip_grad_norm_(self.actors[agent].parameters(), 1)
+            # torch.nn.utils.clip_grad_norm_(self.actors[agent].parameters(), 1)
             self.actor_optimizer[agent].step()
+
             c_loss.append(loss_Q)
             a_loss.append(actor_loss)
 
