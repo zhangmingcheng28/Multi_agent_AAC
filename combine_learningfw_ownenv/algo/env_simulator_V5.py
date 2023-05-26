@@ -65,8 +65,8 @@ class env_simulator:
         #  custom agent position
         # x-bound: [0, 1800), y-bound: [0, 1300)
         # read the Excel file into a pandas dataframe
-        # df = pd.read_excel(r'F:\githubClone\Multi_agent_AAC\MA_ver1\fixedDrone.xlsx')
-        df = pd.read_excel(r'D:\Multi_agent_AAC\MA_ver1\fixedDrone.xlsx')
+        df = pd.read_excel(r'F:\githubClone\Multi_agent_AAC\MA_ver1\fixedDrone.xlsx')
+        # df = pd.read_excel(r'D:\Multi_agent_AAC\MA_ver1\fixedDrone.xlsx')
         # convert the dataframe to a NumPy array
         custom_agent_data = np.array(df)
         custom_agent_data = custom_agent_data.astype(float)
@@ -761,13 +761,13 @@ class env_simulator:
         critic_losses, actor_losses = [], []
         cur_state, action, reward, next_state, done = ReplayBuffer.sample(batch_size, maxIntruNum, intruFeature,
                                                                           self.all_agents[0].max_grid_obs_dim)
-
+        FloatTensor = torch.FloatTensor
         device = self.all_agents[0].actorNet.device
         # load action, reward, done to tensor
-        action = T.tensor(np.array(action), dtype=T.float).to(device)
-        reward = T.tensor(np.array(reward), dtype=T.float).to(device)
-        done = T.tensor(np.array(done)).to(device)
-
+        actionQ = T.tensor(np.array(action).transpose(1, 0, 2), dtype=T.float).contiguous().view(batch_size, -1).to(device)
+        #reward = T.tensor(np.array(reward).transpose(1, 0, 2), dtype=T.float).contiguous().view(batch_size, -1).to(device)
+        #done = T.tensor(np.array(done).transpose(1, 0, 2)).contiguous().view(batch_size, -1).to(device)
+        next_ = T.tensor(np.array(next_state), dtype=T.float).to(device)
         # pre-process cur_state and next_state so that they can be used as input for every agent's critic network
         cur_state_pre_processed = preprocess_batch_for_critic_net_v2(cur_state, batch_size)
         next_state_pre_processed = preprocess_batch_for_critic_net_v2(next_state, batch_size)
@@ -776,37 +776,55 @@ class env_simulator:
         all_agents_new_mu_actions = []
         old_agents_actions = []  # actions the agent actually took
 
-        for agent_idx, agent in self.all_agents.items():  # for generate next actions
-            # for next action, from next state go into actor's target net
-            next_own = T.tensor(next_state[agent_idx], dtype=T.float).to(device)
-            new_pi = agent.target_actorNet.forward(next_own)  # individual agent's target network
-            all_agents_next_actions.append(new_pi)
-            # for current action, from current state go into actor's prediction net
-            cur_own = T.tensor(cur_state[agent_idx], dtype=T.float).to(device)
-            pi = agent.actorNet.forward(cur_own)
-            all_agents_new_mu_actions.append(pi)
-
-            # record actions the agent actually took
-            old_agents_actions.append(action[agent_idx])
-
-        next_actions = T.cat([acts for acts in all_agents_next_actions], dim=1)
-        mu = T.cat([acts for acts in all_agents_new_mu_actions], dim=1)
-        cur_action = T.cat([acts for acts in old_agents_actions], dim=1)
+        # for agent_idx, agent in self.all_agents.items():  # for generate next actions
+        #     # for next action, from next state go into actor's target net
+        #     next_own = T.tensor(next_state[agent_idx], dtype=T.float).to(device)
+        #     new_pi = agent.target_actorNet.forward(next_own)  # individual agent's target network
+        #     all_agents_next_actions.append(new_pi)
+        #     # for current action, from current state go into actor's prediction net
+        #     cur_own = T.tensor(cur_state[agent_idx], dtype=T.float).to(device)
+        #     pi = agent.actorNet(cur_own)
+        #
+        #     # pi = pi.clone()
+        #
+        #     all_agents_new_mu_actions.append(pi)
+        #
+        #     # record actions the agent actually took
+        #     old_agents_actions.append(action[agent_idx])
+        #
+        # next_actions = T.cat([acts for acts in all_agents_next_actions], dim=1)
+        # # next_actions = next_actions.clone()
+        # mu = T.cat([acts for acts in all_agents_new_mu_actions], dim=1)
+        # # might be necessary
+        # # mu_one = mu.clone()
+        # cur_action = T.cat([acts for acts in old_agents_actions], dim=1)
 
         for agent_idx, agent in self.all_agents.items():
 
             # current Q estimate, shape is batch_size X 1
-            critic_value = agent.criticNet.forward(cur_state_pre_processed, cur_action)
-            critic_value_prime = agent.target_criticNet.forward(next_state_pre_processed, next_actions)
-            critic_value_prime[done[agent_idx]] = 0.0
-            target = reward[agent_idx] + agent.gamma * critic_value_prime
+            critic_value = agent.criticNet(cur_state_pre_processed, actionQ)
 
+            critic_value_prime = torch.zeros(batch_size, 1).type(FloatTensor)
+            next_actions = [self.all_agents[i].target_actorNet(next_[i, :, :]) for i in range(len(self.all_agents))]
+            # critic_value_prime = agent.target_criticNet(next_state_pre_processed, next_actions).detach()
+            next_action_stack = torch.stack(next_actions).permute(1, 0, 2).contiguous().view(batch_size, -1)
+
+            mask = T.tensor(done[agent_idx]).int()
+            flipped_mask = 1 - mask
+            critic_value_prime = flipped_mask*agent.target_criticNet(next_state_pre_processed, next_action_stack)
+
+            target = T.tensor(reward[agent_idx]) + agent.gamma * critic_value_prime
 
             critic_loss = F.mse_loss(critic_value, target.detach())
             agent.criticNet.optimizer.zero_grad()
             critic_loss.backward(retain_graph=True)
             # torch.nn.utils.clip_grad_norm_(agent.criticNet.parameters(), 1)
             agent.criticNet.optimizer.step()
+
+            action_i = agent.actorNet(T.tensor(cur_state[agent_idx]))
+            pi = T.tensor(action).clone()
+            pi[agent_idx] = action_i  # only change the action batch with one update action
+            mu = pi.view(batch_size, -1)
 
             actor_loss = -agent.criticNet(cur_state_pre_processed, mu).mean()
             agent.actorNet.optimizer.zero_grad()

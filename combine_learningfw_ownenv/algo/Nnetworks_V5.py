@@ -170,8 +170,10 @@ class CriticNetwork(nn.Module):
         # NOTE: for critic network, we must include all individual drone's action (which is actor_obs),
         # as dimension: (batch X actor's combined action)
         # NOTE: here, this detach() is a must, in order to avoid "inplace operation during backpropagation"
-        actor_obs_detached = actor_obs.detach()
-        combine_obs = actor_obs_detached.view(actor_obs_detached.shape[0], -1)
+
+        # actor_obs_detached = actor_obs.detach()
+        # combine_obs = actor_obs_detached.view(actor_obs_detached.shape[0], -1)
+
         # combine_obs = torch.randn(64, 1, 10)
         sum_own_e = self.sum_own_fc(state).squeeze(1)
         # sum_own_e = self.sum_own_fc(state[0]).squeeze(1)
@@ -182,6 +184,6 @@ class CriticNetwork(nn.Module):
         # env_concat = torch.cat((sum_own_e, sum_sur_nei), dim=2).squeeze(1)
         # env_encode = self.combine_env_fc(env_concat)
         # entire_comb = torch.cat((env_encode, combine_obs), dim=1)
-        entire_comb = torch.cat((sum_own_e, combine_obs), dim=1)
+        entire_comb = torch.cat((sum_own_e, actor_obs), dim=1)
         q = self.combine_all(entire_comb)
         return q
