@@ -6,15 +6,7 @@
   <component name="ChangeListManager">
     <list default="true" id="f4b70a76-8539-4f85-9a24-01358cebe64d" name="Changes" comment="Changes">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/combine_learningfw_ownenv/algo/Multi_Agent_replaybuffer_V5.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/combine_learningfw_ownenv/algo/Nnetworks_V5.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/combine_learningfw_ownenv/algo/Utilities_V5.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/combine_learningfw_ownenv/algo/agent_V5.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/combine_learningfw_ownenv/algo/env_simulator_V5.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/combine_learningfw_ownenv/algo/grid_env_generation_newframe_V5.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/combine_learningfw_ownenv/algo/main_V5.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/combine_learningfw_ownenv/algo/parameters_V5.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/combine_learningfw_ownenv/algo/view_traject_V5.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/combine_learningfw_ownenv/algo/env_simulator_V5_1.py" beforeDir="false" afterPath="$PROJECT_DIR$/combine_learningfw_ownenv/algo/env_simulator_V5_1.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />

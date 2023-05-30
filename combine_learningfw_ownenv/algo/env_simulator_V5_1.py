@@ -258,7 +258,7 @@ class env_simulator:
             # squeeze(0) is to remove the batch information
             # then convert to numpy
             chosen_action = chosen_action.squeeze(0).detach().numpy()
-            chosen_action = chosen_action + self.OU_noise.noise()  # add noise for exploration
+            chosen_action = chosen_action + self.OU_noise.noise()  # add noise for exploration first, before clamp
             # clip the action
             # for ea_idx, ea_a in enumerate(chosen_action[0]):
             for ea_idx, ea_a in enumerate(chosen_action):
@@ -344,11 +344,11 @@ class env_simulator:
             # check whether current actions leads to a collision with any buildings in the airspace
             allBuildingSTR = STRtree(self.world_map_2D_polyList[0][0])
             possiblePoly = allBuildingSTR.query(host_passed_volume)
-            # for element in possiblePoly:
-            #     if allBuildingSTR.geometries.take(element).intersection(host_passed_volume):
-            #         collide_building = 1
-            #         print("drone_{} crash into building when moving from {} to {} at time step {}".format(drone_idx, self.all_agents[drone_idx].pre_pos, self.all_agents[drone_idx].pos, current_ts))
-            #         break
+            for element in possiblePoly:
+                if allBuildingSTR.geometries.take(element).intersection(host_passed_volume):
+                    collide_building = 1
+                    print("drone_{} crash into building when moving from {} to {} at time step {}".format(drone_idx, self.all_agents[drone_idx].pre_pos, self.all_agents[drone_idx].pos, current_ts))
+                    break
 
             tar_circle = Point(self.all_agents[drone_idx].goal[0]).buffer(1, cap_style='round')
             # when there is no intersection between two geometries, "RuntimeWarning" will appear
@@ -364,13 +364,10 @@ class env_simulator:
                 reward.append(np.array(crash_penalty))
                 done.append(True)
             # exceed bound or crash into buildings or crash with other neighbors
-            # elif (self.all_agents[drone_idx].pos[0] <= self.bound[0] or self.all_agents[drone_idx].pos[0] >= self.bound[1] or
-            #       self.all_agents[drone_idx].pos[1] <= self.bound[2] or self.all_agents[drone_idx].pos[1] >= self.bound[3] or
-            #       collide_building == 1 or len(collision_drones) > 0):
-            #     reward.append(np.array(crash_penalty))
-            #     done.append(True)
-            #     if (collide_building == 0) or len(collision_drones) == 0:
-            #         print("drone_{} has crash into boundary at time step {}". format(drone_idx, current_ts))
+            elif collide_building == 1 or len(collision_drones) > 0:
+                reward.append(np.array(crash_penalty))
+                done.append(True)
+
             else:  # a normal step taken
                 done.append(False)
                 crossCoefficient = 1
@@ -389,7 +386,8 @@ class env_simulator:
                 # Domino term also use as an indicator for agent to avoid other drones. so no need to specifically
                 # add a term to avoid surrounding drones
                 # step_reward = crossCoefficient*cross_track_error + delta_hg + dominoTerm - small_step_penalty
-                step_reward = delta_hg
+                step_reward = crossCoefficient*cross_track_error + delta_hg - small_step_penalty
+                # step_reward = delta_hg
                 # convert to arr
                 step_reward = np.array(step_reward)
                 reward.append(step_reward)
