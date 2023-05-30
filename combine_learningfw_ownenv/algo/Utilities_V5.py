@@ -191,21 +191,87 @@ def display_trajectory(cur_env, combined_trajectory):
     os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
     matplotlib.use('TkAgg')
     fig, ax = plt.subplots(1, 1)
-    # draw link towards destination for all drones, destination for each drone didn't change
-    for eachAgent_link in episode_steps[0]:
-        plt.plot([eachAgent_link[0], eachAgent_link[2]],
-                 [eachAgent_link[1], eachAgent_link[3]], '--', color='c')
-
+    # # draw link towards destination for all drones, destination for each drone didn't change
+    for agentIdx in cur_env.all_agents:
+        plt.plot([cur_env.all_agents[agentIdx].ini_pos[0], cur_env.all_agents[agentIdx].goal[0][0]],
+                 [cur_env.all_agents[agentIdx].ini_pos[1], cur_env.all_agents[agentIdx].goal[0][1]], '--', color='c')
+    reward, done = [], []
+    crash_penalty = -100
+    reach_target = 1000
+    potential_conflict_count = 0
+    fixed_domino_reward = 1
+    x_left_bound = LineString([(cur_env.bound[0], -9999), (cur_env.bound[0], 9999)])
+    x_right_bound = LineString([(cur_env.bound[1], -9999), (cur_env.bound[1], 9999)])
+    y_bottom_bound = LineString([(-9999, cur_env.bound[2]), (9999, cur_env.bound[2])])
+    y_top_bound = LineString([(-9999, cur_env.bound[3]), (9999, cur_env.bound[3])])
     for step_idx, agents_traj in enumerate(episode_steps):
+        step_R = []
+        step_D = []
         for ea_idx, each_agent in enumerate(agents_traj):
+            # propagate environment
+            cur_env.all_agents[ea_idx].pre_pos = cur_env.all_agents[ea_idx].pos
+            cur_env.all_agents[ea_idx].pos = np.array([each_agent[0], each_agent[1]])
+            # check reward for each step
+            # calculate the deviation from the reference path after an action has been taken
+            curPoint = Point(cur_env.all_agents[ea_idx].pos)
+            host_refline = LineString([cur_env.all_agents[ea_idx].ini_pos, cur_env.all_agents[ea_idx].goal[0]])
+            cross_track_deviation = curPoint.distance(host_refline)  # deviation from the reference line, cross track error
+
+            host_pass_line = LineString([cur_env.all_agents[ea_idx].pre_pos, cur_env.all_agents[ea_idx].pos])
+            host_passed_volume = host_pass_line.buffer(cur_env.all_agents[ea_idx].protectiveBound, cap_style='round')
+            tar_circle = Point(cur_env.all_agents[ea_idx].goal[0]).buffer(1, cap_style='round')
+            goal_cur_intru_intersect = host_passed_volume.intersection(tar_circle)
+            if not goal_cur_intru_intersect.is_empty:  # reached goal?
+                print("drone_{} has reached its goal at time step {}".format(ea_idx, step_idx))
+                step_D.append(True)
+                step_R.append(np.array(reach_target))
+            # exceed bound condition, don't use current point, use current circle or else will have condition that
+            elif x_left_bound.intersects(host_passed_volume) or x_right_bound.intersects(host_passed_volume) or y_bottom_bound.intersects(host_passed_volume) or y_top_bound.intersects(host_passed_volume):
+                print("drone_{} has crash into boundary at time step {}".format(ea_idx, step_idx))
+                step_R.append(np.array(crash_penalty))
+                step_D.append(True)
+            # exceed bound or crash into buildings or crash with other neighbors
+            # elif (self.all_agents[drone_idx].pos[0] <= self.bound[0] or self.all_agents[drone_idx].pos[0] >= self.bound[1] or
+            #       self.all_agents[drone_idx].pos[1] <= self.bound[2] or self.all_agents[drone_idx].pos[1] >= self.bound[3] or
+            #       collide_building == 1 or len(collision_drones) > 0):
+            #     reward.append(np.array(crash_penalty))
+            #     done.append(True)
+            #     if (collide_building == 0) or len(collision_drones) == 0:
+            #         print("drone_{} has crash into boundary at time step {}". format(drone_idx, current_ts))
+            else:  # a normal step taken
+                step_D.append(False)
+                crossCoefficient = 1
+                goalCoefficient = 6
+                # cross track error term
+                cross_track_error = (20 / ((cross_track_deviation * cross_track_deviation) / 200 + 1)) - 3.5
+                # Distance between drone and its goal for two consecutive time step
+                before_dist_hg = np.linalg.norm(cur_env.all_agents[ea_idx].pre_pos - cur_env.all_agents[ea_idx].goal[0])
+                after_dist_hg = np.linalg.norm(cur_env.all_agents[ea_idx].pos - cur_env.all_agents[ea_idx].goal[0])  # distance to goal after action
+                delta_hg = goalCoefficient * (before_dist_hg - after_dist_hg)
+                # a small penalty for discourage the agent to stay in one single spot
+                if (before_dist_hg - after_dist_hg) <= 2:
+                    small_step_penalty = 50
+                else:
+                    small_step_penalty = 0
+                # Domino term also use as an indicator for agent to avoid other drones. so no need to specifically
+                # add a term to avoid surrounding drones
+                # step_reward = crossCoefficient*cross_track_error + delta_hg + dominoTerm - small_step_penalty
+                step_reward = delta_hg
+                # convert to arr
+                step_R.append(np.array(step_reward))
+                plt.text(each_agent[0] + 5, each_agent[1], str(np.array(round(step_reward,1))))
+
             # plot self_circle of the drone
             self_circle = Point(each_agent[0], each_agent[1]).buffer(2.5, cap_style='round')
             grid_mat_Scir = shapelypoly_to_matpoly(self_circle, False, 'k')
+
             # label drone time step for the position
             plt.text(each_agent[0], each_agent[1], str(ea_idx))
-            plt.text(each_agent[0]+5, each_agent[1], str(step_idx))
-            ax.add_patch(grid_mat_Scir)
+            #plt.text(each_agent[0]+5, each_agent[1], str(step_idx))
 
+            ax.add_patch(grid_mat_Scir)
+        reward.append(step_R)
+        done.append(step_D)
     # draw occupied_poly
     for one_poly in cur_env.world_map_2D_polyList[0][0]:
         one_poly_mat = shapelypoly_to_matpoly(one_poly, True, 'y', 'b')
@@ -230,7 +296,7 @@ def display_trajectory(cur_env, combined_trajectory):
     plt.xlabel("X axis")
     plt.ylabel("Y axis")
     plt.show()
-
+    return reward
 
 def action_selection_statistics(action_selection_collection):
     all_action_collection_x = []

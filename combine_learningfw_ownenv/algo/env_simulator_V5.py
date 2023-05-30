@@ -65,8 +65,8 @@ class env_simulator:
         #  custom agent position
         # x-bound: [0, 1800), y-bound: [0, 1300)
         # read the Excel file into a pandas dataframe
-        df = pd.read_excel(r'F:\githubClone\Multi_agent_AAC\MA_ver1\fixedDrone.xlsx')
-        # df = pd.read_excel(r'D:\Multi_agent_AAC\MA_ver1\fixedDrone.xlsx')
+        # df = pd.read_excel(r'F:\githubClone\Multi_agent_AAC\MA_ver1\fixedDrone.xlsx')
+        df = pd.read_excel(r'D:\Multi_agent_AAC\MA_ver1\fixedDrone.xlsx')
         # convert the dataframe to a NumPy array
         custom_agent_data = np.array(df)
         custom_agent_data = custom_agent_data.astype(float)
@@ -283,8 +283,6 @@ class env_simulator:
         x_right_bound = LineString([(self.bound[1], -9999), (self.bound[1], 9999)])
         y_bottom_bound = LineString([(-9999, self.bound[2]), (9999, self.bound[2])])
         y_top_bound = LineString([(-9999, self.bound[3]), (9999, self.bound[3])])
-
-
 
         for drone_idx, drone_obj in self.all_agents.items():
             # re-initialize these two list for individual agents at each time step,this is to ensure collision
@@ -768,6 +766,9 @@ class env_simulator:
         #reward = T.tensor(np.array(reward).transpose(1, 0, 2), dtype=T.float).contiguous().view(batch_size, -1).to(device)
         #done = T.tensor(np.array(done).transpose(1, 0, 2)).contiguous().view(batch_size, -1).to(device)
         next_ = T.tensor(np.array(next_state), dtype=T.float).to(device)
+
+        # cur_ = T.tensor(np.array(cur_state), dtype=T.float).to(device)
+
         # pre-process cur_state and next_state so that they can be used as input for every agent's critic network
         cur_state_pre_processed = preprocess_batch_for_critic_net_v2(cur_state, batch_size)
         next_state_pre_processed = preprocess_batch_for_critic_net_v2(next_state, batch_size)
@@ -825,6 +826,9 @@ class env_simulator:
             pi = T.tensor(action).clone()
             pi[agent_idx] = action_i  # only change the action batch with one update action
             mu = pi.view(batch_size, -1)
+
+            # next_actions_cur = [self.all_agents[i].target_actorNet(cur_[i, :, :]) for i in range(len(self.all_agents))]
+            # mu = torch.stack(next_actions_cur).permute(1, 0, 2).contiguous().view(batch_size, -1)
 
             actor_loss = -agent.criticNet(cur_state_pre_processed, mu).mean()
             agent.actorNet.optimizer.zero_grad()

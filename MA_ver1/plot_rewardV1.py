@@ -5,7 +5,7 @@ import numpy as np
 import csv
 matplotlib.use('TkAgg')
 
-with open(r'D:\MADDPG_2nd_jp\190423\first_runepisodes_reward.csv', 'r') as x:
+with open(r'D:\MADDPG_2nd_jp\260523_15_55_57\toplot\episodes_reward.csv', 'r') as x:
     sample_data = list(csv.reader(x, delimiter=","))  # DDQN
 # with open(r'D:\DQL_result\random_intru12+3_ATT_50k_randomOD_change7X7Centre_HaveReachOD_50_25_newIntruderColliCheck_reachableOD\GFG_intermediate.csv', 'r') as x:
 #     sample_data_setZero = list(csv.reader(x, delimiter=","))  # DDQN  #"2" is set zero

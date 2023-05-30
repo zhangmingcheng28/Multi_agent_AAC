@@ -83,16 +83,16 @@ if __name__ == '__main__':
     if not os.path.exists(plot_file_name):
         os.makedirs(plot_file_name)
 
-    # wandb.init(
-    #     # set the wandb project where this run will be logged
-    #     project="MADDPG_fixedDroneNum_env",
-    #     name='MADDPG_test_'+str(current_date) + '_' + str(formatted_time),
-    #     # track hyperparameters and run metadata
-    #     config={
-    #         "learning_rate": learning_rate,
-    #         "epochs": n_episodes,
-    #     }
-    # )
+    wandb.init(
+        # set the wandb project where this run will be logged
+        project="MADDPG_fixedDroneNum_env",
+        name='MADDPG_test_'+str(current_date) + '_' + str(formatted_time),
+        # track hyperparameters and run metadata
+        config={
+            "learning_rate": learning_rate,
+            "epochs": n_episodes,
+        }
+    )
 
     score_best_avg = float("-inf")
     actor_losses = None
@@ -283,7 +283,7 @@ if __name__ == '__main__':
             write = csv.writer(f)
             write.writerows([score_history])
             print('episode', i, 'episode score is {:.1f}'.format(episode_score))
-        # wandb.log({'overall_reward': float(episode_score)})
+        wandb.log({'overall_reward': float(episode_score)})
 
         # save all the trajectory history
         with open(plot_file_name+'/all_episode_trajectory.pickle', 'wb') as handle:
@@ -299,11 +299,11 @@ if __name__ == '__main__':
                     write = csv.writer(f)
                     write.writerows([[float(individual_actor)]])
                     # log metrics to wandb
-                    # wandb.log({agent_obj.agent_name + 'actor_loss': float(individual_actor)})
+                    wandb.log({agent_obj.agent_name + 'actor_loss': float(individual_actor)})
                 with open(plot_file_name + '/' + agent_obj.agent_name + 'critic_loss.csv', 'w') as f:
                     write = csv.writer(f)
                     write.writerows([[float(individual_critic)]])
-                    # wandb.log({agent_obj.agent_name + 'critic_loss': float(individual_critic)})
+                    wandb.log({agent_obj.agent_name + 'critic_loss': float(individual_critic)})
 
         # get average score for the past 100 episode
         score_avg = np.mean(score_history[-100:])
@@ -319,5 +319,5 @@ if __name__ == '__main__':
             print('episode', i, 'average score {:.1f}'.format(score_avg))
     print('done')
     # [optional] finish the wandb run, necessary in notebooks
-    # wandb.finish()
+    wandb.finish()
 
