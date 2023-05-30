@@ -15,7 +15,7 @@ import matplotlib
 import matplotlib.pyplot as plt
 from shapely.strtree import STRtree
 from shapely.geometry import LineString, Point, Polygon
-
+import matplotlib.colors as colors
 
 def sort_polygons(polygons):  # this sorting is left to right, but bottom to top. so, 0th is below 2nd. [[2,3],
     # [0,1]]
@@ -185,8 +185,8 @@ def WeightedNoise(action, noise_scale, action_type):
                 1 - noise_scale) * action.detach().numpy()  # take a weighted average with noise_scale as the noise weight
     return torch.tensor(action).float()
 
-def display_trajectory(cur_env, combined_trajectory):
-    episode_to_show = 4999
+def display_trajectory(cur_env, combined_trajectory, eps_to_watch):
+    episode_to_show = eps_to_watch
     episode_steps = combined_trajectory[episode_to_show]
     os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
     matplotlib.use('TkAgg')
@@ -204,6 +204,9 @@ def display_trajectory(cur_env, combined_trajectory):
     x_right_bound = LineString([(cur_env.bound[1], -9999), (cur_env.bound[1], 9999)])
     y_bottom_bound = LineString([(-9999, cur_env.bound[2]), (9999, cur_env.bound[2])])
     y_top_bound = LineString([(-9999, cur_env.bound[3]), (9999, cur_env.bound[3])])
+
+    allBuildingSTR = STRtree(cur_env.world_map_2D_polyList[0][0])
+
     for step_idx, agents_traj in enumerate(episode_steps):
         step_R = []
         step_D = []
@@ -219,6 +222,18 @@ def display_trajectory(cur_env, combined_trajectory):
 
             host_pass_line = LineString([cur_env.all_agents[ea_idx].pre_pos, cur_env.all_agents[ea_idx].pos])
             host_passed_volume = host_pass_line.buffer(cur_env.all_agents[ea_idx].protectiveBound, cap_style='round')
+            possiblePoly = allBuildingSTR.query(host_passed_volume)
+            for element in possiblePoly:
+                if allBuildingSTR.geometries.take(element).intersection(host_passed_volume):
+                    collide_building = 1
+                    print("drone_{} crash into building when moving from {} to {} at time step {}".format(ea_idx,
+                                                                                                          cur_env.all_agents[
+                                                                                                              ea_idx].pre_pos,
+                                                                                                          cur_env.all_agents[
+                                                                                                              ea_idx].pos,
+                                                                                                          step_idx))
+                    break
+
             tar_circle = Point(cur_env.all_agents[ea_idx].goal[0]).buffer(1, cap_style='round')
             goal_cur_intru_intersect = host_passed_volume.intersection(tar_circle)
             if not goal_cur_intru_intersect.is_empty:  # reached goal?
@@ -231,13 +246,9 @@ def display_trajectory(cur_env, combined_trajectory):
                 step_R.append(np.array(crash_penalty))
                 step_D.append(True)
             # exceed bound or crash into buildings or crash with other neighbors
-            # elif (self.all_agents[drone_idx].pos[0] <= self.bound[0] or self.all_agents[drone_idx].pos[0] >= self.bound[1] or
-            #       self.all_agents[drone_idx].pos[1] <= self.bound[2] or self.all_agents[drone_idx].pos[1] >= self.bound[3] or
-            #       collide_building == 1 or len(collision_drones) > 0):
-            #     reward.append(np.array(crash_penalty))
-            #     done.append(True)
-            #     if (collide_building == 0) or len(collision_drones) == 0:
-            #         print("drone_{} has crash into boundary at time step {}". format(drone_idx, current_ts))
+            elif collide_building == 1 or len(collision_drones) > 0:
+                reward.append(np.array(crash_penalty))
+                done.append(True)
             else:  # a normal step taken
                 step_D.append(False)
                 crossCoefficient = 1
@@ -256,7 +267,8 @@ def display_trajectory(cur_env, combined_trajectory):
                 # Domino term also use as an indicator for agent to avoid other drones. so no need to specifically
                 # add a term to avoid surrounding drones
                 # step_reward = crossCoefficient*cross_track_error + delta_hg + dominoTerm - small_step_penalty
-                step_reward = delta_hg
+                step_reward = crossCoefficient*cross_track_error + delta_hg - small_step_penalty
+                # step_reward = delta_hg
                 # convert to arr
                 step_R.append(np.array(step_reward))
                 plt.text(each_agent[0] + 5, each_agent[1], str(np.array(round(step_reward,1))))
@@ -272,6 +284,12 @@ def display_trajectory(cur_env, combined_trajectory):
             ax.add_patch(grid_mat_Scir)
         reward.append(step_R)
         done.append(step_D)
+    # print reward
+    print_R = 0
+    for eps_stepR in reward:
+        print_R = print_R + sum(eps_stepR)
+    print(print_R)
+
     # draw occupied_poly
     for one_poly in cur_env.world_map_2D_polyList[0][0]:
         one_poly_mat = shapelypoly_to_matpoly(one_poly, True, 'y', 'b')
@@ -297,6 +315,99 @@ def display_trajectory(cur_env, combined_trajectory):
     plt.ylabel("Y axis")
     plt.show()
     return reward
+
+def display_exploration_expolitation(cur_env, combined_trajectory, eps_period):
+    episode_to_show = 4999
+    episode_steps = combined_trajectory[episode_to_show]
+    os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
+    matplotlib.use('TkAgg')
+    fig, ax = plt.subplots(1, 1)
+    selfLabel = 0
+    # # draw link towards destination for all drones, destination for each drone didn't change
+    for agentIdx in cur_env.all_agents:
+        plt.plot([cur_env.all_agents[agentIdx].ini_pos[0], cur_env.all_agents[agentIdx].goal[0][0]],
+                 [cur_env.all_agents[agentIdx].ini_pos[1], cur_env.all_agents[agentIdx].goal[0][1]], '--', color='c')
+    x_explore = []
+    y_explore = []
+    x_exploit = []
+    y_exploit = []
+    for epsIDX, episode_steps in enumerate(combined_trajectory):
+        for step_idx, agents_traj in enumerate(episode_steps):
+            for ea_idx, each_agent in enumerate(agents_traj):
+                if epsIDX <= eps_period:
+                    x_explore.append(each_agent[0])
+                    y_explore.append(each_agent[1])
+                else:
+                    x_exploit.append(each_agent[0])
+                    y_exploit.append(each_agent[1])
+
+                # plot self_circle of the drone
+                if selfLabel == 0:
+                    self_circle = Point(each_agent[0], each_agent[1]).buffer(2.5, cap_style='round')
+                    grid_mat_Scir = shapelypoly_to_matpoly(self_circle, False, 'k')
+                    ax.add_patch(grid_mat_Scir)
+
+                    # check transition
+                    # map output action from NN to actual range
+
+                    coe_a = 4
+                    timestep = 1
+                    ax_, ay_ = 1, 1
+                    ax_ = map_range(ax_, coe_a)
+                    ay_ = map_range(ay_, coe_a)
+                    curVelx = cur_env.all_agents[ea_idx].vel[0] + ax_ * timestep
+                    curVely = cur_env.all_agents[ea_idx].vel[1] + ay_ * timestep
+                    delta_x = curVelx * timestep
+                    delta_y = curVely * timestep
+                    cur_env.all_agents[ea_idx].pos = np.array([cur_env.all_agents[ea_idx].pos[0] + delta_x,
+                                                               cur_env.all_agents[ea_idx].pos[1] + delta_y])
+                    # plt.scatter(cur_env.all_agents[ea_idx].pos[0], cur_env.all_agents[ea_idx].pos[1], color='lightblue')
+
+
+
+
+            selfLabel = 1
+
+
+
+    # draw occupied_poly
+    for one_poly in cur_env.world_map_2D_polyList[0][0]:
+        one_poly_mat = shapelypoly_to_matpoly(one_poly, True, 'w', 'g')  # 4th parameter is the face color
+        # ax.add_patch(one_poly_mat)
+    # draw non-occupied_poly
+    for zero_poly in cur_env.world_map_2D_polyList[0][1]:
+        zero_poly_mat = shapelypoly_to_matpoly(zero_poly, False, 'w')
+        # ax.add_patch(zero_poly_mat)
+
+    # show building obstacles
+    for poly in cur_env.buildingPolygons:
+        matp_poly = shapelypoly_to_matpoly(poly, False, 'red')  # the 3rd parameter is the edge color
+        ax.add_patch(matp_poly)
+
+    cmap_exploit = colors.LinearSegmentedColormap.from_list("", ["white", "yellow"])
+    cmap_explore = colors.LinearSegmentedColormap.from_list("", ["white", "blue"])
+
+    # Hexbin exploit(Yellow) with white color for zero count
+    # hb1 = plt.hexbin(np.array(x_exploit), np.array(y_exploit), gridsize=25, cmap=cmap_exploit, mincnt=1, alpha=1)
+    # cb1 = plt.colorbar(hb1)
+    # cb1.set_label('Exploit Hexbin')
+
+    # # Hexbin explore(blue) with white color for zero count
+    hb2 = plt.hexbin(np.array(x_explore), np.array(y_explore), gridsize=50, cmap=cmap_explore, mincnt=1, alpha=1)
+    cb2 = plt.colorbar(hb2)
+    cb2.set_label('Explore Hexbin')
+
+    plt.axis('equal')
+    plt.xlim(cur_env.bound[0], cur_env.bound[1])
+    plt.ylim(cur_env.bound[2], cur_env.bound[3])
+    plt.axvline(x=cur_env.bound[0], c="green")
+    plt.axvline(x=cur_env.bound[1], c="green")
+    plt.axhline(y=cur_env.bound[2], c="green")
+    plt.axhline(y=cur_env.bound[3], c="green")
+    plt.xlabel("X axis")
+    plt.ylabel("Y axis")
+    plt.show()
+
 
 def action_selection_statistics(action_selection_collection):
     all_action_collection_x = []

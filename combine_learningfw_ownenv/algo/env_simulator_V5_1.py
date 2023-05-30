@@ -253,23 +253,24 @@ class env_simulator:
             # obtain the observation for each individual actor
             individual_obs = extract_individual_obs(combine_state, agent_idx)
             # chosen_action = agent.choose_actions(individual_obs)  # when deals with three different section of inputs
-            chosen_action = T.tensor(individual_obs.reshape(1, -1), dtype=T.float).to(agent.actorNet.device)
-            chosen_action = agent.actorNet.forward(chosen_action)
+            input_tensor = T.tensor(individual_obs.reshape(1, -1), dtype=T.float).to(agent.actorNet.device)
+            input_tensor_d = input_tensor.detach()
+            chosen_action = agent.actorNet.forward(input_tensor_d)
             # squeeze(0) is to remove the batch information
             # then convert to numpy
-            chosen_action = chosen_action.squeeze(0).detach().numpy()
-            chosen_action = chosen_action + self.OU_noise.noise()  # add noise for exploration first, before clamp
+            # chosen_action = chosen_action.squeeze(0).detach().numpy()
+            chosen_action = chosen_action + T.tensor(self.OU_noise.noise()) # add noise for exploration first, before clamp
             # clip the action
-            # for ea_idx, ea_a in enumerate(chosen_action[0]):
-            for ea_idx, ea_a in enumerate(chosen_action):
-                if ea_a < -1:
-                    chosen_action[ea_idx] = -1
-                if ea_a > 1:
-                    chosen_action[ea_idx] = 1
+            chosen_action = T.clamp(chosen_action, -1, 1)
+            # for ea_idx, ea_a in enumerate(chosen_action):
+            #     if ea_a < -1:
+            #         chosen_action[ea_idx] = -1
+            #     if ea_a > 1:
+            #         chosen_action[ea_idx] = 1
 
             # update current sigma used for the exploration
             self.OU_noise.sigma = self.OU_noise.largest_sigma * eps + (1 - eps) * self.OU_noise.smallest_sigma
-            outActions[agent_idx] = chosen_action  # load to output dict
+            outActions[agent_idx] = np.squeeze(chosen_action.data.cpu().numpy())  # load to output dict
 
         return outActions
 

@@ -9,7 +9,8 @@ from Multi_Agent_replaybuffer_V5_1 import MultiAgentReplayBuffer
 import os
 from parameters_V5_1 import initialize_parameters
 from Utilities_V5_1 import sort_polygons, shapelypoly_to_matpoly, \
-    extract_individual_obs, map_range, compute_potential_conflict, display_trajectory, action_selection_statistics
+    extract_individual_obs, map_range, compute_potential_conflict, display_trajectory, action_selection_statistics, \
+    display_exploration_expolitation
 matplotlib.use('TkAgg')
 
 n_episodes, max_t, eps_start, eps_end, eps_period, eps, env, \
@@ -45,11 +46,12 @@ Trajectory_history = []
 Trajectory_action_record = []
 
 # get navigate to plot file and load pickle
-with open(r'D:\MADDPG_2nd_jp\260523_15_55_57\toplot\all_episode_trajectory.pickle', 'rb') as handle:
+with open(r'D:\MADDPG_2nd_jp\300523_20_41_34\toplot\all_episode_trajectory.pickle', 'rb') as handle:
     all_trajectory = pickle.load(handle)
 
-with open(r'D:\MADDPG_2nd_jp\270423_15_15_28\toplot\all_episode_action_taken.pickle', 'rb') as handle:
+with open(r'D:\MADDPG_2nd_jp\300523_20_41_34\toplot\all_episode_action_taken.pickle', 'rb') as handle:
     action_collection = pickle.load(handle)
 
-reward = display_trajectory(env, all_trajectory)
+reward = display_trajectory(env, all_trajectory, 0)
 # action_selection_statistics(action_collection)
+# display_exploration_expolitation(env, all_trajectory, eps_period)
