@@ -5,10 +5,10 @@ import numpy as np
 import csv
 import pickle
 import random
-from Multi_Agent_replaybuffer_V5 import MultiAgentReplayBuffer
+from Multi_Agent_replaybuffer_V5_1 import MultiAgentReplayBuffer
 import os
-from parameters_V5 import initialize_parameters
-from Utilities_V5 import sort_polygons, shapelypoly_to_matpoly, \
+from parameters_V5_1 import initialize_parameters
+from Utilities_V5_1 import sort_polygons, shapelypoly_to_matpoly, \
     extract_individual_obs, map_range, compute_potential_conflict, display_trajectory, action_selection_statistics
 matplotlib.use('TkAgg')
 

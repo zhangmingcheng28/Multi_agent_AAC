@@ -12,7 +12,7 @@ from shapely.strtree import STRtree
 from shapely.geometry import LineString, Point, Polygon
 from scipy.spatial import KDTree
 from copy import deepcopy
-from agent_V5 import Agent
+from agent_V5_1 import Agent
 import pandas as pd
 import math
 import numpy as np
@@ -23,7 +23,7 @@ import matplotlib.pyplot as plt
 import matplotlib
 import re
 import time
-from Utilities_V5 import sort_polygons, shapelypoly_to_matpoly, \
+from Utilities_V5_1 import sort_polygons, shapelypoly_to_matpoly, \
     extract_individual_obs, map_range, compute_potential_conflict, padding_list, preprocess_batch_for_critic_net_v2, OUNoise
 import torch as T
 import torch

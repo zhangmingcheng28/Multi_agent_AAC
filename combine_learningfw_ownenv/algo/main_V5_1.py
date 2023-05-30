@@ -8,8 +8,8 @@
 """
 import csv
 import wandb
-from parameters_V5 import initialize_parameters
-from Multi_Agent_replaybuffer_V5 import MultiAgentReplayBuffer
+from parameters_V5_1 import initialize_parameters
+from Multi_Agent_replaybuffer_V5_1 import MultiAgentReplayBuffer
 from shapely.geometry import LineString, Point, Polygon
 from shapely.strtree import STRtree
 import os
@@ -23,7 +23,7 @@ import math
 import time
 import random
 import datetime
-from Utilities_V5 import sort_polygons, shapelypoly_to_matpoly, \
+from Utilities_V5_1 import sort_polygons, shapelypoly_to_matpoly, \
     extract_individual_obs, map_range, compute_potential_conflict, display_trajectory, action_selection_statistics
 
 # NOTE change batch_size and change update rate, update count go with agent class

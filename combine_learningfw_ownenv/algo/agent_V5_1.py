@@ -8,9 +8,9 @@
 """
 import numpy as np
 import torch as T
-from Nnetworks_V5 import CriticNetwork
-from Nnetworks_V5 import ActorNetwork
-from Utilities_V5 import padding_list
+from Nnetworks_V5_1 import CriticNetwork
+from Nnetworks_V5_1 import ActorNetwork
+from Utilities_V5_1 import padding_list
 
 
 class Agent:
