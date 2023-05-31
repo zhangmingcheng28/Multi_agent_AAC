@@ -79,6 +79,7 @@ class ActorNetwork(nn.Module):
         self.action_out_V3 = nn.Sequential(nn.Linear(64+64+64, 64), nn.ReLU(), nn.Linear(64, n_actions), nn.Tanh())
         self.action_out_V4 = nn.Sequential(nn.Linear(64+64, 64), nn.ReLU(), nn.Linear(64, n_actions), nn.Tanh())
         self.action_out_V5 = nn.Sequential(nn.Linear(512, 128), nn.ReLU(), nn.Linear(128, n_actions), nn.Tanh())
+        self.action_out_V5_1 = nn.Sequential(nn.Linear(512, 128), nn.ReLU(), nn.Linear(128, n_actions))
 
         # attention for surr_drones
         # the number here is 64 because we need to align with the output neural number of the "surr_done" NN
@@ -107,6 +108,7 @@ class ActorNetwork(nn.Module):
 
         # action_out = self.action_out_V4(concat)
         action_out = self.action_out_V5(own_e)
+        # action_out_1 = self.action_out_V5_1(own_e)
 
         return action_out
 

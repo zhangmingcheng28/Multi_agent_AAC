@@ -174,7 +174,7 @@ def env_generation(shapeFilePath):  # input: string of file path, output: STRtre
         # display all building polygon
     # for poly in polySet:
     #     ax.add_patch(PolygonPatch(poly))
-    return env_map, polySet_buildings, gridLength, outPoly  # return an occupied 3D array
+    return env_map, polySet_buildings, gridLength, outPoly, (maxX, maxY)  # return an occupied 3D array
 
 def pointgen(p1, p2, p3, totalnum):
     xySet = []

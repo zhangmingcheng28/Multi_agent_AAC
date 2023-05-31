@@ -150,6 +150,33 @@ class OUNoise:
         return self.state
 
 
+class NormalizeData:
+    def __init__(self, x_max, y_max, spd_max):
+        self.dis_max_x = x_max
+        self.dis_max_y = y_max
+        self.spd_max = spd_max
+
+    def nmlz_pos(self, pos_c):
+        x, y = pos_c[0], pos_c[1]
+        x_min, y_min = 0, 0
+        x_normalized = ((x - x_min) / (self.dis_max_x - x_min)) * 2 - 1
+        y_normalized = ((y - y_min) / (self.dis_max_y - y_min)) * 2 - 1
+        return x_normalized, y_normalized
+
+    def nmlz_pos_diff(self, diff):
+        dx, dy = diff[0], diff[1]
+        x_min, y_min = -self.dis_max_x, -self.dis_max_y
+        dx_normalized = ((dx - x_min) / (self.dis_max_x - x_min)) * 2 - 1
+        dy_normalized = ((dy - y_min) / (self.dis_max_y - y_min)) * 2 - 1
+        return dx_normalized, dy_normalized
+
+    def nmlz_vel(self, cur_vel):
+        vx, vy = cur_vel[0], cur_vel[1]
+        vx_normalized = vx / self.spd_max
+        vy_normalized = vy / self.spd_max
+        return vx_normalized, vy_normalized
+
+
 def BetaNoise(action, noise_scale):
     action = action.detach().numpy()  # since the input is a tensor we must convert it to numpy before operations
     sign = np.sign(action)  # tracking the sign so we can flip the samples later

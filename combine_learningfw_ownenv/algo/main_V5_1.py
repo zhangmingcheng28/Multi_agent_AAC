@@ -8,6 +8,7 @@
 """
 import csv
 import wandb
+import copy
 from parameters_V5_1 import initialize_parameters
 from Multi_Agent_replaybuffer_V5_1 import MultiAgentReplayBuffer
 from shapely.geometry import LineString, Point, Polygon
@@ -24,7 +25,8 @@ import time
 import random
 import datetime
 from Utilities_V5_1 import sort_polygons, shapelypoly_to_matpoly, \
-    extract_individual_obs, map_range, compute_potential_conflict, display_trajectory, action_selection_statistics
+    extract_individual_obs, map_range, compute_potential_conflict, display_trajectory, action_selection_statistics, \
+    NormalizeData
 
 # NOTE change batch_size and change update rate, update count go with agent class
 if __name__ == '__main__':
@@ -32,7 +34,7 @@ if __name__ == '__main__':
     # wandb.login(key="efb76db851374f93228250eda60639c70a93d1ec")
     # initialize parameters
     n_episodes, max_t, eps_start, eps_end, eps_period, eps, env, \
-    agent_grid_obs, BUFFER_SIZE, BATCH_SIZE, GAMMA, TAU, learning_rate, UPDATE_EVERY, seed_used = initialize_parameters()
+    agent_grid_obs, BUFFER_SIZE, BATCH_SIZE, GAMMA, TAU, learning_rate, UPDATE_EVERY, seed_used, max_xy = initialize_parameters()
     train_eva = "train"
     random.seed(seed_used)
     # set number of drone in the airspace
@@ -45,12 +47,13 @@ if __name__ == '__main__':
     actorNet_lr = learning_rate
     criticNet_lr = learning_rate
     # noise parameter ini
-    largest_Nsigma = 0.15
-    smallest_Nsigma = 0.01
+    largest_Nsigma = 0.5
+    smallest_Nsigma = 0.15
     ini_Nsigma = largest_Nsigma
 
+    max_spd = 15
     # create agents, reset environment
-    env.create_world(total_agentNum, critic_obs, actor_obs, n_actions, actorNet_lr, criticNet_lr, GAMMA, TAU, UPDATE_EVERY, largest_Nsigma, smallest_Nsigma, ini_Nsigma, max_nei_num)
+    env.create_world(total_agentNum, critic_obs, actor_obs, n_actions, actorNet_lr, criticNet_lr, GAMMA, TAU, UPDATE_EVERY, largest_Nsigma, smallest_Nsigma, ini_Nsigma, max_nei_num, max_xy, max_spd)
 
     # initialized memory replay
     actor_dims = 3  # A list of 3 list, each 1st list has length 3, 2nd has length 20, 3rd has length 6
@@ -83,16 +86,16 @@ if __name__ == '__main__':
     if not os.path.exists(plot_file_name):
         os.makedirs(plot_file_name)
 
-    wandb.init(
-        # set the wandb project where this run will be logged
-        project="MADDPG_fixedDroneNum_env",
-        name='MADDPG_test_'+str(current_date) + '_' + str(formatted_time),
-        # track hyperparameters and run metadata
-        config={
-            "learning_rate": learning_rate,
-            "epochs": n_episodes,
-        }
-    )
+    # wandb.init(
+    #     # set the wandb project where this run will be logged
+    #     project="MADDPG_fixedDroneNum_env",
+    #     name='MADDPG_test_'+str(current_date) + '_' + str(formatted_time),
+    #     # track hyperparameters and run metadata
+    #     config={
+    #         "learning_rate": learning_rate,
+    #         "epochs": n_episodes,
+    #     }
+    # )
 
     score_best_avg = float("-inf")
     actor_losses = None
@@ -159,24 +162,23 @@ if __name__ == '__main__':
         trajectory_eachPlay = []
         action_eachPlay = []
         reward_each_agent = []
-        cur_state = env.reset_world(show=0)
+        cur_state, norm_cur_state = env.reset_world(show=0)
 
         for ts in range(max_t):  # steps inside an episode
-            #print("Episode {}, current time step is {}".format(i, ts))
             #  get action, no CR is used, output is the velocity
             #  actions, noCR = env.get_actions_noCR(combine_state)
             start_action_time = time.time()
             #  get action with neural networks
-            actions = env.get_actions_NN(cur_state, eps)
+            actions = env.get_actions_NN(norm_cur_state, eps)
             # proceed with the environment step, should output the new / next combine_state
             # after moving one step, every single drone should re-scan their surroundings to ensure they have capture
             # change in their surrounding neighbor changes
-            next_state = env.step(actions, ts)
+            next_state, norm_next_state = env.step(actions, ts)
             # print("time used for choose action and propagate environment is {}".format(time.time()-start_action_time))
             # when every drone has taken an action we record the reward for the step taken
             reward_aft_action, done_aft_action = env.get_step_reward(ts)
             # add current play result to experience replay
-            ReplayBuffer.add(cur_state, actions, reward_aft_action, next_state, done_aft_action)
+            ReplayBuffer.add(norm_cur_state, actions, reward_aft_action, norm_next_state, done_aft_action)
             if len(ReplayBuffer.memory) >= BATCH_SIZE:
                 # critic_losses, actor_losses = env.central_learning_v2(ReplayBuffer, BATCH_SIZE, total_agentNum, actor_obs[2])  # this is the new framework
                 # critic_losses, actor_losses = env.central_learning(ReplayBuffer, BATCH_SIZE, total_agentNum,
@@ -186,7 +188,8 @@ if __name__ == '__main__':
             episode_score = episode_score + sum(reward_aft_action)
 
             # propagate the environment
-            cur_state = next_state
+            cur_state = next_state  # this is just for reference and visualisation
+            norm_cur_state = norm_next_state  # this is used for NN training
 
             # record trajectory for each drone in the play
             # trajectory_eachPlay.append([each_agent_traj[0] for each_agent_traj in cur_state])
@@ -283,7 +286,7 @@ if __name__ == '__main__':
             write = csv.writer(f)
             write.writerows([score_history])
             print('episode', i, 'episode score is {:.1f}'.format(episode_score))
-        wandb.log({'overall_reward': float(episode_score)})
+        # wandb.log({'overall_reward': float(episode_score)})
 
         # save all the trajectory history
         with open(plot_file_name+'/all_episode_trajectory.pickle', 'wb') as handle:
@@ -299,11 +302,11 @@ if __name__ == '__main__':
                     write = csv.writer(f)
                     write.writerows([[float(individual_actor)]])
                     # log metrics to wandb
-                    wandb.log({agent_obj.agent_name + 'actor_loss': float(individual_actor)})
+                    # wandb.log({agent_obj.agent_name + 'actor_loss': float(individual_actor)})
                 with open(plot_file_name + '/' + agent_obj.agent_name + 'critic_loss.csv', 'w') as f:
                     write = csv.writer(f)
                     write.writerows([[float(individual_critic)]])
-                    wandb.log({agent_obj.agent_name + 'critic_loss': float(individual_critic)})
+                    # wandb.log({agent_obj.agent_name + 'critic_loss': float(individual_critic)})
 
         # get average score for the past 100 episode
         score_avg = np.mean(score_history[-100:])
@@ -319,5 +322,5 @@ if __name__ == '__main__':
             print('episode', i, 'average score {:.1f}'.format(score_avg))
     print('done')
     # [optional] finish the wandb run, necessary in notebooks
-    wandb.finish()
+    # wandb.finish()
 

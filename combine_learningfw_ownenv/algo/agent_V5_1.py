@@ -14,7 +14,7 @@ from Utilities_V5_1 import padding_list
 
 
 class Agent:
-    def __init__(self, actor_obs, critic_obs, n_actions, agent_idx, totalAgent, actorNet_lr, criticNet_lr, gamma, tau, max_nei_num):
+    def __init__(self, actor_obs, critic_obs, n_actions, agent_idx, totalAgent, actorNet_lr, criticNet_lr, gamma, tau, max_nei_num, maxSPD):
         self.gamma = gamma
         self.tau = tau
         self.n_actions = n_actions  # this n_actions is the dimension of the action space
@@ -34,7 +34,7 @@ class Agent:
         self.pre_pos = None
         self.vel = None
         self.pre_vel = None
-        self.maxSpeed = 15
+        self.maxSpeed = maxSPD
         self.goal = None
         self.heading = None
         self.detectionRange = 30  # in meters, this is the in diameter

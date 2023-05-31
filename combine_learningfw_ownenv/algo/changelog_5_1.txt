@@ -1,0 +1,1 @@
+-add normalization to input states, because we suspect that only when state input is small then NN output can be small, thus input to tanh() function can be small enough to accounts for noise. 

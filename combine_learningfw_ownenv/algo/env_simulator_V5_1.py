@@ -24,7 +24,7 @@ import matplotlib
 import re
 import time
 from Utilities_V5_1 import sort_polygons, shapelypoly_to_matpoly, \
-    extract_individual_obs, map_range, compute_potential_conflict, padding_list, preprocess_batch_for_critic_net_v2, OUNoise
+    extract_individual_obs, map_range, compute_potential_conflict, padding_list, preprocess_batch_for_critic_net_v2, OUNoise, NormalizeData
 import torch as T
 import torch
 import torch.nn.functional as F
@@ -43,13 +43,15 @@ class env_simulator:
         self.all_agents = None
         self.cur_allAgentCoor_KD = None
         self.OU_noise = None
+        self.normalizer = None
 
-    def create_world(self, total_agentNum, critic_obs, actor_obs, n_actions, actorNet_lr, criticNet_lr, gamma, tau, target_update, largest_Nsigma, smallest_Nsigma, ini_Nsigma, max_nei_num):
+    def create_world(self, total_agentNum, critic_obs, actor_obs, n_actions, actorNet_lr, criticNet_lr, gamma, tau, target_update, largest_Nsigma, smallest_Nsigma, ini_Nsigma, max_nei_num, max_xy, max_spd):
         # config OU_noise
         self.OU_noise = OUNoise(n_actions, largest_Nsigma, smallest_Nsigma, ini_Nsigma)
+        self.normalizer = NormalizeData(max_xy[0], max_xy[1], max_spd)
         self.all_agents = {}
         for agent_i in range(total_agentNum):
-            agent = Agent(actor_obs, critic_obs, n_actions, agent_i, total_agentNum, actorNet_lr, criticNet_lr, gamma, tau, max_nei_num)
+            agent = Agent(actor_obs, critic_obs, n_actions, agent_i, total_agentNum, actorNet_lr, criticNet_lr, gamma, tau, max_nei_num, max_spd)
             agent.target_update_step = target_update
             self.all_agents[agent_i] = agent
         global_state = self.reset_world(show=0)
@@ -59,14 +61,12 @@ class env_simulator:
         self.time_step = 0.5
         # reset OU_noise as well
         self.OU_noise.reset()
-        # prepare for output states
-        overall_state = []
 
         #  custom agent position
         # x-bound: [0, 1800), y-bound: [0, 1300)
         # read the Excel file into a pandas dataframe
-        # df = pd.read_excel(r'F:\githubClone\Multi_agent_AAC\MA_ver1\fixedDrone.xlsx')
-        df = pd.read_excel(r'D:\Multi_agent_AAC\MA_ver1\fixedDrone.xlsx')
+        df = pd.read_excel(r'F:\githubClone\Multi_agent_AAC\MA_ver1\fixedDrone.xlsx')
+        # df = pd.read_excel(r'D:\Multi_agent_AAC\MA_ver1\fixedDrone.xlsx')
         # convert the dataframe to a NumPy array
         custom_agent_data = np.array(df)
         custom_agent_data = custom_agent_data.astype(float)
@@ -93,37 +93,7 @@ class env_simulator:
             agentsCoor_list.append(self.all_agents[agentIdx].pos)
 
         self.cur_allAgentCoor_KD = KDTree(agentsCoor_list)
-
-        # loop over all agent again to obtain each agent's detectable neighbor
-        # second loop is required, because 1st loop is used to create the STR-tree of all agents
-        # circle centre at their position
-        for agentIdx, agent in self.all_agents.items():
-
-            # get current agent's name in term of integer
-            match = re.search(r'\d+(\.\d+)?', agent.agent_name)
-            if match:
-                agent_idx = int(match.group())
-            else:
-                agent_idx = None
-                raise ValueError('No number found in string')
-
-            # identify neighbors (use distance)
-            # update the "surroundingNeighbor" attribute
-            agent.surroundingNeighbor = self.get_current_agent_nei(agent, agentRefer_dict)
-            # reset_world function we initialized both "surroundingNeighbor" and "pre_surroundingNeighbor" identically
-            agent.pre_surroundingNeighbor = agent.surroundingNeighbor
-
-            # populate the output stateV2 overall_state is a list of length equals to total number of agents
-            agent_own = np.array([agent.pos[0], agent.pos[1], agent.goal[0][0]-agent.pos[0], agent.goal[0][1]-agent.pos[1], agent.vel[0], agent.vel[1]])
-            other_pos = []
-            for other_agentIdx, other_agent in self.all_agents.items():
-                if other_agentIdx != agent_idx:
-                    other_pos.append(other_agent.pos - agent.pos)
-
-
-
-            # overall_state.append(np.array([agent_own, agent.observableSpace, agent.surroundingNeighbor], dtype=object))
-            overall_state.append(np.concatenate((agent_own, np.array(other_pos).flatten())))
+        overall_state, norm_overall_state = self.cur_state_norm_state(agentRefer_dict)
 
         if show:
             os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
@@ -174,7 +144,7 @@ class env_simulator:
             plt.axis('equal')
             plt.show()
 
-        return overall_state
+        return overall_state, norm_overall_state
 
     def get_current_agent_nei(self, cur_agent, agentRefer_dict):
         # identify neighbors (use distance)
@@ -194,6 +164,57 @@ class env_simulator:
                                                                            self.all_agents[other_agent_idx].goal[0][0],
                                                                            self.all_agents[other_agent_idx].goal[0][1]])
         return cur_agent.surroundingNeighbor
+
+    def cur_state_norm_state(self, agentRefer_dict):
+        # prepare for output states
+        overall_state = []
+        # prepare normalized output states
+        norm_overall_state = []
+        # loop over all agent again to obtain each agent's detectable neighbor
+        # second loop is required, because 1st loop is used to create the STR-tree of all agents
+        # circle centre at their position
+        for agentIdx, agent in self.all_agents.items():
+
+            # get current agent's name in term of integer
+            match = re.search(r'\d+(\.\d+)?', agent.agent_name)
+            if match:
+                agent_idx = int(match.group())
+            else:
+                agent_idx = None
+                raise ValueError('No number found in string')
+
+            # identify neighbors (use distance)
+            # update the "surroundingNeighbor" attribute
+            agent.surroundingNeighbor = self.get_current_agent_nei(agent, agentRefer_dict)
+            # reset_world function we initialized both "surroundingNeighbor" and "pre_surroundingNeighbor" identically
+            agent.pre_surroundingNeighbor = agent.surroundingNeighbor
+
+            # populate the output stateV2 overall_state is a list of length equals to total number of agents
+            agent_own = np.array(
+                [agent.pos[0], agent.pos[1], agent.goal[0][0] - agent.pos[0], agent.goal[0][1] - agent.pos[1],
+                 agent.vel[0], agent.vel[1]])
+            # populate normalized agent_own
+            # norm_agent_own = []
+            norm_pos = self.normalizer.nmlz_pos([agent.pos[0], agent.pos[1]])
+
+            norm_G_diff = self.normalizer.nmlz_pos_diff(
+                [agent.goal[0][0] - agent.pos[0], agent.goal[0][1] - agent.pos[1]])
+
+            norm_vel = self.normalizer.nmlz_vel([agent.vel[0], agent.vel[1]])
+            norm_agent_own = list(norm_pos + norm_G_diff + norm_vel)
+
+            other_pos = []
+            norm_other_pos = []
+            for other_agentIdx, other_agent in self.all_agents.items():
+                if other_agentIdx != agent_idx:
+                    other_pos.append(other_agent.pos - agent.pos)
+                    norm_pos = self.normalizer.nmlz_pos(other_agent.pos - agent.pos)
+                    norm_other_pos.append(np.array(norm_pos))
+
+            # overall_state.append(np.array([agent_own, agent.observableSpace, agent.surroundingNeighbor], dtype=object))
+            overall_state.append(np.concatenate((agent_own, np.array(other_pos).flatten())))
+            norm_overall_state.append(np.concatenate((norm_agent_own, np.array(norm_other_pos).flatten())))
+        return overall_state, norm_overall_state
 
     def current_observable_space(self, cur_agent):
         occupied_building_val = 10
@@ -255,7 +276,7 @@ class env_simulator:
             # chosen_action = agent.choose_actions(individual_obs)  # when deals with three different section of inputs
             input_tensor = T.tensor(individual_obs.reshape(1, -1), dtype=T.float).to(agent.actorNet.device)
             input_tensor_d = input_tensor.detach()
-            chosen_action = agent.actorNet.forward(input_tensor_d)
+            chosen_action = agent.actorNet(input_tensor_d)
             # squeeze(0) is to remove the batch information
             # then convert to numpy
             # chosen_action = chosen_action.squeeze(0).detach().numpy()
@@ -450,35 +471,19 @@ class env_simulator:
         cur_ObsGrids = []
         actor_obs = []
 
-        # re-populate neighbors for all agents after action, and update states
-        for agentIdx, agent in self.all_agents.items():
-            # get current agent's name in term of integer
-            match = re.search(r'\d+(\.\d+)?', agent.agent_name)
-            if match:
-                agent_idx = int(match.group())
-            else:
-                agent_idx = None
-                raise ValueError('No number found in string')
-            # update current agent's own state
-            # agent_own = [agent.pos[0], agent.pos[1], agent.goal[0][0], agent.goal[0][1], agent.vel[0], agent.vel[1]]
-            # cur_ObsState[agent_idx, :] = agent_own
-            agent_own = np.array([agent.pos[0], agent.pos[1], agent.goal[0][0]-agent.pos[0], agent.goal[0][1]-agent.pos[1], agent.vel[0], agent.vel[1]])
-            other_pos = []
-            for other_agentIdx, other_agent in self.all_agents.items():
-                if other_agentIdx != agent_idx:
-                    other_pos.append(other_agent.pos - agent.pos)
+        next_state, next_state_norm = self.cur_state_norm_state(agentRefer_dict)
 
-            # update current agent's observable space state
-            agent.observableSpace = self.current_observable_space(agent)
-            #cur_ObsGrids.append(agent.observableSpace)
-
-            # update the "surroundingNeighbor" attribute
-            agent.surroundingNeighbor = self.get_current_agent_nei(agent, agentRefer_dict)
-            #actor_obs.append(agent.surroundingNeighbor)
-
-            # populate overall state
-            # next_combine_state.append(np.array([agent_own, agent.observableSpace, agent.surroundingNeighbor], dtype=object))
-            next_combine_state.append(np.concatenate((agent_own, np.array(other_pos).flatten())))
+        # # update current agent's observable space state
+        # agent.observableSpace = self.current_observable_space(agent)
+        # #cur_ObsGrids.append(agent.observableSpace)
+        #
+        # # update the "surroundingNeighbor" attribute
+        # agent.surroundingNeighbor = self.get_current_agent_nei(agent, agentRefer_dict)
+        # #actor_obs.append(agent.surroundingNeighbor)
+        #
+        # # populate overall state
+        # # next_combine_state.append(np.array([agent_own, agent.observableSpace, agent.surroundingNeighbor], dtype=object))
+        # next_combine_state.append(np.concatenate((agent_own, np.array(other_pos).flatten())))
 
 
 
@@ -559,7 +564,7 @@ class env_simulator:
         #     time.sleep(2)
         #     fig.canvas.flush_events()
         #     ax.cla()
-        return next_combine_state
+        return next_state, next_state_norm
 
     def central_learning(self, ReplayBuffer, batch_size, maxIntruNum, intruFeature, UPDATE_EVERY):
         with torch.autograd.set_detect_anomaly(True):
