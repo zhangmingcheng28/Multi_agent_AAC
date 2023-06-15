@@ -1,11 +1,12 @@
 import sys
-# sys.path.append('F:\githubClone\Multi_agent_AAC\old_framework_test')
-sys.path.append('D:\Multi_agent_AAC\old_framework_test')
+sys.path.append('F:\githubClone\Multi_agent_AAC\old_framework_test')
+# sys.path.append('D:\Multi_agent_AAC\old_framework_test')
 from env.make_env import make_env
 import argparse, datetime
 import numpy as np
 import torch, os
 import wandb
+from parameters_V5_2 import initialize_parameters
 from algo.maddpg.maddpg_agent import MADDPG
 from algo.normalized_env import ActionNormalizedEnv, ObsEnv, reward_from_state
 from algo.utils import *
@@ -29,24 +30,49 @@ def main(args):
     current_date = today.strftime("%d%m%y")
     current_time = datetime.datetime.now()
     formatted_time = current_time.strftime("%H_%M_%S")
-    wandb.login(key="efb76db851374f93228250eda60639c70a93d1ec")
-    wandb.init(
-        # set the wandb project where this run will be logged
-        project="MADDPG_sample_newFrameWork",
-        name='MADDPG_test_'+str(current_date) + '_' + str(formatted_time),
-        # track hyperparameters and run metadata
-        config={
-            "learning_rate": args.a_lr,
-            "epochs": args.max_episodes,
-        }
-    )
+    # wandb.login(key="efb76db851374f93228250eda60639c70a93d1ec")
+    # wandb.init(
+    #     # set the wandb project where this run will be logged
+    #     project="MADDPG_sample_newFrameWork",
+    #     name='MADDPG_test_'+str(current_date) + '_' + str(formatted_time),
+    #     # track hyperparameters and run metadata
+    #     config={
+    #         "learning_rate": args.a_lr,
+    #         "epochs": args.max_episodes,
+    #     }
+    # )
 
-    env = make_env(args.scenario)
+    env = make_env(args.scenario)  # original environment
+
+    # -------------- create my own environment -----------------
+    # n_episodes, max_t, eps_start, eps_end, eps_period, eps, env, \
+    # agent_grid_obs, BUFFER_SIZE, BATCH_SIZE, GAMMA, TAU, learning_rate, UPDATE_EVERY, seed_used, max_xy = initialize_parameters()
+    # total_agentNum = 2
+    # max_nei_num = 5
+    # # create world
+    # actor_obs = [6+(total_agentNum-1)*2, 20, 6]  # dim host, maximum dim grid, dim other drones
+    # critic_obs = [6+(total_agentNum-1)*2, 20, 6]
+    # n_actions = 2
+    # actorNet_lr = learning_rate
+    # criticNet_lr = learning_rate
+    # # noise parameter ini
+    # largest_Nsigma = 0.5
+    # smallest_Nsigma = 0.15
+    # ini_Nsigma = largest_Nsigma
+    #
+    # max_spd = 15
+    # env.create_world(total_agentNum, critic_obs, actor_obs, n_actions, actorNet_lr, criticNet_lr, GAMMA, TAU, UPDATE_EVERY, largest_Nsigma, smallest_Nsigma, ini_Nsigma, max_nei_num, max_xy, max_spd)
+    #
+
+
+
     n_agents = env.n
     n_actions = env.world.dim_p
     # env = ActionNormalizedEnv(env)
     # env = ObsEnv(env)
     n_states = env.observation_space[0].shape[0]
+
+
 
     torch.manual_seed(args.seed)
 
@@ -66,6 +92,8 @@ def main(args):
 
         state = env.reset()
 
+        # ------------ my own env.reset() ------------ #
+
         episode += 1
         step = 0
         accum_reward = 0
@@ -84,7 +112,7 @@ def main(args):
 
                 rew1 = reward_from_state(next_state)
                 reward = rew1 + (np.array(reward, dtype=np.float32) / 100.)
-                accum_reward += sum(reward)
+                accum_reward = accum_reward + sum(reward)
                 rewardA += reward[0]
                 rewardB += reward[1]
                 rewardC += reward[2]
@@ -109,23 +137,24 @@ def main(args):
 
                 state = next_state
 
-                if args.episode_length < step or (True in done):
+                if args.episode_length < step or (True in done):  # learning on perform at end of each episodes
                     # c_loss, a_loss = model.update(episode)
-                    c_loss, a_loss = model.update_myown(episode)
+                    c_loss, a_loss = model.update_myown(episode)  # last working learning framework
+                    # c_loss, a_loss = model.central_update(episode)
 
                     print("[Episode %05d] reward %6.4f" % (episode, accum_reward))
-                    wandb.log({'overall_reward': float(accum_reward)})
+                    # wandb.log({'overall_reward': float(accum_reward)})
                     if c_loss and a_loss:
                         for idx, val in enumerate(c_loss):
                             print(" agent %s, a_loss %3.2f c_loss %3.2f" % (idx, a_loss[idx].item(), c_loss[idx].item()))
-                            wandb.log({'agent' + str(idx) + 'actor_loss': float(a_loss[idx].item())})
-                            wandb.log({'agent' + str(idx) + 'critic_loss': float(c_loss[idx].item())})
+                            # wandb.log({'agent' + str(idx) + 'actor_loss': float(a_loss[idx].item())})
+                            # wandb.log({'agent' + str(idx) + 'critic_loss': float(c_loss[idx].item())})
                             print(" agent %s, a_loss %3.2f c_loss %3.2f" % (idx, a_loss[idx].item(), c_loss[idx].item()))
-                            wandb.log({'agent' + str(idx) + 'actor_loss': float(a_loss[idx].item())})
-                            wandb.log({'agent' + str(idx) + 'critic_loss': float(c_loss[idx].item())})
+                            # wandb.log({'agent' + str(idx) + 'actor_loss': float(a_loss[idx].item())})
+                            # wandb.log({'agent' + str(idx) + 'critic_loss': float(c_loss[idx].item())})
                             print(" agent %s, a_loss %3.2f c_loss %3.2f" % (idx, a_loss[idx].item(), c_loss[idx].item()))
-                            wandb.log({'agent' + str(idx) + 'actor_loss': float(a_loss[idx].item())})
-                            wandb.log({'agent' + str(idx) + 'critic_loss': float(c_loss[idx].item())})
+                            # wandb.log({'agent' + str(idx) + 'actor_loss': float(a_loss[idx].item())})
+                            # wandb.log({'agent' + str(idx) + 'critic_loss': float(c_loss[idx].item())})
 
                     if episode % args.save_interval == 0 and args.mode == "train":
                         model.save_model(episode)
@@ -155,7 +184,7 @@ def main(args):
                     print("[Episode %05d] reward %6.4f " % (episode, accum_reward))
                     env.reset()
                     break
-    wandb.finish()
+    # wandb.finish()
 
     # if args.tensorboard:
     #     writer.close()
@@ -182,8 +211,8 @@ if __name__ == '__main__':
     parser.add_argument('--epsilon_decay', default=10000, type=int)
     parser.add_argument('--tensorboard', default=True, action="store_true")
     parser.add_argument("--save_interval", default=5000, type=int)  # save model for every 5000 episodes
-    parser.add_argument("--model_episode", default=240000, type=int)
-    parser.add_argument('--episode_before_train', default=1000, type=int)  # original 1000
+    parser.add_argument("--model_episode", default=60000, type=int)
+    parser.add_argument('--episode_before_train', default=10, type=int)  # original 1000
     parser.add_argument('--log_dir', default=datetime.datetime.now().strftime('%Y%m%d_%H%M%S'))
 
     args = parser.parse_args()

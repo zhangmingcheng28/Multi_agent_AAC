@@ -1,4 +1,5 @@
 from algo.maddpg.network import Critic, Actor
+from algo.Nnetworks_V5_2 import CriticNetwork, ActorNetwork
 import torch
 from copy import deepcopy
 from torch.optim import Adam
@@ -27,7 +28,7 @@ def hard_update(target, source):
 
 
 class MADDPG:
-    def __init__(self, dim_obs, dim_act, n_agents, args):
+    def __init__(self, dim_obs, dim_act, n_agents, args, cr_lr, ac_lr, gamma, tau):
         self.args = args
         self.mode = args.mode
         self.actors = []
@@ -48,15 +49,20 @@ class MADDPG:
         self.use_cuda = torch.cuda.is_available()
         self.episodes_before_train = args.episode_before_train
 
-        self.GAMMA = 0.95
-        self.tau = 0.01
+        # self.GAMMA = 0.95  # original
+        # self.tau = 0.01  # original
+
+        self.GAMMA = gamma
+        self.tau = tau
 
         self.var = [1.0 for i in range(n_agents)]
 
-        self.critic_optimizer = [Adam(x.parameters(),
-                                      lr=0.001) for x in self.critics]
-        self.actor_optimizer = [Adam(x.parameters(),
-                                     lr=0.0001) for x in self.actors]
+        # original, critic learning rate is 10 times smaller compared to actor
+        # self.critic_optimizer = [Adam(x.parameters(), lr=0.001) for x in self.critics]
+        # self.actor_optimizer = [Adam(x.parameters(), lr=0.0001) for x in self.actors]
+
+        self.critic_optimizer = [Adam(x.parameters(), lr=cr_lr) for x in self.critics]
+        self.actor_optimizer = [Adam(x.parameters(), lr=ac_lr) for x in self.actors]
 
         if self.use_cuda:
             for x in self.actors:
@@ -188,6 +194,7 @@ class MADDPG:
 
     def update_myown(self, i_episode):
         self.train_num = i_episode
+
         if self.train_num <= self.episodes_before_train:
             return None, None
 
@@ -207,6 +214,7 @@ class MADDPG:
             state_batch = torch.stack(batch.states).type(FloatTensor)
             action_batch = torch.stack(batch.actions).type(FloatTensor)
             reward_batch = torch.stack(batch.rewards).type(FloatTensor)
+
             non_final_next_states = torch.stack([s for s in batch.next_states if s is not None]).type(FloatTensor)  # create a new tensor, but exclude the None values in the old tensor which is "batch.next_states"
             whole_state = state_batch.view(self.batch_size, -1)
             whole_action = action_batch.view(self.batch_size, -1)
@@ -255,6 +263,94 @@ class MADDPG:
                 soft_update(self.actors_target[i], self.actors[i], self.tau)
 
         return c_loss, a_loss
+
+    def central_update(self, i_episode):
+        self.train_num = i_episode
+        if self.train_num <= self.episodes_before_train:
+            return None, None
+
+        critic_losses, actor_losses = [], []
+
+        transitions = self.memory.sample(self.batch_size)
+        batch = Experience(*zip(*transitions))
+
+        #for agent in range(self.n_agents):
+
+
+
+
+
+
+
+
+
+
+
+        # FloatTensor = torch.FloatTensor
+        # device = self.all_agents[0].actorNet.device
+        # # load action, reward, done to tensor
+        # actionQ = T.tensor(np.array(action).transpose(1, 0, 2), dtype=T.float).contiguous().view(batch_size, -1).to(device)
+        # #reward = T.tensor(np.array(reward).transpose(1, 0, 2), dtype=T.float).contiguous().view(batch_size, -1).to(device)
+        # #done = T.tensor(np.array(done).transpose(1, 0, 2)).contiguous().view(batch_size, -1).to(device)
+        # next_ = T.tensor(np.array(next_state), dtype=T.float).to(device)
+        #
+        # # cur_ = T.tensor(np.array(cur_state), dtype=T.float).to(device)
+        #
+        # # pre-process cur_state and next_state so that they can be used as input for every agent's critic network
+        # cur_state_pre_processed = preprocess_batch_for_critic_net_v2(cur_state, batch_size)
+        # next_state_pre_processed = preprocess_batch_for_critic_net_v2(next_state, batch_size)
+
+        all_agents_next_actions = []
+        all_agents_new_mu_actions = []
+        old_agents_actions = []  # actions the agent actually took
+
+        for agent_idx, agent in self.all_agents.items():
+
+            # current Q estimate, shape is batch_size X 1
+            critic_value = agent.criticNet(cur_state_pre_processed, actionQ)
+
+            critic_value_prime = torch.zeros(batch_size, 1).type(FloatTensor)
+            next_actions = [self.all_agents[i].target_actorNet(next_[i, :, :]) for i in range(len(self.all_agents))]
+            # critic_value_prime = agent.target_criticNet(next_state_pre_processed, next_actions).detach()
+            next_action_stack = torch.stack(next_actions).permute(1, 0, 2).contiguous().view(batch_size, -1)
+
+            mask = T.tensor(done[agent_idx]).int()
+            flipped_mask = 1 - mask
+            critic_value_prime = flipped_mask*agent.target_criticNet(next_state_pre_processed, next_action_stack)
+
+            target = T.tensor(reward[agent_idx]) + agent.gamma * critic_value_prime
+
+            critic_loss = F.mse_loss(critic_value, target.detach())
+            agent.criticNet.optimizer.zero_grad()
+            critic_loss.backward(retain_graph=True)
+            # torch.nn.utils.clip_grad_norm_(agent.criticNet.parameters(), 1)
+            agent.criticNet.optimizer.step()
+
+            action_i = agent.actorNet(T.tensor(cur_state[agent_idx]))
+            pi = T.tensor(action).clone()
+            pi[agent_idx] = action_i  # only change the action batch with one update action
+            mu = pi.view(batch_size, -1)
+
+            # next_actions_cur = [self.all_agents[i].target_actorNet(cur_[i, :, :]) for i in range(len(self.all_agents))]
+            # mu = torch.stack(next_actions_cur).permute(1, 0, 2).contiguous().view(batch_size, -1)
+
+            actor_loss = -agent.criticNet(cur_state_pre_processed, mu).mean()
+            agent.actorNet.optimizer.zero_grad()
+            actor_loss.backward()
+            # torch.nn.utils.clip_grad_norm_(agent.actorNet.parameters(), 1)
+            # torch.nn.utils.clip_grad_norm_(agent.criticNet.parameters(), 1)
+            agent.actorNet.optimizer.step()
+
+            critic_losses.append(critic_loss)
+            actor_losses.append(actor_loss)
+
+            agent.update_count = agent.update_count + 1
+            if agent.update_count == agent.target_update_step:
+                agent.update_network_parameters()  # soft-update is used here
+                print("{} network updated at episode equals to {}".format(agent.agent_name, ts))
+                agent.update_count = 0  # reset update count after one update
+
+        return critic_losses, actor_losses
 
     def choose_action(self, state, noisy=True):
         obs = torch.from_numpy(np.stack(state)).float().to(device)
