@@ -14,7 +14,7 @@ from Utilities_V5_2 import padding_list
 
 
 class Agent:
-    def __init__(self, actor_obs, critic_obs, n_actions, agent_idx, totalAgent, actorNet_lr, criticNet_lr, gamma, tau, max_nei_num, maxSPD):
+    def __init__(self, n_actions, agent_idx, gamma, tau, max_nei_num, maxSPD):
         self.gamma = gamma
         self.tau = tau
         self.n_actions = n_actions  # this n_actions is the dimension of the action space
@@ -22,11 +22,11 @@ class Agent:
         self.max_nei = max_nei_num
         #self.agent_size = 1.5  # meter in radius
         self.agent_grid_obs = None
-        self.max_grid_obs_dim = actor_obs[1]  # The 2nd element is the maximum grid observation dimension
-        self.actorNet = ActorNetwork(actorNet_lr, actor_obs, n_actions, max_nei_num, name=self.agent_name+'_actorNet')
-        self.target_actorNet = ActorNetwork(actorNet_lr, actor_obs, n_actions, max_nei_num, name=self.agent_name+'_target_actorNet')
-        self.criticNet = CriticNetwork(criticNet_lr, critic_obs, totalAgent, n_actions, name=self.agent_name+'_criticNet')
-        self.target_criticNet = CriticNetwork(criticNet_lr, critic_obs, totalAgent, n_actions, name=self.agent_name+'_target_criticNet')
+        # self.max_grid_obs_dim = actor_obs[1]  # The 2nd element is the maximum grid observation dimension
+        # self.actorNet = ActorNetwork(actorNet_lr, actor_obs, n_actions, max_nei_num, name=self.agent_name+'_actorNet')
+        # self.target_actorNet = ActorNetwork(actorNet_lr, actor_obs, n_actions, max_nei_num, name=self.agent_name+'_target_actorNet')
+        # self.criticNet = CriticNetwork(criticNet_lr, critic_obs, totalAgent, n_actions, name=self.agent_name+'_criticNet')
+        # self.target_criticNet = CriticNetwork(criticNet_lr, critic_obs, totalAgent, n_actions, name=self.agent_name+'_target_criticNet')
 
         # state information
         self.pos = None

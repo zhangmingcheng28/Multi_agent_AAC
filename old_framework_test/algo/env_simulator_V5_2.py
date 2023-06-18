@@ -45,13 +45,13 @@ class env_simulator:
         self.OU_noise = None
         self.normalizer = None
 
-    def create_world(self, total_agentNum, critic_obs, actor_obs, n_actions, actorNet_lr, criticNet_lr, gamma, tau, target_update, largest_Nsigma, smallest_Nsigma, ini_Nsigma, max_nei_num, max_xy, max_spd):
+    def create_world(self, total_agentNum, n_actions, gamma, tau, target_update, largest_Nsigma, smallest_Nsigma, ini_Nsigma, max_xy, max_spd):
         # config OU_noise
         self.OU_noise = OUNoise(n_actions, largest_Nsigma, smallest_Nsigma, ini_Nsigma)
         self.normalizer = NormalizeData(max_xy[0], max_xy[1], max_spd)
         self.all_agents = {}
         for agent_i in range(total_agentNum):
-            agent = Agent(actor_obs, critic_obs, n_actions, agent_i, total_agentNum, actorNet_lr, criticNet_lr, gamma, tau, max_nei_num, max_spd)
+            agent = Agent(n_actions, agent_i, gamma, tau, total_agentNum, max_spd)
             agent.target_update_step = target_update
             self.all_agents[agent_i] = agent
         global_state = self.reset_world(show=0)
@@ -461,7 +461,8 @@ class env_simulator:
         # hence, 4 here is equivalent to the acceleration of 2m/s^2
         coe_a = 4  # coe_a is the coefficient of action is 4.
         # based on the input stack of actions we propagate all agents forward
-        for drone_idx, drone_act in actions.items():
+        #for drone_idx, drone_act in actions.items():  # this is original
+        for drone_idx, drone_act in enumerate(actions):
             # let current neighbor become neighbor record before action
             self.all_agents[drone_idx].pre_surroundingNeighbor = self.all_agents[drone_idx].surroundingNeighbor
             # fill previous velocities

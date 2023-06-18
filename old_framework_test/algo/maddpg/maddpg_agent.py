@@ -11,6 +11,7 @@ import torch.nn as nn
 import numpy as np
 import torch as T
 from algo.utils import device
+import csv
 scale_reward = 0.01
 
 
@@ -33,9 +34,12 @@ class MADDPG:
         self.mode = args.mode
         self.actors = []
         self.critics = []
-        self.actors = [Actor(dim_obs, dim_act) for _ in range(n_agents)]
-        # self.critic = Critic(n_agents, dim_obs, dim_act)
-        self.critics = [Critic(n_agents, dim_obs, dim_act) for _ in range(n_agents)]
+        # original
+        # self.actors = [Actor(dim_obs, dim_act) for _ in range(n_agents)]
+        # self.critics = [Critic(n_agents, dim_obs, dim_act) for _ in range(n_agents)]
+
+        self.actors = [ActorNetwork(dim_obs, dim_act) for _ in range(n_agents)]
+        self.critics = [CriticNetwork(dim_obs, n_agents, dim_act) for _ in range(n_agents)]
 
         self.n_agents = n_agents
         self.n_states = dim_obs
@@ -57,7 +61,7 @@ class MADDPG:
 
         self.var = [1.0 for i in range(n_agents)]
 
-        # original, critic learning rate is 10 times smaller compared to actor
+        # original, critic learning rate is 10 times larger compared to actor
         # self.critic_optimizer = [Adam(x.parameters(), lr=0.001) for x in self.critics]
         # self.actor_optimizer = [Adam(x.parameters(), lr=0.0001) for x in self.actors]
 
@@ -98,17 +102,19 @@ class MADDPG:
         self.actors_target = deepcopy(self.actors)
         self.critics_target = deepcopy(self.critics)
 
-    def save_model(self, episode):
-        if not os.path.exists("./trained_model/"):
-            os.mkdir("./trained_model/")
-        if not os.path.exists("./trained_model/" + str(self.args.algo) + "/"):
-            # os.mkdir(r"F:\githubClone\MAProj_myversion\algo/trained_model/" + str(self.args.algo))
-            os.mkdir(r"D:\Multi_agent_AAC\old_framework_test\algo/trained_model/" + str(self.args.algo))
+    def save_model(self, episode, file_path):
+        # if not os.path.exists("./trained_model_myenv/"):
+        #     os.mkdir("./trained_model_myenv/")
+        # if not os.path.exists("./trained_model/" + str(self.args.algo) + "/"):
+        #     # os.mkdir(r"F:\githubClone\MAProj_myversion\algo/trained_model/" + str(self.args.algo))
+        #     os.mkdir(r"D:\Multi_agent_AAC\old_framework_test\algo/trained_model/" + str(self.args.algo))
+        if not os.path.exists(file_path):
+            os.makedirs(file_path)
         for i in range(self.n_agents):
-            torch.save(self.actors[i],
-                       'trained_model/maddpg/actor[' + str(i) + ']' + '_' + str(episode) + '.pth')
-            torch.save(self.critics[i],
-                       'trained_model/maddpg/critic[' + str(i) + ']' + '_' + str(episode) + '.pth')
+            torch.save(self.actors[i].state_dict(), file_path + '/' +'episode_'+str(episode)+'_'+'agent_'+ str(i) + 'actor_net')
+
+
+
 
     def update(self, i_episode):
 
@@ -189,13 +195,16 @@ class MADDPG:
                 soft_update(self.critics_target[i], self.critics[i], self.tau)
                 soft_update(self.actors_target[i], self.actors[i], self.tau)
 
-        # return sum(c_loss).item()/self.n_agents, sum(a_loss).item()/self.n_agents
         return c_loss, a_loss
 
-    def update_myown(self, i_episode):
+    def update_myown(self, i_episode, total_step_count, UPDATE_EVERY):
         self.train_num = i_episode
 
-        if self.train_num <= self.episodes_before_train:
+        # ------------ original -------------
+        # if self.train_num <= self.episodes_before_train:
+        #     return None, None
+
+        if len(self.memory) <= self.batch_size:
             return None, None
 
         BoolTensor = torch.cuda.BoolTensor if self.use_cuda else torch.BoolTensor
@@ -208,14 +217,16 @@ class MADDPG:
         batch = Experience(*zip(*transitions))
 
         for agent in range(self.n_agents):
-            non_final_mask = BoolTensor(list(map(lambda s: s is not None,
-                                                 batch.next_states)))  # create a boolean tensor, that has same length as the "batch.next_states", if an element is batch.next_state is not "None" then assign a True value, False otherwise.
+            # --------- original---------
+            # non_final_mask = BoolTensor(list(map(lambda s: s is not None, batch.next_states)))  # create a boolean tensor, that has same length as the "batch.next_states", if an element is batch.next_state is not "None" then assign a True value, False otherwise.
+
+            non_final_mask = BoolTensor(list(map(lambda s: True not in s,batch.dones)))  # create a boolean tensor, that has same length as the "batch.next_states", if an element is batch.next_state is not "None" then assign a True value, False otherwise.
             # state_batch: batch_size x n_agents x dim_obs
             state_batch = torch.stack(batch.states).type(FloatTensor)
             action_batch = torch.stack(batch.actions).type(FloatTensor)
             reward_batch = torch.stack(batch.rewards).type(FloatTensor)
 
-            non_final_next_states = torch.stack([s for s in batch.next_states if s is not None]).type(FloatTensor)  # create a new tensor, but exclude the None values in the old tensor which is "batch.next_states"
+            non_final_next_states = torch.stack([s_ for s_idx, s_ in enumerate(batch.next_states) if non_final_mask[s_idx]]).type(FloatTensor)  # create a new tensor, but exclude the None values in the old tensor which is "batch.next_states"
             whole_state = state_batch.view(self.batch_size, -1)
             whole_action = action_batch.view(self.batch_size, -1)
 
@@ -227,11 +238,7 @@ class MADDPG:
             current_Q = self.critics[agent](whole_state, whole_action)
             with T.no_grad():
                 target_Q = torch.zeros(self.batch_size).type(FloatTensor)
-                target_Q[non_final_mask] = self.critics_target[agent](
-                    non_final_next_states.view(-1, self.n_agents * self.n_states),
-                    # .view(-1, self.n_agents * self.n_states)
-                    non_final_next_actions.view(-1,
-                                                self.n_agents * self.n_actions)).squeeze()  # .view(-1, self.n_agents * self.n_actions)
+                target_Q[non_final_mask] = self.critics_target[agent](non_final_next_states.view(-1, self.n_agents * self.n_states),non_final_next_actions.view(-1,self.n_agents * self.n_actions)).squeeze()  # .view(-1, self.n_agents * self.n_actions)
 
                 target_Q = (target_Q.unsqueeze(1) * self.GAMMA) + (
                         reward_batch[:, agent].unsqueeze(1) * 0.1)  # + reward_sum.unsqueeze(1) * 0.1
@@ -257,100 +264,19 @@ class MADDPG:
             c_loss.append(loss_Q)
             a_loss.append(actor_loss)
 
-        if self.train_num % 100 == 0:  # evert 100 step, do a soft update
+        # original
+        if total_step_count % UPDATE_EVERY == 0:  # evert "UPDATE_EVERY" step, do a soft update
             for i in range(self.n_agents):
+                print("all agents NN update at total step {}".format(total_step_count))
                 soft_update(self.critics_target[i], self.critics[i], self.tau)
                 soft_update(self.actors_target[i], self.actors[i], self.tau)
+        # if total_step_count % UPDATE_EVERY == 0:  # evert 100 step, do a soft update
+        #     print("all agents NN update at total step {}".format(total_step_count))
+        #     for i in range(self.n_agents):
+        #         soft_update(self.critics_target[i], self.critics[i], self.tau)
+        #         soft_update(self.actors_target[i], self.actors[i], self.tau)
 
         return c_loss, a_loss
-
-    def central_update(self, i_episode):
-        self.train_num = i_episode
-        if self.train_num <= self.episodes_before_train:
-            return None, None
-
-        critic_losses, actor_losses = [], []
-
-        transitions = self.memory.sample(self.batch_size)
-        batch = Experience(*zip(*transitions))
-
-        #for agent in range(self.n_agents):
-
-
-
-
-
-
-
-
-
-
-
-        # FloatTensor = torch.FloatTensor
-        # device = self.all_agents[0].actorNet.device
-        # # load action, reward, done to tensor
-        # actionQ = T.tensor(np.array(action).transpose(1, 0, 2), dtype=T.float).contiguous().view(batch_size, -1).to(device)
-        # #reward = T.tensor(np.array(reward).transpose(1, 0, 2), dtype=T.float).contiguous().view(batch_size, -1).to(device)
-        # #done = T.tensor(np.array(done).transpose(1, 0, 2)).contiguous().view(batch_size, -1).to(device)
-        # next_ = T.tensor(np.array(next_state), dtype=T.float).to(device)
-        #
-        # # cur_ = T.tensor(np.array(cur_state), dtype=T.float).to(device)
-        #
-        # # pre-process cur_state and next_state so that they can be used as input for every agent's critic network
-        # cur_state_pre_processed = preprocess_batch_for_critic_net_v2(cur_state, batch_size)
-        # next_state_pre_processed = preprocess_batch_for_critic_net_v2(next_state, batch_size)
-
-        all_agents_next_actions = []
-        all_agents_new_mu_actions = []
-        old_agents_actions = []  # actions the agent actually took
-
-        for agent_idx, agent in self.all_agents.items():
-
-            # current Q estimate, shape is batch_size X 1
-            critic_value = agent.criticNet(cur_state_pre_processed, actionQ)
-
-            critic_value_prime = torch.zeros(batch_size, 1).type(FloatTensor)
-            next_actions = [self.all_agents[i].target_actorNet(next_[i, :, :]) for i in range(len(self.all_agents))]
-            # critic_value_prime = agent.target_criticNet(next_state_pre_processed, next_actions).detach()
-            next_action_stack = torch.stack(next_actions).permute(1, 0, 2).contiguous().view(batch_size, -1)
-
-            mask = T.tensor(done[agent_idx]).int()
-            flipped_mask = 1 - mask
-            critic_value_prime = flipped_mask*agent.target_criticNet(next_state_pre_processed, next_action_stack)
-
-            target = T.tensor(reward[agent_idx]) + agent.gamma * critic_value_prime
-
-            critic_loss = F.mse_loss(critic_value, target.detach())
-            agent.criticNet.optimizer.zero_grad()
-            critic_loss.backward(retain_graph=True)
-            # torch.nn.utils.clip_grad_norm_(agent.criticNet.parameters(), 1)
-            agent.criticNet.optimizer.step()
-
-            action_i = agent.actorNet(T.tensor(cur_state[agent_idx]))
-            pi = T.tensor(action).clone()
-            pi[agent_idx] = action_i  # only change the action batch with one update action
-            mu = pi.view(batch_size, -1)
-
-            # next_actions_cur = [self.all_agents[i].target_actorNet(cur_[i, :, :]) for i in range(len(self.all_agents))]
-            # mu = torch.stack(next_actions_cur).permute(1, 0, 2).contiguous().view(batch_size, -1)
-
-            actor_loss = -agent.criticNet(cur_state_pre_processed, mu).mean()
-            agent.actorNet.optimizer.zero_grad()
-            actor_loss.backward()
-            # torch.nn.utils.clip_grad_norm_(agent.actorNet.parameters(), 1)
-            # torch.nn.utils.clip_grad_norm_(agent.criticNet.parameters(), 1)
-            agent.actorNet.optimizer.step()
-
-            critic_losses.append(critic_loss)
-            actor_losses.append(actor_loss)
-
-            agent.update_count = agent.update_count + 1
-            if agent.update_count == agent.target_update_step:
-                agent.update_network_parameters()  # soft-update is used here
-                print("{} network updated at episode equals to {}".format(agent.agent_name, ts))
-                agent.update_count = 0  # reset update count after one update
-
-        return critic_losses, actor_losses
 
     def choose_action(self, state, noisy=True):
         obs = torch.from_numpy(np.stack(state)).float().to(device)
