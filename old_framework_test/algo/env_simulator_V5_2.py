@@ -66,8 +66,9 @@ class env_simulator:
         # x-bound: [0, 1800), y-bound: [0, 1300)
         # read the Excel file into a pandas dataframe
         # df = pd.read_excel(r'F:\githubClone\Multi_agent_AAC\MA_ver1\fixedDrone.xlsx')
-        df = pd.read_excel(r'F:\githubClone\Multi_agent_AAC\MA_ver1\fixedDrone_2_drone.xlsx')
+        # df = pd.read_excel(r'F:\githubClone\Multi_agent_AAC\MA_ver1\fixedDrone_2_drone.xlsx')
         # df = pd.read_excel(r'D:\Multi_agent_AAC\MA_ver1\fixedDrone.xlsx')
+        df = pd.read_excel(r'D:\Multi_agent_AAC\MA_ver1\fixedDrone_2_drone.xlsx')
         # convert the dataframe to a NumPy array
         custom_agent_data = np.array(df)
         custom_agent_data = custom_agent_data.astype(float)
@@ -300,7 +301,7 @@ class env_simulator:
         reward, done = [], []
         check_goal = [False] * len(self.all_agents)
         # crash_penalty = -200
-        crash_penalty = -1
+        crash_penalty = -200
         # reach_target = 1000
         reach_target = 100
         potential_conflict_count = 0
@@ -384,8 +385,8 @@ class env_simulator:
             # exceed bound or crash into buildings or crash with other neighbors
             if collide_building == 1 or len(collision_drones) > 0:
                 reward.append(np.array(crash_penalty))
-                # done.append(True)
-                done.append(False)
+                done.append(True)
+                # done.append(False)
 
             # exceed bound condition, don't use current point, use current circle or else will have condition that
             elif x_left_bound.intersects(host_passed_volume) or x_right_bound.intersects(host_passed_volume) or y_bottom_bound.intersects(host_passed_volume) or y_top_bound.intersects(host_passed_volume):
@@ -425,13 +426,13 @@ class env_simulator:
                 # Distance between drone and its goal for two consecutive time step
                 before_dist_hg = np.linalg.norm(drone_obj.pre_pos - drone_obj.goal[0])
                 after_dist_hg = np.linalg.norm(drone_obj.pos - drone_obj.goal[0])  # distance to goal after action
-                # delta_hg = goalCoefficient * (before_dist_hg - after_dist_hg)
+                delta_hg = goalCoefficient * (before_dist_hg - after_dist_hg)
 
-                delta_hg = 0
-                if after_dist_hg > drone_obj.detectionRange:
-                    delta_hg = -1
-                else:
-                    delta_hg = 5*math.exp(-after_dist_hg/10)  # the range is from 0.25 to 5, as after_dist_hg is from 0 to 30 only.
+                # delta_hg = 0
+                # if after_dist_hg > drone_obj.detectionRange:
+                #     delta_hg = -1
+                # else:
+                #     delta_hg = 5*math.exp(-after_dist_hg/10)  # the range is from 0.25 to 5, as after_dist_hg is from 0 to 30 only.
 
 
                 # a small penalty for discourage the agent to stay in one single spot
@@ -439,12 +440,13 @@ class env_simulator:
                     small_step_penalty = 50
                 else:
                     small_step_penalty = 0
-                alive_penalty = -1
+                alive_penalty = 10
                 # Domino term also use as an indicator for agent to avoid other drones. so no need to specifically
                 # add a term to avoid surrounding drones
                 # step_reward = crossCoefficient*cross_track_error + delta_hg + dominoTerm - small_step_penalty
                 # step_reward = crossCoefficient*cross_track_error + delta_hg - small_step_penalty
-                step_reward = delta_hg + alive_penalty  # - small_step_penalty
+                step_reward = crossCoefficient*cross_track_error + delta_hg - alive_penalty
+                # step_reward = delta_hg + alive_penalty  # - small_step_penalty
                 # step_reward = delta_hg
                 # convert to arr
                 step_reward = np.array(step_reward)
@@ -469,8 +471,8 @@ class env_simulator:
             self.all_agents[drone_idx].pre_vel = self.all_agents[drone_idx].vel
             ax, ay = drone_act[0], drone_act[1]
             # map output action from NN to actual range
-            ax = map_range(ax, coe_a)
-            ay = map_range(ay, coe_a)
+            # ax = map_range(ax, coe_a)
+            # ay = map_range(ay, coe_a)
             # check velocity limit
             curVelx = self.all_agents[drone_idx].vel[0] + ax * self.time_step
             curVely = self.all_agents[drone_idx].vel[1] + ay * self.time_step

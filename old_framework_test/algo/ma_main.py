@@ -1,6 +1,6 @@
 import sys
-sys.path.append('F:\githubClone\Multi_agent_AAC\old_framework_test')
-# sys.path.append('D:\Multi_agent_AAC\old_framework_test')
+# sys.path.append('F:\githubClone\Multi_agent_AAC\old_framework_test')
+sys.path.append('D:\Multi_agent_AAC\old_framework_test')
 from env.make_env import make_env
 import argparse, datetime
 import numpy as np
@@ -38,17 +38,17 @@ def main(args):
     if not os.path.exists(plot_file_name):
         os.makedirs(plot_file_name)
 
-    # wandb.login(key="efb76db851374f93228250eda60639c70a93d1ec")
-    # wandb.init(
-    #     # set the wandb project where this run will be logged
-    #     project="MADDPG_sample_newFrameWork",
-    #     name='MADDPG_test_'+str(current_date) + '_' + str(formatted_time),
-    #     # track hyperparameters and run metadata
-    #     config={
-    #         "learning_rate": args.a_lr,
-    #         "epochs": args.max_episodes,
-    #     }
-    # )
+    wandb.login(key="efb76db851374f93228250eda60639c70a93d1ec")
+    wandb.init(
+        # set the wandb project where this run will be logged
+        project="MADDPG_sample_newFrameWork",
+        name='MADDPG_test_'+str(current_date) + '_' + str(formatted_time),
+        # track hyperparameters and run metadata
+        config={
+            "learning_rate": args.a_lr,
+            "epochs": args.max_episodes,
+        }
+    )
 
     # env = make_env(args.scenario)  # original environment
 
@@ -90,7 +90,7 @@ def main(args):
     n_states = actor_obs[0]
 
 
-    torch.manual_seed(args.seed)
+    torch.manual_seed(args.seed)  # this is the seed
 
     # if args.tensorboard and args.mode == "train":
     #     writer = SummaryWriter(log_dir='runs/' + args.algo + "/" + args.log_dir)
@@ -122,7 +122,7 @@ def main(args):
         while True:
 
             if args.mode == "train":
-                action = model.choose_action(cur_state, noisy=True)
+                action = model.choose_action(norm_cur_state, noisy=True)
                 next_state, norm_next_state = env.step(action, step)
                 reward_aft_action, done_aft_action, check_goal = env.get_step_reward(step)
 
@@ -131,8 +131,10 @@ def main(args):
                 total_step += 1  # steps taken from 1st episode
 
                 if args.algo == "maddpg" or args.algo == "commnet":
-                    obs = torch.from_numpy(np.stack(cur_state)).float().to(device)
-                    obs_ = torch.from_numpy(np.stack(next_state)).float().to(device)
+                    # obs = torch.from_numpy(np.stack(cur_state)).float().to(device)
+                    obs = torch.from_numpy(np.stack(norm_cur_state)).float().to(device)
+                    # obs_ = torch.from_numpy(np.stack(next_state)).float().to(device)
+                    obs_ = torch.from_numpy(np.stack(norm_next_state)).float().to(device)
                     next_obs = obs_
 
                     rw_tensor = torch.FloatTensor(np.array(reward_aft_action)).to(device)
@@ -152,19 +154,20 @@ def main(args):
                                                     UPDATE_EVERY)  # last working learning framework
 
                 cur_state = next_state
+                norm_cur_state = norm_next_state
 
 
                 if args.episode_length < step or (True in done_aft_action):
                     # here onwards is end of an episode's play
                     score_history.append(accum_reward)
                     print("[Episode %05d] reward %6.4f" % (episode, accum_reward))
-                    # wandb.log({'overall_reward': float(accum_reward)})
+                    wandb.log({'overall_reward': float(accum_reward)})
                     if c_loss and a_loss:
                         for idx, val in enumerate(c_loss):
                             print(" agent %s, a_loss %3.2f c_loss %3.2f" % (
                                 idx, a_loss[idx].item(), c_loss[idx].item()))
-                            # wandb.log({'agent' + str(idx) + 'actor_loss': float(a_loss[idx].item())})
-                            # wandb.log({'agent' + str(idx) + 'critic_loss': float(c_loss[idx].item())})
+                            wandb.log({'agent' + str(idx) + 'actor_loss': float(a_loss[idx].item())})
+                            wandb.log({'agent' + str(idx) + 'critic_loss': float(c_loss[idx].item())})
                     if episode % args.save_interval == 0 and args.mode == "train":
 
                         # save the models at a predefined interval
@@ -197,7 +200,7 @@ def main(args):
                     print("[Episode %05d] reward %6.4f " % (episode, accum_reward))
                     env.reset()
                     break
-    # wandb.finish()
+    wandb.finish()
 
     # if args.tensorboard:
     #     writer.close()
@@ -206,7 +209,7 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--scenario', default="simple_spread", type=str)
-    parser.add_argument('--max_episodes', default=60000, type=int)  # rnu for a total of 60000 episodes
+    parser.add_argument('--max_episodes', default=30000, type=int)  # rnu for a total of 60000 episodes
     parser.add_argument('--algo', default="maddpg", type=str, help="commnet/bicnet/maddpg")
     parser.add_argument('--mode', default="train", type=str, help="train/eval")
     parser.add_argument('--episode_length', default=50, type=int)  # maximum play per episode
@@ -216,14 +219,14 @@ if __name__ == '__main__':
     parser.add_argument('--seed', default=777, type=int)
     parser.add_argument('--a_lr', default=0.0001, type=float)
     parser.add_argument('--c_lr', default=0.0001, type=float)
-    parser.add_argument('--batch_size', default=25, type=int)  # original 256
+    parser.add_argument('--batch_size', default=256, type=int)  # original 256
     parser.add_argument('--render_flag', default=False, type=bool)
     parser.add_argument('--ou_theta', default=0.15, type=float)
     parser.add_argument('--ou_mu', default=0.0, type=float)
     parser.add_argument('--ou_sigma', default=0.2, type=float)
     parser.add_argument('--epsilon_decay', default=10000, type=int)
     parser.add_argument('--tensorboard', default=True, action="store_true")
-    parser.add_argument("--save_interval", default=5000, type=int)  # save model for every 5000 episodes
+    parser.add_argument("--save_interval", default=1000, type=int)  # save model for every 5000 episodes
     parser.add_argument("--model_episode", default=60000, type=int)
     parser.add_argument('--episode_before_train', default=10, type=int)  # original 1000
     parser.add_argument('--log_dir', default=datetime.datetime.now().strftime('%Y%m%d_%H%M%S'))
