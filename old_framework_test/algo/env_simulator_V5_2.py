@@ -455,6 +455,161 @@ class env_simulator:
         reward = [shared_reward] * len(self.all_agents)
         return reward, done, check_goal
 
+    def get_step_reward_5_v3(self, current_ts):  # this is for individual drones, current_ts = current time step
+        reward, done = [], []
+        check_goal = [False] * len(self.all_agents)
+        # crash_penalty = -200
+        crash_penalty = -200
+        # reach_target = 1000
+        reach_target = 100
+        potential_conflict_count = 0
+        final_goal_toadd = 0
+        fixed_domino_reward = 1
+        x_left_bound = LineString([(self.bound[0], -9999), (self.bound[0], 9999)])
+        x_right_bound = LineString([(self.bound[1], -9999), (self.bound[1], 9999)])
+        y_bottom_bound = LineString([(-9999, self.bound[2]), (9999, self.bound[2])])
+        y_top_bound = LineString([(-9999, self.bound[3]), (9999, self.bound[3])])
+
+        for drone_idx, drone_obj in self.all_agents.items():
+            # re-initialize these two list for individual agents at each time step,this is to ensure collision
+            # condition is reset for each agent at every time step
+            collision_drones = []
+            collide_building = 0
+            pc_before, pc_after = [], []
+            # we assume the maximum potential conflict the current drone could have at each time step is equals
+            # to the total number of its neighbour at each time step
+            pc_max_before = len(drone_obj.pre_surroundingNeighbor)
+            pc_max_after = len(drone_obj.surroundingNeighbor)
+
+            # calculate the deviation from the reference path after an action has been taken
+            curPoint = Point(self.all_agents[drone_idx].pos)
+            host_refline = LineString([self.all_agents[drone_idx].ini_pos, self.all_agents[drone_idx].goal[0]])
+            cross_track_deviation = curPoint.distance(host_refline)  # deviation from the reference line, cross track error
+
+            host_pass_line = LineString([self.all_agents[drone_idx].pre_pos, self.all_agents[drone_idx].pos])
+            host_passed_volume = host_pass_line.buffer(self.all_agents[drone_idx].protectiveBound, cap_style='round')
+
+            # neigh_keys is the drone_idx for current neighbors
+            # loop through neighbors from previous time step
+            for neigh_keys in self.all_agents[drone_idx].pre_surroundingNeighbor:
+                # compute potential conflicts before and after the action for the current drone with its neighbours
+                pc_before = compute_potential_conflict(pc_before, drone_obj.pre_pos, drone_obj.pre_vel,
+                                                       drone_obj.protectiveBound, self.all_agents[neigh_keys].pre_pos,
+                                                       self.all_agents[neigh_keys].pre_vel,
+                                                       self.all_agents[neigh_keys].protectiveBound, neigh_keys,
+                                                       current_ts)
+            # loop through neighbors from current time step
+            for neigh_keys in self.all_agents[drone_idx].surroundingNeighbor:
+                # compute potential conflicts before and after the action for the current drone with its neighbours
+                pc_after = compute_potential_conflict(pc_after, drone_obj.pos, drone_obj.vel,
+                                                      drone_obj.protectiveBound, self.all_agents[neigh_keys].pos,
+                                                      self.all_agents[neigh_keys].vel,
+                                                      self.all_agents[neigh_keys].protectiveBound, neigh_keys,
+                                                      current_ts)
+
+                # check whether the current drone has collides with any surrounding neighbors due to current action
+                neigh_pass_line = LineString([self.all_agents[neigh_keys].pre_pos, self.all_agents[neigh_keys].pos])
+                neigh_passed_volume = neigh_pass_line.buffer(self.all_agents[neigh_keys].protectiveBound,
+                                                             cap_style='round')
+                if host_passed_volume.intersects(neigh_passed_volume):
+                    print("drone_{} collide with drone_{} at time step {}".format(drone_idx, neigh_keys, current_ts))
+                    collision_drones.append(neigh_keys)
+
+            if pc_max_after == 0:  # upper bound in terms of value case for dominoTerm
+                dominoTerm = fixed_domino_reward
+            elif pc_max_before == 0:  # lower bound in terms of value case for dominoTerm
+                dominoTerm = -1
+            elif (len(pc_after)/pc_max_after) == 0:  # check if denominator of the dominoTerm equals to 0
+                # if denominator equals to 0, meaning initial velocity is 0,
+                # so is like initial condition, then we can just assign this dominoTerm as 0.
+                dominoTerm = 0
+            else:
+                dominoTerm = ((len(pc_before)/pc_max_before) -
+                              (len(pc_after)/pc_max_after)) / (len(pc_after)/pc_max_after)
+
+            # check whether current actions leads to a collision with any buildings in the airspace
+            allBuildingSTR = STRtree(self.world_map_2D_polyList[0][0])
+            possiblePoly = allBuildingSTR.query(host_passed_volume)
+            for element in possiblePoly:
+                if allBuildingSTR.geometries.take(element).intersection(host_passed_volume):
+                    collide_building = 1
+                    print("drone_{} crash into building when moving from {} to {} at time step {}".format(drone_idx, self.all_agents[drone_idx].pre_pos, self.all_agents[drone_idx].pos, current_ts))
+                    break
+
+            tar_circle = Point(self.all_agents[drone_idx].goal[0]).buffer(1, cap_style='round')
+            # when there is no intersection between two geometries, "RuntimeWarning" will appear
+            # RuntimeWarning is, "invalid value encountered in intersection"
+            goal_cur_intru_intersect = host_passed_volume.intersection(tar_circle)
+
+            # exceed bound or crash into buildings or crash with other neighbors
+            if collide_building == 1 or len(collision_drones) > 0:
+                reward.append(np.array(crash_penalty))
+                done.append(True)
+                # done.append(False)
+
+            # exceed bound condition, don't use current point, use current circle or else will have condition that
+            elif x_left_bound.intersects(host_passed_volume) or x_right_bound.intersects(host_passed_volume) or y_bottom_bound.intersects(host_passed_volume) or y_top_bound.intersects(host_passed_volume):
+                print("drone_{} has crash into boundary at time step {}".format(drone_idx, current_ts))
+                reward.append(np.array(crash_penalty))
+                # done.append(False)
+                done.append(True)
+
+            else:  # a normal step taken
+                if not goal_cur_intru_intersect.is_empty:
+                    print("drone_{} has reached its goal at time step {}".format(drone_idx, current_ts))
+                    check_goal[drone_idx] = True
+                    if drone_obj.reach_target == False:
+                        # meaning the current reaches the goal for the 1st time
+                        drone_obj.reach_target = True
+                        final_goal_toadd = reach_target
+                    else:  # meaning the current drone has reached the target previously
+                        final_goal_toadd = 0
+
+                crossCoefficient = 1
+                goalCoefficient = 6
+                # cross track error term
+                cross_track_error = (20 / ((cross_track_deviation * cross_track_deviation) / 200 + 1)) - 3.5
+                # Distance between drone and its goal for two consecutive time step
+                before_dist_hg = np.linalg.norm(drone_obj.pre_pos - drone_obj.goal[0])
+                after_dist_hg = np.linalg.norm(drone_obj.pos - drone_obj.goal[0])  # distance to goal after action
+                delta_hg = goalCoefficient * (before_dist_hg - after_dist_hg)
+
+                # delta_hg = 0
+                # if after_dist_hg > drone_obj.detectionRange:
+                #     delta_hg = -1
+                # else:
+                #     delta_hg = 5*math.exp(-after_dist_hg/10)  # the range is from 0.25 to 5, as after_dist_hg is from 0 to 30 only.
+
+
+                # a small penalty for discourage the agent to stay in one single spot
+                if (before_dist_hg - after_dist_hg) <= 2:
+                    small_step_penalty = 50
+                else:
+                    small_step_penalty = 0
+                alive_penalty = -10
+                # Domino term also use as an indicator for agent to avoid other drones. so no need to specifically
+                # add a term to avoid surrounding drones
+                # step_reward = crossCoefficient*cross_track_error + delta_hg + dominoTerm - small_step_penalty
+                # step_reward = crossCoefficient*cross_track_error + delta_hg - small_step_penalty
+                step_reward = crossCoefficient*cross_track_error + delta_hg + alive_penalty + final_goal_toadd  # have the final one-time reaching reward
+                # step_reward = -after_dist_hg + alive_penalty  # - small_step_penalty
+                # step_reward = delta_hg
+                # convert to arr
+
+                # if add the termination condition: all agents reaches the goal, environment terminates
+                if all(check_goal):
+                    done.append(True)
+                else:
+                    done.append(False)
+                # we remove the above termination condition
+                # done.append(False)
+
+                step_reward = np.array(step_reward)
+                reward.append(step_reward)
+        shared_reward = np.array(sum(reward), dtype=float)
+        reward = [shared_reward] * len(self.all_agents)
+        return reward, done, check_goal
+
     def step(self, actions, current_ts):
         next_combine_state = []
         agentCoorKD_list_update = []
