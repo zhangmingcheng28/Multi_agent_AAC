@@ -11,3 +11,7 @@
 /combine_learningfw_ownenv/algo/runs/
 /combine_learningfw_ownenv/algo/trained_model/
 /combine_learningfw_ownenv/algo/wandb/
+*.pth
+/old_framework_test_backup/algo/runs/
+/old_framework_test_backup/algo/trained_model/
+/old_framework_test_backup/algo/wandb/
