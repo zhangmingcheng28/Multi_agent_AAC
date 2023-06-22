@@ -1,0 +1,1 @@
+Add surrounding building encoding to the agent's state space, see if the algorihtm will still converge. Or see if the algorithm can still learn

@@ -15,3 +15,5 @@
 /old_framework_test_backup/algo/runs/
 /old_framework_test_backup/algo/trained_model/
 /old_framework_test_backup/algo/wandb/
+/MADDPG_ownENV_v1/wandb/
+/MADDPG_ownENV_v2/wandb/
