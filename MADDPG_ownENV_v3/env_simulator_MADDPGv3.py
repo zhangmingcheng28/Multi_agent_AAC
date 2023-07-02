@@ -750,6 +750,9 @@ class env_simulator:
                         # meaning the current reaches the goal for the 1st time
                         drone_obj.reach_target = True
                         final_goal_toadd = reach_target
+                        if len(drone_obj.goal) > 1:  # meaning the current agent has more than one target/goal
+                            drone_obj.reach_target = False  # reset this flag
+                            drone_obj.goal.pop(0)
                     else:  # meaning the current drone has reached the target previously
                         final_goal_toadd = 0
 
