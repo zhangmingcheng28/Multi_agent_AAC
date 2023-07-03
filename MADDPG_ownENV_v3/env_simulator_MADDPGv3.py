@@ -646,9 +646,8 @@ class env_simulator:
     def get_step_reward_5_v3(self, current_ts):  # this is for individual drones, current_ts = current time step
         reward, done = [], []
         check_goal = [False] * len(self.all_agents)
-        # crash_penalty = -200
         crash_penalty = -200
-        # reach_target = 1000
+        # crash_penalty = -500
         reach_target = 100
         potential_conflict_count = 0
         final_goal_toadd = 0
@@ -757,7 +756,8 @@ class env_simulator:
                         final_goal_toadd = 0
 
                 crossCoefficient = 1
-                goalCoefficient = 6
+                # goalCoefficient = 6
+                goalCoefficient = 8
                 # cross track error term
                 cross_track_error = (20 / ((cross_track_deviation * cross_track_deviation) / 200 + 1)) - 3.5
                 # Distance between drone and its goal for two consecutive time step
