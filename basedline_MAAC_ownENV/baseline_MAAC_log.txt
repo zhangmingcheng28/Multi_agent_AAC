@@ -1,0 +1,2 @@
+-Add surrounding agents to drone that is about to make decision, such that, my input states has 3 components
+-Implement attention to critic NN
