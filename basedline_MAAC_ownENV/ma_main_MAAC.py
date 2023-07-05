@@ -173,7 +173,7 @@ def main(args):
                 else:
                     model.memory(cur_state, action, reward_aft_action, next_state, done_aft_action)
 
-                accum_reward = accum_reward + sum(reward_aft_action)
+                accum_reward = accum_reward + reward_aft_action[0]  # all agents shares the same reward, just take one
                 cur_state = next_state
                 norm_cur_state = norm_next_state
                 if len(replay_buffer) >= args.batch_size:
