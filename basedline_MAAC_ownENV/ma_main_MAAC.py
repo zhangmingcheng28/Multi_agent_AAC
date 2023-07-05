@@ -184,7 +184,7 @@ def main(args):
                         model.prep_training(device='gpu')
                     else:
                         model.prep_training(device='cpu')
-                    for u_i in range(4):  # execute the below lines of code 4 times. when we have sufficient experience in the replay.
+                    for u_i in range(1):  # execute the below lines of code 4 times. when we have sufficient experience in the replay.
                         transitions = replay_buffer.sample(args.batch_size)
                         batch = Experience(*zip(*transitions))
                         action_batch = torch.stack(batch.actions).type(FloatTensor)
@@ -219,7 +219,7 @@ def main(args):
                         # save the models at a predefined interval
                         # save model to my own directory
                         filepath = file_name+'/interval_record_eps'
-                        model.save_model(episode, filepath)  # this is the original save model
+                        model.save_model(episode, filepath, n_agents)  # this is the original save model
 
                     # cur_state, norm_cur_state = env.reset_world(show=0)
                     # model.reset()
@@ -327,7 +327,7 @@ if __name__ == '__main__':
     parser.add_argument('--seed', default=777, type=int)
     parser.add_argument('--a_lr', default=0.0001, type=float)
     parser.add_argument('--c_lr', default=0.0001, type=float)
-    parser.add_argument('--batch_size', default=25, type=int)  # original 256
+    parser.add_argument('--batch_size', default=256, type=int)  # original 256
     parser.add_argument('--render_flag', default=False, type=bool)
     parser.add_argument('--ou_theta', default=0.15, type=float)
     parser.add_argument('--ou_mu', default=0.0, type=float)

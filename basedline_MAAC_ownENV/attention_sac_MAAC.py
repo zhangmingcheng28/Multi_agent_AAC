@@ -1,7 +1,7 @@
 import torch
 import torch.nn.functional as F
 import numpy as np
-
+import os
 from torch.optim import Adam
 from utils_MAAC.misc import soft_update, hard_update, enable_gradients, disable_gradients, device
 from utils_MAAC.agents import AttentionAgent
@@ -241,6 +241,18 @@ class AttentionSAC(object):
                                        'target_critic': self.target_critic.state_dict(),
                                        'critic_optimizer': self.critic_optimizer.state_dict()}}
         torch.save(save_dict, filename)
+
+    def save_model(self, episode, file_path, n_agents):
+        # if not os.path.exists("./trained_model_myenv/"):
+        #     os.mkdir("./trained_model_myenv/")
+        # if not os.path.exists("./trained_model/" + str(self.args.algo) + "/"):
+        #     # os.mkdir(r"F:\githubClone\MAProj_myversion\algo/trained_model/" + str(self.args.algo))
+        #     os.mkdir(r"D:\Multi_agent_AAC\old_framework_test\algo/trained_model/" + str(self.args.algo))
+        if not os.path.exists(file_path):
+            os.makedirs(file_path)
+        for i in range(n_agents):
+            torch.save(self.policies[i].state_dict(), file_path + '/' +'episode_'+str(episode)+'_'+'agent_'+ str(i) + 'actor_net')
+
 
     @classmethod
     def init_from_env(cls, env, critic_dim, gamma=0.95, tau=0.01,
