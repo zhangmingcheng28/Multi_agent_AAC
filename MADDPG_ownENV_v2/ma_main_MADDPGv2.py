@@ -74,8 +74,8 @@ def main(args):
     # actorNet_lr = learning_rate
     # criticNet_lr = learning_rate
 
-    actorNet_lr = 1e-4
-    criticNet_lr = 1e-3
+    actorNet_lr = 0.0001
+    criticNet_lr = 0.001
 
     # noise parameter ini
     largest_Nsigma = 0.5
