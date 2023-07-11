@@ -120,7 +120,6 @@ def main(args):
         # ------------ my own env.reset() ------------ #
         cur_state, norm_cur_state = env.reset_world(show=0)
 
-
         episode += 1
         # print("current episode is {}, scaling factor is {}".format(episode, model.var[0]))
         step = 0
@@ -138,7 +137,6 @@ def main(args):
                 reward_aft_action, done_aft_action, check_goal = env.get_step_reward(step)
                 # reward_aft_action, done_aft_action, check_goal = env.get_step_reward_5_v3(step)
 
-
                 step += 1  # current play step
                 total_step += 1  # steps taken from 1st episode
 
@@ -149,7 +147,6 @@ def main(args):
                     # obs_ = torch.from_numpy(np.stack(next_state)).float().to(device)
                     # obs_ = torch.from_numpy(np.stack(norm_next_state)).float().to(device)
                     next_obs = [torch.from_numpy(np.stack(element)).data.float().to(device) for element in norm_next_state]
-
 
                     rw_tensor = torch.FloatTensor(np.array(reward_aft_action)).to(device)
                     ac_tensor = torch.FloatTensor(action).to(device)
@@ -168,7 +165,6 @@ def main(args):
 
                 cur_state = next_state
                 norm_cur_state = norm_next_state
-
 
                 if args.episode_length < step or (True in done_aft_action):
                     # display bound lines
