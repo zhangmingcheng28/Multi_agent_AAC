@@ -127,6 +127,7 @@ class AttentionSAC(object):
         acs = list(acs.transpose(0, 1))
         critic_in = (obs, acs)
         critic_rets = self.critic(critic_in, regularize=True, niter=self.niter)
+        all_agent_q_loss = []
         q_loss = 0
         for a_i, nq, log_pi, (pq, regs) in zip(range(5), next_qs, next_log_pis, critic_rets):
             target_q = (rews[a_i].view(-1, 1) + self.gamma * nq * (1 - dones[a_i].view(-1, 1)))
@@ -135,6 +136,7 @@ class AttentionSAC(object):
             q_loss += MSELoss(pq, target_q.detach())  # summing the MSE loss across all agents
             for reg in regs:
                 q_loss += reg  # regularizing attention
+            all_agent_q_loss.append(q_loss)
         q_loss.backward()
         self.critic.scale_shared_grads()
         # grad_norm = torch.nn.utils.clip_grad_norm(
@@ -143,6 +145,7 @@ class AttentionSAC(object):
         self.critic_optimizer.zero_grad()
 
         self.niter += 1
+        return all_agent_q_loss
 
     def update_policies(self, sample, soft=True, **kwargs):
         obs, acs, rews, next_obs, dones = sample
@@ -150,6 +153,7 @@ class AttentionSAC(object):
         all_probs = []
         all_log_pis = []
         all_pol_regs = []
+        all_agent_pol_loss = []
         for pi_idx, pi in enumerate(self.policies):
             curr_ac, probs, curr_log_pi, pol_regs = pi([obs[0][pi_idx], obs[1][pi_idx], obs[2][pi_idx]],
                                                        return_all_probs=True, return_log_pi=True, regularize=True)
@@ -173,6 +177,7 @@ class AttentionSAC(object):
                 pol_loss = (log_pi * (-pol_target).detach()).mean()
             for reg in pol_regs:
                 pol_loss += 1e-3 * reg  # policy regularization
+            all_agent_pol_loss.append(pol_loss)
             # don't want critic to accumulate gradients from policy loss
             disable_gradients(self.critic)
             pol_loss.backward()
@@ -181,7 +186,7 @@ class AttentionSAC(object):
             grad_norm = torch.nn.utils.clip_grad_norm_(curr_agent.policy.parameters(), 0.5)
             curr_agent.policy_optimizer.step()
             curr_agent.policy_optimizer.zero_grad()
-
+        return all_agent_pol_loss
 
     def update_all_targets(self):
         """

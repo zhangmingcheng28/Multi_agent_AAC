@@ -162,9 +162,7 @@ class MADDPG:
 
             # scale_reward: to scale reward in Q functions
             reward_sum = sum([reward_batch[:,agent_idx] for agent_idx in range(self.n_agents)])
-            target_Q = (target_Q.unsqueeze(1) * self.GAMMA) + (
-                reward_batch[:, agent].unsqueeze(1)*0.1)# + reward_sum.unsqueeze(1) * 0.1
-
+            target_Q = (target_Q.unsqueeze(1) * self.GAMMA) + (reward_batch[:, agent].unsqueeze(1))
             loss_Q = nn.MSELoss()(current_Q, target_Q.detach())
             loss_Q.backward()
             torch.nn.utils.clip_grad_norm_(self.critics[agent].parameters(), 1)
@@ -256,7 +254,7 @@ class MADDPG:
                 target_Q = torch.zeros(self.batch_size).type(FloatTensor)
                 target_Q[non_final_mask] = self.critics_target[agent]([s_.view(-1, self.n_agents * self.n_states[s_idx]) for s_idx, s_ in enumerate(non_final_next_states)],non_final_next_actions.view(-1,self.n_agents * self.n_actions)).squeeze()  # .view(-1, self.n_agents * self.n_actions)
 
-                target_Q = (target_Q.unsqueeze(1) * self.GAMMA) + (reward_batch[:, agent].unsqueeze(1) * 0.1)  # + reward_sum.unsqueeze(1) * 0.1
+                target_Q = (target_Q.unsqueeze(1) * self.GAMMA) + (reward_batch[:, agent].unsqueeze(1)*0.1)  # + reward_sum.unsqueeze(1) * 0.1
             loss_Q = nn.MSELoss()(current_Q, target_Q.detach())
             self.critic_optimizer[agent].zero_grad()
             loss_Q.backward(retain_graph=True)
@@ -305,7 +303,7 @@ class MADDPG:
             act = self.actors[i]([sb.unsqueeze(0), sb_grid.unsqueeze(0)]).squeeze()
             if noisy:
                 act += torch.from_numpy(np.random.randn(2) * self.var[i]).type(FloatTensor)
-                self.var[i] = self.get_scaling_factor(episode, 8000)  # self.var[i] will decrease as the episode increase
+                self.var[i] = self.get_scaling_factor(episode, 3500)  # self.var[i] will decrease as the episode increase
 
                 # if self.episode_done > self.episodes_before_train and \
                 #         self.var[i] > 0.05:
@@ -316,7 +314,7 @@ class MADDPG:
         self.steps_done += 1
         return actions.data.cpu().numpy()
 
-    def get_scaling_factor(self, episode, drop_point=8000, start_scale=1, end_scale=0.03):
+    def get_scaling_factor(self, episode, drop_point=12000, start_scale=1, end_scale=0.03):
         if episode <= drop_point:
             slope = (end_scale - start_scale) / drop_point
             return slope * episode + start_scale

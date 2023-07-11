@@ -167,9 +167,9 @@ class CriticNetwork(nn.Module):
         # self.combine_env_fc = nn.Sequential(nn.Linear(256+256+256, 256), nn.ReLU(), nn.Linear(256, 128), nn.ReLU(),
         #                                     nn.Linear(128, 64), nn.ReLU())
         # self.combine_env_fc = nn.Sequential(nn.Linear(1024+256, 512), nn.ReLU())
-        self.combine_env_fc = nn.Sequential(nn.Linear((n_agents*128)+(n_agents*128), 512), nn.ReLU())
+        self.combine_env_fc = nn.Sequential(nn.Linear((n_agents*128)+(n_agents*128), 64), nn.ReLU())
 
-        self.combine_all = nn.Sequential(nn.Linear(512+n_agents * n_actions, 512), nn.ReLU(),
+        self.combine_all = nn.Sequential(nn.Linear(64+n_agents * n_actions, 512), nn.ReLU(),
                                          nn.Linear(512, 256), nn.ReLU(), nn.Linear(256, 1))
 
         # self.sum_agents_action_fc = nn.Sequential(nn.Linear(critic_obs[2]*n_agents, 256), nn.ReLU())
@@ -191,34 +191,40 @@ class CriticNetwork(nn.Module):
         # pre-process, compute attention for every agent based on their surrounding agents
         attention_all_agent = []
         grid_all_agent = []
+        own_all_agent = []
         for one_agent_batch_own, one_agent_batch_grid, one_agent_batch_surr in zip(*state):  # automatically loop over 5 times
             single_grid_out = self.single_grid_fc(one_agent_batch_grid)
             single_own_out = self.single_own_fc(one_agent_batch_own)
-            single_surr_out = self.single_surr(one_agent_batch_surr)
-            single_q = self.single_q(single_own_out)
-            single_k = self.single_k(single_surr_out)
-            single_v = self.single_v(single_surr_out)
-            mask = one_agent_batch_surr.mean(axis=2, keepdim=True).bool()
-            score = torch.bmm(single_k, single_q.unsqueeze(axis=2))
-            score_mask = score.clone()  # clone操作很必要
-            score_mask[~mask] = float('-inf')  # 不然赋值操作后会无法计算梯度
-            alpha = F.softmax(score_mask / np.sqrt(single_k.size(-1)), dim=1)  # we use dim=1 here because we need to get attention of each sequence in K towards all hidden vector of q in each batch.
-            alpha_mask = alpha.clone()
-            alpha_mask[~mask] = 0
-            v_att = torch.sum(single_v * alpha_mask, axis=1)
 
-            attention_all_agent.append(v_att)
+            # single_surr_out = self.single_surr(one_agent_batch_surr)
+            # single_q = self.single_q(single_own_out)
+            # single_k = self.single_k(single_surr_out)
+            # single_v = self.single_v(single_surr_out)
+            # mask = one_agent_batch_surr.mean(axis=2, keepdim=True).bool()
+            # score = torch.bmm(single_k, single_q.unsqueeze(axis=2))
+            # score_mask = score.clone()  # clone操作很必要
+            # score_mask[~mask] = float('-inf')  # 不然赋值操作后会无法计算梯度
+            # alpha = F.softmax(score_mask / np.sqrt(single_k.size(-1)), dim=1)  # we use dim=1 here because we need to get attention of each sequence in K towards all hidden vector of q in each batch.
+            # alpha_mask = alpha.clone()
+            # alpha_mask[~mask] = 0
+            # v_att = torch.sum(single_v * alpha_mask, axis=1)
+            # attention_all_agent.append(v_att)
+
             grid_all_agent.append(single_grid_out)
+            own_all_agent.append(single_own_out)
 
-        # sum_own_e = self.sum_own_fc(state[0]).squeeze(1)
-        # sum_grid_e = self.sum_grid_fc(state[1]).squeeze(1)
-        # sum_sur_nei = self.sum_sur_fc(state[2])
 
-        sum_att = torch.stack(attention_all_agent).transpose(0, 1)
-        sum_att = sum_att.reshape(sum_att.shape[0], -1)
+        # sum_att = torch.stack(attention_all_agent).transpose(0, 1)
+        # sum_att = sum_att.reshape(sum_att.shape[0], -1)
+
         sum_grid = torch.stack(grid_all_agent).transpose(0, 1)
-        sum_grid = sum_att.reshape(sum_grid.shape[0], -1)
-        env_concat = torch.cat((sum_att, sum_grid), dim=1)
+        sum_grid = sum_grid.reshape(sum_grid.shape[0], -1)
+
+        sum_own = torch.stack(grid_all_agent).transpose(0, 1)
+        sum_own = sum_own.reshape(sum_own.shape[0], -1)
+
+        # env_concat = torch.cat((sum_att, sum_grid), dim=1)
+        env_concat = torch.cat((sum_own, sum_grid), dim=1)
 
         env_encode = self.combine_env_fc(env_concat)
         entire_comb = torch.cat((env_encode, actor_actions), dim=1)

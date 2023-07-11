@@ -32,9 +32,10 @@ import torch.nn as nn
 
 
 class env_simulator:
-    def __init__(self, world_map, building_polygons, grid_length, bound, allGridPoly):  # allGridPoly[0][0] is all grid=1
+    def __init__(self, world_map, building_polygons, grid_length, bound, allGridPoly, agentConfig):  # allGridPoly[0][0] is all grid=1
         self.world_map_2D = world_map
         self.world_map_2D_polyList = allGridPoly
+        self.agentConfig = agentConfig
         self.gridlength = grid_length
         self.buildingPolygons = building_polygons
         self.bound = bound
@@ -65,10 +66,7 @@ class env_simulator:
         #  custom agent position
         # x-bound: [0, 1800), y-bound: [0, 1300)
         # read the Excel file into a pandas dataframe
-        # df = pd.read_excel(r'F:\githubClone\Multi_agent_AAC\MA_ver1\fixedDrone.xlsx')
-        df = pd.read_excel(r'F:\githubClone\Multi_agent_AAC\MA_ver1\fixedDrone_2_drone.xlsx')
-        # df = pd.read_excel(r'D:\Multi_agent_AAC\MA_ver1\fixedDrone.xlsx')
-        # df = pd.read_excel(r'D:\Multi_agent_AAC\MA_ver1\fixedDrone_2_drone.xlsx')
+        df = pd.read_excel(self.agentConfig)
         # convert the dataframe to a NumPy array
         custom_agent_data = np.array(df)
         custom_agent_data = custom_agent_data.astype(float)
@@ -533,12 +531,12 @@ class env_simulator:
                     reward.append(np.array(0))
 
 
-                done.append(True)  # any agent reaches the goal, the environment will reset()
-                # if all(check_goal):
-                #     done.append(True)
-                #
-                # else:
-                #     done.append(False)
+                # done.append(True)  # any agent reaches the goal, the environment will reset()
+                if all(check_goal):
+                    done.append(True)
+
+                else:
+                    done.append(False)
 
                 drone_obj.reach_target = True
 
@@ -568,12 +566,12 @@ class env_simulator:
                     small_step_penalty = 50
                 else:
                     small_step_penalty = 0
-                alive_penalty = 10
+                alive_penalty = -10
                 # Domino term also use as an indicator for agent to avoid other drones. so no need to specifically
                 # add a term to avoid surrounding drones
                 # step_reward = crossCoefficient*cross_track_error + delta_hg + dominoTerm - small_step_penalty
                 # step_reward = crossCoefficient*cross_track_error + delta_hg - small_step_penalty
-                step_reward = crossCoefficient*cross_track_error + delta_hg - alive_penalty
+                step_reward = crossCoefficient*cross_track_error + delta_hg + alive_penalty
                 # step_reward = delta_hg + alive_penalty  # - small_step_penalty
                 # step_reward = delta_hg
                 # convert to arr

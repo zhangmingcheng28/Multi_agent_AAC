@@ -48,17 +48,17 @@ def main(args):
     if not os.path.exists(plot_file_name):
         os.makedirs(plot_file_name)
 
-    # wandb.login(key="efb76db851374f93228250eda60639c70a93d1ec")
-    # wandb.init(
-    #     # set the wandb project where this run will be logged
-    #     project="MADDPG_sample_newFrameWork",
-    #     name='MADDPG_test_'+str(current_date) + '_' + str(formatted_time),
-    #     # track hyperparameters and run metadata
-    #     config={
-    #         "learning_rate": args.a_lr,
-    #         "epochs": args.max_episodes,
-    #     }
-    # )
+    wandb.login(key="efb76db851374f93228250eda60639c70a93d1ec")
+    wandb.init(
+        # set the wandb project where this run will be logged
+        project="MADDPG_sample_newFrameWork",
+        name='MADDPG_test_'+str(current_date) + '_' + str(formatted_time),
+        # track hyperparameters and run metadata
+        config={
+            "learning_rate": args.a_lr,
+            "epochs": args.max_episodes,
+        }
+    )
 
 
     # -------------- create my own environment -----------------
@@ -77,8 +77,8 @@ def main(args):
     # actorNet_lr = learning_rate
     # criticNet_lr = learning_rate
 
-    actorNet_lr = 0.001
-    criticNet_lr = 0.0001
+    actorNet_lr = 0.0001
+    criticNet_lr = 0.001
 
     # noise parameter ini
     largest_Nsigma = 0.5
@@ -110,7 +110,7 @@ def main(args):
                                        attend_heads=4,
                                        reward_scale=100, actor_dim=actor_dim)
     replay_buffer = ReplayMemory(args.memory_length)
-
+    all_agent_pol_loss, all_agent_q_loss = None, None
     episode = 0
     total_step = 0
     score_history = []
@@ -195,8 +195,9 @@ def main(args):
 
                         experience_to_learn = [cur_obs, action_batch, reward_batch, next_obs, done_batch]
 
-                        model.update_critic(experience_to_learn)
-                        model.update_policies(experience_to_learn)
+                        all_agent_q_loss = model.update_critic(experience_to_learn)
+                        all_agent_pol_loss = model.update_policies(experience_to_learn)
+
                         model.update_all_targets()
                     model.prep_rollouts(device='cpu')
 
@@ -207,13 +208,13 @@ def main(args):
                     # here onwards is end of an episode's play
                     score_history.append(accum_reward)
                     print("[Episode %05d] reward %6.4f" % (episode, accum_reward))
-                    # wandb.log({'overall_reward': float(accum_reward)})
-                    # if c_loss and a_loss:
-                    #     for idx, val in enumerate(c_loss):
-                    #         print(" agent %s, a_loss %3.2f c_loss %3.2f" % (
-                    #             idx, a_loss[idx].item(), c_loss[idx].item()))
-                    #         # wandb.log({'agent' + str(idx) + 'actor_loss': float(a_loss[idx].item())})
-                    #         # wandb.log({'agent' + str(idx) + 'critic_loss': float(c_loss[idx].item())})
+                    wandb.log({'overall_reward': float(accum_reward)})
+                    if all_agent_pol_loss and all_agent_q_loss:
+                        for idx in range(len(env.all_agents)):
+                            print(" agent %s, actor_loss %3.2f critic_loss %3.2f" % (
+                                idx, all_agent_pol_loss[idx].item(), all_agent_q_loss[idx].item()))
+                            wandb.log({'agent' + str(idx) + 'actor_loss': float(all_agent_pol_loss[idx].item())})
+                            wandb.log({'agent' + str(idx) + 'critic_loss': float(all_agent_q_loss[idx].item())})
                     if episode % args.save_interval == 0 and args.mode == "train":
 
                         # save the models at a predefined interval
@@ -308,7 +309,7 @@ def main(args):
                 #     plt.ylabel("Y axis")
                 #     plt.show()
                 #     break
-    # wandb.finish()
+    wandb.finish()
 
     # if args.tensorboard:
     #     writer.close()

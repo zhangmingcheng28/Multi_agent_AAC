@@ -1,2 +1,6 @@
 -Add surrounding agents to drone that is about to make decision, such that, my input states has 3 components
 -Implement attention to critic NN
+
+05 July 2023
+Remove padding to all, for critic neural network. (Meaning now, critic neural network don't use the surrounding neighbor's encoding)
+

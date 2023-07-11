@@ -80,7 +80,7 @@ class MADDPG:
         self.steps_done = 0
         self.episode_done = 0
 
-    def load_model(self, filePath_0, filePath_1):
+    def load_model(self, filePath):
         if self.args.model_episode:
             path_flag = True
             # for idx in range(self.n_agents):
@@ -97,8 +97,9 @@ class MADDPG:
                 #     critic = torch.load("trained_model/maddpg/critic["+ str(idx) + "]_"+str(self.args.model_episode)+".pth")
                 #     self.actors[idx].load_state_dict(actor.state_dict())
                 #     self.critics[idx].load_state_dict(critic.state_dict())
-                self.actors[0].load_state_dict(torch.load(filePath_0))
-                self.actors[1].load_state_dict(torch.load(filePath_1))
+                for path_idx, path in enumerate(filePath):
+                    self.actors[path_idx].load_state_dict(torch.load(path))
+
 
 
         self.actors_target = deepcopy(self.actors)
@@ -277,7 +278,8 @@ class MADDPG:
             with T.no_grad():
                 target_Q = torch.zeros(self.batch_size).type(FloatTensor)
                 target_Q[non_final_mask] = self.critics_target[agent](non_final_next_states, non_final_next_actions.view(-1,self.n_agents * self.n_actions)).squeeze()  # .view(-1, self.n_agents * self.n_actions)
-                target_Q = (target_Q.unsqueeze(1) * self.GAMMA) + (reward_batch[:, agent].unsqueeze(1)*0.1)  # + reward_sum.unsqueeze(1) * 0.1
+                # target_Q = (target_Q.unsqueeze(1) * self.GAMMA) + (reward_batch[:, agent].unsqueeze(1)*0.1)  # + reward_sum.unsqueeze(1) * 0.1
+                target_Q = (target_Q.unsqueeze(1) * self.GAMMA) + (reward_batch[:, agent].unsqueeze(1))  # + reward_sum.unsqueeze(1) * 0.1
 
             loss_Q = nn.MSELoss()(current_Q, target_Q.detach())
             self.critic_optimizer[agent].zero_grad()

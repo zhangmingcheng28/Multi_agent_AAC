@@ -26,8 +26,9 @@ class BasePolicy(nn.Module):
         self.own_fc = nn.Sequential(nn.Linear(input_dim[0], 128), nn.ReLU())
         self.intrude_fc = nn.Sequential(nn.Linear(input_dim[2], 128), nn.ReLU())
         self.own_grid_fc = nn.Sequential(nn.Linear(input_dim[1], 128), nn.ReLU())
-        self.action_out_V5_1 = nn.Sequential(nn.Linear(128+128+128, 128), nn.ReLU(), nn.Linear(128, out_dim), nn.Tanh())
-        self.action_out_SAC = nn.Sequential(nn.Linear(128+128+128, 128))
+        # self.action_out_V5_1 = nn.Sequential(nn.Linear(128+128+128, 128), nn.ReLU(), nn.Linear(128, out_dim), nn.Tanh())
+        # self.action_out_SAC = nn.Sequential(nn.Linear(128+128+128, 128), nn.Linear(128, out_dim))
+        self.action_out_SAC = nn.Sequential(nn.Linear(128+128+128, 128), nn.Linear(128, out_dim))
 
         # attention for NN
         self.k = nn.Linear(128, 128, bias=False)
@@ -37,13 +38,14 @@ class BasePolicy(nn.Module):
         # for SAC
         self.log_std_min = -20
         self.log_std_max = 2
+
         self.mean_linear = nn.Linear(128, out_dim)
-        self.mean_linear.weight.data.uniform_(-3e-3, 3e-3)
-        self.mean_linear.bias.data.uniform_(-3e-3, 3e-3)
+        # self.mean_linear.weight.data.uniform_(-3e-3, 3e-3)
+        # self.mean_linear.bias.data.uniform_(-3e-3, 3e-3)
 
         self.log_std_linear = nn.Linear(128, out_dim)
-        self.log_std_linear.weight.data.uniform_(-3e-3, 3e-3)
-        self.log_std_linear.bias.data.uniform_(-3e-3, 3e-3)
+        # self.log_std_linear.weight.data.uniform_(-3e-3, 3e-3)
+        # self.log_std_linear.bias.data.uniform_(-3e-3, 3e-3)
 
     def forward(self, state):
         own_e = self.own_fc(state[0])
@@ -70,10 +72,15 @@ class BasePolicy(nn.Module):
         # action_out = self.action_out_V5_1(concat)
         action_out = self.action_out_SAC(concat)
 
-        mean = self.mean_linear(action_out)
-        log_std = self.log_std_linear(action_out)
-        log_std = torch.clamp(log_std, self.log_std_min, self.log_std_max)
+        # mean = self.mean_linear(action_out)
+        # log_std = self.log_std_linear(action_out)
 
+        mean = self.action_out_SAC(concat)
+        log_std = self.action_out_SAC(concat)
+
+        log_std = torch.clamp(log_std, self.log_std_min, self.log_std_max)
+        if torch.isnan(mean).any() or torch.isinf(mean).any() or torch.isnan(log_std).any() or torch.isinf(log_std).any():
+            print("debug to check")
         return mean, log_std
 
 

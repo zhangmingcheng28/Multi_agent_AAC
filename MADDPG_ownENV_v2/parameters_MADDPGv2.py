@@ -38,5 +38,11 @@ def initialize_parameters():
     ylow = 255
     yhigh = 385
     bound = [xlow, xhigh, ylow, yhigh]
-    env = env_simulator(staticEnv[0], staticEnv[1], staticEnv[2], bound, staticEnv[3])
+    # agent config address
+    # read the Excel file into a pandas dataframe
+    # agentConfig = (r'F:\githubClone\Multi_agent_AAC\MA_ver1\fixedDrone.xlsx')
+    agentConfig = (r'F:\githubClone\Multi_agent_AAC\MA_ver1\fixedDrone_2_drone.xlsx')
+    # agentConfig = (r'D:\Multi_agent_AAC\MA_ver1\fixedDrone.xlsx')
+    # agentConfig = (r'D:\Multi_agent_AAC\MA_ver1\fixedDrone_2_drone.xlsx')
+    env = env_simulator(staticEnv[0], staticEnv[1], staticEnv[2], bound, staticEnv[3], agentConfig)
     return n_episodes, max_t, eps_start, eps_end, eps_period, eps, env, agent_grid_obs, BUFFER_SIZE, BATCH_SIZE, GAMMA, TAU, learning_rate, UPDATE_EVERY, seed, staticEnv[-1]
