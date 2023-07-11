@@ -69,13 +69,19 @@ class env_simulator:
         df = pd.read_excel(self.agentConfig)
         # convert the dataframe to a NumPy array
         custom_agent_data = np.array(df)
-        custom_agent_data = custom_agent_data.astype(float)
         agentsCoor_list = []  # for store all agents as circle polygon
         agentRefer_dict = {}  # A dictionary to use agent's current pos as key, their agent name (idx) as value
         for agentIdx in self.all_agents.keys():
             self.all_agents[agentIdx].pos = custom_agent_data[agentIdx][0:2]
             self.all_agents[agentIdx].ini_pos = custom_agent_data[agentIdx][0:2]
-            self.all_agents[agentIdx].goal = [custom_agent_data[agentIdx][2:4]]
+
+            if isinstance(custom_agent_data[agentIdx][2:4][0], int):
+                self.all_agents[agentIdx].goal = [custom_agent_data[agentIdx][2:4]]
+            else:
+                x_coords = np.array([int(coord.split('; ')[0]) for coord in custom_agent_data[agentIdx][2:4]])
+                y_coords = np.array([int(coord.split('; ')[1]) for coord in custom_agent_data[agentIdx][2:4]])
+                self.all_agents[agentIdx].goal = [x_coords, y_coords]
+
             self.all_agents[agentIdx].vel = custom_agent_data[agentIdx][4:6]
             # heading in rad, must be goal_pos-intruder_pos, and y2-y1, x2-x1
             self.all_agents[agentIdx].heading = math.atan2(self.all_agents[agentIdx].goal[0][1] -
