@@ -80,7 +80,7 @@ class MADDPG:
         self.steps_done = 0
         self.episode_done = 0
 
-    def load_model(self, filePath_0, filePath_1):
+    def load_model(self, filePath):
         if self.args.model_episode:
             path_flag = True
             # for idx in range(self.n_agents):
@@ -97,8 +97,8 @@ class MADDPG:
                 #     critic = torch.load("trained_model/maddpg/critic["+ str(idx) + "]_"+str(self.args.model_episode)+".pth")
                 #     self.actors[idx].load_state_dict(actor.state_dict())
                 #     self.critics[idx].load_state_dict(critic.state_dict())
-                self.actors[0].load_state_dict(torch.load(filePath_0))
-                self.actors[1].load_state_dict(torch.load(filePath_1))
+                for path_idx, path in enumerate(filePath):
+                    self.actors[path_idx].load_state_dict(torch.load(path))
 
 
         self.actors_target = deepcopy(self.actors)

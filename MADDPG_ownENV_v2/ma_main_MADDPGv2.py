@@ -126,10 +126,16 @@ def main(args):
         accum_reward = 0
         trajectory_eachPlay = []
 
-        load_filepath_0 = r'D:\MADDPG_2nd_jp\190623_21_58_17\interval_record_eps\episode_11000_agent_0actor_net.pth'
-        load_filepath_1 = r'D:\MADDPG_2nd_jp\190623_21_58_17\interval_record_eps\episode_11000_agent_1actor_net.pth'
+        pre_fix = r'D:\MADDPG_2nd_jp\110723_10_10_37\interval_record_eps'
+        episode_to_check = str(2000)
+        load_filepath_0 = pre_fix + '\episode_' + episode_to_check + '_agent_0actor_net.pth'
+        load_filepath_1 = pre_fix + '\episode_' + episode_to_check + '_agent_1actor_net.pth'
+        load_filepath_2 = pre_fix + '\episode_' + episode_to_check + '_agent_2actor_net.pth'
+        load_filepath_3 = pre_fix + '\episode_' + episode_to_check + '_agent_3actor_net.pth'
+        load_filepath_4 = pre_fix + '\episode_' + episode_to_check + '_agent_4actor_net.pth'
+
         if args.mode == "eval":
-            model.load_model(load_filepath_0, load_filepath_1)
+            model.load_model([load_filepath_0, load_filepath_1, load_filepath_2, load_filepath_3, load_filepath_4])
         while True:
             if args.mode == "train":
                 action = model.choose_action(norm_cur_state, episode, noisy=True)
