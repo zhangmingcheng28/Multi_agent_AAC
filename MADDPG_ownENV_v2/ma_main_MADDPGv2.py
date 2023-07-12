@@ -39,12 +39,14 @@ def main(args):
     current_date = today.strftime("%d%m%y")
     current_time = datetime.datetime.now()
     formatted_time = current_time.strftime("%H_%M_%S")
-    file_name = 'D:\MADDPG_2nd_jp/' + str(current_date) + '_' + str(formatted_time)
-    if not os.path.exists(file_name):
-        os.makedirs(file_name)
-    plot_file_name = file_name + '/toplot'
-    if not os.path.exists(plot_file_name):
-        os.makedirs(plot_file_name)
+
+    if args.mode == 'train':
+        file_name = 'D:\MADDPG_2nd_jp/' + str(current_date) + '_' + str(formatted_time)
+        if not os.path.exists(file_name):
+            os.makedirs(file_name)
+        plot_file_name = file_name + '/toplot'
+        if not os.path.exists(plot_file_name):
+            os.makedirs(plot_file_name)
 
     # wandb.login(key="efb76db851374f93228250eda60639c70a93d1ec")
     # wandb.init(
@@ -113,6 +115,8 @@ def main(args):
     total_step = 0
     score_history = []
     reward_each_agent = []
+    if args.mode == "eval":
+        args.max_episodes = 1
     while episode < args.max_episodes:
 
         # state = env.reset()  # original env reset
@@ -126,8 +130,8 @@ def main(args):
         accum_reward = 0
         trajectory_eachPlay = []
 
-        pre_fix = r'D:\MADDPG_2nd_jp\110723_10_10_37\interval_record_eps'
-        episode_to_check = str(2000)
+        pre_fix = r'D:\MADDPG_2nd_jp\110723_15_38_59\interval_record_eps'
+        episode_to_check = str(9000)
         load_filepath_0 = pre_fix + '\episode_' + episode_to_check + '_agent_0actor_net.pth'
         load_filepath_1 = pre_fix + '\episode_' + episode_to_check + '_agent_1actor_net.pth'
         load_filepath_2 = pre_fix + '\episode_' + episode_to_check + '_agent_2actor_net.pth'
@@ -198,14 +202,14 @@ def main(args):
             elif args.mode == "eval":
                 action = model.choose_action(norm_cur_state, episode, noisy=False)
                 next_state, norm_next_state = env.step(action, step)
-                # reward_aft_action, done_aft_action, check_goal = env.get_step_reward(step)
-                reward_aft_action, done_aft_action, check_goal = env.get_step_reward_5_v3(step)
+                reward_aft_action, done_aft_action, check_goal = env.get_step_reward(step)
+                # reward_aft_action, done_aft_action, check_goal = env.get_step_reward_5_v3(step)
 
                 step += 1
                 total_step += 1
                 cur_state = next_state
                 norm_cur_state = norm_next_state
-                trajectory_eachPlay.append([[each_agent_traj[0], each_agent_traj[1]] for each_agent_traj in cur_state])
+                trajectory_eachPlay.append([[each_agent_traj[0], each_agent_traj[1]] for each_agent_traj in cur_state[0]])
                 accum_reward = accum_reward + sum(reward_aft_action)
                 # reward_each_agent.append(reward_aft_action)
                 if args.episode_length < step or (True in done_aft_action):  # when termination condition reached
@@ -290,7 +294,7 @@ if __name__ == '__main__':
     parser.add_argument('--scenario', default="simple_spread", type=str)
     parser.add_argument('--max_episodes', default=5000, type=int)  # rnu for a total of 60000 episodes
     parser.add_argument('--algo', default="maddpg", type=str, help="commnet/bicnet/maddpg")
-    parser.add_argument('--mode', default="train", type=str, help="train/eval")
+    parser.add_argument('--mode', default="eval", type=str, help="train/eval")
     parser.add_argument('--episode_length', default=50, type=int)  # maximum play per episode
     parser.add_argument('--memory_length', default=int(1e5), type=int)
     parser.add_argument('--tau', default=0.001, type=float)
