@@ -4,3 +4,5 @@
 05 July 2023
 Remove padding to all, for critic neural network. (Meaning now, critic neural network don't use the surrounding neighbor's encoding)
 
+20 July 2023
+-successfully debug on the agent's surrounding environment on current and previous ts. Initially both current and previous ts surrounding environment was the same, which was wrong.

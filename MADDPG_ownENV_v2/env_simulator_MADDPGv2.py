@@ -75,7 +75,7 @@ class env_simulator:
             self.all_agents[agentIdx].pos = custom_agent_data[agentIdx][0:2]
             self.all_agents[agentIdx].ini_pos = custom_agent_data[agentIdx][0:2]
 
-            if isinstance(custom_agent_data[agentIdx][2:4][0], int):
+            if isinstance(custom_agent_data[agentIdx][2:4][0], np.int64):
                 self.all_agents[agentIdx].goal = [custom_agent_data[agentIdx][2:4]]
             else:
                 x_coords = np.array([int(coord.split('; ')[0]) for coord in custom_agent_data[agentIdx][2:4]])

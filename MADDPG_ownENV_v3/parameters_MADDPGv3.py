@@ -26,7 +26,7 @@ def initialize_parameters():
     GAMMA = 0.99  # discount factor
     TAU = 1e-3  # for soft update of target parameters, 0.001, so 99.9% of the weights in the target network is
     learning_rate = 1e-5  # learning rate, previous = 0.0005 or 5e-4, now changed to 0.002
-    UPDATE_EVERY = 5  # how often to update the network
+    UPDATE_EVERY = 2  # how often to update the network
     # generate static env from shape file
     # shapePath = 'D:\deep_Q_learning\DQN_new_framework\lakesideMap\lakeSide.shp'
     shapePath = 'F:\githubClone\deep_Q_learning\DQN_new_framework\lakesideMap\lakeSide.shp'

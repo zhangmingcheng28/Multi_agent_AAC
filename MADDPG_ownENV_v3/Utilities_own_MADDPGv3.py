@@ -59,18 +59,17 @@ def compute_potential_conflict(pc_list, cur_drone_pos, cur_drone_vel, cur_drone_
                                cur_neigh_protRad, cur_neigh_idx, current_ts):
     minus_rel_dist_before = -1 * (cur_drone_pos - cur_neigh_pos)  # always current drone - neighbours
     rel_vel_before = (cur_drone_vel - cur_neigh_vel)
-    rel_vel_SQnorm_before = np.square(np.linalg.norm(rel_vel_before))
-    if (current_ts == 0) & (rel_vel_SQnorm_before == 0):
-        # this if-else if to remove the runtimeWarning due to getting a value of nan
-        # because we initialized the velocity for each drone as 0 at start of each episode.
-        # Therefore, will have runtime warning
-        pass
-    else:
+    if not (np.any(cur_drone_vel) or np.any(cur_neigh_vel)):
+        # print("All elements in both arrays are zero")
+        rel_vel_before = rel_vel_before + 1e-10  # add a very small number to suppress division by zero warning
 
-        t_cpa_before = np.dot(minus_rel_dist_before, rel_vel_before) / rel_vel_SQnorm_before
-        d_cpa_before = np.linalg.norm(((cur_drone_pos - cur_neigh_pos) + (rel_vel_before * t_cpa_before)))
-        if (t_cpa_before >= 1) and (d_cpa_before < (cur_drone_protRad + cur_neigh_protRad)):
-            pc_list.append(cur_neigh_idx)
+    rel_vel_SQnorm_before = np.square(np.linalg.norm(rel_vel_before))
+
+    t_cpa_before = np.dot(minus_rel_dist_before, rel_vel_before) / rel_vel_SQnorm_before
+    d_cpa_before = np.linalg.norm(((cur_drone_pos - cur_neigh_pos) + (rel_vel_before * t_cpa_before)))
+    # time to potential conflict must be
+    if (t_cpa_before >= 0) and (t_cpa_before <= 3) and (d_cpa_before < (cur_drone_protRad + cur_neigh_protRad)):
+        pc_list.append(cur_neigh_idx)
     return pc_list
 
 
