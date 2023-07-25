@@ -724,7 +724,7 @@ class env_simulator:
         one_step_reward = []
         check_goal = [False] * len(self.all_agents)
         # crash_penalty = -200
-        crash_penalty = -500
+        crash_penalty = -700
         reach_target = 500
         potential_conflict_count = 0
         final_goal_toadd = 0
@@ -813,7 +813,7 @@ class env_simulator:
 
             # ------------- pre-processed condition for a normal step -----------------
             # crossCoefficient = 0.1
-            crossCoefficient = 1
+            crossCoefficient = 2
             # goalCoefficient = 6
             goalCoefficient = 3
             dominoCoefficient = 1

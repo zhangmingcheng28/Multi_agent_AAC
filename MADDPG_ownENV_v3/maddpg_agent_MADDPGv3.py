@@ -1,4 +1,5 @@
 from Nnetworks_MADDPGv3 import CriticNetwork_0724, ActorNetwork
+# from Nnetworks_MADDPGv3 import CriticNetwork, ActorNetwork
 import torch
 from copy import deepcopy
 from torch.optim import Adam
@@ -265,12 +266,12 @@ class MADDPG:
             # --------- original---------
             # non_final_mask = BoolTensor(list(map(lambda s: s is not None, batch.next_states)))  # create a boolean tensor, that has same length as the "batch.next_states", if an element is batch.next_state is not "None" then assign a True value, False otherwise.
 
-            whole_state = [cur_state_list1, cur_state_list2, cur_state_list3]
+            whole_state = [cur_state_list1, cur_state_list2, cur_state_list3]  # follow CriticNetwork_0724
             # whole_state = [stacked_elem_0_combine, stacked_elem_1_combine]
 
             non_final_next_states_actorin = [non_final_next_states1, non_final_next_states2, non_final_next_states3]
             # non_final_next_states_criticin = [non_final_next_states1_combine, non_final_next_states2_combine]
-            non_final_next_states_criticin = [non_final_next_states1, non_final_next_states2, non_final_next_states3]
+            non_final_next_states_criticin = [non_final_next_states1, non_final_next_states2, non_final_next_states3] # follow CriticNetwork_0724
 
             # configured for target Q
 

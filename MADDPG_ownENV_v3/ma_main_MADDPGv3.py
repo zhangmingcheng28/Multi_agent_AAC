@@ -121,8 +121,6 @@ def main(args):
     score_history = []
     eps_reward_record = []
 
-
-
     if args.mode == "eval":
         args.max_episodes = 1  # only evaluate one episode during evaluation mode.
         # matplotlib.use('TkAgg')
@@ -139,8 +137,8 @@ def main(args):
         accum_reward = 0
         trajectory_eachPlay = []
 
-        pre_fix = r'D:\MADDPG_2nd_jp\060723_21_38_33\interval_record_eps'
-        episode_to_check = str(15000)
+        pre_fix = r'D:\MADDPG_2nd_jp\240723_12_49_34\interval_record_eps'
+        episode_to_check = str(13000)
         load_filepath_0 = pre_fix + '\episode_' + episode_to_check + '_agent_0actor_net.pth'
         load_filepath_1 = pre_fix + '\episode_' + episode_to_check + '_agent_1actor_net.pth'
         load_filepath_2 = pre_fix + '\episode_' + episode_to_check + '_agent_2actor_net.pth'
@@ -266,6 +264,7 @@ def main(args):
 
                 step_reward_record = [None] * n_agents
                 action = model.choose_action(norm_cur_state, episode, noisy=False)
+                # action = model.choose_action(cur_state, episode, noisy=False)
                 # action = env.get_actions_noCR()  # only update heading, don't update any other attribute
                 next_state, norm_next_state = env.step(action, step)  # no heading update here
                 # reward_aft_action, done_aft_action, check_goal = env.get_step_reward(step)
@@ -393,7 +392,7 @@ if __name__ == '__main__':
     parser.add_argument('--seed', default=777, type=int)
     parser.add_argument('--a_lr', default=0.0001, type=float)
     parser.add_argument('--c_lr', default=0.0001, type=float)
-    parser.add_argument('--batch_size', default=512, type=int)  # original 256
+    parser.add_argument('--batch_size', default=512, type=int)  # original 512
     parser.add_argument('--render_flag', default=False, type=bool)
     parser.add_argument('--ou_theta', default=0.15, type=float)
     parser.add_argument('--ou_mu', default=0.0, type=float)
