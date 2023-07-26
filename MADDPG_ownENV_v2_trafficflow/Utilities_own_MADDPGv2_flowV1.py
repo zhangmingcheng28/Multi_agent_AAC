@@ -173,8 +173,10 @@ class NormalizeData:
 
     def nmlz_vel(self, cur_vel):
         vx, vy = cur_vel[0], cur_vel[1]
-        vx_normalized = vx / self.spd_max
-        vy_normalized = vy / self.spd_max
+        # vx_normalized = vx / self.spd_max  # original v2 working
+        # vy_normalized = vy / self.spd_max
+        vx_normalized = (vx / self.spd_max) * 2 - 1
+        vy_normalized = (vy / self.spd_max) * 2 - 1
         return vx_normalized, vy_normalized
 
 

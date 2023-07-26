@@ -161,7 +161,7 @@ class MADDPG:
                 non_final_next_actions.view(-1, self.n_agents * self.n_actions)).squeeze() # .view(-1, self.n_agents * self.n_actions)
 
             # scale_reward: to scale reward in Q functions
-            reward_sum = sum([reward_batch[:,agent_idx] for agent_idx in range(self.n_agents)])
+            reward_sum = sum([reward_batch[:, agent_idx] for agent_idx in range(self.n_agents)])
             target_Q = (target_Q.unsqueeze(1) * self.GAMMA) + (reward_batch[:, agent].unsqueeze(1))
             loss_Q = nn.MSELoss()(current_Q, target_Q.detach())
             loss_Q.backward()
@@ -306,7 +306,7 @@ class MADDPG:
                 print("Error in input")
             if noisy:
                 act += torch.from_numpy(np.random.randn(2) * self.var[i]).type(FloatTensor)
-                self.var[i] = self.get_scaling_factor(episode, 750000)  # self.var[i] will decrease as the episode increase, until 75W episodess
+                self.var[i] = self.get_scaling_factor(episode, 100000)  # self.var[i] will decrease as the episode increase, until 75W episodess
 
                 # if self.episode_done > self.episodes_before_train and \
                 #         self.var[i] > 0.05:

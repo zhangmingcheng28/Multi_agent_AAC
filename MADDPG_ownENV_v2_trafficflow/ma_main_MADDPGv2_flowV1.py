@@ -66,8 +66,8 @@ def main(args):
     # -------------- create my own environment -----------------
     n_episodes, max_t, eps_start, eps_end, eps_period, eps, env, \
     agent_grid_obs, BUFFER_SIZE, BATCH_SIZE, GAMMA, TAU, learning_rate, UPDATE_EVERY, seed_used, max_xy = initialize_parameters()
-    total_agentNum = len(pd.read_excel(env.agentConfig))
-    max_nei_num = 5
+    # total_agentNum = len(pd.read_excel(env.agentConfig))
+    total_agentNum = 2
     # create world
     actor_dim = [6+(total_agentNum-1)*2, 9, 6]  # dim host, maximum dim grid, dim other drones
     critic_dim = [6+(total_agentNum-1)*2, 9, 6]
@@ -77,8 +77,9 @@ def main(args):
     # actorNet_lr = learning_rate
     # criticNet_lr = learning_rate
 
-    actorNet_lr = 0.0001  # 1e-4
-    criticNet_lr = 0.001  # 1e-3
+    actorNet_lr = 0.0001
+    # criticNet_lr = 0.0001
+    criticNet_lr = 0.001
 
     # noise parameter ini
     largest_Nsigma = 0.5
@@ -113,19 +114,20 @@ def main(args):
     total_step = 0
     score_history = []
     reward_each_agent = []
-    # matplotlib.use('TkAgg')
-    # plt.ion()
-    # # Create figure and axis objects
-    # fig, ax = plt.subplots()
-    # ax.set_xlim(env.bound[0], env.bound[1])  # Set x-axis limits from 0 to 5
-    # ax.set_ylim(env.bound[2], env.bound[3])  # Set y-axis limits from 0 to 5
+    if args.mode == 'eval':
+        matplotlib.use('TkAgg')
+        plt.ion()
+        # Create figure and axis objects
+        fig, ax = plt.subplots()
+        ax.set_xlim(env.bound[0], env.bound[1])  # Set x-axis limits from 0 to 5
+        ax.set_ylim(env.bound[2], env.bound[3])  # Set y-axis limits from 0 to 5
     max_agent_to_add = 100-n_agents
-    agent_added = 0
 
+    agent_added = 0  # this is an initialization
     # while episode < args.max_episodes:
-    while agent_added < max_agent_to_add:
+    while (agent_added < max_agent_to_add) or (episode < args.max_episodes):
         # state = env.reset()  # original env reset
-
+        agent_added = 0  # make sure at start of very episode the number of added agent is set to 0. Or else, the number of agent to add will accumulated across every episode.
         # ------------ my own env.reset() ------------ #
         cur_state, norm_cur_state = env.reset_world(show=0)
 
@@ -238,7 +240,7 @@ def main(args):
                 ax.set_ylim(env.bound[2], env.bound[3])  # Set y-axis limits from 0 to 5
 
                 # action = model.choose_action(norm_cur_state, episode, noisy=False)
-                env.fill_agents(n_agents)
+                cur_state, norm_cur_state = env.fill_agents(n_agents, cur_state, norm_cur_state)
                 action = env.get_actions_noCR()  # only update heading
                 next_state, norm_next_state = env.step(action, step)
                 reward_aft_action, done_aft_action, check_goal, agent_to_remove = env.get_step_reward(step)
@@ -359,7 +361,7 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--scenario', default="simple_spread", type=str)
-    parser.add_argument('--max_episodes', default=5000, type=int)  # rnu for a total of 60000 episodes
+    parser.add_argument('--max_episodes', default=200000, type=int)  # rnu for a total of 60000 episodes
     parser.add_argument('--algo', default="maddpg", type=str, help="commnet/bicnet/maddpg")
     parser.add_argument('--mode', default="train", type=str, help="train/eval")
     parser.add_argument('--episode_length', default=800, type=int)  # maximum play per episode
@@ -369,7 +371,7 @@ if __name__ == '__main__':
     parser.add_argument('--seed', default=777, type=int)
     parser.add_argument('--a_lr', default=0.0001, type=float)
     parser.add_argument('--c_lr', default=0.0001, type=float)
-    parser.add_argument('--batch_size', default=256, type=int)  # original 256
+    parser.add_argument('--batch_size', default=512, type=int)  # original 256
     parser.add_argument('--render_flag', default=False, type=bool)
     parser.add_argument('--ou_theta', default=0.15, type=float)
     parser.add_argument('--ou_mu', default=0.0, type=float)
