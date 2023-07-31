@@ -1,0 +1,4 @@
+-Based on v3, I added in acceleration and potential conflict at current time step into the drone formulation.
+-On reset: Each drone's velocity is from 0 to 15, spilt into two axis, acceleration is set to 0.
+-Acceleration output is [-1, 1] then scaled to [-1.4, 1.4]
+- Now include all 3 components of the states into actor and critic NN.
