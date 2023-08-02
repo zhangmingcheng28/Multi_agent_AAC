@@ -1,5 +1,5 @@
-from Nnetworks_MADDPGv3 import CriticNetwork_0724, ActorNetwork
-# from Nnetworks_MADDPGv3 import CriticNetwork, ActorNetwork
+# from Nnetworks_MADDPGv3 import CriticNetwork_0724, ActorNetwork
+from Nnetworks_MADDPGv3 import CriticNetwork, ActorNetwork
 import torch
 from copy import deepcopy
 from torch.optim import Adam
@@ -39,7 +39,8 @@ class MADDPG:
         # self.critics = [Critic(n_agents, dim_obs, dim_act) for _ in range(n_agents)]
 
         self.actors = [ActorNetwork(actor_dim, dim_act) for _ in range(n_agents)]
-        self.critics = [CriticNetwork_0724(critic_dim, n_agents, dim_act) for _ in range(n_agents)]
+        # self.critics = [CriticNetwork_0724(critic_dim, n_agents, dim_act) for _ in range(n_agents)]
+        self.critics = [CriticNetwork(critic_dim, n_agents, dim_act) for _ in range(n_agents)]
 
         self.n_agents = n_agents
         self.n_states = actor_dim
@@ -59,7 +60,8 @@ class MADDPG:
         self.GAMMA = gamma
         self.tau = tau
 
-        self.var = [1.0 for i in range(n_agents)]
+        # self.var = [1.0 for i in range(n_agents)]
+        self.var = [0.5 for i in range(n_agents)]
 
         # original, critic learning rate is 10 times larger compared to actor
         # self.critic_optimizer = [Adam(x.parameters(), lr=0.001) for x in self.critics]
@@ -226,6 +228,8 @@ class MADDPG:
         # stack tensors only once
         stacked_elem_0 = torch.stack([elem[0] for elem in batch.states])
         stacked_elem_1 = torch.stack([elem[1] for elem in batch.states])
+        stacked_both_elem = torch.stack([torch.cat((elem[0], elem[1]), dim=1) for elem in batch.states])  # bs x agentNo x (6+9)
+        stacked_combine_agent = stacked_both_elem.view(self.batch_size, -1)  # bs x (agentNo x (6+9))
         stacked_elem_0_combine = stacked_elem_0.view(self.batch_size, -1)
         stacked_elem_1_combine = stacked_elem_1.view(self.batch_size, -1)
 
@@ -252,6 +256,9 @@ class MADDPG:
         non_final_next_states2_combine = torch.stack(non_final_next_states2_pre).view(len(non_final_next_states2_pre), -1)
         non_final_next_states2 = [torch.stack([tensor[i] for tensor in non_final_next_states2_pre], dim=0) for i in range(5)]
 
+        non_final_next_states_both_ele = torch.stack([torch.cat((s_[0], s_[1]), dim=1) for s_idx, s_ in enumerate(batch.next_states) if non_final_mask[s_idx]])
+        stacked_next_combine_agent = non_final_next_states_both_ele.view(non_final_next_states_both_ele.shape[0], -1)
+
         next_state_list3 = [x_[2] for x_idx, x_ in enumerate(batch.next_states) if non_final_mask[x_idx]]
         non_final_next_states3 = []
         for i in range(self.n_agents):
@@ -266,8 +273,9 @@ class MADDPG:
             # --------- original---------
             # non_final_mask = BoolTensor(list(map(lambda s: s is not None, batch.next_states)))  # create a boolean tensor, that has same length as the "batch.next_states", if an element is batch.next_state is not "None" then assign a True value, False otherwise.
 
-            whole_state = [cur_state_list1, cur_state_list2, cur_state_list3]  # follow CriticNetwork_0724
+            # whole_state = [cur_state_list1, cur_state_list2, cur_state_list3]  # follow CriticNetwork_0724
             # whole_state = [stacked_elem_0_combine, stacked_elem_1_combine]
+            whole_state = stacked_combine_agent
 
             non_final_next_states_actorin = [non_final_next_states1, non_final_next_states2, non_final_next_states3]
             # non_final_next_states_criticin = [non_final_next_states1_combine, non_final_next_states2_combine]
@@ -286,7 +294,8 @@ class MADDPG:
             current_Q = self.critics[agent](whole_state, whole_action)
             with T.no_grad():
                 target_Q = torch.zeros(self.batch_size).type(FloatTensor)
-                target_Q[non_final_mask] = self.critics_target[agent](non_final_next_states_criticin, non_final_next_actions.view(-1,self.n_agents * self.n_actions)).squeeze()  # .view(-1, self.n_agents * self.n_actions)
+                # target_Q[non_final_mask] = self.critics_target[agent](non_final_next_states_criticin, non_final_next_actions.view(-1,self.n_agents * self.n_actions)).squeeze()  # .view(-1, self.n_agents * self.n_actions)
+                target_Q[non_final_mask] = self.critics_target[agent](stacked_next_combine_agent, non_final_next_actions.view(-1,self.n_agents * self.n_actions)).squeeze()  # .view(-1, self.n_agents * self.n_actions)
                 # target_Q = (target_Q.unsqueeze(1) * self.GAMMA) + (reward_batch[:, agent].unsqueeze(1)*0.1)  # + reward_sum.unsqueeze(1) * 0.1
                 target_Q = (target_Q.unsqueeze(1) * self.GAMMA) + (reward_batch[:, agent].unsqueeze(1))  # + reward_sum.unsqueeze(1) * 0.1
 
@@ -355,7 +364,7 @@ class MADDPG:
         self.steps_done += 1
         return actions.data.cpu().numpy()
 
-    def get_scaling_factor(self, episode, drop_point, start_scale=1, end_scale=0.03):
+    def get_scaling_factor(self, episode, drop_point, start_scale=0.5, end_scale=0.03):  # start_scale=1 this is the original
         if episode <= drop_point:
             slope = (end_scale - start_scale) / drop_point
             return slope * episode + start_scale

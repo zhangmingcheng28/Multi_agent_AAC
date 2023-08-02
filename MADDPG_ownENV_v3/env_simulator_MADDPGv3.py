@@ -50,7 +50,7 @@ class env_simulator:
     def create_world(self, total_agentNum, n_actions, gamma, tau, target_update, largest_Nsigma, smallest_Nsigma, ini_Nsigma, max_xy, max_spd):
         # config OU_noise
         self.OU_noise = OUNoise(n_actions, largest_Nsigma, smallest_Nsigma, ini_Nsigma)
-        self.normalizer = NormalizeData(max_xy[0], max_xy[1], max_spd)
+        self.normalizer = NormalizeData([self.bound[0], self.bound[1]], [self.bound[2], self.bound[3]], max_spd)
         self.all_agents = {}
         for agent_i in range(total_agentNum):
             agent = Agent(n_actions, agent_i, gamma, tau, total_agentNum, max_spd)
@@ -77,7 +77,7 @@ class env_simulator:
             self.all_agents[agentIdx].pos = custom_agent_data[agentIdx][0:2]
             self.all_agents[agentIdx].ini_pos = custom_agent_data[agentIdx][0:2]
 
-            if isinstance(custom_agent_data[agentIdx][2:4][0], int):
+            if not isinstance(custom_agent_data[agentIdx][2:4][0], str):
                 self.all_agents[agentIdx].goal = [custom_agent_data[agentIdx][2:4]]
             else:
                 x_coords = np.array([int(coord.split('; ')[0]) for coord in custom_agent_data[agentIdx][2:4]])
@@ -741,6 +741,7 @@ class env_simulator:
             collision_drones = []
             collide_building = 0
             pc_before, pc_after = [], []
+            dist_toHost = []
             # we assume the maximum potential conflict the current drone could have at each time step is equals
             # to the total number of its neighbour at each time step
             pc_max_before = len(drone_obj.pre_surroundingNeighbor)
@@ -771,7 +772,9 @@ class env_simulator:
                                                       self.all_agents[neigh_keys].vel,
                                                       self.all_agents[neigh_keys].protectiveBound, neigh_keys,
                                                       current_ts)
-
+                # get distance from host to all the surrounding vehicles
+                diff_dist_vec = drone_obj.pos - self.all_agents[neigh_keys].pos  # host pos vector - intruder pos vector
+                dist_toHost.append(np.linalg.norm(diff_dist_vec))
                 # check whether the current drone has collides with any surrounding neighbors due to current action
                 neigh_pass_line = LineString([self.all_agents[neigh_keys].pre_pos, self.all_agents[neigh_keys].pos])
                 neigh_passed_volume = neigh_pass_line.buffer(self.all_agents[neigh_keys].protectiveBound,
@@ -819,11 +822,19 @@ class env_simulator:
             dominoCoefficient = 1
             # cross track error term
             # cross_track_error = (20 / ((cross_track_deviation * cross_track_deviation) / 200 + 1)) - 3.5  # original
-            cross_track_error = (math.e ** (5 - cross_track_deviation / 7) / 5) - 0.5
+            cross_track_error = (math.e ** (5 - cross_track_deviation / 7) / 5) - 0.5  # original on 24_07
+            # cross_track_error = (5 * math.e ** ((5 - cross_track_deviation) / 7)) - 1  # cross_track_deviation>16.266 -> <0, cross_track_deviation=0 -> 9.2
             # Distance between drone and its goal for two consecutive time step
             before_dist_hg = np.linalg.norm(drone_obj.pre_pos - drone_obj.goal[0])
             after_dist_hg = np.linalg.norm(drone_obj.pos - drone_obj.goal[0])  # distance to goal after action
             delta_hg = goalCoefficient * (before_dist_hg - after_dist_hg)
+            # if len(dist_toHost) == 0:  # meaning there is no neighbouring drone goes into host drone's detection range
+            #     slowChanging_dist_penalty_others = 0
+            # else:
+            #     # sort dist_toHost()
+            #     # nearest
+            #     dist_to_host_minimum = sorted(dist_toHost)[0]
+            #     slowChanging_dist_penalty_others = 1 * (-10 * math.exp((5 - dist_to_host_minimum) / 2))
 
             # a small penalty for discourage the agent to stay in one single spot
             if (before_dist_hg - after_dist_hg) <= 2:
@@ -847,24 +858,34 @@ class env_simulator:
                 # done.append(False)
 
             elif not goal_cur_intru_intersect.is_empty:  # reached goal?
-                print("drone_{} has reached its way point at time step {}".format(drone_idx, current_ts))
-                # reward.append(np.array(0))  this is idea 1
-                if drone_obj.reach_target == False:
+                if len(drone_obj.goal) > 1:  # meaning the current agent has more than one target/goal
+                    print("drone_{} has reached its way point at time step {}".format(drone_idx, current_ts))
+                    drone_obj.reach_target = False  # reset this flag
+                    drone_obj.goal.pop(0)
+                    # normal_step_rw = crossCoefficient*cross_track_error + slowChanging_dist_penalty_others + alive_penalty
                     normal_step_rw = crossCoefficient*cross_track_error + delta_hg + alive_penalty
                     reward.append(np.array(normal_step_rw))
-                    # drone_obj.reach_target = True
-                    if len(drone_obj.goal) > 1:  # meaning the current agent has more than one target/goal
-                        drone_obj.reach_target = False  # reset this flag
-                        drone_obj.goal.pop(0)
-                    else:
-                        try:
-                            check_goal[drone_idx] = True  # drone_obj.reach_target = True
-                            reward.append(np.array(reach_target))
-                            print("drone_{} has reached its final goal at time step {}".format(drone_idx, current_ts))
-                        except:
-                            print(f"Failed to assign at index {drone_idx}. List length is {len(check_goal)}.")
-                            break  # Or raise the error again with 'raise'
-                        # agent_to_remove.append(drone_idx)
+                else:
+                    check_goal[drone_idx] = True  # drone_obj.reach_target = True
+                    reward.append(np.array(reach_target))
+                    print("drone_{} has reached its final goal at time step {}".format(drone_idx, current_ts))
+                # if drone_obj.reach_target == False:  # original
+                #     # normal_step_rw = crossCoefficient*cross_track_error + delta_hg + alive_penalty
+                #     normal_step_rw = crossCoefficient*cross_track_error + slowChanging_dist_penalty_others + alive_penalty
+                #     reward.append(np.array(normal_step_rw))
+                #     # drone_obj.reach_target = True
+                #     if len(drone_obj.goal) > 1:  # meaning the current agent has more than one target/goal
+                #         drone_obj.reach_target = False  # reset this flag
+                #         drone_obj.goal.pop(0)
+                #     else:
+                #         try:
+                #             check_goal[drone_idx] = True  # drone_obj.reach_target = True
+                #             reward.append(np.array(reach_target))
+                #             print("drone_{} has reached its final goal at time step {}".format(drone_idx, current_ts))
+                #         except:
+                #             print(f"Failed to assign at index {drone_idx}. List length is {len(check_goal)}.")
+                #             break  # Or raise the error again with 'raise'
+                #         # agent_to_remove.append(drone_idx)
                 if all(check_goal):
                     done.append(True)
                 else:
@@ -876,6 +897,7 @@ class env_simulator:
                 # step_reward =crossCoefficient*cross_track_error + dominoCoefficient*dominoTerm + delta_hg + alive_penalty + final_goal_toadd  # have the final one-time reaching reward
                 # step_reward =crossCoefficient*cross_track_error + dominoCoefficient*dominoTerm + delta_hg + alive_penalty
                 step_reward =crossCoefficient*cross_track_error + delta_hg + alive_penalty
+                # step_reward =crossCoefficient*cross_track_error + slowChanging_dist_penalty_others + alive_penalty
 
                 # if add the termination condition: all agents reaches the goal, environment terminates
                 # if all(check_goal):
@@ -891,8 +913,13 @@ class env_simulator:
 
                 # for debug, record the reward
                 one_step_reward = [crossCoefficient*cross_track_error, delta_hg, alive_penalty]
+                # one_step_reward = [crossCoefficient*cross_track_error, slowChanging_dist_penalty_others, alive_penalty]
                 step_reward_record[drone_idx] = one_step_reward
 
+        # if None in step_reward_record:
+        #     print("debug")
+        if len(reward) != len(self.all_agents):
+            print("debug! we have more than reward element that is more compared to existing agents")
         shared_reward = np.array(sum(reward), dtype=float)
         reward = [shared_reward] * len(self.all_agents)
         return reward, done, check_goal, step_reward_record

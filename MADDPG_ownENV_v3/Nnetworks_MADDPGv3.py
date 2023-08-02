@@ -82,6 +82,8 @@ class ActorNetwork(nn.Module):
         # self.action_out_V4 = nn.Sequential(nn.Linear(64+64, 64), nn.ReLU(), nn.Linear(64, n_actions), nn.Tanh())
         # self.action_out_V5 = nn.Sequential(nn.Linear(512, 128), nn.ReLU(), nn.Linear(128, n_actions), nn.Tanh())
         self.action_out_V5_1 = nn.Sequential(nn.Linear(128+128+128, 128), nn.ReLU(), nn.Linear(128, n_actions), nn.Tanh())
+        # self.action_out_V5_2 = nn.Sequential(nn.Linear(128+128+128, 512), nn.ReLU(), nn.Linear(512, 512), nn.ReLU(),
+        #                                      nn.Linear(512, n_actions), nn.Tanh())
 
         # attention for NN
         self.k = nn.Linear(128, 128, bias=False)
@@ -166,10 +168,12 @@ class CriticNetwork(nn.Module):
         #
         # self.combine_env_fc = nn.Sequential(nn.Linear(256+256+256, 256), nn.ReLU(), nn.Linear(256, 128), nn.ReLU(),
         #                                     nn.Linear(128, 64), nn.ReLU())
-        self.combine_env_fc = nn.Sequential(nn.Linear(256+128, 128), nn.ReLU())
+        # self.combine_env_fc = nn.Sequential(nn.Linear(256+128, 128), nn.ReLU())
+        self.combine_env_fc = nn.Sequential(nn.Linear(75+10, 256), nn.ReLU())
         # self.combine_env_fc = nn.Sequential(nn.Linear((n_agents*128)+(n_agents*128), 64), nn.ReLU())
 
-        self.combine_all = nn.Sequential(nn.Linear(128+n_agents * n_actions, 64), nn.ReLU(), nn.Linear(64, 1))
+        # self.combine_all = nn.Sequential(nn.Linear(128+n_agents * n_actions, 64), nn.ReLU(), nn.Linear(64, 1))
+        self.combine_all = nn.Sequential(nn.Linear(256, 64), nn.ReLU(), nn.Linear(64, 1))
 
         # self.sum_agents_action_fc = nn.Sequential(nn.Linear(critic_obs[2]*n_agents, 256), nn.ReLU())
         #
@@ -188,7 +192,7 @@ class CriticNetwork(nn.Module):
 
     def forward(self, state, actor_actions):  # state[0] is sum of all agent's own observed states, state[1] is is sum of all agent's observed grid maps
         # pre-process, compute attention for every agent based on their surrounding agents
-        attention_all_agent = []
+        # attention_all_agent = []
         # grid_all_agent = []
         # own_all_agent = []
         # for one_agent_batch_own, one_agent_batch_grid, one_agent_batch_surr in zip(*state):  # automatically loop over 5 times
@@ -222,16 +226,19 @@ class CriticNetwork(nn.Module):
         # sum_own = torch.stack(grid_all_agent).transpose(0, 1)
         # sum_own = sum_own.reshape(sum_own.shape[0], -1)
 
-        sum_own = self.sum_own_fc(state[0])
-        sum_grid = self.sum_grid_fc(state[1])
+        # sum_own = self.sum_own_fc(state[0])
+        # sum_grid = self.sum_grid_fc(state[1])
+        #
+        # # env_concat = torch.cat((sum_att, sum_grid), dim=1)
+        # env_concat = torch.cat((sum_own, sum_grid), dim=1)
 
-        # env_concat = torch.cat((sum_att, sum_grid), dim=1)
-        env_concat = torch.cat((sum_own, sum_grid), dim=1)
+        combine_raw_SA = torch.cat((state, actor_actions), dim=1)
 
-        env_encode = self.combine_env_fc(env_concat)
-        entire_comb = torch.cat((env_encode, actor_actions), dim=1)
+        # env_encode = self.combine_env_fc(env_concat)
+        env_encode = self.combine_env_fc(combine_raw_SA)
+        # entire_comb = torch.cat((env_encode, actor_actions), dim=1)
         # entire_comb = torch.cat((sum_own_e, actor_actions), dim=1)
-        q = self.combine_all(entire_comb)
+        q = self.combine_all(env_encode)
         return q
 
 
@@ -252,8 +259,10 @@ class CriticNetwork_0724(nn.Module):
         self.sum_own_fc = nn.Sequential(nn.Linear(critic_obs[0]*n_agents, 256), nn.ReLU())  # may be here can be replaced with another attention mechanism
         self.sum_grid_fc = nn.Sequential(nn.Linear(critic_obs[1]*n_agents, 128), nn.ReLU())
 
-        self.single_own_fc = nn.Sequential(nn.Linear(critic_obs[0], 128), nn.ReLU())  # may be here can be replaced with another attention mechanism
-        self.single_grid_fc = nn.Sequential(nn.Linear(critic_obs[1], 128), nn.ReLU())
+        # self.single_own_fc = nn.Sequential(nn.Linear(critic_obs[0], 128), nn.ReLU())  # may be here can be replaced with another attention mechanism
+        self.single_own_fc = nn.Sequential(nn.Linear(critic_obs[0], 256), nn.ReLU())  # may be here can be replaced with another attention mechanism
+        # self.single_grid_fc = nn.Sequential(nn.Linear(critic_obs[1], 128), nn.ReLU())
+        self.single_grid_fc = nn.Sequential(nn.Linear(critic_obs[1], 256), nn.ReLU())
         self.single_surr = nn.Sequential(nn.Linear(critic_obs[2], 128), nn.ReLU())
 
         # for surrounding agents' encoding, for each agent, we there are n-neighbours, each neighbour is represented by
@@ -278,7 +287,8 @@ class CriticNetwork_0724(nn.Module):
         # self.combine_env_fc = nn.Sequential(nn.Linear(256+256+256, 256), nn.ReLU(), nn.Linear(256, 128), nn.ReLU(),
         #                                     nn.Linear(128, 64), nn.ReLU())
         # self.combine_env_fc = nn.Sequential(nn.Linear(256+128, 128), nn.ReLU())
-        self.combine_env_fc = nn.Sequential(nn.Linear((n_agents*128)+(n_agents*128), 64), nn.ReLU())
+        # self.combine_env_fc = nn.Sequential(nn.Linear((n_agents*128)+(n_agents*128), 64), nn.ReLU())
+        self.combine_env_fc = nn.Sequential(nn.Linear((n_agents*256)+(n_agents*256), 1028), nn.ReLU(), nn.Linear(1028, 64), nn.ReLU())
 
         self.combine_all = nn.Sequential(nn.Linear(64+n_agents * n_actions, 64), nn.ReLU(), nn.Linear(64, 1))
 
