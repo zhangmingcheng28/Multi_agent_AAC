@@ -58,7 +58,8 @@ class MADDPG:
         self.GAMMA = gamma
         self.tau = tau
 
-        self.var = [1.0 for i in range(n_agents)]
+        # self.var = [1.0 for i in range(n_agents)]
+        self.var = [0.5 for i in range(n_agents)]
 
         # original, critic learning rate is 10 times larger compared to actor
         # self.critic_optimizer = [Adam(x.parameters(), lr=0.001) for x in self.critics]
@@ -254,7 +255,8 @@ class MADDPG:
                 target_Q = torch.zeros(self.batch_size).type(FloatTensor)
                 target_Q[non_final_mask] = self.critics_target[agent]([s_.view(-1, self.n_agents * self.n_states[s_idx]) for s_idx, s_ in enumerate(non_final_next_states)],non_final_next_actions.view(-1,self.n_agents * self.n_actions)).squeeze()  # .view(-1, self.n_agents * self.n_actions)
 
-                target_Q = (target_Q.unsqueeze(1) * self.GAMMA) + (reward_batch[:, agent].unsqueeze(1)*0.1)  # + reward_sum.unsqueeze(1) * 0.1
+                # target_Q = (target_Q.unsqueeze(1) * self.GAMMA) + (reward_batch[:, agent].unsqueeze(1)*0.1)  # + reward_sum.unsqueeze(1) * 0.1
+                target_Q = (target_Q.unsqueeze(1) * self.GAMMA) + (reward_batch[:, agent].unsqueeze(1))  # + reward_sum.unsqueeze(1) * 0.1
             loss_Q = nn.MSELoss()(current_Q, target_Q.detach())
             self.critic_optimizer[agent].zero_grad()
             loss_Q.backward(retain_graph=True)
@@ -314,7 +316,7 @@ class MADDPG:
         self.steps_done += 1
         return actions.data.cpu().numpy()
 
-    def get_scaling_factor(self, episode, drop_point=12000, start_scale=1, end_scale=0.03):
+    def get_scaling_factor(self, episode, drop_point=12000, start_scale=0.5, end_scale=0.03):
         if episode <= drop_point:
             slope = (end_scale - start_scale) / drop_point
             return slope * episode + start_scale

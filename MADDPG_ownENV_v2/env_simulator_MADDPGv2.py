@@ -276,9 +276,11 @@ class env_simulator:
                     norm_other_pos.append(np.array(norm_pos))
 
             # overall_state.append(np.array([agent_own, agent.observableSpace, agent.surroundingNeighbor], dtype=object))
-            overall_state_p1.append(np.concatenate((agent_own, np.array(other_pos).flatten())))
+            # overall_state_p1.append(np.concatenate((agent_own, np.array(other_pos).flatten())))
+            overall_state_p1.append(agent_own)
             overall_state_p2.append(agent.observableSpace)
-            norm_overall_state_p1.append(np.concatenate((norm_agent_own, np.array(norm_other_pos).flatten())))
+            # norm_overall_state_p1.append(np.concatenate((norm_agent_own, np.array(norm_other_pos).flatten())))
+            norm_overall_state_p1.append(norm_agent_own)
             norm_overall_state_p2.append(agent.observableSpace)
         overall.append(overall_state_p1)
         overall.append(overall_state_p2)
