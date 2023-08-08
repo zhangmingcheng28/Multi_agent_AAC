@@ -60,8 +60,8 @@ class MADDPG:
         self.GAMMA = gamma
         self.tau = tau
 
-        # self.var = [1.0 for i in range(n_agents)]
-        self.var = [0.5 for i in range(n_agents)]
+        self.var = [1.0 for i in range(n_agents)]
+        # self.var = [0.5 for i in range(n_agents)]
 
         # original, critic learning rate is 10 times larger compared to actor
         # self.critic_optimizer = [Adam(x.parameters(), lr=0.001) for x in self.critics]
@@ -364,7 +364,7 @@ class MADDPG:
         self.steps_done += 1
         return actions.data.cpu().numpy()
 
-    def get_scaling_factor(self, episode, drop_point, start_scale=0.5, end_scale=0.03):  # start_scale=1 this is the original
+    def get_scaling_factor(self, episode, drop_point, start_scale=1, end_scale=0.03):  # start_scale=1 this is the original
         if episode <= drop_point:
             slope = (end_scale - start_scale) / drop_point
             return slope * episode + start_scale

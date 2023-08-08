@@ -816,10 +816,10 @@ class env_simulator:
 
             # ------------- pre-processed condition for a normal step -----------------
             # crossCoefficient = 0.1
-            crossCoefficient = 2
+            crossCoefficient = 3
             # goalCoefficient = 6
-            goalCoefficient = 3
-            dominoCoefficient = 1
+            goalCoefficient = 6
+            dominoCoefficient = 10
             # cross track error term
             # cross_track_error = (20 / ((cross_track_deviation * cross_track_deviation) / 200 + 1)) - 3.5  # original
             cross_track_error = (math.e ** (5 - cross_track_deviation / 7) / 5) - 0.5  # original on 24_07
@@ -828,27 +828,30 @@ class env_simulator:
             before_dist_hg = np.linalg.norm(drone_obj.pre_pos - drone_obj.goal[0])
             after_dist_hg = np.linalg.norm(drone_obj.pos - drone_obj.goal[0])  # distance to goal after action
             delta_hg = goalCoefficient * (before_dist_hg - after_dist_hg)
-            # if len(dist_toHost) == 0:  # meaning there is no neighbouring drone goes into host drone's detection range
-            #     slowChanging_dist_penalty_others = 0
-            # else:
-            #     # sort dist_toHost()
-            #     # nearest
-            #     dist_to_host_minimum = sorted(dist_toHost)[0]
-            #     slowChanging_dist_penalty_others = 1 * (-10 * math.exp((5 - dist_to_host_minimum) / 2))
+            if len(dist_toHost) == 0:  # meaning there is no neighbouring drone goes into host drone's detection range
+                slowChanging_dist_penalty_others = 0
+            else:
+                # sort dist_toHost()
+                # nearest
+                dist_to_host_minimum = sorted(dist_toHost)[0]
+                slowChanging_dist_penalty_others = 1 * (-10 * math.exp((5 - dist_to_host_minimum) / 2))
 
             # a small penalty for discourage the agent to stay in one single spot
             if (before_dist_hg - after_dist_hg) <= 2:
                 small_step_penalty = 50
             else:
                 small_step_penalty = 0
-            alive_penalty = -2
+            alive_penalty = -50
             # -------------end of pre-processed condition for a normal step -----------------
 
             # exceed bound or crash into buildings or crash with other neighbors
-            if collide_building == 1 or len(collision_drones) > 0:
+            if collide_building == 1:
                 reward.append(np.array(crash_penalty))
                 done.append(True)
                 # done.append(False)
+            elif len(collision_drones) > 0:
+                reward.append(np.array(crash_penalty))
+                done.append(True)
 
             # exceed bound condition, don't use current point, use current circle or else will have condition that
             elif x_left_bound.intersects(host_passed_volume) or x_right_bound.intersects(host_passed_volume) or y_bottom_bound.intersects(host_passed_volume) or y_top_bound.intersects(host_passed_volume):
@@ -864,6 +867,9 @@ class env_simulator:
                     drone_obj.goal.pop(0)
                     # normal_step_rw = crossCoefficient*cross_track_error + slowChanging_dist_penalty_others + alive_penalty
                     normal_step_rw = crossCoefficient*cross_track_error + delta_hg + alive_penalty
+                    # normal_step_rw = crossCoefficient*cross_track_error + delta_hg + alive_penalty + slowChanging_dist_penalty_others
+                    # normal_step_rw = crossCoefficient*cross_track_error + delta_hg + alive_penalty + dominoCoefficient*dominoTerm
+
                     reward.append(np.array(normal_step_rw))
                 else:
                     check_goal[drone_idx] = True  # drone_obj.reach_target = True
@@ -897,6 +903,8 @@ class env_simulator:
                 # step_reward =crossCoefficient*cross_track_error + dominoCoefficient*dominoTerm + delta_hg + alive_penalty + final_goal_toadd  # have the final one-time reaching reward
                 # step_reward =crossCoefficient*cross_track_error + dominoCoefficient*dominoTerm + delta_hg + alive_penalty
                 step_reward =crossCoefficient*cross_track_error + delta_hg + alive_penalty
+                # step_reward =crossCoefficient*cross_track_error + delta_hg + alive_penalty + slowChanging_dist_penalty_others
+                # step_reward =crossCoefficient*cross_track_error + delta_hg + alive_penalty + dominoCoefficient*dominoTerm
                 # step_reward =crossCoefficient*cross_track_error + slowChanging_dist_penalty_others + alive_penalty
 
                 # if add the termination condition: all agents reaches the goal, environment terminates
@@ -913,6 +921,7 @@ class env_simulator:
 
                 # for debug, record the reward
                 one_step_reward = [crossCoefficient*cross_track_error, delta_hg, alive_penalty]
+                # one_step_reward = [crossCoefficient*cross_track_error, delta_hg, alive_penalty, dominoCoefficient*dominoTerm]
                 # one_step_reward = [crossCoefficient*cross_track_error, slowChanging_dist_penalty_others, alive_penalty]
                 step_reward_record[drone_idx] = one_step_reward
 

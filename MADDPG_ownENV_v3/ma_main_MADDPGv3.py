@@ -50,17 +50,17 @@ def main(args):
         if not os.path.exists(plot_file_name):
             os.makedirs(plot_file_name)
 
-    # wandb.login(key="efb76db851374f93228250eda60639c70a93d1ec")
-    # wandb.init(
-    #     # set the wandb project where this run will be logged
-    #     project="MADDPG_sample_newFrameWork",
-    #     name='MADDPG_test_'+str(current_date) + '_' + str(formatted_time),
-    #     # track hyperparameters and run metadata
-    #     config={
-    #         "learning_rate": args.a_lr,
-    #         "epochs": args.max_episodes,
-    #     }
-    # )
+    wandb.login(key="efb76db851374f93228250eda60639c70a93d1ec")
+    wandb.init(
+        # set the wandb project where this run will be logged
+        project="MADDPG_sample_newFrameWork",
+        name='MADDPG_test_'+str(current_date) + '_' + str(formatted_time),
+        # track hyperparameters and run metadata
+        config={
+            "learning_rate": args.a_lr,
+            "epochs": args.max_episodes,
+        }
+    )
 
 
     # -------------- create my own environment -----------------
@@ -137,7 +137,7 @@ def main(args):
         accum_reward = 0
         trajectory_eachPlay = []
 
-        pre_fix = r'D:\MADDPG_2nd_jp\010823_09_44_38\interval_record_eps'
+        pre_fix = r'D:\MADDPG_2nd_jp\040823_16_35_50\interval_record_eps'
         episode_to_check = str(15000)
         load_filepath_0 = pre_fix + '\episode_' + episode_to_check + '_agent_0actor_net.pth'
         load_filepath_1 = pre_fix + '\episode_' + episode_to_check + '_agent_1actor_net.pth'
@@ -210,13 +210,13 @@ def main(args):
                     # here onwards is end of an episode's play
                     score_history.append(accum_reward)
                     print("[Episode %05d] reward %6.4f" % (episode, accum_reward))
-                    # wandb.log({'overall_reward': float(accum_reward)})
+                    wandb.log({'overall_reward': float(accum_reward)})
                     if c_loss and a_loss:
                         for idx, val in enumerate(c_loss):
                             print(" agent %s, a_loss %3.2f c_loss %3.2f" % (
                                 idx, a_loss[idx].item(), c_loss[idx].item()))
-                            # wandb.log({'agent' + str(idx) + 'actor_loss': float(a_loss[idx].item())})
-                            # wandb.log({'agent' + str(idx) + 'critic_loss': float(c_loss[idx].item())})
+                            wandb.log({'agent' + str(idx) + 'actor_loss': float(a_loss[idx].item())})
+                            wandb.log({'agent' + str(idx) + 'critic_loss': float(c_loss[idx].item())})
                     if episode % args.save_interval == 0 and args.mode == "train":
                         # save the models at a predefined interval
                         # save model to my own directory
@@ -373,7 +373,7 @@ def main(args):
                     plt.ylabel("Y axis")
                     plt.show()
                     break
-    # wandb.finish()
+    wandb.finish()
 
     # if args.tensorboard:
     #     writer.close()
@@ -384,7 +384,7 @@ if __name__ == '__main__':
     parser.add_argument('--scenario', default="simple_spread", type=str)
     parser.add_argument('--max_episodes', default=15000, type=int)  # rnu for a total of 60000 episodes
     parser.add_argument('--algo', default="maddpg", type=str, help="commnet/bicnet/maddpg")
-    parser.add_argument('--mode', default="eval", type=str, help="train/eval")
+    parser.add_argument('--mode', default="train", type=str, help="train/eval")
     parser.add_argument('--episode_length', default=50, type=int)  # maximum play per episode
     parser.add_argument('--memory_length', default=int(1e5), type=int)
     parser.add_argument('--tau', default=0.001, type=float)
