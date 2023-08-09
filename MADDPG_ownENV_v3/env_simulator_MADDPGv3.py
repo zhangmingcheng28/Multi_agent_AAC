@@ -76,6 +76,7 @@ class env_simulator:
         for agentIdx in self.all_agents.keys():
             self.all_agents[agentIdx].pos = custom_agent_data[agentIdx][0:2]
             self.all_agents[agentIdx].ini_pos = custom_agent_data[agentIdx][0:2]
+            self.all_agents[agentIdx].removed_goal = None
 
             if not isinstance(custom_agent_data[agentIdx][2:4][0], str):
                 self.all_agents[agentIdx].goal = [custom_agent_data[agentIdx][2:4]]
@@ -749,7 +750,10 @@ class env_simulator:
 
             # calculate the deviation from the reference path after an action has been taken
             curPoint = Point(self.all_agents[drone_idx].pos)
-            host_refline = LineString([self.all_agents[drone_idx].ini_pos, self.all_agents[drone_idx].goal[0]])
+            if isinstance(self.all_agents[drone_idx].removed_goal, np.ndarray):
+                host_refline = LineString([self.all_agents[drone_idx].removed_goal, self.all_agents[drone_idx].goal[0]])
+            else:
+                host_refline = LineString([self.all_agents[drone_idx].ini_pos, self.all_agents[drone_idx].goal[0]])
             cross_track_deviation = curPoint.distance(host_refline)  # deviation from the reference line, cross track error
 
             host_pass_line = LineString([self.all_agents[drone_idx].pre_pos, self.all_agents[drone_idx].pos])
@@ -779,9 +783,9 @@ class env_simulator:
                 neigh_pass_line = LineString([self.all_agents[neigh_keys].pre_pos, self.all_agents[neigh_keys].pos])
                 neigh_passed_volume = neigh_pass_line.buffer(self.all_agents[neigh_keys].protectiveBound,
                                                              cap_style='round')
-                if host_passed_volume.intersects(neigh_passed_volume):
-                    print("drone_{} collide with drone_{} at time step {}".format(drone_idx, neigh_keys, current_ts))
-                    collision_drones.append(neigh_keys)
+                # if host_passed_volume.intersects(neigh_passed_volume):
+                #     print("drone_{} collide with drone_{} at time step {}".format(drone_idx, neigh_keys, current_ts))
+                #     collision_drones.append(neigh_keys)
 
             # if pc_max_after == 0:  # upper bound in terms of value case for dominoTerm
             #     dominoTerm = fixed_domino_reward
@@ -818,7 +822,7 @@ class env_simulator:
             # crossCoefficient = 0.1
             crossCoefficient = 3
             # goalCoefficient = 6
-            goalCoefficient = 6
+            goalCoefficient = 8
             dominoCoefficient = 10
             # cross track error term
             # cross_track_error = (20 / ((cross_track_deviation * cross_track_deviation) / 200 + 1)) - 3.5  # original
@@ -849,9 +853,9 @@ class env_simulator:
                 reward.append(np.array(crash_penalty))
                 done.append(True)
                 # done.append(False)
-            elif len(collision_drones) > 0:
-                reward.append(np.array(crash_penalty))
-                done.append(True)
+            # elif len(collision_drones) > 0:
+            #     reward.append(np.array(crash_penalty))
+            #     done.append(True)
 
             # exceed bound condition, don't use current point, use current circle or else will have condition that
             elif x_left_bound.intersects(host_passed_volume) or x_right_bound.intersects(host_passed_volume) or y_bottom_bound.intersects(host_passed_volume) or y_top_bound.intersects(host_passed_volume):
@@ -861,19 +865,22 @@ class env_simulator:
                 # done.append(False)
 
             elif not goal_cur_intru_intersect.is_empty:  # reached goal?
+
                 if len(drone_obj.goal) > 1:  # meaning the current agent has more than one target/goal
                     print("drone_{} has reached its way point at time step {}".format(drone_idx, current_ts))
                     drone_obj.reach_target = False  # reset this flag
-                    drone_obj.goal.pop(0)
+                    drone_obj.removed_goal = drone_obj.goal.pop(0)
                     # normal_step_rw = crossCoefficient*cross_track_error + slowChanging_dist_penalty_others + alive_penalty
-                    normal_step_rw = crossCoefficient*cross_track_error + delta_hg + alive_penalty
+                    normal_step_rw = crossCoefficient * cross_track_error + delta_hg + alive_penalty
                     # normal_step_rw = crossCoefficient*cross_track_error + delta_hg + alive_penalty + slowChanging_dist_penalty_others
                     # normal_step_rw = crossCoefficient*cross_track_error + delta_hg + alive_penalty + dominoCoefficient*dominoTerm
 
                     reward.append(np.array(normal_step_rw))
                 else:
                     check_goal[drone_idx] = True  # drone_obj.reach_target = True
-                    reward.append(np.array(reach_target))
+                    normal_step_rw = crossCoefficient * cross_track_error + delta_hg
+                    # reward.append(np.array(reach_target))
+                    reward.append(np.array(normal_step_rw))
                     print("drone_{} has reached its final goal at time step {}".format(drone_idx, current_ts))
                 # if drone_obj.reach_target == False:  # original
                 #     # normal_step_rw = crossCoefficient*cross_track_error + delta_hg + alive_penalty

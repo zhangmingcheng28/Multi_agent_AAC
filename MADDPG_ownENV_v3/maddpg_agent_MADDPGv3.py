@@ -353,7 +353,8 @@ class MADDPG:
             act = self.actors[i]([sb.unsqueeze(0), sb_grid.unsqueeze(0), sb_surAgent.unsqueeze(0)]).squeeze()
             if noisy:
                 act += torch.from_numpy(np.random.randn(2) * self.var[i]).type(FloatTensor)
-                self.var[i] = self.get_scaling_factor(episode, 12000)  # self.var[i] will decrease as the episode increase
+                print("Episode {}, agent {}, noise level is {}".format(episode, i, self.var[i]))
+                self.var[i] = self.get_scaling_factor(episode, 7500)  # self.var[i] will decrease as the episode increase
 
                 # if self.episode_done > self.episodes_before_train and \
                 #         self.var[i] > 0.05:

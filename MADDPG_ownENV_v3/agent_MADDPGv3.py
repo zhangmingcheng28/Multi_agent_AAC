@@ -39,6 +39,7 @@ class Agent:
         self.surroundingNeighbor = {}
         self.observableSpace = []
         self.target_update_step = None
+        self.removed_goal = None
         self.update_count = 0
         self.reach_target = False
 
