@@ -48,10 +48,10 @@ class ActorNetwork(nn.Module):
         self.n_heads = 3
         self.single_head_dim = int((64+64+64) / self.n_heads)
 
-        self.own_fc = nn.Sequential(nn.Linear(actor_dim[0], 512), nn.ReLU())
+        self.own_fc = nn.Sequential(nn.Linear(actor_dim[0], 2048), nn.ReLU())
         # self.own_fc = nn.Sequential(nn.Linear(actor_dim, 512), nn.ReLU())
 
-        self.own_grid_fc = nn.Sequential(nn.Linear(actor_dim[1], 256), nn.ReLU())
+        self.own_grid_fc = nn.Sequential(nn.Linear(actor_dim[1], 1024), nn.ReLU())
 
         # perform a self-attention for own obs_grids, actor_obs[1], assume actor_obs = [6, 6, 6]
 
@@ -81,7 +81,7 @@ class ActorNetwork(nn.Module):
         # self.action_out_V3 = nn.Sequential(nn.Linear(64+64+64, 64), nn.ReLU(), nn.Linear(64, n_actions), nn.Tanh())
         # self.action_out_V4 = nn.Sequential(nn.Linear(64+64, 64), nn.ReLU(), nn.Linear(64, n_actions), nn.Tanh())
         # self.action_out_V5 = nn.Sequential(nn.Linear(512, 128), nn.ReLU(), nn.Linear(128, n_actions), nn.Tanh())
-        self.action_out_V5_1 = nn.Sequential(nn.Linear(512+256, 128), nn.ReLU(), nn.Linear(128, n_actions), nn.Tanh())
+        self.action_out_V5_1 = nn.Sequential(nn.Linear(2048+1024, 1024), nn.ReLU(), nn.Linear(1024, n_actions), nn.Tanh())
 
         # attention for surr_drones
         # the number here is 64 because we need to align with the output neural number of the "surr_done" NN

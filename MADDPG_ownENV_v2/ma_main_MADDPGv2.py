@@ -48,17 +48,17 @@ def main(args):
         if not os.path.exists(plot_file_name):
             os.makedirs(plot_file_name)
 
-    # wandb.login(key="efb76db851374f93228250eda60639c70a93d1ec")
-    # wandb.init(
-    #     # set the wandb project where this run will be logged
-    #     project="MADDPG_sample_newFrameWork",
-    #     name='MADDPG_test_'+str(current_date) + '_' + str(formatted_time),
-    #     # track hyperparameters and run metadata
-    #     config={
-    #         "learning_rate": args.a_lr,
-    #         "epochs": args.max_episodes,
-    #     }
-    # )
+    wandb.login(key="efb76db851374f93228250eda60639c70a93d1ec")
+    wandb.init(
+        # set the wandb project where this run will be logged
+        project="MADDPG_sample_newFrameWork",
+        name='MADDPG_test_'+str(current_date) + '_' + str(formatted_time),
+        # track hyperparameters and run metadata
+        config={
+            "learning_rate": args.a_lr,
+            "epochs": args.max_episodes,
+        }
+    )
 
     # env = make_env(args.scenario)  # original environment
 
@@ -184,13 +184,13 @@ def main(args):
                     # here onwards is end of an episode's play
                     score_history.append(accum_reward)
                     print("[Episode %05d] reward %6.4f" % (episode, accum_reward))
-                    # wandb.log({'overall_reward': float(accum_reward)})
+                    wandb.log({'overall_reward': float(accum_reward)})
                     if c_loss and a_loss:
                         for idx, val in enumerate(c_loss):
                             print(" agent %s, a_loss %3.2f c_loss %3.2f" % (
                                 idx, a_loss[idx].item(), c_loss[idx].item()))
-                            # wandb.log({'agent' + str(idx) + 'actor_loss': float(a_loss[idx].item())})
-                            # wandb.log({'agent' + str(idx) + 'critic_loss': float(c_loss[idx].item())})
+                            wandb.log({'agent' + str(idx) + 'actor_loss': float(a_loss[idx].item())})
+                            wandb.log({'agent' + str(idx) + 'critic_loss': float(c_loss[idx].item())})
                     if episode % args.save_interval == 0 and args.mode == "train":
 
                         # save the models at a predefined interval
@@ -285,7 +285,7 @@ def main(args):
                     plt.ylabel("Y axis")
                     plt.show()
                     break
-    # wandb.finish()
+    wandb.finish()
 
     # if args.tensorboard:
     #     writer.close()
