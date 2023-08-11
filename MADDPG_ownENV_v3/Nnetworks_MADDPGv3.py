@@ -171,8 +171,8 @@ class CriticNetwork(nn.Module):
         # self.combine_env_fc = nn.Sequential(nn.Linear(256+256+256, 256), nn.ReLU(), nn.Linear(256, 128), nn.ReLU(),
         #                                     nn.Linear(128, 64), nn.ReLU())
         # self.combine_env_fc = nn.Sequential(nn.Linear(256+128, 128), nn.ReLU())
-        # self.combine_env_fc = nn.Sequential(nn.Linear(128+(2*n_agents), 256), nn.ReLU())
-        self.combine_env_fc = nn.Sequential(nn.Linear(128+64, 256), nn.ReLU())
+        self.combine_env_fc = nn.Sequential(nn.Linear(128+(2*n_agents), 256), nn.ReLU())
+        # self.combine_env_fc = nn.Sequential(nn.Linear(128+64, 256), nn.ReLU())
         # self.combine_env_fc = nn.Sequential(nn.Linear(30+4, 256), nn.ReLU())
         # self.combine_env_fc = nn.Sequential(nn.Linear((n_agents*128)+(n_agents*128), 64), nn.ReLU())
 
@@ -236,11 +236,11 @@ class CriticNetwork(nn.Module):
         # # env_concat = torch.cat((sum_att, sum_grid), dim=1)
         # env_concat = torch.cat((sum_own, sum_grid), dim=1)
         combine_state = self.sum_combine_fc(state)
-        combine_action = self.sum_combine_actionFC(actor_actions)
+        # combine_action = self.sum_combine_actionFC(actor_actions)
 
         # combine_raw_SA = torch.cat((state, actor_actions), dim=1)
-        # combine_SA = torch.cat((combine_state, actor_actions), dim=1)
-        combine_SA = torch.cat((combine_state, combine_action), dim=1)
+        combine_SA = torch.cat((combine_state, actor_actions), dim=1)
+        # combine_SA = torch.cat((combine_state, combine_action), dim=1)
 
         # env_encode = self.combine_env_fc(env_concat)
         env_encode = self.combine_env_fc(combine_SA)
