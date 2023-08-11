@@ -62,7 +62,6 @@ def main(args):
         }
     )
 
-
     # -------------- create my own environment -----------------
     n_episodes, max_t, eps_start, eps_end, eps_period, eps, env, \
     agent_grid_obs, BUFFER_SIZE, BATCH_SIZE, GAMMA, TAU, learning_rate, UPDATE_EVERY, seed_used, max_xy = initialize_parameters()
@@ -137,7 +136,7 @@ def main(args):
         accum_reward = 0
         trajectory_eachPlay = []
 
-        pre_fix = r'D:\MADDPG_2nd_jp\040823_16_35_50\interval_record_eps'
+        pre_fix = r'D:\MADDPG_2nd_jp\090823_21_39_16\interval_record_eps'
         episode_to_check = str(15000)
         load_filepath_0 = pre_fix + '\episode_' + episode_to_check + '_agent_0actor_net.pth'
         load_filepath_1 = pre_fix + '\episode_' + episode_to_check + '_agent_1actor_net.pth'
@@ -147,11 +146,10 @@ def main(args):
 
         if args.mode == "eval":
             model.load_model([load_filepath_0, load_filepath_1, load_filepath_2, load_filepath_3, load_filepath_4])
-
         while True:
             if args.mode == "train":
                 step_reward_record = [None] * n_agents
-                action = model.choose_action(norm_cur_state, episode, noisy=True)
+                action = model.choose_action(norm_cur_state, episode, step, noisy=True)
                 # action = model.choose_action(cur_state, episode, noisy=True)
                 next_state, norm_next_state = env.step(action, step)
                 # reward_aft_action, done_aft_action, check_goal = env.get_step_reward(step)
@@ -382,7 +380,7 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--scenario', default="simple_spread", type=str)
-    parser.add_argument('--max_episodes', default=15000, type=int)  # rnu for a total of 60000 episodes
+    parser.add_argument('--max_episodes', default=5000, type=int)  # rnu for a total of 60000 episodes
     parser.add_argument('--algo', default="maddpg", type=str, help="commnet/bicnet/maddpg")
     parser.add_argument('--mode', default="train", type=str, help="train/eval")
     parser.add_argument('--episode_length', default=50, type=int)  # maximum play per episode

@@ -250,11 +250,11 @@ class MADDPG:
         non_final_mask = BoolTensor(list(map(lambda s: True not in s, batch.dones)))   # create a boolean tensor, that has same length as the "batch.next_states", if an element is batch.next_state is not "None" then assign a True value, False otherwise.
         non_final_next_states1_pre = [s_[0] for s_idx, s_ in enumerate(batch.next_states) if non_final_mask[s_idx]]
         non_final_next_states1_combine = torch.stack(non_final_next_states1_pre).view(len(non_final_next_states1_pre), -1)
-        non_final_next_states1 = [torch.stack([tensor[i] for tensor in non_final_next_states1_pre], dim=0) for i in range(5)]
+        non_final_next_states1 = [torch.stack([tensor[i] for tensor in non_final_next_states1_pre], dim=0) for i in range(self.n_agents)]
 
         non_final_next_states2_pre = [s_[1] for s_idx, s_ in enumerate(batch.next_states) if non_final_mask[s_idx]]
         non_final_next_states2_combine = torch.stack(non_final_next_states2_pre).view(len(non_final_next_states2_pre), -1)
-        non_final_next_states2 = [torch.stack([tensor[i] for tensor in non_final_next_states2_pre], dim=0) for i in range(5)]
+        non_final_next_states2 = [torch.stack([tensor[i] for tensor in non_final_next_states2_pre], dim=0) for i in range(self.n_agents)]
 
         non_final_next_states_both_ele = torch.stack([torch.cat((s_[0], s_[1]), dim=1) for s_idx, s_ in enumerate(batch.next_states) if non_final_mask[s_idx]])
         stacked_next_combine_agent = non_final_next_states_both_ele.view(non_final_next_states_both_ele.shape[0], -1)
@@ -334,7 +334,7 @@ class MADDPG:
 
         return c_loss, a_loss
 
-    def choose_action(self, state, episode, noisy=True):
+    def choose_action(self, state, episode, step, noisy=True):
         obs = torch.from_numpy(np.stack(state[0])).float().to(device)
         obs_grid = torch.from_numpy(np.stack(state[1])).float().to(device)
         all_obs_surAgent = []
@@ -346,6 +346,11 @@ class MADDPG:
 
         actions = torch.zeros(self.n_agents, self.n_actions)
         FloatTensor = torch.cuda.FloatTensor if self.use_cuda else torch.FloatTensor
+        # this for loop used to decrease noise level for all agents before taking any action
+        for i in range(self.n_agents):
+            if step == 0 and episode > 1:  # only decrease noise at start of the episode
+                self.var[i] = self.get_scaling_factor(episode, 2500)  # self.var[i] will decrease as the episode increase
+
         for i in range(self.n_agents):
             sb = obs[i].detach()
             sb_grid = obs_grid[i].detach()
@@ -354,11 +359,7 @@ class MADDPG:
             if noisy:
                 act += torch.from_numpy(np.random.randn(2) * self.var[i]).type(FloatTensor)
                 print("Episode {}, agent {}, noise level is {}".format(episode, i, self.var[i]))
-                self.var[i] = self.get_scaling_factor(episode, 7500)  # self.var[i] will decrease as the episode increase
 
-                # if self.episode_done > self.episodes_before_train and \
-                #         self.var[i] > 0.05:
-                #     self.var[i] *= 0.999998
             act = torch.clamp(act, -1.0, 1.0)
 
             actions[i, :] = act
