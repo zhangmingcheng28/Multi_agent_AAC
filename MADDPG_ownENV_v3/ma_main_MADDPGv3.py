@@ -136,8 +136,8 @@ def main(args):
         accum_reward = 0
         trajectory_eachPlay = []
 
-        pre_fix = r'D:\MADDPG_2nd_jp\110823_11_05_15\interval_record_eps'
-        episode_to_check = str(2000)
+        pre_fix = r'D:\MADDPG_2nd_jp\120823_17_23_13\interval_record_eps'
+        episode_to_check = str(5000)
         load_filepath_0 = pre_fix + '\episode_' + episode_to_check + '_agent_0actor_net.pth'
         load_filepath_1 = pre_fix + '\episode_' + episode_to_check + '_agent_1actor_net.pth'
         # load_filepath_2 = pre_fix + '\episode_' + episode_to_check + '_agent_2actor_net.pth'
@@ -372,7 +372,7 @@ def main(args):
                     plt.ylabel("Y axis")
                     plt.show()
                     break
-    # wandb.finish()
+    wandb.finish()
 
     # if args.tensorboard:
     #     writer.close()

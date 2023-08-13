@@ -845,7 +845,7 @@ class env_simulator:
                 small_step_penalty = 50
             else:
                 small_step_penalty = 0
-            alive_penalty = -50
+            alive_penalty = -60
             # -------------end of pre-processed condition for a normal step -----------------
 
             # exceed bound or crash into buildings or crash with other neighbors
