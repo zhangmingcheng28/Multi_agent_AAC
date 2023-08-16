@@ -726,7 +726,7 @@ class env_simulator:
         check_goal = [False] * len(self.all_agents)
         # crash_penalty = -200
         crash_penalty = -700
-        reach_target = 500
+        reach_target = 200
         potential_conflict_count = 0
         final_goal_toadd = 0
         fixed_domino_reward = 1
@@ -820,7 +820,7 @@ class env_simulator:
 
             # ------------- pre-processed condition for a normal step -----------------
             # crossCoefficient = 0.1
-            crossCoefficient = 3
+            crossCoefficient = 1
             # goalCoefficient = 6
             goalCoefficient = 8
             dominoCoefficient = 10
@@ -878,9 +878,9 @@ class env_simulator:
                     reward.append(np.array(normal_step_rw))
                 else:
                     check_goal[drone_idx] = True  # drone_obj.reach_target = True
-                    normal_step_rw = crossCoefficient * cross_track_error + delta_hg
-                    # reward.append(np.array(reach_target))
-                    reward.append(np.array(normal_step_rw))
+                    # normal_step_rw = crossCoefficient * cross_track_error + delta_hg
+                    reward.append(np.array(reach_target))
+                    # reward.append(np.array(normal_step_rw))
                     print("drone_{} has reached its final goal at time step {}".format(drone_idx, current_ts))
                 # if drone_obj.reach_target == False:  # original
                 #     # normal_step_rw = crossCoefficient*cross_track_error + delta_hg + alive_penalty
@@ -936,7 +936,7 @@ class env_simulator:
         #     print("debug")
         if len(reward) != len(self.all_agents):
             print("debug! we have more than reward element that is more compared to existing agents")
-        shared_reward = np.array(sum(reward), dtype=float)
+        shared_reward = np.array(sum(reward), dtype=float) / len(self.all_agents)
         reward = [shared_reward] * len(self.all_agents)
         return reward, done, check_goal, step_reward_record
 
