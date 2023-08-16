@@ -741,7 +741,7 @@ class env_simulator:
             # condition is reset for each agent at every time step
             collision_drones = []
             collide_building = 0
-            pc_before, pc_after = [], []
+            pc_before, pc_after = {}, {}  # use list to hold, possible to have the same drone cause potential conflict to many other drones
             dist_toHost = []
             # we assume the maximum potential conflict the current drone could have at each time step is equals
             # to the total number of its neighbour at each time step
@@ -783,9 +783,11 @@ class env_simulator:
                 neigh_pass_line = LineString([self.all_agents[neigh_keys].pre_pos, self.all_agents[neigh_keys].pos])
                 neigh_passed_volume = neigh_pass_line.buffer(self.all_agents[neigh_keys].protectiveBound,
                                                              cap_style='round')
-                # if host_passed_volume.intersects(neigh_passed_volume):
-                #     print("drone_{} collide with drone_{} at time step {}".format(drone_idx, neigh_keys, current_ts))
-                #     collision_drones.append(neigh_keys)
+                if host_passed_volume.intersects(neigh_passed_volume):
+                    print("drone_{} collide with drone_{} at time step {}".format(drone_idx, neigh_keys, current_ts))
+                    collision_drones.append(neigh_keys)
+
+
 
             # if pc_max_after == 0:  # upper bound in terms of value case for dominoTerm
             #     dominoTerm = fixed_domino_reward
@@ -817,6 +819,39 @@ class env_simulator:
             # when there is no intersection between two geometries, "RuntimeWarning" will appear
             # RuntimeWarning is, "invalid value encountered in intersection"
             goal_cur_intru_intersect = host_passed_volume.intersection(tar_circle)
+
+            # if len(pc_after) > 0:
+            #     print("debug")
+            #     matplotlib.use('TkAgg')
+            #     plt.ion()
+            #     # Create figure and axis objects
+            #     fig, ax = plt.subplots()
+            #     ax.set_xlim(self.bound[0], self.bound[1])  # Set x-axis limits from 0 to 5
+            #     ax.set_ylim(self.bound[2], self.bound[3])  # Set y-axis limits from 0 to 5
+            #     for one_poly in self.world_map_2D_polyList[0][0]:
+            #         one_poly_mat = shapelypoly_to_matpoly(one_poly, True, 'y', 'b')
+            #         ax.add_patch(one_poly_mat)
+            #     # plot current host drone
+            #     ax.text(drone_obj.pos[0], drone_obj.pos[1], drone_obj.agent_name)
+            #     self_circle = Point(drone_obj.pos[0],
+            #                         drone_obj.pos[1]).buffer(drone_obj.protectiveBound, cap_style='round')
+            #     ax.arrow(drone_obj.pre_pos[0], drone_obj.pre_pos[1], drone_obj.pos[0]-drone_obj.pre_pos[0], drone_obj.pos[1]-drone_obj.pre_pos[1], head_width=0.05, head_length=0.1, fc='r', ec='k')
+            #     grid_mat_Scir = shapelypoly_to_matpoly(self_circle, inFill=False, Edgecolor='r')
+            #
+            #     ax.add_patch(grid_mat_Scir)
+            #     # for drones that are possible having conflict
+            #     for neigh_key in pc_after.keys():
+            #         ax.text(self.all_agents[neigh_key].pos[0], self.all_agents[neigh_key].pos[1],
+            #                 self.all_agents[neigh_key].agent_name)
+            #         possible_conflict_circle = Point(self.all_agents[neigh_key].pos[0],
+            #                                          self.all_agents[neigh_key].pos[1]).buffer(
+            #             self.all_agents[neigh_key].protectiveBound, cap_style='round')
+            #         ax.arrow(self.all_agents[neigh_key].pre_pos[0], self.all_agents[neigh_key].pre_pos[1], self.all_agents[neigh_key].pos[0]-self.all_agents[neigh_key].pre_pos[0], self.all_agents[neigh_key].pos[1]-self.all_agents[neigh_key].pre_pos[1],
+            #                  head_width=0.05, head_length=0.1, fc='k', ec='k')
+            #         grid_mat_Scir = shapelypoly_to_matpoly(possible_conflict_circle, inFill=False, Edgecolor='k')
+            #         ax.add_patch(grid_mat_Scir)
+            #     plt.show()
+            #     print("done show")
 
             # ------------- pre-processed condition for a normal step -----------------
             # crossCoefficient = 0.1
@@ -853,9 +888,9 @@ class env_simulator:
                 reward.append(np.array(crash_penalty))
                 done.append(True)
                 # done.append(False)
-            # elif len(collision_drones) > 0:
-            #     reward.append(np.array(crash_penalty))
-            #     done.append(True)
+            elif len(collision_drones) > 0:
+                reward.append(np.array(crash_penalty))
+                done.append(True)
 
             # exceed bound condition, don't use current point, use current circle or else will have condition that
             elif x_left_bound.intersects(host_passed_volume) or x_right_bound.intersects(host_passed_volume) or y_bottom_bound.intersects(host_passed_volume) or y_top_bound.intersects(host_passed_volume):
@@ -871,9 +906,9 @@ class env_simulator:
                     drone_obj.reach_target = False  # reset this flag
                     drone_obj.removed_goal = drone_obj.goal.pop(0)
                     # normal_step_rw = crossCoefficient*cross_track_error + slowChanging_dist_penalty_others + alive_penalty
-                    normal_step_rw = crossCoefficient * cross_track_error + delta_hg + alive_penalty
+                    # normal_step_rw = crossCoefficient * cross_track_error + delta_hg + alive_penalty
                     # normal_step_rw = crossCoefficient*cross_track_error + delta_hg + alive_penalty + slowChanging_dist_penalty_others
-                    # normal_step_rw = crossCoefficient*cross_track_error + delta_hg + alive_penalty + dominoCoefficient*dominoTerm
+                    normal_step_rw = crossCoefficient*cross_track_error + delta_hg + alive_penalty + dominoCoefficient*dominoTerm
 
                     reward.append(np.array(normal_step_rw))
                 else:
@@ -904,12 +939,10 @@ class env_simulator:
                 else:
                     done.append(False)
             else:  # a normal step taken
-
-
                 # step_reward = crossCoefficient*cross_track_error + delta_hg + alive_penalty + final_goal_toadd  # have the final one-time reaching reward
                 # step_reward =crossCoefficient*cross_track_error + dominoCoefficient*dominoTerm + delta_hg + alive_penalty + final_goal_toadd  # have the final one-time reaching reward
-                # step_reward =crossCoefficient*cross_track_error + dominoCoefficient*dominoTerm + delta_hg + alive_penalty
-                step_reward =crossCoefficient*cross_track_error + delta_hg + alive_penalty
+                step_reward =crossCoefficient*cross_track_error + dominoCoefficient*dominoTerm + delta_hg + alive_penalty
+                # step_reward =crossCoefficient*cross_track_error + delta_hg + alive_penalty
                 # step_reward =crossCoefficient*cross_track_error + delta_hg + alive_penalty + slowChanging_dist_penalty_others
                 # step_reward =crossCoefficient*cross_track_error + delta_hg + alive_penalty + dominoCoefficient*dominoTerm
                 # step_reward =crossCoefficient*cross_track_error + slowChanging_dist_penalty_others + alive_penalty
@@ -927,8 +960,8 @@ class env_simulator:
                 reward.append(step_reward)
 
                 # for debug, record the reward
-                one_step_reward = [crossCoefficient*cross_track_error, delta_hg, alive_penalty]
-                # one_step_reward = [crossCoefficient*cross_track_error, delta_hg, alive_penalty, dominoCoefficient*dominoTerm]
+                # one_step_reward = [crossCoefficient*cross_track_error, delta_hg, alive_penalty]
+                one_step_reward = [crossCoefficient*cross_track_error, delta_hg, alive_penalty, dominoCoefficient*dominoTerm]
                 # one_step_reward = [crossCoefficient*cross_track_error, slowChanging_dist_penalty_others, alive_penalty]
                 step_reward_record[drone_idx] = one_step_reward
 
@@ -974,9 +1007,9 @@ class env_simulator:
             # check velocity limit
             curVelx = self.all_agents[drone_idx].vel[0] + ax * self.time_step
             curVely = self.all_agents[drone_idx].vel[1] + ay * self.time_step
-
+            next_heading = math.atan2(curVely, curVelx)
             if np.linalg.norm([curVelx, curVely]) >= self.all_agents[drone_idx].maxSpeed:
-                next_heading = math.atan2(curVely, curVelx)
+
                 # update host velocity when chosen speed has exceeded the max speed
                 hvx = self.all_agents[drone_idx].maxSpeed * math.cos(next_heading)
                 hvy = self.all_agents[drone_idx].maxSpeed * math.sin(next_heading)
@@ -990,6 +1023,10 @@ class env_simulator:
             # update the drone's position based on the update velocities
             delta_x = self.all_agents[drone_idx].vel[0] * self.time_step
             delta_y = self.all_agents[drone_idx].vel[1] * self.time_step
+
+            counterCheck_heading = math.atan2(delta_y, delta_x)
+            if abs(next_heading - counterCheck_heading) > 1e-3 :
+                print("debug, heading different")
             # ------------- end of acceleration in x and acceleration in y state transition control ---------------#
 
             # # ------------------ for default evaluation ---------------------
