@@ -22,3 +22,7 @@
 /MADDPG_ownENV_v2_trafficflow/wandb/
 /MADDPG_ownENV_v4/wandb/
 /MADDPG_ownENV_v4_25Drone/wandb/
+*.pyc
+*.pyc
+MADDPG_ownENV_v3/__pycache__/Utilities_own_MADDPGv3.cpython-39.pyc
+*.pyc
