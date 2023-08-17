@@ -12,32 +12,40 @@ import matplotlib.pyplot as plt
 import matplotlib
 
 matplotlib.use('TkAgg')
-pre_fix = r'D:\MADDPG_2nd_jp\260723_12_38_27\toplot'
+pre_fix = r'D:\MADDPG_2nd_jp\160823_21_41_02\toplot'
 file_path = pre_fix + r'\all_episode_reward.pickle'
 with open(file_path, 'rb') as handle:
     combine_reward = pickle.load(handle)
 
-# 1st term is cross-track error term
-# 2nd term is goal term
-# 3rd term is the ailve penalty
-CT_term = []
-g_term = []
-alive_term = []
+seperated_reward = [[] for _ in combine_reward[0][0][0]]
+# First_term = []
+# Second_term = []
+# Third_term = []
+sum_reward_last_agent = []
 for per_ep_r in combine_reward:
     for per_step_r in per_ep_r:
         for per_agent_r in per_step_r:
             if per_agent_r is None:
                 # print("None is found in a step of episode, skip it")
+                # we are only saving the step reward, other term like goal reaching or crashing is not recorded here
                 continue
-            CT_term.append(per_agent_r[0])
-            g_term.append(per_agent_r[1])
-            alive_term.append(per_agent_r[2])
+            for individual_list_idx in range(len(seperated_reward)):
+                seperated_reward[individual_list_idx].append(per_agent_r[individual_list_idx])
+            sum_reward_last_agent.append(sum(per_agent_r))
+            # seperated_reward[0].append()
+            # seperated_reward[0].append()
+            # seperated_reward[0].append()
+            # seperated_reward[0].append()
+            # CT_term.append(per_agent_r[0])
+            # g_term.append(per_agent_r[1])
+            # alive_term.append(per_agent_r[2])
 os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
 fig, ax = plt.subplots(1, 1)
 
-# plot1 = plt.plot(CT_term, linestyle='-', label='cross-track-term')
+plot1 = plt.plot(seperated_reward[3], linestyle='-', label='goal_term')
+# plot1 = plt.plot(sum_reward_last_agent, linestyle='-', label='overall')
 # plot2 = plt.plot(g_term, linestyle='--', label='goal-term')
-plot3 = plt.plot(alive_term, linestyle='-.', label='alive-term')
+# plot3 = plt.plot(seperated_reward[0], linestyle='-.', label='alive-term')
 
 plt.grid()
 plt.xlabel("X axis")
