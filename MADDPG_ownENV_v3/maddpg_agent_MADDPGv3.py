@@ -43,7 +43,8 @@ class MADDPG:
         self.critics = [CriticNetwork(critic_dim, n_agents, dim_act) for _ in range(n_agents)]
 
         self.n_agents = n_agents
-        self.n_states = actor_dim
+        self.n_actor_dim = actor_dim
+        self.n_critic_dim = critic_dim
         self.n_actions = dim_act
 
         self.actors_target = deepcopy(self.actors)
@@ -226,9 +227,9 @@ class MADDPG:
         reward_batch = torch.stack(batch.rewards).type(FloatTensor)
 
         # stack tensors only once
-        stacked_elem_0 = torch.stack([elem[0] for elem in batch.states])
-        stacked_elem_1 = torch.stack([elem[1] for elem in batch.states])
-        stacked_both_elem = torch.stack([torch.cat((elem[0], elem[1]), dim=1) for elem in batch.states])  # bs x agentNo x (6+9)
+        stacked_elem_0 = torch.stack([elem[0] for elem in batch.states]).to(device)
+        stacked_elem_1 = torch.stack([elem[1] for elem in batch.states]).to(device)
+        stacked_both_elem = torch.stack([torch.cat((elem[0], elem[1]), dim=1) for elem in batch.states]).to(device)  # bs x agentNo x (6+9)
         stacked_combine_agent = stacked_both_elem.view(self.batch_size, -1)  # bs x (agentNo x (6+9))
         stacked_elem_0_combine = stacked_elem_0.view(self.batch_size, -1)
         stacked_elem_1_combine = stacked_elem_1.view(self.batch_size, -1)
@@ -242,19 +243,19 @@ class MADDPG:
         for i in range(self.n_agents):
             all_batch_one_agent = []
             for batch_idx, every_agent in enumerate(state_tuple3):
-                each_agent_sur_agent = torch.zeros((5 - 1, 6))  # 5 is the maximum agent in the environment
+                each_agent_sur_agent = torch.zeros((self.n_agents - 1, self.n_actor_dim[2]))  # 5 is the maximum agent in the environment
                 each_agent_sur_agent[-len(every_agent[i]):, :] = every_agent[i]
                 all_batch_one_agent.append(each_agent_sur_agent)
-            cur_state_list3.append(torch.stack(all_batch_one_agent))
+            cur_state_list3.append(torch.stack(all_batch_one_agent).to(device))
 
         non_final_mask = BoolTensor(list(map(lambda s: True not in s, batch.dones)))   # create a boolean tensor, that has same length as the "batch.next_states", if an element is batch.next_state is not "None" then assign a True value, False otherwise.
         non_final_next_states1_pre = [s_[0] for s_idx, s_ in enumerate(batch.next_states) if non_final_mask[s_idx]]
         non_final_next_states1_combine = torch.stack(non_final_next_states1_pre).view(len(non_final_next_states1_pre), -1)
-        non_final_next_states1 = [torch.stack([tensor[i] for tensor in non_final_next_states1_pre], dim=0) for i in range(self.n_agents)]
+        non_final_next_states1 = [torch.stack([tensor[i] for tensor in non_final_next_states1_pre], dim=0).to(device) for i in range(self.n_agents)]
 
         non_final_next_states2_pre = [s_[1] for s_idx, s_ in enumerate(batch.next_states) if non_final_mask[s_idx]]
         non_final_next_states2_combine = torch.stack(non_final_next_states2_pre).view(len(non_final_next_states2_pre), -1)
-        non_final_next_states2 = [torch.stack([tensor[i] for tensor in non_final_next_states2_pre], dim=0) for i in range(self.n_agents)]
+        non_final_next_states2 = [torch.stack([tensor[i] for tensor in non_final_next_states2_pre], dim=0).to(device) for i in range(self.n_agents)]
 
         non_final_next_states_both_ele = torch.stack([torch.cat((s_[0], s_[1]), dim=1) for s_idx, s_ in enumerate(batch.next_states) if non_final_mask[s_idx]])
         stacked_next_combine_agent = non_final_next_states_both_ele.view(non_final_next_states_both_ele.shape[0], -1)
@@ -267,7 +268,7 @@ class MADDPG:
                 each_agent_sur_agent = torch.zeros((5 - 1, 6))  # 5 is the maximum agent in the environment
                 each_agent_sur_agent[-len(every_agent[i]):, :] = every_agent[i]
                 all_batch_one_agent.append(each_agent_sur_agent)
-            non_final_next_states3.append(torch.stack(all_batch_one_agent))
+            non_final_next_states3.append(torch.stack(all_batch_one_agent).to(device))
 
         for agent in range(self.n_agents):
             # --------- original---------
@@ -340,7 +341,7 @@ class MADDPG:
         all_obs_surAgent = []
         for each_agent_sur in state[2]:
             each_obs_surAgent = np.squeeze(np.array(each_agent_sur), axis=1)
-            all_obs_surAgent.append(torch.from_numpy(each_obs_surAgent).float())
+            all_obs_surAgent.append(torch.from_numpy(each_obs_surAgent).float().to(device))
 
         # obs_surAgent = torch.from_numpy(np.stack(state[2])).float().to(device)
 
