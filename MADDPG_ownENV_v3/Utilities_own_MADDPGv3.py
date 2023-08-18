@@ -68,13 +68,15 @@ def compute_potential_conflict(pc_list, cur_drone_pos, cur_drone_vel, cur_drone_
     t_cpa_before = np.dot(minus_rel_dist_before, rel_vel_before) / rel_vel_SQnorm_before
     d_cpa_before = np.linalg.norm(((cur_drone_pos - cur_neigh_pos) + (rel_vel_before * t_cpa_before)))
     # time to potential conflict, t_cpa is the actual time in sec, so, if t_cap=3, meaning in order to reach d_cap, the decision making agent need to take 6 steps. Currently our
-    if (t_cpa_before >= 0) and (t_cpa_before <= 1.5) and (d_cpa_before < (cur_drone_protRad + cur_neigh_protRad)):
-        # pc_list.append(cur_neigh_idx)
-        pc_list[cur_neigh_idx] = [t_cpa_before, d_cpa_before]
+    # if (t_cpa_before >= 0) and (t_cpa_before <= 1.5) and (d_cpa_before < (cur_drone_protRad + cur_neigh_protRad)):
+    #     # pc_list.append(cur_neigh_idx)
+    #     pc_list[cur_neigh_idx] = [t_cpa_before, d_cpa_before]
         # double check
         # host_future_pos = cur_drone_pos + (t_cpa_before*cur_drone_vel)
         # intru_future_pos = cur_neigh_pos + (t_cpa_before*cur_neigh_vel)
         # doubleCheck_dcpa = np.linalg.norm((host_future_pos-intru_future_pos))
+    if (t_cpa_before >= 0):
+        pc_list[cur_neigh_idx] = [t_cpa_before, d_cpa_before]
     return pc_list
 
 

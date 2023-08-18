@@ -801,10 +801,16 @@ class env_simulator:
             #     dominoTerm = ((len(pc_before)/pc_max_before) -
             #                   (len(pc_after)/pc_max_after)) / (len(pc_after)/pc_max_after)
 
-            if len(pc_after) == 0:
-                dominoTerm = fixed_domino_reward
-            else:
-                dominoTerm = (len(pc_before) - len(pc_after)) / len(pc_after)
+            # if len(pc_after) == 0:
+            #     dominoTerm = fixed_domino_reward
+            # else:
+            #     dominoTerm = (len(pc_before) - len(pc_after)) / len(pc_after)
+            dominoTerm = []  # reset for every new decision making drone
+            for neigh_keys, td_cpa in pc_after.items():
+                dominoValue = ((2*drone_obj.protectiveBound)/math.exp(td_cpa[1])) * (math.exp(-td_cpa[0]))
+                dominoTerm.append(dominoValue)
+            dominoTerm_sum = sum(dominoTerm)
+
 
             # check whether current actions leads to a collision with any buildings in the airspace
             allBuildingSTR = STRtree(self.world_map_2D_polyList[0][0])
@@ -908,7 +914,8 @@ class env_simulator:
                     # normal_step_rw = crossCoefficient*cross_track_error + slowChanging_dist_penalty_others + alive_penalty
                     # normal_step_rw = crossCoefficient * cross_track_error + delta_hg + alive_penalty
                     # normal_step_rw = crossCoefficient*cross_track_error + delta_hg + alive_penalty + slowChanging_dist_penalty_others
-                    normal_step_rw = crossCoefficient*cross_track_error + delta_hg + alive_penalty + dominoCoefficient*dominoTerm
+                    # normal_step_rw = crossCoefficient*cross_track_error + delta_hg + alive_penalty + dominoCoefficient*dominoTerm
+                    normal_step_rw = crossCoefficient*cross_track_error + delta_hg + alive_penalty + dominoCoefficient*dominoTerm_sum
 
                     reward.append(np.array(normal_step_rw))
                 else:
@@ -941,7 +948,8 @@ class env_simulator:
             else:  # a normal step taken
                 # step_reward = crossCoefficient*cross_track_error + delta_hg + alive_penalty + final_goal_toadd  # have the final one-time reaching reward
                 # step_reward =crossCoefficient*cross_track_error + dominoCoefficient*dominoTerm + delta_hg + alive_penalty + final_goal_toadd  # have the final one-time reaching reward
-                step_reward =crossCoefficient*cross_track_error + dominoCoefficient*dominoTerm + delta_hg + alive_penalty
+                # step_reward =crossCoefficient*cross_track_error + dominoCoefficient*dominoTerm + delta_hg + alive_penalty
+                step_reward =crossCoefficient*cross_track_error + dominoCoefficient*dominoTerm_sum + delta_hg + alive_penalty
                 # step_reward =crossCoefficient*cross_track_error + delta_hg + alive_penalty
                 # step_reward =crossCoefficient*cross_track_error + delta_hg + alive_penalty + slowChanging_dist_penalty_others
                 # step_reward =crossCoefficient*cross_track_error + delta_hg + alive_penalty + dominoCoefficient*dominoTerm
@@ -961,7 +969,8 @@ class env_simulator:
 
                 # for debug, record the reward
                 # one_step_reward = [crossCoefficient*cross_track_error, delta_hg, alive_penalty]
-                one_step_reward = [crossCoefficient*cross_track_error, delta_hg, alive_penalty, dominoCoefficient*dominoTerm]
+                # one_step_reward = [crossCoefficient*cross_track_error, delta_hg, alive_penalty, dominoCoefficient*dominoTerm]
+                one_step_reward = [crossCoefficient*cross_track_error, delta_hg, alive_penalty, dominoCoefficient*dominoTerm_sum]
                 # one_step_reward = [crossCoefficient*cross_track_error, slowChanging_dist_penalty_others, alive_penalty]
                 step_reward_record[drone_idx] = one_step_reward
 

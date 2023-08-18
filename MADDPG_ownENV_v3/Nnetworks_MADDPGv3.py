@@ -48,9 +48,9 @@ class ActorNetwork(nn.Module):
         self.n_heads = 3
         self.single_head_dim = int((64+64+64) / self.n_heads)
 
-        self.own_fc = nn.Sequential(nn.Linear(actor_dim[0], 256), nn.ReLU())
-        self.intrude_fc = nn.Sequential(nn.Linear(6, 256), nn.ReLU())
-        self.own_grid_fc = nn.Sequential(nn.Linear(actor_dim[1], 256), nn.ReLU())
+        self.own_fc = nn.Sequential(nn.Linear(actor_dim[0], 128), nn.ReLU())
+        self.intrude_fc = nn.Sequential(nn.Linear(6, 128), nn.ReLU())
+        self.own_grid_fc = nn.Sequential(nn.Linear(actor_dim[1], 128), nn.ReLU())
 
         # perform a self-attention for own obs_grids, actor_obs[1], assume actor_obs = [6, 6, 6]
 
@@ -80,15 +80,15 @@ class ActorNetwork(nn.Module):
         # self.action_out_V3 = nn.Sequential(nn.Linear(64+64+64, 64), nn.ReLU(), nn.Linear(64, n_actions), nn.Tanh())
         # self.action_out_V4 = nn.Sequential(nn.Linear(64+64, 64), nn.ReLU(), nn.Linear(64, n_actions), nn.Tanh())
         # self.action_out_V5 = nn.Sequential(nn.Linear(512, 128), nn.ReLU(), nn.Linear(128, n_actions), nn.Tanh())
-        # self.action_out_V5_1 = nn.Sequential(nn.Linear(128+128+128, 128), nn.ReLU(), nn.Linear(128, n_actions), nn.Tanh())
-        self.action_out_V5_1 = nn.Sequential(nn.Linear(256+256+256, 256), nn.ReLU(), nn.Linear(256, n_actions), nn.Tanh())
+        self.action_out_V5_1 = nn.Sequential(nn.Linear(128+128+128, 128), nn.ReLU(), nn.Linear(128, n_actions), nn.Tanh())
+        # self.action_out_V5_1 = nn.Sequential(nn.Linear(256+256+256, 256), nn.ReLU(), nn.Linear(256, n_actions), nn.Tanh())
         # self.action_out_V5_2 = nn.Sequential(nn.Linear(128+128+128, 512), nn.ReLU(), nn.Linear(512, 512), nn.ReLU(),
         #                                      nn.Linear(512, n_actions), nn.Tanh())
 
         # attention for NN
-        self.k = nn.Linear(256, 256, bias=False)
-        self.q = nn.Linear(256, 256, bias=False)
-        self.v = nn.Linear(256, 256, bias=False)
+        self.k = nn.Linear(128, 128, bias=False)
+        self.q = nn.Linear(128, 128, bias=False)
+        self.v = nn.Linear(128, 128, bias=False)
 
         # self.name = name
 

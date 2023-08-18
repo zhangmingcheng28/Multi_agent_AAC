@@ -350,7 +350,7 @@ class MADDPG:
         # this for loop used to decrease noise level for all agents before taking any action
         for i in range(self.n_agents):
             if step == 0 and episode > 1:  # only decrease noise at start of the episode
-                self.var[i] = self.get_scaling_factor(episode, 2500)  # self.var[i] will decrease as the episode increase
+                self.var[i] = self.get_scaling_factor(episode, 3500)  # self.var[i] will decrease as the episode increase
 
         for i in range(self.n_agents):
             sb = obs[i].detach()
