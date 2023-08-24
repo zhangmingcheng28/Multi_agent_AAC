@@ -306,6 +306,7 @@ class MADDPG:
             loss_Q = nn.MSELoss()(current_Q, target_Q.detach())
             self.critic_optimizer[agent].zero_grad()
             loss_Q.backward(retain_graph=True)
+
             # torch.nn.utils.clip_grad_norm_(self.critics[agent].parameters(), 1)
             self.has_gradients(self.critics[agent], wandb)  # Replace with your actor network variable
 
@@ -321,6 +322,7 @@ class MADDPG:
             actor_loss = -self.critics[agent](whole_state, whole_action_action_replaced).mean()
             self.actor_optimizer[agent].zero_grad()
             actor_loss.backward()
+
             self.has_gradients(self.actors[agent], wandb)  # Replace with your actor network variable
             # torch.nn.utils.clip_grad_norm_(self.actors[agent].parameters(), 1)
             self.actor_optimizer[agent].step()
@@ -347,7 +349,7 @@ class MADDPG:
             if param.grad is None:
                 print(f"No gradient for {name}")
             else:
-                print(f"Gradient for {name} is {param.grad.norm()}")
+                # print(f"Gradient for {name} is {param.grad.norm()}")
                 wandb.log({name: float(param.grad.norm())})
 
     def choose_action(self, state, episode, step, noisy=True):
@@ -365,7 +367,7 @@ class MADDPG:
         # this for loop used to decrease noise level for all agents before taking any action
         for i in range(self.n_agents):
             if step == 0 and episode > 1:  # only decrease noise at start of the episode
-                self.var[i] = self.get_scaling_factor(episode, 1750)  # self.var[i] will decrease as the episode increase
+                self.var[i] = self.get_scaling_factor(episode, 2000)  # self.var[i] will decrease as the episode increase
 
         for i in range(self.n_agents):
             # sb = obs[i].detach()
@@ -378,7 +380,7 @@ class MADDPG:
             act = self.actors[i]([sb.unsqueeze(0)]).squeeze()
             if noisy:
                 act += torch.from_numpy(np.random.randn(2) * self.var[i]).type(FloatTensor)
-                print("Episode {}, agent {}, noise level is {}".format(episode, i, self.var[i]))
+                # print("Episode {}, agent {}, noise level is {}".format(episode, i, self.var[i]))
 
             act = torch.clamp(act, -1.0, 1.0)
 

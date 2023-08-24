@@ -136,8 +136,8 @@ def main(args):
         accum_reward = 0
         trajectory_eachPlay = []
 
-        pre_fix = r'D:\MADDPG_2nd_jp\220823_21_48_06\interval_record_eps'
-        episode_to_check = str(4000)
+        pre_fix = r'D:\MADDPG_2nd_jp\240823_10_29_00\interval_record_eps'
+        episode_to_check = str(3000)
         load_filepath_0 = pre_fix + '\episode_' + episode_to_check + '_agent_0actor_net.pth'
         load_filepath_1 = pre_fix + '\episode_' + episode_to_check + '_agent_1actor_net.pth'
         # load_filepath_2 = pre_fix + '\episode_' + episode_to_check + '_agent_2actor_net.pth'
@@ -212,8 +212,7 @@ def main(args):
                     wandb.log({'overall_reward': float(accum_reward)})
                     if c_loss and a_loss:
                         for idx, val in enumerate(c_loss):
-                            print(" agent %s, a_loss %3.2f c_loss %3.2f" % (
-                                idx, a_loss[idx].item(), c_loss[idx].item()))
+                            # print(" agent %s, a_loss %3.2f c_loss %3.2f" % (idx, a_loss[idx].item(), c_loss[idx].item()))
                             wandb.log({'agent' + str(idx) + 'actor_loss': float(a_loss[idx].item())})
                             wandb.log({'agent' + str(idx) + 'critic_loss': float(c_loss[idx].item())})
                     if episode % args.save_interval == 0 and args.mode == "train":
@@ -381,7 +380,7 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--scenario', default="simple_spread", type=str)
-    parser.add_argument('--max_episodes', default=3500, type=int)  # run for a total of 60000 episodes
+    parser.add_argument('--max_episodes', default=4000, type=int)  # run for a total of 60000 episodes
     parser.add_argument('--algo', default="maddpg", type=str, help="commnet/bicnet/maddpg")
     parser.add_argument('--mode', default="train", type=str, help="train/eval")
     parser.add_argument('--episode_length', default=30, type=int)  # maximum play per episode
