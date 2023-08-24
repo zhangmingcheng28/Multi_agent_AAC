@@ -202,7 +202,7 @@ class MADDPG:
 
         return c_loss, a_loss
 
-    def update_myown(self, i_episode, total_step_count, UPDATE_EVERY):
+    def update_myown(self, i_episode, total_step_count, UPDATE_EVERY, wandb=None):
         self.train_num = i_episode
 
         # ------------ original -------------
@@ -257,7 +257,8 @@ class MADDPG:
         non_final_next_states2_combine = torch.stack(non_final_next_states2_pre).view(len(non_final_next_states2_pre), -1)
         non_final_next_states2 = [torch.stack([tensor[i] for tensor in non_final_next_states2_pre], dim=0).to(device) for i in range(self.n_agents)]
 
-        non_final_next_states_both_ele = torch.stack([torch.cat((s_[0], s_[1]), dim=1) for s_idx, s_ in enumerate(batch.next_states) if non_final_mask[s_idx]])
+        # non_final_next_states_both_ele = torch.stack([torch.cat((s_[0], s_[1]), dim=1) for s_idx, s_ in enumerate(batch.next_states) if non_final_mask[s_idx]])
+        non_final_next_states_both_ele = torch.stack([s_[0] for s_idx, s_ in enumerate(batch.next_states) if non_final_mask[s_idx]])
         stacked_next_combine_agent = non_final_next_states_both_ele.view(non_final_next_states_both_ele.shape[0], -1)
 
         next_state_list3 = [x_[2] for x_idx, x_ in enumerate(batch.next_states) if non_final_mask[x_idx]]
@@ -276,7 +277,8 @@ class MADDPG:
 
             # whole_state = [cur_state_list1, cur_state_list2, cur_state_list3]  # follow CriticNetwork_0724
             # whole_state = [stacked_elem_0_combine, stacked_elem_1_combine]
-            whole_state = stacked_combine_agent
+            # whole_state = stacked_combine_agent
+            whole_state = stacked_elem_0_combine
 
             non_final_next_states_actorin = [non_final_next_states1, non_final_next_states2, non_final_next_states3]
             # non_final_next_states_criticin = [non_final_next_states1_combine, non_final_next_states2_combine]
@@ -286,7 +288,8 @@ class MADDPG:
 
             whole_action = action_batch.view(self.batch_size, -1)
 
-            non_final_next_actions = [self.actors_target[i]([non_final_next_states_actorin[0][i], non_final_next_states_actorin[1][i], non_final_next_states_actorin[2][i]]) for i in range(self.n_agents)]  # non_final_next_states[:, i,:]
+            # non_final_next_actions = [self.actors_target[i]([non_final_next_states_actorin[0][i], non_final_next_states_actorin[1][i], non_final_next_states_actorin[2][i]]) for i in range(self.n_agents)]  # non_final_next_states[:, i,:]
+            non_final_next_actions = [self.actors_target[i]([non_final_next_states_actorin[0][i]]) for i in range(self.n_agents)]  # non_final_next_states[:, i,:]
 
             non_final_next_actions = torch.stack(non_final_next_actions)
             non_final_next_actions = (non_final_next_actions.transpose(0, 1).contiguous())  # using () at outer most will leads to creation of a new tensor, (batch_size X agentNo X action_dim)
@@ -304,9 +307,12 @@ class MADDPG:
             self.critic_optimizer[agent].zero_grad()
             loss_Q.backward(retain_graph=True)
             # torch.nn.utils.clip_grad_norm_(self.critics[agent].parameters(), 1)
+            self.has_gradients(self.critics[agent], wandb)  # Replace with your actor network variable
+
             self.critic_optimizer[agent].step()
 
-            action_i = self.actors[agent]([cur_state_list1[agent], cur_state_list2[agent], cur_state_list3[agent]])
+            # action_i = self.actors[agent]([cur_state_list1[agent], cur_state_list2[agent], cur_state_list3[agent]])
+            action_i = self.actors[agent]([cur_state_list1[agent]])
             ac = action_batch.clone()
 
             ac[:, agent, :] = action_i  # replace the actor from self.actors[agent] into action batch
@@ -315,6 +321,7 @@ class MADDPG:
             actor_loss = -self.critics[agent](whole_state, whole_action_action_replaced).mean()
             self.actor_optimizer[agent].zero_grad()
             actor_loss.backward()
+            self.has_gradients(self.actors[agent], wandb)  # Replace with your actor network variable
             # torch.nn.utils.clip_grad_norm_(self.actors[agent].parameters(), 1)
             self.actor_optimizer[agent].step()
 
@@ -335,6 +342,14 @@ class MADDPG:
 
         return c_loss, a_loss
 
+    def has_gradients(self, model, wandb=None):
+        for name, param in model.named_parameters():
+            if param.grad is None:
+                print(f"No gradient for {name}")
+            else:
+                print(f"Gradient for {name} is {param.grad.norm()}")
+                wandb.log({name: float(param.grad.norm())})
+
     def choose_action(self, state, episode, step, noisy=True):
         obs = torch.from_numpy(np.stack(state[0])).float().to(device)
         obs_grid = torch.from_numpy(np.stack(state[1])).float().to(device)
@@ -350,13 +365,17 @@ class MADDPG:
         # this for loop used to decrease noise level for all agents before taking any action
         for i in range(self.n_agents):
             if step == 0 and episode > 1:  # only decrease noise at start of the episode
-                self.var[i] = self.get_scaling_factor(episode, 3500)  # self.var[i] will decrease as the episode increase
+                self.var[i] = self.get_scaling_factor(episode, 1750)  # self.var[i] will decrease as the episode increase
 
         for i in range(self.n_agents):
-            sb = obs[i].detach()
-            sb_grid = obs_grid[i].detach()
-            sb_surAgent = all_obs_surAgent[i].detach()
-            act = self.actors[i]([sb.unsqueeze(0), sb_grid.unsqueeze(0), sb_surAgent.unsqueeze(0)]).squeeze()
+            # sb = obs[i].detach()
+            # sb_grid = obs_grid[i].detach()
+            # sb_surAgent = all_obs_surAgent[i].detach()
+            sb = obs[i]
+            sb_grid = obs_grid[i]
+            sb_surAgent = all_obs_surAgent[i]
+            # act = self.actors[i]([sb.unsqueeze(0), sb_grid.unsqueeze(0), sb_surAgent.unsqueeze(0)]).squeeze()
+            act = self.actors[i]([sb.unsqueeze(0)]).squeeze()
             if noisy:
                 act += torch.from_numpy(np.random.randn(2) * self.var[i]).type(FloatTensor)
                 print("Episode {}, agent {}, noise level is {}".format(episode, i, self.var[i]))

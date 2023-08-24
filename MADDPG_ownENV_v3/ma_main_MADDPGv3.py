@@ -49,7 +49,7 @@ def main(args):
         plot_file_name = file_name + '/toplot'
         if not os.path.exists(plot_file_name):
             os.makedirs(plot_file_name)
-
+    # wandb = None
     wandb.login(key="efb76db851374f93228250eda60639c70a93d1ec")
     wandb.init(
         # set the wandb project where this run will be logged
@@ -136,8 +136,8 @@ def main(args):
         accum_reward = 0
         trajectory_eachPlay = []
 
-        pre_fix = r'D:\MADDPG_2nd_jp\140823_20_19_49\interval_record_eps'
-        episode_to_check = str(5000)
+        pre_fix = r'D:\MADDPG_2nd_jp\220823_21_48_06\interval_record_eps'
+        episode_to_check = str(4000)
         load_filepath_0 = pre_fix + '\episode_' + episode_to_check + '_agent_0actor_net.pth'
         load_filepath_1 = pre_fix + '\episode_' + episode_to_check + '_agent_1actor_net.pth'
         # load_filepath_2 = pre_fix + '\episode_' + episode_to_check + '_agent_2actor_net.pth'
@@ -198,7 +198,7 @@ def main(args):
                 accum_reward = accum_reward + reward_aft_action[0]  # we just take the first agent's reward, because we are using a joint reward, so all agents obtain the same reward.
 
                 c_loss, a_loss = model.update_myown(episode, total_step,
-                                                    UPDATE_EVERY)  # last working learning framework
+                                                    UPDATE_EVERY, wandb)  # last working learning framework
 
                 cur_state = next_state
                 norm_cur_state = norm_next_state
@@ -381,7 +381,7 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--scenario', default="simple_spread", type=str)
-    parser.add_argument('--max_episodes', default=5000, type=int)  # rnu for a total of 60000 episodes
+    parser.add_argument('--max_episodes', default=3500, type=int)  # run for a total of 60000 episodes
     parser.add_argument('--algo', default="maddpg", type=str, help="commnet/bicnet/maddpg")
     parser.add_argument('--mode', default="train", type=str, help="train/eval")
     parser.add_argument('--episode_length', default=30, type=int)  # maximum play per episode

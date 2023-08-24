@@ -45,12 +45,15 @@ class ActorNetwork(nn.Module):
     def __init__(self, actor_dim, n_actions):  # actor_obs consists of three parts 0 = own, 1 = own grid, 2 = surrounding drones
         super(ActorNetwork, self).__init__()
 
-        self.n_heads = 3
-        self.single_head_dim = int((64+64+64) / self.n_heads)
+        # self.n_heads = 3
+        # self.single_head_dim = int((64+64+64) / self.n_heads)
 
-        self.own_fc = nn.Sequential(nn.Linear(actor_dim[0], 128), nn.ReLU())
-        self.intrude_fc = nn.Sequential(nn.Linear(6, 128), nn.ReLU())
-        self.own_grid_fc = nn.Sequential(nn.Linear(actor_dim[1], 128), nn.ReLU())
+        # self.own_fc = nn.Sequential(nn.Linear(actor_dim[0], 128), nn.ReLU())
+        self.own_fc = nn.Sequential(nn.Linear(actor_dim[0], 256), nn.ReLU())
+        self.own_fc_lay2 = nn.Sequential(nn.Linear(256, 256), nn.ReLU())
+        self.own_fc_outlay = nn.Sequential(nn.Linear(256, n_actions), nn.Tanh())
+        # self.intrude_fc = nn.Sequential(nn.Linear(6, 128), nn.ReLU())
+        # self.own_grid_fc = nn.Sequential(nn.Linear(actor_dim[1], 128), nn.ReLU())
 
         # perform a self-attention for own obs_grids, actor_obs[1], assume actor_obs = [6, 6, 6]
 
@@ -80,15 +83,15 @@ class ActorNetwork(nn.Module):
         # self.action_out_V3 = nn.Sequential(nn.Linear(64+64+64, 64), nn.ReLU(), nn.Linear(64, n_actions), nn.Tanh())
         # self.action_out_V4 = nn.Sequential(nn.Linear(64+64, 64), nn.ReLU(), nn.Linear(64, n_actions), nn.Tanh())
         # self.action_out_V5 = nn.Sequential(nn.Linear(512, 128), nn.ReLU(), nn.Linear(128, n_actions), nn.Tanh())
-        self.action_out_V5_1 = nn.Sequential(nn.Linear(128+128+128, 128), nn.ReLU(), nn.Linear(128, n_actions), nn.Tanh())
+        # self.action_out_V5_1 = nn.Sequential(nn.Linear(128+128+128, 128), nn.ReLU(), nn.Linear(128, n_actions), nn.Tanh())
         # self.action_out_V5_1 = nn.Sequential(nn.Linear(256+256+256, 256), nn.ReLU(), nn.Linear(256, n_actions), nn.Tanh())
         # self.action_out_V5_2 = nn.Sequential(nn.Linear(128+128+128, 512), nn.ReLU(), nn.Linear(512, 512), nn.ReLU(),
         #                                      nn.Linear(512, n_actions), nn.Tanh())
 
         # attention for NN
-        self.k = nn.Linear(128, 128, bias=False)
-        self.q = nn.Linear(128, 128, bias=False)
-        self.v = nn.Linear(128, 128, bias=False)
+        # self.k = nn.Linear(128, 128, bias=False)
+        # self.q = nn.Linear(128, 128, bias=False)
+        # self.v = nn.Linear(128, 128, bias=False)
 
         # self.name = name
 
@@ -99,30 +102,31 @@ class ActorNetwork(nn.Module):
 
     def forward(self, state):
         own_e = self.own_fc(state[0])
-        x_e = self.intrude_fc(state[2])
-
-        # mask attention embedding
-        q = self.q(own_e)
-        k = self.k(x_e)
-        v = self.v(x_e)
-        mask = state[2].mean(axis=2, keepdim=True).bool()
-        score = torch.bmm(k, q.unsqueeze(axis=2))
-        score_mask = score.clone()  # clone操作很必要
-        score_mask[~mask] = float('-inf')  # 不然赋值操作后会无法计算梯度
-
-        alpha = F.softmax(score_mask / np.sqrt(k.size(-1)), dim=1)  # we use dim=1 here because we need to get attention of each sequence in K towards all hidden vector of q in each batch.
-        alpha_mask = alpha.clone()
-        alpha_mask[~mask] = 0
-        v_att = torch.sum(v * alpha_mask, axis=1)
-
-        own_grid = self.own_grid_fc(state[1])
-
-        concat = torch.cat((own_e, v_att, own_grid), dim=1)
+        own_hidden = self.own_fc_lay2(own_e)
+        action_out = self.own_fc_outlay(own_hidden)
+        # x_e = self.intrude_fc(state[2])
+        #
+        # # mask attention embedding
+        # q = self.q(own_e)
+        # k = self.k(x_e)
+        # v = self.v(x_e)
+        # mask = state[2].mean(axis=2, keepdim=True).bool()
+        # score = torch.bmm(k, q.unsqueeze(axis=2))
+        # score_mask = score.clone()  # clone操作很必要
+        # score_mask[~mask] = float('-inf')  # 不然赋值操作后会无法计算梯度
+        #
+        # alpha = F.softmax(score_mask / np.sqrt(k.size(-1)), dim=1)  # we use dim=1 here because we need to get attention of each sequence in K towards all hidden vector of q in each batch.
+        # alpha_mask = alpha.clone()
+        # alpha_mask[~mask] = 0
+        # v_att = torch.sum(v * alpha_mask, axis=1)
+        #
+        # own_grid = self.own_grid_fc(state[1])
+        #
+        # concat = torch.cat((own_e, v_att, own_grid), dim=1)
         # concat = torch.cat((own_e, own_grid), dim=1)
 
         # action_out = self.action_out_V4(concat)
-        action_out = self.action_out_V5_1(concat)
-
+        # action_out = self.action_out_V5_1(concat)
         return action_out
 
 
@@ -140,15 +144,16 @@ class CriticNetwork(nn.Module):
         # critic_obs[3] is sum of all agent's action taken
 
         # self.sum_own_fc = nn.Sequential(nn.Linear(critic_obs*n_agents, 1024), nn.ReLU())  # may be here can be replaced with another attention mechanism
-        self.sum_own_fc = nn.Sequential(nn.Linear(critic_obs[0]*n_agents, 256), nn.ReLU())  # may be here can be replaced with another attention mechanism
-        self.sum_grid_fc = nn.Sequential(nn.Linear(critic_obs[1]*n_agents, 128), nn.ReLU())
-        self.sum_combine_fc = nn.Sequential(nn.Linear((critic_obs[0]+critic_obs[1])*n_agents, 128), nn.ReLU())
+        # self.sum_own_fc = nn.Sequential(nn.Linear(critic_obs[0]*n_agents, 256), nn.ReLU())  # may be here can be replaced with another attention mechanism
+        # self.sum_grid_fc = nn.Sequential(nn.Linear(critic_obs[1]*n_agents, 128), nn.ReLU())
+        # self.sum_combine_fc = nn.Sequential(nn.Linear((critic_obs[0]+critic_obs[1])*n_agents, 128), nn.ReLU())
+        self.sum_combine_fc = nn.Sequential(nn.Linear((critic_obs[0])*n_agents, 1024), nn.ReLU())
         # self.sum_combine_fc = nn.Sequential(nn.Linear((critic_obs[0]+critic_obs[1])*n_agents, 256), nn.ReLU())
-        self.sum_combine_actionFC = nn.Sequential(nn.Linear(2*n_agents, 64), nn.ReLU())
-
-        self.single_own_fc = nn.Sequential(nn.Linear(critic_obs[0], 128), nn.ReLU())  # may be here can be replaced with another attention mechanism
-        self.single_grid_fc = nn.Sequential(nn.Linear(critic_obs[1], 128), nn.ReLU())
-        self.single_surr = nn.Sequential(nn.Linear(critic_obs[2], 128), nn.ReLU())
+        # self.sum_combine_actionFC = nn.Sequential(nn.Linear(2*n_agents, 64), nn.ReLU())
+        #
+        # self.single_own_fc = nn.Sequential(nn.Linear(critic_obs[0], 128), nn.ReLU())  # may be here can be replaced with another attention mechanism
+        # self.single_grid_fc = nn.Sequential(nn.Linear(critic_obs[1], 128), nn.ReLU())
+        # self.single_surr = nn.Sequential(nn.Linear(critic_obs[2], 128), nn.ReLU())
 
         # for surrounding agents' encoding, for each agent, we there are n-neighbours, each neighbour is represented by
         # a vector of length = 6. Before we put into an experience replay, we pad it up to max_num_neigh * 6 array.
@@ -157,9 +162,9 @@ class CriticNetwork(nn.Module):
         # self.sum_sur_fc = nn.Sequential(nn.Linear(critic_obs[2]*n_agents*n_agents, 256), nn.ReLU())
 
         # critic attention for overall sur_neighbours with overall own_state
-        self.single_k = nn.Linear(128, 128, bias=False)
-        self.single_q = nn.Linear(128, 128, bias=False)
-        self.single_v = nn.Linear(128, 128, bias=False)
+        # self.single_k = nn.Linear(128, 128, bias=False)
+        # self.single_q = nn.Linear(128, 128, bias=False)
+        # self.single_v = nn.Linear(128, 128, bias=False)
         #
         # self.n_heads = 3
         # self.single_head_dim = int((256+256+256) / self.n_heads)
@@ -172,7 +177,8 @@ class CriticNetwork(nn.Module):
         # self.combine_env_fc = nn.Sequential(nn.Linear(256+256+256, 256), nn.ReLU(), nn.Linear(256, 128), nn.ReLU(),
         #                                     nn.Linear(128, 64), nn.ReLU())
         # self.combine_env_fc = nn.Sequential(nn.Linear(256+128, 128), nn.ReLU())
-        self.combine_env_fc = nn.Sequential(nn.Linear(128+(2*n_agents), 256), nn.ReLU())
+        # self.combine_env_fc = nn.Sequential(nn.Linear(128+(2*n_agents), 256), nn.ReLU())
+        self.combine_env_fc = nn.Sequential(nn.Linear(1024+(2*n_agents), 512), nn.ReLU())
         # self.combine_env_fc = nn.Sequential(nn.Linear(128+(2*n_agents), 512), nn.ReLU())
         # self.combine_env_fc = nn.Sequential(nn.Linear(256+(2*n_agents), 512), nn.ReLU())
         # self.combine_env_fc = nn.Sequential(nn.Linear(128+64, 256), nn.ReLU())
@@ -180,7 +186,8 @@ class CriticNetwork(nn.Module):
         # self.combine_env_fc = nn.Sequential(nn.Linear((n_agents*128)+(n_agents*128), 64), nn.ReLU())
 
         # self.combine_all = nn.Sequential(nn.Linear(128+n_agents * n_actions, 64), nn.ReLU(), nn.Linear(64, 1))
-        self.combine_all = nn.Sequential(nn.Linear(256, 64), nn.ReLU(), nn.Linear(64, 1))
+        # self.combine_all = nn.Sequential(nn.Linear(256, 64), nn.ReLU(), nn.Linear(64, 1))
+        self.combine_all = nn.Sequential(nn.Linear(512, 256), nn.ReLU(), nn.Linear(256, 1))
         # self.combine_all = nn.Sequential(nn.Linear(512, 512), nn.ReLU(), nn.Linear(512, 1))
 
         # self.sum_agents_action_fc = nn.Sequential(nn.Linear(critic_obs[2]*n_agents, 256), nn.ReLU())

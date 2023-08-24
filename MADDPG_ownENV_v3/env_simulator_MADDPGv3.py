@@ -294,9 +294,21 @@ class env_simulator:
             # update the "surroundingNeighbor" attribute
             agent.surroundingNeighbor = self.get_current_agent_nei_V2(agent, agentRefer_dict)
 
+            # all_other_posdiff = []
+            # pair_posdiff = []
+            # for other_agentIdx, other_agent in self.all_agents.items():
+            #     if other_agentIdx == agentIdx:
+            #         continue
+            #     all_other_posdiff.append(other_agent.pos[0]-agent.pos[0])
+            #     all_other_posdiff.append(other_agent.pos[1]-agent.pos[1])
+            #     pair_posdiff.append(other_agent.pos-agent.pos)
+            # all_other_posdiff = np.array(all_other_posdiff)
+
+
             agent_own = np.array(
                 [agent.pos[0], agent.pos[1], agent.goal[0][0] - agent.pos[0], agent.goal[0][1] - agent.pos[1],
                  agent.vel[0], agent.vel[1]])
+            # agent_own = np.concatenate((agent_own, all_other_posdiff))
             # populate normalized agent_own
             # norm_agent_own = []
             norm_pos = self.normalizer.nmlz_pos([agent.pos[0], agent.pos[1]])
@@ -304,8 +316,11 @@ class env_simulator:
             norm_G_diff = self.normalizer.nmlz_pos_diff(
                 [agent.goal[0][0] - agent.pos[0], agent.goal[0][1] - agent.pos[1]])
 
+            # norm_other_diff = tuple(self.normalizer.nmlz_pos_diff(pos_diff_pair) for pos_diff_pair in pair_posdiff)
+
             norm_vel = self.normalizer.nmlz_vel([agent.vel[0], agent.vel[1]])
             norm_agent_own = np.array(list(norm_pos + norm_G_diff + norm_vel))
+            # norm_agent_own = np.array(list(norm_pos + norm_G_diff + norm_vel + norm_other_diff[0] + norm_other_diff[1]))
 
             other_agents = []
             norm_other_agents = []
@@ -879,7 +894,8 @@ class env_simulator:
                 # sort dist_toHost()
                 # nearest
                 dist_to_host_minimum = sorted(dist_toHost)[0]
-                slowChanging_dist_penalty_others = 1 * (-10 * math.exp((5 - dist_to_host_minimum) / 2))
+                # slowChanging_dist_penalty_others = 1 * (-10 * math.exp((5 - dist_to_host_minimum) / 2))
+                slowChanging_dist_penalty_others = -(math.e ** (5 - dist_to_host_minimum / 7) / 5)  # from -14.5 to 0
 
             # a small penalty for discourage the agent to stay in one single spot
             if (before_dist_hg - after_dist_hg) <= 2:
@@ -913,9 +929,8 @@ class env_simulator:
                     drone_obj.removed_goal = drone_obj.goal.pop(0)
                     # normal_step_rw = crossCoefficient*cross_track_error + slowChanging_dist_penalty_others + alive_penalty
                     # normal_step_rw = crossCoefficient * cross_track_error + delta_hg + alive_penalty
-                    # normal_step_rw = crossCoefficient*cross_track_error + delta_hg + alive_penalty + slowChanging_dist_penalty_others
-                    # normal_step_rw = crossCoefficient*cross_track_error + delta_hg + alive_penalty + dominoCoefficient*dominoTerm
-                    normal_step_rw = crossCoefficient*cross_track_error + delta_hg + alive_penalty + dominoCoefficient*dominoTerm_sum
+                    normal_step_rw = crossCoefficient*cross_track_error + delta_hg + alive_penalty + slowChanging_dist_penalty_others
+                    # normal_step_rw = crossCoefficient*cross_track_error + delta_hg + alive_penalty + dominoCoefficient*dominoTerm_sum
 
                     reward.append(np.array(normal_step_rw))
                 else:
@@ -946,12 +961,9 @@ class env_simulator:
                 else:
                     done.append(False)
             else:  # a normal step taken
-                # step_reward = crossCoefficient*cross_track_error + delta_hg + alive_penalty + final_goal_toadd  # have the final one-time reaching reward
-                # step_reward =crossCoefficient*cross_track_error + dominoCoefficient*dominoTerm + delta_hg + alive_penalty + final_goal_toadd  # have the final one-time reaching reward
-                # step_reward =crossCoefficient*cross_track_error + dominoCoefficient*dominoTerm + delta_hg + alive_penalty
-                step_reward =crossCoefficient*cross_track_error + dominoCoefficient*dominoTerm_sum + delta_hg + alive_penalty
+                # step_reward =crossCoefficient*cross_track_error + dominoCoefficient*dominoTerm_sum + delta_hg + alive_penalty
                 # step_reward =crossCoefficient*cross_track_error + delta_hg + alive_penalty
-                # step_reward =crossCoefficient*cross_track_error + delta_hg + alive_penalty + slowChanging_dist_penalty_others
+                step_reward =crossCoefficient*cross_track_error + delta_hg + alive_penalty + slowChanging_dist_penalty_others
                 # step_reward =crossCoefficient*cross_track_error + delta_hg + alive_penalty + dominoCoefficient*dominoTerm
                 # step_reward =crossCoefficient*cross_track_error + slowChanging_dist_penalty_others + alive_penalty
 
@@ -970,8 +982,8 @@ class env_simulator:
                 # for debug, record the reward
                 # one_step_reward = [crossCoefficient*cross_track_error, delta_hg, alive_penalty]
                 # one_step_reward = [crossCoefficient*cross_track_error, delta_hg, alive_penalty, dominoCoefficient*dominoTerm]
-                one_step_reward = [crossCoefficient*cross_track_error, delta_hg, alive_penalty, dominoCoefficient*dominoTerm_sum]
-                # one_step_reward = [crossCoefficient*cross_track_error, slowChanging_dist_penalty_others, alive_penalty]
+                # one_step_reward = [crossCoefficient*cross_track_error, delta_hg, alive_penalty, dominoCoefficient*dominoTerm_sum]
+                one_step_reward = [crossCoefficient*cross_track_error, delta_hg, alive_penalty, slowChanging_dist_penalty_others]
                 step_reward_record[drone_idx] = one_step_reward
 
         # if None in step_reward_record:
