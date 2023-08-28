@@ -53,7 +53,7 @@ def main(args):
     wandb.login(key="efb76db851374f93228250eda60639c70a93d1ec")
     wandb.init(
         # set the wandb project where this run will be logged
-        project="MADDPG_sample_newFrameWork",
+        project="MADDPG_FrameWork",
         name='MADDPG_test_'+str(current_date) + '_' + str(formatted_time),
         # track hyperparameters and run metadata
         config={
@@ -136,17 +136,17 @@ def main(args):
         accum_reward = 0
         trajectory_eachPlay = []
 
-        pre_fix = r'D:\MADDPG_2nd_jp\240823_10_29_00\interval_record_eps'
-        episode_to_check = str(3000)
+        pre_fix = r'D:\MADDPG_2nd_jp\270823_13_21_49\interval_record_eps'
+        episode_to_check = str(4000)
         load_filepath_0 = pre_fix + '\episode_' + episode_to_check + '_agent_0actor_net.pth'
         load_filepath_1 = pre_fix + '\episode_' + episode_to_check + '_agent_1actor_net.pth'
-        # load_filepath_2 = pre_fix + '\episode_' + episode_to_check + '_agent_2actor_net.pth'
+        load_filepath_2 = pre_fix + '\episode_' + episode_to_check + '_agent_2actor_net.pth'
         # load_filepath_3 = pre_fix + '\episode_' + episode_to_check + '_agent_3actor_net.pth'
         # load_filepath_4 = pre_fix + '\episode_' + episode_to_check + '_agent_4actor_net.pth'
 
         if args.mode == "eval":
             # model.load_model([load_filepath_0, load_filepath_1, load_filepath_2, load_filepath_3, load_filepath_4])
-            model.load_model([load_filepath_0, load_filepath_1])
+            model.load_model([load_filepath_0, load_filepath_1, load_filepath_2])
         while True:
             if args.mode == "train":
                 step_reward_record = [None] * n_agents
@@ -212,7 +212,7 @@ def main(args):
                     wandb.log({'overall_reward': float(accum_reward)})
                     if c_loss and a_loss:
                         for idx, val in enumerate(c_loss):
-                            # print(" agent %s, a_loss %3.2f c_loss %3.2f" % (idx, a_loss[idx].item(), c_loss[idx].item()))
+                            print(" agent %s, a_loss %3.2f c_loss %3.2f" % (idx, a_loss[idx].item(), c_loss[idx].item()))
                             wandb.log({'agent' + str(idx) + 'actor_loss': float(a_loss[idx].item())})
                             wandb.log({'agent' + str(idx) + 'critic_loss': float(c_loss[idx].item())})
                     if episode % args.save_interval == 0 and args.mode == "train":

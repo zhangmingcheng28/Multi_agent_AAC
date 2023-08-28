@@ -614,19 +614,23 @@ class env_simulator:
             # loop through neighbors from previous time step
             for neigh_keys in self.all_agents[drone_idx].pre_surroundingNeighbor:
                 # compute potential conflicts before and after the action for the current drone with its neighbours
-                pc_before = compute_potential_conflict(pc_before, drone_obj.pre_pos, drone_obj.pre_vel,
+                one_pc_before = compute_potential_conflict(drone_obj.pre_pos, drone_obj.pre_vel,
                                                        drone_obj.protectiveBound, self.all_agents[neigh_keys].pre_pos,
                                                        self.all_agents[neigh_keys].pre_vel,
                                                        self.all_agents[neigh_keys].protectiveBound, neigh_keys,
                                                        current_ts)
+                if len(one_pc_before) > 0:
+                    pc_before.append(one_pc_before)
             # loop through neighbors from current time step
             for neigh_keys in self.all_agents[drone_idx].surroundingNeighbor:
                 # compute potential conflicts before and after the action for the current drone with its neighbours
-                pc_after = compute_potential_conflict(pc_after, drone_obj.pos, drone_obj.vel,
+                one_pc_after = compute_potential_conflict(drone_obj.pos, drone_obj.vel,
                                                       drone_obj.protectiveBound, self.all_agents[neigh_keys].pos,
                                                       self.all_agents[neigh_keys].vel,
                                                       self.all_agents[neigh_keys].protectiveBound, neigh_keys,
                                                       current_ts)
+                if len(one_pc_after) > 0:
+                    pc_after.append(one_pc_after)
 
                 # check whether the current drone has collides with any surrounding neighbors due to current action
                 neigh_pass_line = LineString([self.all_agents[neigh_keys].pre_pos, self.all_agents[neigh_keys].pos])
@@ -636,17 +640,17 @@ class env_simulator:
                     print("drone_{} collide with drone_{} at time step {}".format(drone_idx, neigh_keys, current_ts))
                     collision_drones.append(neigh_keys)
 
-            if pc_max_after == 0:  # upper bound in terms of value case for dominoTerm
-                dominoTerm = fixed_domino_reward
-            elif pc_max_before == 0:  # lower bound in terms of value case for dominoTerm
-                dominoTerm = -1
-            elif (len(pc_after)/pc_max_after) == 0:  # check if denominator of the dominoTerm equals to 0
-                # if denominator equals to 0, meaning initial velocity is 0,
-                # so is like initial condition, then we can just assign this dominoTerm as 0.
-                dominoTerm = 0
-            else:
-                dominoTerm = ((len(pc_before)/pc_max_before) -
-                              (len(pc_after)/pc_max_after)) / (len(pc_after)/pc_max_after)
+            # if pc_max_after == 0:  # upper bound in terms of value case for dominoTerm
+            #     dominoTerm = fixed_domino_reward
+            # elif pc_max_before == 0:  # lower bound in terms of value case for dominoTerm
+            #     dominoTerm = -1
+            # elif (len(pc_after)/pc_max_after) == 0:  # check if denominator of the dominoTerm equals to 0
+            #     # if denominator equals to 0, meaning initial velocity is 0,
+            #     # so is like initial condition, then we can just assign this dominoTerm as 0.
+            #     dominoTerm = 0
+            # else:
+            #     dominoTerm = ((len(pc_before)/pc_max_before) -
+            #                   (len(pc_after)/pc_max_after)) / (len(pc_after)/pc_max_after)
 
             # check whether current actions leads to a collision with any buildings in the airspace
             allBuildingSTR = STRtree(self.world_map_2D_polyList[0][0])
@@ -756,7 +760,7 @@ class env_simulator:
             # condition is reset for each agent at every time step
             collision_drones = []
             collide_building = 0
-            pc_before, pc_after = {}, {}  # use list to hold, possible to have the same drone cause potential conflict to many other drones
+            pc_before, pc_after = [], []
             dist_toHost = []
             # we assume the maximum potential conflict the current drone could have at each time step is equals
             # to the total number of its neighbour at each time step
@@ -778,19 +782,24 @@ class env_simulator:
             # loop through neighbors from previous time step
             for neigh_keys in self.all_agents[drone_idx].pre_surroundingNeighbor:
                 # compute potential conflicts before and after the action for the current drone with its neighbours
-                pc_before = compute_potential_conflict(pc_before, drone_obj.pre_pos, drone_obj.pre_vel,
+                one_pc_before = compute_potential_conflict(drone_obj.pre_pos, drone_obj.pre_vel,
                                                        drone_obj.protectiveBound, self.all_agents[neigh_keys].pre_pos,
                                                        self.all_agents[neigh_keys].pre_vel,
                                                        self.all_agents[neigh_keys].protectiveBound, neigh_keys,
                                                        current_ts)
+                if len(one_pc_before) > 0:
+                    pc_before.append(one_pc_before)
             # loop through neighbors from current time step
             for neigh_keys in self.all_agents[drone_idx].surroundingNeighbor:
                 # compute potential conflicts before and after the action for the current drone with its neighbours
-                pc_after = compute_potential_conflict(pc_after, drone_obj.pos, drone_obj.vel,
+                one_pc_after = compute_potential_conflict(drone_obj.pos, drone_obj.vel,
                                                       drone_obj.protectiveBound, self.all_agents[neigh_keys].pos,
                                                       self.all_agents[neigh_keys].vel,
                                                       self.all_agents[neigh_keys].protectiveBound, neigh_keys,
                                                       current_ts)
+                if len(one_pc_after) > 0:
+                    pc_after.append(one_pc_after)
+
                 # get distance from host to all the surrounding vehicles
                 diff_dist_vec = drone_obj.pos - self.all_agents[neigh_keys].pos  # host pos vector - intruder pos vector
                 dist_toHost.append(np.linalg.norm(diff_dist_vec))
@@ -821,10 +830,12 @@ class env_simulator:
             # else:
             #     dominoTerm = (len(pc_before) - len(pc_after)) / len(pc_after)
             dominoTerm = []  # reset for every new decision making drone
-            for neigh_keys, td_cpa in pc_after.items():
-                dominoValue = ((2*drone_obj.protectiveBound)/math.exp(td_cpa[1])) * (math.exp(-td_cpa[0]))
+            for neigh_keys, t_cpa, d_cpa in pc_after:
+                # td_cpa[1] is d_cpa, td_cpa[0] is t_cpa
+                # dominoValue = ((2*drone_obj.protectiveBound)/math.exp(td_cpa[1])) * (math.exp(-td_cpa[0]))
+                dominoValue = ((5/math.exp((d_cpa-5)/3))+1) * (1-(1/(5**(3-t_cpa))))
                 dominoTerm.append(dominoValue)
-            dominoTerm_sum = sum(dominoTerm)
+            dominoTerm_sum = -sum(dominoTerm)  # use -ve to indicate a penalty
 
 
             # check whether current actions leads to a collision with any buildings in the airspace
@@ -879,7 +890,7 @@ class env_simulator:
             crossCoefficient = 1
             # goalCoefficient = 6
             goalCoefficient = 8
-            dominoCoefficient = 10
+            dominoCoefficient = 1
             # cross track error term
             # cross_track_error = (20 / ((cross_track_deviation * cross_track_deviation) / 200 + 1)) - 3.5  # original
             cross_track_error = (math.e ** (5 - cross_track_deviation / 7) / 5) - 0.5  # original on 24_07
@@ -929,8 +940,8 @@ class env_simulator:
                     drone_obj.removed_goal = drone_obj.goal.pop(0)
                     # normal_step_rw = crossCoefficient*cross_track_error + slowChanging_dist_penalty_others + alive_penalty
                     # normal_step_rw = crossCoefficient * cross_track_error + delta_hg + alive_penalty
-                    normal_step_rw = crossCoefficient*cross_track_error + delta_hg + alive_penalty + slowChanging_dist_penalty_others
-                    # normal_step_rw = crossCoefficient*cross_track_error + delta_hg + alive_penalty + dominoCoefficient*dominoTerm_sum
+                    # normal_step_rw = crossCoefficient*cross_track_error + delta_hg + alive_penalty + slowChanging_dist_penalty_others
+                    normal_step_rw = crossCoefficient*cross_track_error + delta_hg + alive_penalty + dominoCoefficient*dominoTerm_sum
 
                     reward.append(np.array(normal_step_rw))
                 else:
@@ -963,8 +974,8 @@ class env_simulator:
             else:  # a normal step taken
                 # step_reward =crossCoefficient*cross_track_error + dominoCoefficient*dominoTerm_sum + delta_hg + alive_penalty
                 # step_reward =crossCoefficient*cross_track_error + delta_hg + alive_penalty
-                step_reward =crossCoefficient*cross_track_error + delta_hg + alive_penalty + slowChanging_dist_penalty_others
-                # step_reward =crossCoefficient*cross_track_error + delta_hg + alive_penalty + dominoCoefficient*dominoTerm
+                # step_reward =crossCoefficient*cross_track_error + delta_hg + alive_penalty + slowChanging_dist_penalty_others
+                step_reward =crossCoefficient*cross_track_error + delta_hg + alive_penalty + dominoCoefficient*dominoTerm_sum
                 # step_reward =crossCoefficient*cross_track_error + slowChanging_dist_penalty_others + alive_penalty
 
                 # if add the termination condition: all agents reaches the goal, environment terminates
@@ -982,8 +993,8 @@ class env_simulator:
                 # for debug, record the reward
                 # one_step_reward = [crossCoefficient*cross_track_error, delta_hg, alive_penalty]
                 # one_step_reward = [crossCoefficient*cross_track_error, delta_hg, alive_penalty, dominoCoefficient*dominoTerm]
-                # one_step_reward = [crossCoefficient*cross_track_error, delta_hg, alive_penalty, dominoCoefficient*dominoTerm_sum]
-                one_step_reward = [crossCoefficient*cross_track_error, delta_hg, alive_penalty, slowChanging_dist_penalty_others]
+                one_step_reward = [crossCoefficient*cross_track_error, delta_hg, alive_penalty, dominoCoefficient*dominoTerm_sum]
+                # one_step_reward = [crossCoefficient*cross_track_error, delta_hg, alive_penalty, slowChanging_dist_penalty_others]
                 step_reward_record[drone_idx] = one_step_reward
 
         # if None in step_reward_record:

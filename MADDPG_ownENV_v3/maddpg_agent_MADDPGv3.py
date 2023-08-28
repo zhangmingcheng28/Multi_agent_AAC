@@ -309,7 +309,6 @@ class MADDPG:
 
             # torch.nn.utils.clip_grad_norm_(self.critics[agent].parameters(), 1)
             self.has_gradients(self.critics[agent], wandb)  # Replace with your actor network variable
-
             self.critic_optimizer[agent].step()
 
             # action_i = self.actors[agent]([cur_state_list1[agent], cur_state_list2[agent], cur_state_list3[agent]])
@@ -323,8 +322,8 @@ class MADDPG:
             self.actor_optimizer[agent].zero_grad()
             actor_loss.backward()
 
-            self.has_gradients(self.actors[agent], wandb)  # Replace with your actor network variable
             # torch.nn.utils.clip_grad_norm_(self.actors[agent].parameters(), 1)
+            self.has_gradients(self.actors[agent], wandb)  # Replace with your actor network variable
             self.actor_optimizer[agent].step()
 
             c_loss.append(loss_Q)

@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 import matplotlib
 
 matplotlib.use('TkAgg')
-pre_fix = r'D:\MADDPG_2nd_jp\220823_09_27_53\toplot'
+pre_fix = r'D:\MADDPG_2nd_jp\250823_11_10_04\toplot'
 file_path = pre_fix + r'\all_episode_reward.pickle'
 with open(file_path, 'rb') as handle:
     combine_reward = pickle.load(handle)
@@ -43,8 +43,8 @@ os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
 fig, ax = plt.subplots(1, 1)
 
 n_bins = 10
-# plot1 = plt.hist(seperated_reward[-1], bins=n_bins)
-plot1 = plt.boxplot(seperated_reward[-1])
+plot1 = plt.hist(seperated_reward[-1], bins=n_bins)
+# plot1 = plt.boxplot(seperated_reward[-1])
 # plot1 = plt.plot(seperated_reward[3], linestyle='-', label='goal_term')
 # plot1 = plt.plot(sum_reward_last_agent, linestyle='-', label='overall')
 # plot2 = plt.plot(g_term, linestyle='--', label='goal-term')

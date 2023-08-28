@@ -45,7 +45,7 @@ def initialize_parameters():
     # read the Excel file into a pandas dataframe
     # agentConfig = (r'F:\githubClone\Multi_agent_AAC\MA_ver1\fixedDrone.xlsx')
     # agentConfig = (r'F:\githubClone\Multi_agent_AAC\MA_ver1\fixedDrone_5_adj.xlsx')
-    agentConfig = (r'F:\githubClone\Multi_agent_AAC\MA_ver1\fixedDrone_3dronesV2.xlsx')
+    agentConfig = (r'F:\githubClone\Multi_agent_AAC\MA_ver1\fixedDrone_3drones.xlsx')
     # agentConfig = (r'F:\githubClone\Multi_agent_AAC\MA_ver1\fixedDrone_2_drone.xlsx')
     # agentConfig = (r'F:\githubClone\Multi_agent_AAC\MA_ver1\reward_test.xlsx')  # for perform reward testing
     # agentConfig = (r'D:\Multi_agent_AAC\MA_ver1\fixedDrone.xlsx')

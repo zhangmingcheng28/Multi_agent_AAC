@@ -55,7 +55,7 @@ def map_range(value, coe_a):
     return mapped
 
 
-def compute_potential_conflict(pc_list, cur_drone_pos, cur_drone_vel, cur_drone_protRad, cur_neigh_pos, cur_neigh_vel,
+def compute_potential_conflict(cur_drone_pos, cur_drone_vel, cur_drone_protRad, cur_neigh_pos, cur_neigh_vel,
                                cur_neigh_protRad, cur_neigh_idx, current_ts):
     minus_rel_dist_before = -1 * (cur_drone_pos - cur_neigh_pos)  # always current drone - neighbours
     rel_vel_before = (cur_drone_vel - cur_neigh_vel)
@@ -75,9 +75,10 @@ def compute_potential_conflict(pc_list, cur_drone_pos, cur_drone_vel, cur_drone_
         # host_future_pos = cur_drone_pos + (t_cpa_before*cur_drone_vel)
         # intru_future_pos = cur_neigh_pos + (t_cpa_before*cur_neigh_vel)
         # doubleCheck_dcpa = np.linalg.norm((host_future_pos-intru_future_pos))
-    if (t_cpa_before >= 0):
-        pc_list[cur_neigh_idx] = [t_cpa_before, d_cpa_before]
-    return pc_list
+    if (t_cpa_before >= 0) and (t_cpa_before < 3):
+        return [cur_neigh_idx, t_cpa_before, d_cpa_before]
+    else:
+        return []
 
 
 def padding_list(max_grid_obs_dim, input_list):
