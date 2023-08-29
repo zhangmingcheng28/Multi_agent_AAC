@@ -999,10 +999,10 @@ class env_simulator:
 
         # if None in step_reward_record:
         #     print("debug")
-        if len(reward) != len(self.all_agents):
-            print("debug! we have more than reward element that is more compared to existing agents")
-        shared_reward = np.array(sum(reward), dtype=float) / len(self.all_agents)
-        reward = [shared_reward] * len(self.all_agents)
+        # if len(reward) != len(self.all_agents):
+        #     print("debug! we have more than reward element that is more compared to existing agents")
+        # shared_reward = np.array(sum(reward), dtype=float) / len(self.all_agents)
+        # reward = [shared_reward] * len(self.all_agents)
         return reward, done, check_goal, step_reward_record
 
     def step(self, actions, current_ts):

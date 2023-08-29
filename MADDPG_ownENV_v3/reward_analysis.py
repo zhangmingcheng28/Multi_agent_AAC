@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 import matplotlib
 
 matplotlib.use('TkAgg')
-pre_fix = r'D:\MADDPG_2nd_jp\250823_11_10_04\toplot'
+pre_fix = r'D:\MADDPG_2nd_jp\280823_15_55_14\toplot'
 file_path = pre_fix + r'\all_episode_reward.pickle'
 with open(file_path, 'rb') as handle:
     combine_reward = pickle.load(handle)

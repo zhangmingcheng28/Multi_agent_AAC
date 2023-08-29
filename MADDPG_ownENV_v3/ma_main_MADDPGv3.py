@@ -195,7 +195,8 @@ def main(args):
                 else:
                     model.memory(cur_state, action, reward_aft_action, next_state, done_aft_action)
 
-                accum_reward = accum_reward + reward_aft_action[0]  # we just take the first agent's reward, because we are using a joint reward, so all agents obtain the same reward.
+                # accum_reward = accum_reward + reward_aft_action[0]  # we just take the first agent's reward, because we are using a joint reward, so all agents obtain the same reward.
+                accum_reward = accum_reward + sum(reward_aft_action)
 
                 c_loss, a_loss = model.update_myown(episode, total_step,
                                                     UPDATE_EVERY, wandb)  # last working learning framework
