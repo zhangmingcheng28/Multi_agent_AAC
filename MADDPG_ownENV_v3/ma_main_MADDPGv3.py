@@ -136,7 +136,7 @@ def main(args):
         accum_reward = 0
         trajectory_eachPlay = []
 
-        pre_fix = r'D:\MADDPG_2nd_jp\270823_13_21_49\interval_record_eps'
+        pre_fix = r'D:\MADDPG_2nd_jp\290823_20_59_38\interval_record_eps'
         episode_to_check = str(4000)
         load_filepath_0 = pre_fix + '\episode_' + episode_to_check + '_agent_0actor_net.pth'
         load_filepath_1 = pre_fix + '\episode_' + episode_to_check + '_agent_1actor_net.pth'
@@ -381,7 +381,7 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--scenario', default="simple_spread", type=str)
-    parser.add_argument('--max_episodes', default=4000, type=int)  # run for a total of 60000 episodes
+    parser.add_argument('--max_episodes', default=5000, type=int)  # run for a total of 60000 episodes
     parser.add_argument('--algo', default="maddpg", type=str, help="commnet/bicnet/maddpg")
     parser.add_argument('--mode', default="train", type=str, help="train/eval")
     parser.add_argument('--episode_length', default=30, type=int)  # maximum play per episode

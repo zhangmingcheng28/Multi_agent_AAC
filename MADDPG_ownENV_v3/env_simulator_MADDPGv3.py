@@ -744,7 +744,7 @@ class env_simulator:
         one_step_reward = []
         check_goal = [False] * len(self.all_agents)
         # crash_penalty = -200
-        crash_penalty = -700
+        crash_penalty = -300
         reach_target = 200
         potential_conflict_count = 0
         final_goal_toadd = 0
