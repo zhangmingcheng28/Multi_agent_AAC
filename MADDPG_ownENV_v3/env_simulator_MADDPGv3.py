@@ -946,6 +946,7 @@ class env_simulator:
                     reward.append(np.array(normal_step_rw))
                 else:
                     check_goal[drone_idx] = True  # drone_obj.reach_target = True
+                    drone_obj.reach_target = True
                     # normal_step_rw = crossCoefficient * cross_track_error + delta_hg
                     reward.append(np.array(reach_target))
                     # reward.append(np.array(normal_step_rw))
@@ -975,7 +976,10 @@ class env_simulator:
                 # step_reward =crossCoefficient*cross_track_error + dominoCoefficient*dominoTerm_sum + delta_hg + alive_penalty
                 # step_reward =crossCoefficient*cross_track_error + delta_hg + alive_penalty
                 # step_reward =crossCoefficient*cross_track_error + delta_hg + alive_penalty + slowChanging_dist_penalty_others
-                step_reward =crossCoefficient*cross_track_error + delta_hg + alive_penalty + dominoCoefficient*dominoTerm_sum
+                if drone_obj.reach_target == True:
+                    step_reward = delta_hg
+                else:
+                    step_reward =crossCoefficient*cross_track_error + delta_hg + alive_penalty + dominoCoefficient*dominoTerm_sum
                 # step_reward =crossCoefficient*cross_track_error + slowChanging_dist_penalty_others + alive_penalty
 
                 # if add the termination condition: all agents reaches the goal, environment terminates
@@ -1057,7 +1061,7 @@ class env_simulator:
             delta_y = self.all_agents[drone_idx].vel[1] * self.time_step
 
             counterCheck_heading = math.atan2(delta_y, delta_x)
-            if abs(next_heading - counterCheck_heading) > 1e-3 :
+            if abs(next_heading - counterCheck_heading) > 1e-3:
                 print("debug, heading different")
             # ------------- end of acceleration in x and acceleration in y state transition control ---------------#
 

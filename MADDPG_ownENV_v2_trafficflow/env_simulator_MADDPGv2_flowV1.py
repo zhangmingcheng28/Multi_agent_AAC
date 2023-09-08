@@ -48,6 +48,8 @@ class env_simulator:
         self.cur_allAgentCoor_KD = None  # KD tree that stores all agent's current position coordinate at current ts
         self.OU_noise = None
         self.normalizer = None
+        self.dummy_agent = None  # template for create a new agent
+        self.max_agent_num = None
 
     def create_world(self, total_agentNum, n_actions, gamma, tau, target_update, largest_Nsigma, smallest_Nsigma, ini_Nsigma, max_xy, max_spd):
         # config OU_noise
@@ -58,6 +60,7 @@ class env_simulator:
             agent = Agent(n_actions, agent_i, gamma, tau, total_agentNum, max_spd)
             agent.target_update_step = target_update
             self.all_agents[agent_i] = agent
+        self.dummy_agent = self.all_agents[0]
         # global_state = self.reset_world(show=0)  # this may not necessary
 
     def reset_world(self, show):  # set initialize position and observation for all agents
@@ -236,7 +239,7 @@ class env_simulator:
             # agentSTR_list.append(cur_circle)
             agentsCoor_list.append(self.all_agents[agentIdx].pos)
 
-        self.cur_allAgentCoor_KD = KDTree(agentsCoor_list)
+        # self.cur_allAgentCoor_KD = KDTree(agentsCoor_list)
         overall_state, norm_overall_state = self.cur_state_norm_state_v2(agentRefer_dict)  # update agent's surrounding is inside here
 
         if show:
@@ -390,7 +393,9 @@ class env_simulator:
 
         return overall_state, norm_overall_state
 
-    def fill_agent_reset(self, added_agent_keys):
+    def fill_agent_reset(self, cur_state, norm_cur_state, added_agent_keys):
+        if len(added_agent_keys) == 0:
+            return cur_state, norm_cur_state
         # this function is serving as a small reset function, hence when filling "agentsCoor_list" & "agentRefer_dict" we need to include all existing agents
         agentsCoor_list = []  # for store all agents as circle polygon
         agentRefer_dict = {}  # A dictionary to use agent's current pos as key, their agent name (idx) as value
@@ -526,7 +531,7 @@ class env_simulator:
 
             # agentSTR_list.append(cur_circle)
             agentsCoor_list.append(self.all_agents[agentIdx].pos)
-        self.cur_allAgentCoor_KD = KDTree(agentsCoor_list)
+        # self.cur_allAgentCoor_KD = KDTree(agentsCoor_list)
         overall_state, norm_overall_state = self.cur_state_norm_state_v2(agentRefer_dict)  # update agent's surrounding is inside here
         return overall_state, norm_overall_state
 
@@ -535,7 +540,7 @@ class env_simulator:
         point_to_search = cur_agent.pos
         # subtract a small value to exclude point at exactly "search_distance"
         search_distance = (cur_agent.detectionRange / 2) + cur_agent.protectiveBound - 1e-6
-        indices_from_KDtree = self.cur_allAgentCoor_KD.query_ball_point(point_to_search, search_distance)
+        # indices_from_KDtree = self.cur_allAgentCoor_KD.query_ball_point(point_to_search, search_distance)
         for agent_idx, agent in self.all_agents.items():  # loop through all agent to confirm its neighbour
             if agent.agent_name == cur_agent.agent_name:  # skip the current querying agent
                 continue
@@ -830,6 +835,7 @@ class env_simulator:
     def get_step_reward(self, current_ts):  # this is for individual drones, current_ts = current time step
         reward, done = [], []
         agent_to_remove = []
+        remove_agent_named = []
         # check_goal = [False] * len(self.all_agents)
         check_goal = {drone_idx: False for drone_idx, drone_obj in self.all_agents.items()}
         # crash_penalty = -200
@@ -920,15 +926,15 @@ class env_simulator:
             # exceed bound or crash into buildings or crash with other neighbors
             if collide_building == 1 or len(collision_drones) > 0:
                 reward.append(np.array(crash_penalty))
-                # done.append(True)
-                done.append(False)
+                done.append(True)
+                # done.append(False)
 
             # exceed bound condition, don't use current point, use current circle or else will have condition that
             elif x_left_bound.intersects(host_passed_volume) or x_right_bound.intersects(host_passed_volume) or y_bottom_bound.intersects(host_passed_volume) or y_top_bound.intersects(host_passed_volume):
                 print("drone_{} has crash into boundary at time step {}".format(drone_idx, current_ts))
                 reward.append(np.array(crash_penalty))
-                done.append(False)
-                # done.append(True)
+                # done.append(False)
+                done.append(True)
             elif not goal_cur_intru_intersect.is_empty:  # reached goal?
                 print("drone_{} has reached its way point at time step {}".format(drone_idx, current_ts))
                 # reward.append(np.array(0))  this is idea 1
@@ -946,6 +952,7 @@ class env_simulator:
                             print(f"Failed to assign at index {drone_idx}. List length is {len(check_goal)}.")
                             break  # Or raise the error again with 'raise'
                         agent_to_remove.append(drone_idx)
+                        remove_agent_named.append(drone_idx)  # NOTE: drone_idx is the key value.
 
                 else:
                     reward.append(np.array(0))
@@ -999,16 +1006,33 @@ class env_simulator:
         reward = [shared_reward] * len(self.all_agents)
 
         # remove the agent here
-        for remove_idx in agent_to_remove:
+        for remove_idx in agent_to_remove:  # removed_idx is the key for the removed agent
             removed_value = self.all_agents.pop(remove_idx)
             # check all other agent's current surrounding neighbours
             for drone_idx, drone_obj in self.all_agents.items():  # this for loop already exclude the removed agent
                 if remove_idx in drone_obj.surroundingNeighbor:
                     del drone_obj.surroundingNeighbor[remove_idx]
 
-            # agent_to_remove.append(removed_value)
+        # immediately add a dummy removed agent
+        num_lack = int(self.max_agent_num - len(self.all_agents))
+        # int_removed_name = [int(re.search(r'\d+(\.\d+)?', name).group()) for name in remove_agent_named]
+        agent_filled = []
+        if num_lack > 0:
+            for i in range(num_lack):
+                # when both drones / all drones reaches the goal at same ts. Will have error. self.all_agents.keys() will become zeros. Debug this problem.
+                agent = deepcopy(self.dummy_agent)
+                if len(self.all_agents) == 0:
+                    current_max = max(agent_to_remove)  # all agents have reaches their destination at same time
+                else:
+                    try:
+                        current_max = max(max(list(self.all_agents.keys())), max(agent_to_remove))
+                    except:
+                        print("pause")
 
-        return reward, done, check_goal, agent_to_remove
+                agent.agent_name = 'agent_%s' % str(current_max+1)
+                self.all_agents[current_max+1] = agent
+                agent_filled.append(current_max+1)
+        return reward, done, check_goal, agent_to_remove, agent_filled
 
     def get_step_reward_5_v3(self, current_ts):  # this is for individual drones, current_ts = current time step
         reward, done = [], []
@@ -1228,7 +1252,7 @@ class env_simulator:
             agentCoorKD_list_update.append(self.all_agents[drone_idx].pos)
             agentRefer_dict[(self.all_agents[drone_idx].pos[0],
                              self.all_agents[drone_idx].pos[1])] = self.all_agents[drone_idx].agent_name
-        self.cur_allAgentCoor_KD = KDTree(agentCoorKD_list_update)  # update all agent coordinate KDtree
+        # self.cur_allAgentCoor_KD = KDTree(agentCoorKD_list_update)  # update all agent coordinate KDtree
 
         # initiate for next state
         cur_ObsState = np.zeros((len(self.all_agents), 6))  # totalAgent * 6, 2D array
@@ -1328,15 +1352,28 @@ class env_simulator:
         #     ax.cla()
         return next_state, next_state_norm
 
-    def fill_agents(self, max_agent_train, cur_state, norm_cur_state):
+    def fill_agents(self, max_agent_train, cur_state, norm_cur_state, remove_agent_keys):
         num_lack = int(max_agent_train-len(self.all_agents))
+        # int_removed_name = [int(re.search(r'\d+(\.\d+)?', name).group()) for name in remove_agent_named]
         agent_filled = []
         if num_lack > 0:
             for i in range(num_lack):
-                selected_key = random.choice(list(self.all_agents.keys()))
-                selected_agent = self.all_agents[selected_key]
-                agent = deepcopy(selected_agent)
-                current_max = max(list(self.all_agents.keys()))
+                # when both drones / all drones reaches the goal at same ts. Will have error. self.all_agents.keys() will become zeros. Debug this problem.
+                # ----------------original ------------------
+                # selected_key = random.choice(list(self.all_agents.keys()))
+                # selected_agent = self.all_agents[selected_key]
+                # agent = deepcopy(selected_agent)
+                # current_max = max(list(self.all_agents.keys()))
+                # ----------------- end of original -----------
+                agent = deepcopy(self.dummy_agent)
+                if len(self.all_agents) == 0:
+                    current_max = max(remove_agent_keys)  # all agents have reaches their destination at same time
+                else:
+                    try:
+                        current_max = max(max(list(self.all_agents.keys())), max(remove_agent_keys))
+                    except:
+                        print("pause")
+
                 agent.agent_name = 'agent_%s' % str(current_max+1)
                 self.all_agents[current_max+1] = agent
                 agent_filled.append(current_max+1)

@@ -36,16 +36,16 @@ def initialize_parameters():
     yhigh = 385
     bound = [xlow, xhigh, ylow, yhigh]
     # generate static env from shape file
-    # shapePath = 'D:\deep_Q_learning\DQN_new_framework\lakesideMap\lakeSide.shp'
-    shapePath = 'F:\githubClone\deep_Q_learning\DQN_new_framework\lakesideMap\lakeSide.shp'
+    shapePath = 'D:\deep_Q_learning\DQN_new_framework\lakesideMap\lakeSide.shp'
+    # shapePath = 'F:\githubClone\deep_Q_learning\DQN_new_framework\lakesideMap\lakeSide.shp'
     staticEnv = env_generation(shapePath, bound)  # it is a tuple of 4 element, 1st is the 2D binary array of the filled map, 2nd is the list of all buildings expressed as polygons, 3rd is the gird length, last is list of square grids in the map that has overlapped with the building polygons.
 
     # agent config address
     # read the Excel file into a pandas dataframe
     # agentConfig = (r'F:\githubClone\Multi_agent_AAC\MA_ver1\fixedDrone.xlsx')
     # agentConfig = (r'F:\githubClone\Multi_agent_AAC\MA_ver1\fixedDrone_2_drone.xlsx')
-    agentConfig = (r'F:\githubClone\Multi_agent_AAC\MA_ver1\fixedDrone_5_adj.xlsx')
-    # agentConfig = (r'D:\Multi_agent_AAC\MA_ver1\fixedDrone.xlsx')
+    # agentConfig = (r'F:\githubClone\Multi_agent_AAC\MA_ver1\fixedDrone_5_adj.xlsx')
+    agentConfig = (r'D:\Multi_agent_AAC\MA_ver1\fixedDrone.xlsx')
     # agentConfig = (r'D:\Multi_agent_AAC\MA_ver1\fixedDrone_2_drone.xlsx')
     env = env_simulator(staticEnv[0], staticEnv[1], staticEnv[2], bound, staticEnv[3], agentConfig)
     return n_episodes, max_t, eps_start, eps_end, eps_period, eps, env, agent_grid_obs, BUFFER_SIZE, BATCH_SIZE, GAMMA, TAU, learning_rate, UPDATE_EVERY, seed, staticEnv[-1]

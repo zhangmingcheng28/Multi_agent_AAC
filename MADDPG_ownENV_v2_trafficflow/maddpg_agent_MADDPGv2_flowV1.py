@@ -58,7 +58,8 @@ class MADDPG:
         self.GAMMA = gamma
         self.tau = tau
 
-        self.var = [1.0 for i in range(n_agents)]
+        # self.var = [1.0 for i in range(n_agents)]
+        self.var = [0.5 for i in range(n_agents)]
 
         # original, critic learning rate is 10 times larger compared to actor
         # self.critic_optimizer = [Adam(x.parameters(), lr=0.001) for x in self.critics]
@@ -80,7 +81,7 @@ class MADDPG:
         self.steps_done = 0
         self.episode_done = 0
 
-    def load_model(self, filePath_0, filePath_1):
+    def load_model(self, filePath):
         if self.args.model_episode:
             path_flag = True
             # for idx in range(self.n_agents):
@@ -97,8 +98,8 @@ class MADDPG:
                 #     critic = torch.load("trained_model/maddpg/critic["+ str(idx) + "]_"+str(self.args.model_episode)+".pth")
                 #     self.actors[idx].load_state_dict(actor.state_dict())
                 #     self.critics[idx].load_state_dict(critic.state_dict())
-                self.actors[0].load_state_dict(torch.load(filePath_0))
-                self.actors[1].load_state_dict(torch.load(filePath_1))
+                for path_idx, path in enumerate(filePath):
+                    self.actors[path_idx].load_state_dict(torch.load(path))
 
 
         self.actors_target = deepcopy(self.actors)
@@ -323,7 +324,7 @@ class MADDPG:
         self.steps_done += 1
         return action_out
 
-    def get_scaling_factor(self, episode, drop_point=12000, start_scale=1, end_scale=0.03):
+    def get_scaling_factor(self, episode, drop_point=12000, start_scale=0.5, end_scale=0.03):  # start_scale=1 this is the original
         if episode <= drop_point:
             slope = (end_scale - start_scale) / drop_point
             return slope * episode + start_scale
