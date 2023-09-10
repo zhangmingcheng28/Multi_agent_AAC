@@ -77,6 +77,7 @@ class env_simulator:
             self.all_agents[agentIdx].pos = custom_agent_data[agentIdx][0:2]
             self.all_agents[agentIdx].ini_pos = custom_agent_data[agentIdx][0:2]
             self.all_agents[agentIdx].removed_goal = None
+            self.all_agents[agentIdx].reach_target = False
 
             if not isinstance(custom_agent_data[agentIdx][2:4][0], str):
                 self.all_agents[agentIdx].goal = [custom_agent_data[agentIdx][2:4]]
