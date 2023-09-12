@@ -38,8 +38,8 @@ def initialize_parameters():
     bound = [xlow, xhigh, ylow, yhigh]
 
     # generate static env from shape file
-    # shapePath = 'D:\deep_Q_learning\DQN_new_framework\lakesideMap\lakeSide.shp'
-    shapePath = 'F:\githubClone\deep_Q_learning\DQN_new_framework\lakesideMap\lakeSide.shp'
+    shapePath = 'D:\deep_Q_learning\DQN_new_framework\lakesideMap\lakeSide.shp'
+    # shapePath = 'F:\githubClone\deep_Q_learning\DQN_new_framework\lakesideMap\lakeSide.shp'
     # shapePath = 'D:\github_clone\Multi_agent_AAC\MA_ver1\lakesideMap\lakeSide.shp'
     staticEnv = env_generation(shapePath, bound)  # it is a tuple of 4 element, 1st is the 2D binary array of the filled map, 2nd is the list of all buildings expressed as polygons, 3rd is the gird length, last is list of square grids in the map that has overlapped with the building polygons.
     seed = 3407  # this seed is only used for torch manuel.seed
@@ -53,11 +53,11 @@ def initialize_parameters():
     # read the Excel file into a pandas dataframe
     # agentConfig = (r'F:\githubClone\Multi_agent_AAC\MA_ver1\fixedDrone.xlsx')
     # agentConfig = (r'F:\githubClone\Multi_agent_AAC\MA_ver1\fixedDrone_5_adj.xlsx')
-    agentConfig = (r'F:\githubClone\Multi_agent_AAC\MA_ver1\fixedDrone_3drones.xlsx')
+    # agentConfig = (r'F:\githubClone\Multi_agent_AAC\MA_ver1\fixedDrone_3drones.xlsx')
     # agentConfig = (r'F:\githubClone\Multi_agent_AAC\MA_ver1\fixedDrone_2_drone.xlsx')
     # agentConfig = (r'F:\githubClone\Multi_agent_AAC\MA_ver1\reward_test.xlsx')  # for perform reward testing
     # agentConfig = (r'D:\Multi_agent_AAC\MA_ver1\fixedDrone.xlsx')
-    # agentConfig = (r'D:\Multi_agent_AAC\MA_ver1\fixedDrone_3drones.xlsx')
+    agentConfig = (r'D:\Multi_agent_AAC\MA_ver1\fixedDrone_3drones.xlsx')
     # agentConfig = (r'D:\Multi_agent_AAC\MA_ver1\fixedDrone_2_drone.xlsx')
     # agentConfig = (r'D:\github_clone\Multi_agent_AAC\MA_ver1\fixedDrone_5_adj.xlsx')
     env = env_simulator(staticEnv[0], staticEnv[1], staticEnv[2], bound, staticEnv[3], agentConfig)

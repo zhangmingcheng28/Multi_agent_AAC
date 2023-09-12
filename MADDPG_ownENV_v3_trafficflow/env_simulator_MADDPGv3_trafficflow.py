@@ -408,7 +408,7 @@ class env_simulator:
             # agentSTR_list.append(cur_circle)
             agentsCoor_list.append(self.all_agents[agentIdx].pos)
         # self.cur_allAgentCoor_KD = KDTree(agentsCoor_list)
-        overall_state, norm_overall_state = self.cur_state_norm_state_v3(agentRefer_dict)  # update agent's surrounding is inside here
+        overall_state, norm_overall_state = self.cur_state_norm_state_fully_observable(agentRefer_dict)  # update agent's surrounding is inside here
         return overall_state, norm_overall_state
 
     def get_current_agent_nei(self, cur_agent, agentRefer_dict):

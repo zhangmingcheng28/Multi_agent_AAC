@@ -49,18 +49,18 @@ def main(args):
         plot_file_name = file_name + '/toplot'
         if not os.path.exists(plot_file_name):
             os.makedirs(plot_file_name)
-    wandb = None
-    # wandb.login(key="efb76db851374f93228250eda60639c70a93d1ec")
-    # wandb.init(
-    #     # set the wandb project where this run will be logged
-    #     project="MADDPG_FrameWork",
-    #     name='MADDPG_test_'+str(current_date) + '_' + str(formatted_time),
-    #     # track hyperparameters and run metadata
-    #     config={
-    #         "learning_rate": args.a_lr,
-    #         "epochs": args.max_episodes,
-    #     }
-    # )
+    # wandb = None
+    wandb.login(key="efb76db851374f93228250eda60639c70a93d1ec")
+    wandb.init(
+        # set the wandb project where this run will be logged
+        project="MADDPG_FrameWork",
+        name='MADDPG_test_'+str(current_date) + '_' + str(formatted_time),
+        # track hyperparameters and run metadata
+        config={
+            "learning_rate": args.a_lr,
+            "epochs": args.max_episodes,
+        }
+    )
 
     # -------------- create my own environment -----------------
     n_episodes, max_t, eps_start, eps_end, eps_period, eps, env, \
@@ -222,7 +222,7 @@ def main(args):
                     print("Agents stuck in some places, maximum step in one episode reached, current episode {} ends".format(episode))
                 elif (True in done_aft_action):
                     episode_decision[1] = True
-                    print("Some agent triggers termination condition, current episode {} ends".format(episode))
+                    print("Some agent triggers termination condition like collision, current episode {} ends".format(episode))
                 elif (agent_added>50):
                     episode_decision[2] = True
                     print("More than 50 drones has reaches the destination, current episode {} ends".format(episode))
@@ -233,12 +233,12 @@ def main(args):
                     # here onwards is end of an episode's play
                     score_history.append(accum_reward)
                     print("[Episode %05d] reward %6.4f" % (episode, accum_reward))
-                    # wandb.log({'overall_reward': float(accum_reward)})
+                    wandb.log({'overall_reward': float(accum_reward)})
                     if c_loss and a_loss:
                         for idx, val in enumerate(c_loss):
                             print(" agent %s, a_loss %3.2f c_loss %3.2f" % (idx, a_loss[idx].item(), c_loss[idx].item()))
-                            # wandb.log({'agent' + str(idx) + 'actor_loss': float(a_loss[idx].item())})
-                            # wandb.log({'agent' + str(idx) + 'critic_loss': float(c_loss[idx].item())})
+                            wandb.log({'agent' + str(idx) + 'actor_loss': float(a_loss[idx].item())})
+                            wandb.log({'agent' + str(idx) + 'critic_loss': float(c_loss[idx].item())})
                     if episode % args.save_interval == 0 and args.mode == "train":
                         # save the models at a predefined interval
                         # save model to my own directory
@@ -394,7 +394,7 @@ def main(args):
                     plt.ylabel("Y axis")
                     plt.show()
                     break
-    # wandb.finish()
+    wandb.finish()
 
     # if args.tensorboard:
     #     writer.close()
