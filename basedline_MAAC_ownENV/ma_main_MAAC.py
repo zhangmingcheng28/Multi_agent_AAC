@@ -33,10 +33,13 @@ def main(args):
     print("GPU Names:", gpu_names)
     if torch.cuda.is_available():
         device = torch.device('cuda')
+        torch.set_default_tensor_type(torch.cuda.FloatTensor)
         print('Using GPU')
     else:
         device = torch.device('cpu')
+        torch.set_default_tensor_type(torch.FloatTensor)
         print('Using CPU')
+
     today = datetime.date.today()
     current_date = today.strftime("%d%m%y")
     current_time = datetime.datetime.now()
@@ -48,17 +51,17 @@ def main(args):
     if not os.path.exists(plot_file_name):
         os.makedirs(plot_file_name)
 
-    wandb.login(key="efb76db851374f93228250eda60639c70a93d1ec")
-    wandb.init(
-        # set the wandb project where this run will be logged
-        project="MADDPG_sample_newFrameWork",
-        name='MAAC_D_ownENV_'+str(current_date) + '_' + str(formatted_time),
-        # track hyperparameters and run metadata
-        config={
-            "learning_rate": args.a_lr,
-            "epochs": args.max_episodes,
-        }
-    )
+    # wandb.login(key="efb76db851374f93228250eda60639c70a93d1ec")
+    # wandb.init(
+    #     # set the wandb project where this run will be logged
+    #     project="MADDPG_sample_newFrameWork",
+    #     name='MAAC_D_ownENV_'+str(current_date) + '_' + str(formatted_time),
+    #     # track hyperparameters and run metadata
+    #     config={
+    #         "learning_rate": args.a_lr,
+    #         "epochs": args.max_episodes,
+    #     }
+    # )
 
     # -------------- create my own environment -----------------
     n_episodes, max_t, eps_start, eps_end, eps_period, eps, env, \
@@ -192,9 +195,9 @@ def main(args):
                     FloatTensor = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor
 
                     if torch.cuda.is_available():
-                        model.prep_training(device='gpu')
+                        model.prep_training(device=device)
                     else:
-                        model.prep_training(device='cpu')
+                        model.prep_training(device=device)
                     for u_i in range(1):  # execute the below lines of code 4 times. when we have sufficient experience in the replay.
                         transitions = replay_buffer.sample(args.batch_size)
                         batch = Experience(*zip(*transitions))
@@ -219,7 +222,7 @@ def main(args):
                     # here onwards is end of an episode's play
                     score_history.append(accum_reward)
                     print("[Episode {}] reward {}, current eps is {}" .format(episode, accum_reward, eps))
-                    wandb.log({'overall_reward': float(accum_reward)})
+                    # wandb.log({'overall_reward': float(accum_reward)})
                     if all_agent_pol_loss and all_agent_q_loss:
                         for idx in range(len(env.all_agents)):
                             print(" agent %s, actor_loss %3.2f critic_loss %3.2f" % (
@@ -320,7 +323,7 @@ def main(args):
                 #     plt.ylabel("Y axis")
                 #     plt.show()
                 #     break
-    wandb.finish()
+    # wandb.finish()
 
     # if args.tensorboard:
     #     writer.close()

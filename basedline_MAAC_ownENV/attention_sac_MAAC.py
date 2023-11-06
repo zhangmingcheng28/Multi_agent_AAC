@@ -213,7 +213,7 @@ class AttentionSAC(object):
         for a in self.agents:
             a.policy.train()
             a.target_policy.train()
-        if device == 'gpu':
+        if device.type == 'cuda':
             fn = lambda x: x.cuda()
         else:
             fn = lambda x: x.cpu()
@@ -235,7 +235,7 @@ class AttentionSAC(object):
     def prep_rollouts(self, device='cpu'):
         for a in self.agents:
             a.policy.eval()
-        if device == 'gpu':
+        if device.type == 'cuda':
             fn = lambda x: x.cuda()
         else:
             fn = lambda x: x.cpu()
@@ -249,7 +249,7 @@ class AttentionSAC(object):
         """
         Save trained parameters of all agents into one file
         """
-        self.prep_training(device='cpu')  # move parameters to CPU before saving
+        self.prep_training(device=device)  # move parameters to CPU before saving
         save_dict = {'init_dict': self.init_dict,
                      'agent_params': [a.get_params() for a in self.agents],
                      'critic_params': {'critic': self.critic.state_dict(),
