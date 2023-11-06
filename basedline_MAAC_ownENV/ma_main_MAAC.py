@@ -211,7 +211,7 @@ def main(args):
                         all_agent_pol_loss = model.update_policies(experience_to_learn)
 
                         model.update_all_targets()
-                    model.prep_rollouts(device='cpu')
+                    model.prep_rollouts(device=device)
 
                 if args.episode_length < step or (True in done_aft_action):
                     eps = eps - (1 - eps_end) / eps_period
