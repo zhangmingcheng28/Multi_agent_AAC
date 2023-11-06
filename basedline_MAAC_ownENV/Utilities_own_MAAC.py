@@ -79,23 +79,31 @@ def map_range(value, coe_a):
     return mapped
 
 
-def compute_potential_conflict(pc_list, cur_drone_pos, cur_drone_vel, cur_drone_protRad, cur_neigh_pos, cur_neigh_vel,
+def compute_potential_conflict(cur_drone_pos, cur_drone_vel, cur_drone_protRad, cur_neigh_pos, cur_neigh_vel,
                                cur_neigh_protRad, cur_neigh_idx, current_ts):
     minus_rel_dist_before = -1 * (cur_drone_pos - cur_neigh_pos)  # always current drone - neighbours
     rel_vel_before = (cur_drone_vel - cur_neigh_vel)
-    rel_vel_SQnorm_before = np.square(np.linalg.norm(rel_vel_before))
-    if (current_ts == 0) & (rel_vel_SQnorm_before == 0):
-        # this if-else if to remove the runtimeWarning due to getting a value of nan
-        # because we initialized the velocity for each drone as 0 at start of each episode.
-        # Therefore, will have runtime warning
-        pass
-    else:
+    if not (np.any(cur_drone_vel) or np.any(cur_neigh_vel)):
+        # print("All elements in both arrays are zero")
+        rel_vel_before = rel_vel_before + 1e-10  # add a very small number to suppress division by zero warning
 
-        t_cpa_before = np.dot(minus_rel_dist_before, rel_vel_before) / rel_vel_SQnorm_before
-        d_cpa_before = np.linalg.norm(((cur_drone_pos - cur_neigh_pos) + (rel_vel_before * t_cpa_before)))
-        if (t_cpa_before >= 1) and (d_cpa_before < (cur_drone_protRad + cur_neigh_protRad)):
-            pc_list.append(cur_neigh_idx)
-    return pc_list
+    rel_vel_SQnorm_before = np.square(np.linalg.norm(rel_vel_before))
+    if np.isnan(rel_vel_SQnorm_before).any() or np.isinf(rel_vel_SQnorm_before).any():
+        print("check")
+    t_cpa_before = np.dot(minus_rel_dist_before, rel_vel_before) / rel_vel_SQnorm_before
+    d_cpa_before = np.linalg.norm(((cur_drone_pos - cur_neigh_pos) + (rel_vel_before * t_cpa_before)))
+    # time to potential conflict, t_cpa is the actual time in sec, so, if t_cap=3, meaning in order to reach d_cap, the decision making agent need to take 6 steps. Currently our
+    # if (t_cpa_before >= 0) and (t_cpa_before <= 1.5) and (d_cpa_before < (cur_drone_protRad + cur_neigh_protRad)):
+    #     # pc_list.append(cur_neigh_idx)
+    #     pc_list[cur_neigh_idx] = [t_cpa_before, d_cpa_before]
+        # double check
+        # host_future_pos = cur_drone_pos + (t_cpa_before*cur_drone_vel)
+        # intru_future_pos = cur_neigh_pos + (t_cpa_before*cur_neigh_vel)
+        # doubleCheck_dcpa = np.linalg.norm((host_future_pos-intru_future_pos))
+    if (t_cpa_before >= 0) and (t_cpa_before < 3):
+        return [cur_neigh_idx, t_cpa_before, d_cpa_before]
+    else:
+        return []
 
 
 def padding_list(max_grid_obs_dim, input_list):
@@ -174,30 +182,44 @@ class OUNoise:
 
 
 class NormalizeData:
-    def __init__(self, x_max, y_max, spd_max):
-        self.dis_max_x = x_max
-        self.dis_max_y = y_max
+    def __init__(self, x_min_max, y_min_max, spd_max, acc_range):
+        self.dis_min_x = x_min_max[0]
+        self.dis_max_x = x_min_max[1]
+        self.dis_min_y = y_min_max[0]
+        self.dis_max_y = y_min_max[1]
         self.spd_max = spd_max
+        self.acc_min = acc_range[0]
+        self.acc_max = acc_range[1]
 
     def nmlz_pos(self, pos_c):
         x, y = pos_c[0], pos_c[1]
-        x_min, y_min = 0, 0
-        x_normalized = ((x - x_min) / (self.dis_max_x - x_min)) * 2 - 1
-        y_normalized = ((y - y_min) / (self.dis_max_y - y_min)) * 2 - 1
+        x_normalized = 2 * ((x - self.dis_min_x) / (self.dis_max_x - self.dis_min_x)) - 1
+        y_normalized = 2 * ((y - self.dis_min_y) / (self.dis_max_y - self.dis_min_y)) - 1
         return x_normalized, y_normalized
 
     def nmlz_pos_diff(self, diff):
         dx, dy = diff[0], diff[1]
-        x_min, y_min = -self.dis_max_x, -self.dis_max_y
-        dx_normalized = ((dx - x_min) / (self.dis_max_x - x_min)) * 2 - 1
-        dy_normalized = ((dy - y_min) / (self.dis_max_y - y_min)) * 2 - 1
+        dx_min = self.dis_min_x-self.dis_max_x
+        dx_max = self.dis_max_x-self.dis_min_x
+        dy_min = self.dis_min_y-self.dis_max_y
+        dy_max = self.dis_max_y-self.dis_min_y
+        dx_normalized = 2 * ((dx - dx_min) / (dx_max - dx_min)) - 1
+        dy_normalized = 2 * ((dy - dy_min) / (dy_max - dy_min)) - 1
         return dx_normalized, dy_normalized
 
     def nmlz_vel(self, cur_vel):
         vx, vy = cur_vel[0], cur_vel[1]
-        vx_normalized = vx / self.spd_max
-        vy_normalized = vy / self.spd_max
+        # vx_normalized = vx / self.spd_max
+        # vy_normalized = vy / self.spd_max
+        vx_normalized = (vx / self.spd_max) * 2 - 1
+        vy_normalized = (vy / self.spd_max) * 2 - 1
         return vx_normalized, vy_normalized
+
+    def nmlz_acc(self, cur_acc):
+        ax, ay = cur_acc[0], cur_acc[1]
+        ax_normalized = ((ax - self.acc_min) / (self.acc_max-self.acc_min)) * 2 - 1
+        ay_normalized = (ay - self.acc_min) / (self.acc_max-self.acc_min) * 2 - 1
+        return ax_normalized, ay_normalized
 
 
 def BetaNoise(action, noise_scale):

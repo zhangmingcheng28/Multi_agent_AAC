@@ -52,7 +52,7 @@ def main(args):
     wandb.init(
         # set the wandb project where this run will be logged
         project="MADDPG_sample_newFrameWork",
-        name='MADDPG_test_'+str(current_date) + '_' + str(formatted_time),
+        name='MAAC_D_ownENV_'+str(current_date) + '_' + str(formatted_time),
         # track hyperparameters and run metadata
         config={
             "learning_rate": args.a_lr,
@@ -60,24 +60,25 @@ def main(args):
         }
     )
 
-
     # -------------- create my own environment -----------------
     n_episodes, max_t, eps_start, eps_end, eps_period, eps, env, \
     agent_grid_obs, BUFFER_SIZE, BATCH_SIZE, GAMMA, TAU, learning_rate, UPDATE_EVERY, seed_used, max_xy = initialize_parameters()
-    total_agentNum = len(pd.read_excel(env.agentConfig))
+    # total_agentNum = len(pd.read_excel(env.agentConfig))
+    total_agentNum = 3
     max_nei_num = 5
     # create world
     # actor_dim = [6+(total_agentNum-1)*2, 10, 6]  # dim host, maximum dim grid, dim other drones
     # critic_dim = [6+(total_agentNum-1)*2, 10, 6]
-    actor_dim = [6, 10, 6]  # dim host, maximum dim grid, dim other drones
-    critic_dim = [6, 10, 6]
-    n_actions = 2
+    actor_dim = [7, 9, 6]  # dim host, maximum dim grid, dim other drones
+    critic_dim = [7, 9, 6]
+    n_actions = 9
+    acc_range = [-4, 4]
 
     # original
     # actorNet_lr = learning_rate
     # criticNet_lr = learning_rate
 
-    actorNet_lr = 0.0001
+    actorNet_lr = 0.001
     criticNet_lr = 0.001
 
     # noise parameter ini
@@ -86,16 +87,14 @@ def main(args):
     ini_Nsigma = largest_Nsigma
 
     max_spd = 15
-    env.create_world(total_agentNum, n_actions, GAMMA, TAU, UPDATE_EVERY, largest_Nsigma, smallest_Nsigma, ini_Nsigma, max_xy, max_spd)
-
-
     # --------- my own -----------
+    env.env_combined_action_space = n_actions
+    env.env_combined_obs_space = actor_dim
+    # --------end of my own -----------
+
+    env.create_world(total_agentNum, n_actions, GAMMA, TAU, UPDATE_EVERY, largest_Nsigma, smallest_Nsigma, ini_Nsigma, max_xy, max_spd, acc_range)
     n_agents = len(env.all_agents)
     n_actions = n_actions
-
-    env.env_combined_action_space = n_actions
-    env.env_combined_obs_space = 3  # 3 input portion
-
     torch.manual_seed(args.seed)  # this is the seed
 
     # if args.algo == "maddpg":
@@ -116,13 +115,17 @@ def main(args):
     score_history = []
     reward_each_agent = []
     c_loss, a_loss = None, None
+    eps_start = 1.0
+    eps_end = 0.05
+    eps_period = round(args.max_episodes*0.2)   # The number of steps needed for the epsilon to drop until the minimum number of the "eps_end"
+    eps = eps_start
     while episode < args.max_episodes:
 
         # state = env.reset()  # original env reset
 
         # ------------ my own env.reset() ------------ #
-        cur_state, norm_cur_state = env.reset_world(show=0)
-        model.prep_rollouts(device='cpu')
+        cur_state, norm_cur_state = env.reset_world(total_agentNum, show=0)
+        model.prep_rollouts(device=device)
         episode += 1
         # print("current episode is {}, scaling factor is {}".format(episode, model.var[0]))
         step = 0
@@ -135,33 +138,40 @@ def main(args):
             model.load_model(load_filepath_0, load_filepath_1)
         while True:
             if args.mode == "train":
-                action = model.step(norm_cur_state, episode, explore=True)  # this is the set of get action
+                step_reward_record = [None] * n_agents
+                action = model.step(cur_state, eps, explore=False)  # this is the set of get action "explore" is to decide whether to use stochastic or deterministic policy
                 next_state, norm_next_state = env.step(action, step)
-                reward_aft_action, done_aft_action, check_goal = env.get_step_reward_5_v3(step)
+                # reward_aft_action, done_aft_action, check_goal = env.ss_reward(step)
+                reward_aft_action, done_aft_action, check_goal, step_reward_record = env.get_step_reward_5_v3(step, step_reward_record)
 
                 step += 1  # current play step
                 total_step += 1  # steps taken from 1st episode
-
                 if args.algo == "maddpg" or args.algo == "commnet":
                     obs = []
                     next_obs = []
-                    for elementIdx, element in enumerate(norm_cur_state):
-                        if elementIdx != len(norm_cur_state)-1:  # meaning is not the last element
-                            obs.append(torch.from_numpy(np.stack(element)).data.float().to(device))
-                        else:
-                            sur_agents = []
-                            for each_agent_list in element:
-                                sur_agents.append(torch.from_numpy(np.squeeze(np.array(each_agent_list), axis=1)).float())
-                            obs.append(sur_agents)
-
-                    for elementIdx, element in enumerate(norm_next_state):
-                        if elementIdx != len(norm_next_state)-1:  # meaning is not the last element
-                            next_obs.append(torch.from_numpy(np.stack(element)).data.float().to(device))
-                        else:
-                            sur_agents = []
-                            for each_agent_list in element:
-                                sur_agents.append(torch.from_numpy(np.squeeze(np.array(each_agent_list), axis=1)).float())
-                            next_obs.append(sur_agents)
+                    for elementIdx, element in enumerate(cur_state):
+                        obs.append(torch.from_numpy(np.stack(element)).data.float().to(device))
+                    for elementIdx, element in enumerate(next_state):
+                        next_obs.append(torch.from_numpy(np.stack(element)).data.float().to(device))
+                    # ---------- original 3 part of input --------------
+                    # for elementIdx, element in enumerate(norm_cur_state):
+                    #     if elementIdx != len(norm_cur_state)-1:  # meaning is not the last element
+                    #         obs.append(torch.from_numpy(np.stack(element)).data.float().to(device))
+                    #     else:
+                    #         sur_agents = []
+                    #         for each_agent_list in element:
+                    #             sur_agents.append(torch.from_numpy(np.squeeze(np.array(each_agent_list), axis=1)).float())
+                    #         obs.append(sur_agents)
+                    #
+                    # for elementIdx, element in enumerate(norm_next_state):
+                    #     if elementIdx != len(norm_next_state)-1:  # meaning is not the last element
+                    #         next_obs.append(torch.from_numpy(np.stack(element)).data.float().to(device))
+                    #     else:
+                    #         sur_agents = []
+                    #         for each_agent_list in element:
+                    #             sur_agents.append(torch.from_numpy(np.squeeze(np.array(each_agent_list), axis=1)).float())
+                    #         next_obs.append(sur_agents)
+                    # ---------- end of original 3 part of input --------------
 
                     rw_tensor = torch.FloatTensor(np.array(reward_aft_action)).to(device)
                     ac_tensor = torch.FloatTensor(action).to(device)
@@ -173,9 +183,10 @@ def main(args):
                 else:
                     model.memory(cur_state, action, reward_aft_action, next_state, done_aft_action)
 
-                accum_reward = accum_reward + reward_aft_action[0]  # all agents shares the same reward, just take one
+                accum_reward = accum_reward + sum(reward_aft_action)
                 cur_state = next_state
                 norm_cur_state = norm_next_state
+
                 if len(replay_buffer) >= args.batch_size:
                     BoolTensor = torch.cuda.BoolTensor if torch.cuda.is_available() else torch.BoolTensor
                     FloatTensor = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor
@@ -190,9 +201,10 @@ def main(args):
                         action_batch = torch.stack(batch.actions).type(FloatTensor)
                         reward_batch = torch.stack(batch.rewards).type(FloatTensor)
                         done_batch = torch.stack(batch.dones).type(FloatTensor)
-                        cur_obs = re_arrange_states(batch.states, len(env.all_agents))
-                        next_obs = re_arrange_states(batch.next_states, len(env.all_agents))
-
+                        # cur_obs = re_arrange_states(batch.states, len(env.all_agents))
+                        # next_obs = re_arrange_states(batch.next_states, len(env.all_agents))
+                        cur_obs = [torch.stack([elem[i] for elem in batch.states]) for i in range(len(env.all_agents))]
+                        next_obs = [torch.stack([elem[i] for elem in batch.next_states]) for i in range(len(env.all_agents))]
                         experience_to_learn = [cur_obs, action_batch, reward_batch, next_obs, done_batch]
 
                         all_agent_q_loss = model.update_critic(experience_to_learn)
@@ -201,20 +213,19 @@ def main(args):
                         model.update_all_targets()
                     model.prep_rollouts(device='cpu')
 
-
                 if args.episode_length < step or (True in done_aft_action):
-                    # display bound lines
-                    # display condition of failing
+                    eps = eps - (1 - eps_end) / eps_period
+                    eps = max(eps, eps_end)
                     # here onwards is end of an episode's play
                     score_history.append(accum_reward)
-                    print("[Episode %05d] reward %6.4f" % (episode, accum_reward))
+                    print("[Episode {}] reward {}, current eps is {}" .format(episode, accum_reward, eps))
                     wandb.log({'overall_reward': float(accum_reward)})
                     if all_agent_pol_loss and all_agent_q_loss:
                         for idx in range(len(env.all_agents)):
                             print(" agent %s, actor_loss %3.2f critic_loss %3.2f" % (
                                 idx, all_agent_pol_loss[idx].item(), all_agent_q_loss[idx].item()))
-                            wandb.log({'agent' + str(idx) + 'actor_loss': float(all_agent_pol_loss[idx].item())})
-                            wandb.log({'agent' + str(idx) + 'critic_loss': float(all_agent_q_loss[idx].item())})
+                            # wandb.log({'agent' + str(idx) + 'actor_loss': float(all_agent_pol_loss[idx].item())})
+                            # wandb.log({'agent' + str(idx) + 'critic_loss': float(all_agent_q_loss[idx].item())})
                     if episode % args.save_interval == 0 and args.mode == "train":
 
                         # save the models at a predefined interval
@@ -326,8 +337,8 @@ if __name__ == '__main__':
     parser.add_argument('--tau', default=0.001, type=float)
     parser.add_argument('--gamma', default=0.95, type=float)
     parser.add_argument('--seed', default=777, type=int)
-    parser.add_argument('--a_lr', default=0.0001, type=float)
-    parser.add_argument('--c_lr', default=0.0001, type=float)
+    parser.add_argument('--a_lr', default=0.001, type=float)
+    parser.add_argument('--c_lr', default=0.001, type=float)
     parser.add_argument('--batch_size', default=256, type=int)  # original 256
     parser.add_argument('--render_flag', default=False, type=bool)
     parser.add_argument('--ou_theta', default=0.15, type=float)

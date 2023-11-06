@@ -8,6 +8,8 @@ from utils_MAAC.agents import AttentionAgent
 from utils_MAAC.critics import AttentionCritic
 
 MSELoss = torch.nn.MSELoss()
+AC_alpha = 0.5
+
 
 class AttentionSAC(object):
     """
@@ -71,21 +73,23 @@ class AttentionSAC(object):
     def target_policies(self):
         return [a.target_policy for a in self.agents]
 
-    def step(self, state, episode, explore=False):
-        obs = torch.from_numpy(np.stack(state[0])).float().to(device)
-        obs_grid = torch.from_numpy(np.stack(state[1])).float().to(device)
-        all_obs_surAgent = []
-        for each_agent_sur in state[2]:
-            each_obs_surAgent = np.squeeze(np.array(each_agent_sur), axis=1)
-            all_obs_surAgent.append(torch.from_numpy(each_obs_surAgent).float())
+    def step(self, state, eps, explore=False):
+        # obs = torch.from_numpy(np.stack(state[0])).float().to(device)
+        obs = torch.from_numpy(np.stack(state)).float().to(device)
+        # obs_grid = torch.from_numpy(np.stack(state[1])).float().to(device)
+        # all_obs_surAgent = []
+        # for each_agent_sur in state[2]:
+        #     each_obs_surAgent = np.squeeze(np.array(each_agent_sur), axis=1)
+        #     all_obs_surAgent.append(torch.from_numpy(each_obs_surAgent).float())
 
         actions = torch.zeros(len(self.agents), self.agent_init_params[0]['num_out_pol'])
         FloatTensor = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor
         for i in range(len(self.agents)):
             sb = obs[i].detach()
-            sb_grid = obs_grid[i].detach()
-            sb_surAgent = all_obs_surAgent[i].detach()
-            act = self.agents[i].step([sb.unsqueeze(0), sb_grid.unsqueeze(0), sb_surAgent.unsqueeze(0)], explore=explore)
+            # sb_grid = obs_grid[i].detach()
+            # sb_surAgent = all_obs_surAgent[i].detach()
+            # act = self.agents[i].step([sb.unsqueeze(0), sb_grid.unsqueeze(0), sb_surAgent.unsqueeze(0)], explore=explore)
+            act = self.agents[i].step([sb.unsqueeze(0)], eps, explore=explore)
             # if explore:
             #     act += torch.from_numpy(np.random.randn(2) * self.var[i]).type(FloatTensor)
             #     self.var[i] = self.get_scaling_factor(episode, 12000)  # self.var[i] will decrease as the episode increase
@@ -117,30 +121,29 @@ class AttentionSAC(object):
         next_acs = []
         next_log_pis = []
         for pi_idx, pi in enumerate(self.target_policies):
-            curr_next_ac, curr_next_log_pi = pi([next_obs[0][pi_idx], next_obs[1][pi_idx], next_obs[2][pi_idx]],
-                                                       return_log_pi=True)
+            curr_next_ac, curr_next_log_pi = pi([next_obs[pi_idx]], return_log_pi=True)  # During the update of critic NN, we should not consider eps value, always set eps value to 0 (default).
             next_acs.append(curr_next_ac)
             next_log_pis.append(curr_next_log_pi)
 
-        trgt_critic_in = (next_obs, next_acs)
+        trgt_critic_in = list(zip(next_obs, next_acs))
         next_qs = self.target_critic(trgt_critic_in)  # input is a list, length is total number of agents. Each element holds each agent's next state and action with batch information.
         acs = list(acs.transpose(0, 1))
-        critic_in = (obs, acs)
+        critic_in = list(zip(obs, acs))
         critic_rets = self.critic(critic_in, regularize=True, niter=self.niter)
         all_agent_q_loss = []
         q_loss = 0
-        for a_i, nq, log_pi, (pq, regs) in zip(range(5), next_qs, next_log_pis, critic_rets):
+        for a_i, nq, log_pi, (pq, regs) in zip(range(self.nagents), next_qs, next_log_pis, critic_rets):
             target_q = (rews[a_i].view(-1, 1) + self.gamma * nq * (1 - dones[a_i].view(-1, 1)))
-            if soft:
-                target_q -= log_pi / self.reward_scale  # this reward_scale is set to 100
+            # if soft:
+            #     # target_q -= log_pi / self.reward_scale  # this reward_scale is set to 100
+            #     target_q -= AC_alpha * log_pi
             q_loss += MSELoss(pq, target_q.detach())  # summing the MSE loss across all agents
             for reg in regs:
                 q_loss += reg  # regularizing attention
             all_agent_q_loss.append(q_loss)
         q_loss.backward()
         self.critic.scale_shared_grads()
-        # grad_norm = torch.nn.utils.clip_grad_norm(
-        #     self.critic.parameters(), 10 * self.nagents)  # originally used for logger
+        grad_norm = torch.nn.utils.clip_grad_norm_(self.critic.parameters(), 10 * self.nagents)
         self.critic_optimizer.step()
         self.critic_optimizer.zero_grad()
 
@@ -155,7 +158,7 @@ class AttentionSAC(object):
         all_pol_regs = []
         all_agent_pol_loss = []
         for pi_idx, pi in enumerate(self.policies):
-            curr_ac, probs, curr_log_pi, pol_regs = pi([obs[0][pi_idx], obs[1][pi_idx], obs[2][pi_idx]],
+            curr_ac, probs, curr_log_pi, pol_regs = pi([obs[pi_idx]],
                                                        return_all_probs=True, return_log_pi=True, regularize=True)
             samp_acs.append(curr_ac)
             all_probs.append(probs)
@@ -163,18 +166,20 @@ class AttentionSAC(object):
             all_pol_regs.append(pol_regs)
 
         # critic_in = list(zip(obs, samp_acs))
-        critic_in = (obs, samp_acs)
+        critic_in = list(zip(obs, samp_acs))
         critic_rets = self.critic(critic_in, return_all_q=True)
-        for a_i, probs, log_pi, pol_regs, (q, all_q) in zip(range(5), all_probs,
+        for a_i, probs, log_pi, pol_regs, (q, all_q) in zip(range(self.nagents), all_probs,
                                                             all_log_pis, all_pol_regs,
                                                             critic_rets):
             curr_agent = self.agents[a_i]
             v = (all_q * probs).sum(dim=1, keepdim=True)
             pol_target = q - v
-            if soft:
-                pol_loss = (log_pi * (log_pi / self.reward_scale - pol_target).detach()).mean()
-            else:
-                pol_loss = (log_pi * (-pol_target).detach()).mean()
+            # if soft:
+            #     # pol_loss = (log_pi * (log_pi / self.reward_scale - pol_target).detach()).mean()
+            #     pol_loss = (log_pi * (AC_alpha * log_pi - pol_target).detach()).mean()
+            # else:
+            #     pol_loss = (log_pi * (-pol_target).detach()).mean()
+            pol_loss = (log_pi * (-pol_target).detach()).mean()
             for reg in pol_regs:
                 pol_loss += 1e-3 * reg  # policy regularization
             all_agent_pol_loss.append(pol_loss)
@@ -277,10 +282,9 @@ class AttentionSAC(object):
         agent_init_params = []
         sa_size = []
         for i in range(len(env.all_agents)):
-            sa_size.append((env.env_combined_obs_space, env.env_combined_action_space))
-            agent_init_params.append({'num_in_pol': actor_dim,
+            agent_init_params.append({'num_in_pol': actor_dim[0],
                                       'num_out_pol': env.env_combined_action_space})
-            sa_size.append((env.env_combined_obs_space, env.env_combined_action_space))
+            sa_size.append((env.env_combined_obs_space[0], env.env_combined_action_space))
 
         init_dict = {'gamma': gamma, 'tau': tau,
                      'pi_lr': pi_lr, 'q_lr': q_lr,

@@ -105,7 +105,7 @@ def square_grid_intersection(strTreePolyset, gridToTest, buildingPolygonDict):
     return occupied, height
 
 
-def env_generation(shapeFilePath):  # input: string of file path, output: STRtree object of polygons
+def env_generation(shapeFilePath, bound):  # input: string of file path, output: STRtree object of polygons
     shape = gpd.read_file(shapeFilePath)
     # check for duplicates and remove it
     ps = pd.DataFrame(shape)
@@ -139,6 +139,11 @@ def env_generation(shapeFilePath):  # input: string of file path, output: STRtre
     maxY = 1300
     gridLength = 10
     envMatrix = initialize_3d_array_environment(gridLength, maxX, maxY, math.ceil(maxHeight))
+    x_lower = math.ceil(bound[0] / gridLength)
+    x_higher = math.ceil(bound[1] / gridLength)
+    y_lower = math.ceil(bound[2] / gridLength)
+    y_higher = math.ceil(bound[3] / gridLength)
+
     gridPoly_beforeFill = []
     for xi in range(envMatrix.shape[0]):
         for yj in range(envMatrix.shape[1]):
@@ -157,24 +162,27 @@ def env_generation(shapeFilePath):  # input: string of file path, output: STRtre
 
     # After the prelimary world map has been build, we need to cover-up the holes that is surrounded by the occupied grids
     env_map = ndimage.binary_fill_holes(envMatrix[:, :, 0])  # env_layer fill holes
+    env_map_bounded = env_map[x_lower:x_higher, y_lower:y_higher]
     gridPoly_ones = []
     gridPoly_zero = []
     outPoly = []
     for ix in range(env_map.shape[0]):
         for iy in range(env_map.shape[1]):
-            grid_point_toTest = Point(ix * gridLength, iy * gridLength)
-            grid_poly_toTest = grid_point_toTest.buffer(gridLength / 2, cap_style=3)
-            if env_map[ix][iy] == 1:  # get the grid index that is occupied, meaning yield 1 in the index position
-                # transform these grid index information to the actual size map
-                gridPoly_ones.append(grid_poly_toTest)
-            else:
-                gridPoly_zero.append(grid_poly_toTest)
+            if (ix * gridLength <= bound[1]) and (ix * gridLength >= bound[0]) and (iy * gridLength <= bound[3]) and (
+                    iy * gridLength >= bound[2]):
+                grid_point_toTest = Point(ix * gridLength, iy * gridLength)
+                grid_poly_toTest = grid_point_toTest.buffer(gridLength / 2, cap_style=3)
+                if env_map[ix][iy] == 1:  # get the grid index that is occupied, meaning yield 1 in the index position
+                    # transform these grid index information to the actual size map
+                    gridPoly_ones.append(grid_poly_toTest)
+                else:
+                    gridPoly_zero.append(grid_poly_toTest)
     outPoly.append([gridPoly_ones, gridPoly_zero])
 
         # display all building polygon
     # for poly in polySet:
     #     ax.add_patch(PolygonPatch(poly))
-    return env_map, polySet_buildings, gridLength, outPoly, (maxX, maxY)  # return an occupied 3D array
+    return env_map_bounded, polySet_buildings, gridLength, outPoly, (maxX, maxY)  # return an occupied 3D array
 
 def pointgen(p1, p2, p3, totalnum):
     xySet = []

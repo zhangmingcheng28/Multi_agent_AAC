@@ -59,9 +59,12 @@ def onehot_from_logits(logits, eps=0.0, dim=1):
     # get random actions in one-hot form
     rand_acs = Variable(torch.eye(logits.shape[1])[[np.random.choice(
         range(logits.shape[1]), size=logits.shape[0])]], requires_grad=False)
+    # torch.eye(logits.shape[1], create an identity matrix of length = logits.shape[1]
+    # torch.eye(logits.shape[1]), when randomly select row, must use [[]], 2D list, to select. Inside is a randomly generate number.
+    # Variable(), is to wrap a tensor object, and specifically mention this chosen random action in one-hot form don't require gradient.
     # chooses between best and random actions using epsilon greedy
     return torch.stack([argmax_acs[i] if r > eps else rand_acs[i] for i, r in
-                        enumerate(torch.rand(logits.shape[0]))])
+                        enumerate(torch.rand(logits.shape[0]))])  # i is always 0. logits.shape[0] = 1, we only have one randomly generate number, torch.stack(), is only transfer list to tensor.
 
 # modified for PyTorch from https://github.com/ericjang/gumbel-softmax/blob/master/Categorical%20VAE.ipynb
 def sample_gumbel(shape, eps=1e-20, tens_type=torch.FloatTensor):
@@ -100,12 +103,12 @@ def firmmax_sample(logits, temperature, dim=1):
     return F.softmax(y, dim=dim)
 
 def categorical_sample(probs, use_cuda=False):
-    int_acs = torch.multinomial(probs, 1)
+    int_acs = torch.multinomial(probs, 1)  # Based on the input "prob" distribution, we sample 1 value from the distribution, and record down the index of the choices.
     if use_cuda:
         tensor_type = torch.cuda.FloatTensor
     else:
         tensor_type = torch.FloatTensor
-    acs = Variable(tensor_type(*probs.shape).fill_(0)).scatter_(1, int_acs, 1)
+    acs = Variable(tensor_type(*probs.shape).fill_(0)).scatter_(1, int_acs, 1)  # obtain the action corrosponding to the sampled choices.
     return int_acs, acs
 
 def disable_gradients(module):

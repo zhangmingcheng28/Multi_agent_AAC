@@ -1,8 +1,8 @@
 from torch import Tensor
 from torch.autograd import Variable
 from torch.optim import Adam
-from utils_MAAC.misc import hard_update, gumbel_softmax, onehot_from_logits
-from utils_MAAC.policies import DiscretePolicy
+from .misc import hard_update, gumbel_softmax, onehot_from_logits
+from .policies import DiscretePolicy
 
 class AttentionAgent(object):
     """
@@ -26,7 +26,7 @@ class AttentionAgent(object):
         hard_update(self.target_policy, self.policy)
         self.policy_optimizer = Adam(self.policy.parameters(), lr=lr)
 
-    def step(self, obs, explore=False):
+    def step(self, obs, eps, explore=False):
         """
         Take a step forward in environment for a minibatch of observations
         Inputs:
@@ -35,7 +35,7 @@ class AttentionAgent(object):
         Outputs:
             action (PyTorch Variable): Actions for this agent
         """
-        return self.policy(obs)
+        return self.policy(obs, eps, explore)
 
     def get_params(self):
         return {'policy': self.policy.state_dict(),

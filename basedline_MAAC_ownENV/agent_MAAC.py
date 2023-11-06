@@ -28,6 +28,8 @@ class Agent:
         self.pre_pos = None
         self.vel = None
         self.pre_vel = None
+        self.acc = np.zeros(2)
+        self.pre_acc = np.zeros(2)
         self.maxSpeed = maxSPD
         self.goal = None
         self.heading = None
@@ -39,6 +41,7 @@ class Agent:
         self.surroundingNeighbor = {}
         self.observableSpace = []
         self.target_update_step = None
+        self.removed_goal = None
         self.update_count = 0
         self.reach_target = False
 
