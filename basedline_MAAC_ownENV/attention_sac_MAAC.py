@@ -267,7 +267,10 @@ class AttentionSAC(object):
             os.makedirs(file_path)
         for i in range(n_agents):
             torch.save(self.policies[i].state_dict(), file_path + '/' +'episode_'+str(episode)+'_'+'agent_'+ str(i) + 'actor_net')
-
+    def load_model(self, filePath):
+        print("load model!")
+        for path_idx, path in enumerate(filePath):
+            self.policies[path_idx].load_state_dict(torch.load(path))
 
     @classmethod
     def init_from_env(cls, env, critic_dim, gamma=0.95, tau=0.01,

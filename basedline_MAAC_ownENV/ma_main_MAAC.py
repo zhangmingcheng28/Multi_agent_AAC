@@ -120,7 +120,7 @@ def main(args):
     c_loss, a_loss = None, None
     eps_start = 1.0
     eps_end = 0.05
-    eps_period = round(args.max_episodes*0.2)   # The number of steps needed for the epsilon to drop until the minimum number of the "eps_end"
+    eps_period = round(args.max_episodes*0.4)   # The number of steps needed for the epsilon to drop until the minimum number of the "eps_end"
     eps = eps_start
     while episode < args.max_episodes:
 
@@ -135,13 +135,17 @@ def main(args):
         accum_reward = 0
         trajectory_eachPlay = []
 
-        load_filepath_0 = r'D:\MADDPG_2nd_jp\190623_21_58_17\interval_record_eps\episode_11000_agent_0actor_net.pth'
-        load_filepath_1 = r'D:\MADDPG_2nd_jp\190623_21_58_17\interval_record_eps\episode_11000_agent_1actor_net.pth'
+        pre_fix = r'D:\MADDPG_2nd_jp\061123_19_59_43\interval_record_eps'
+        episode_to_check = str(15000)
+        load_filepath_0 = pre_fix + '\episode_' + episode_to_check + '_agent_0actor_net.pth'
+        load_filepath_1 = pre_fix + '\episode_' + episode_to_check + '_agent_1actor_net.pth'
+        load_filepath_2 = pre_fix + '\episode_' + episode_to_check + '_agent_2actor_net.pth'
+
         if args.mode == "eval":
-            model.load_model(load_filepath_0, load_filepath_1)
+            model.load_model([load_filepath_0, load_filepath_1, load_filepath_2])
         while True:
+            step_reward_record = [None] * n_agents
             if args.mode == "train":
-                step_reward_record = [None] * n_agents
                 action = model.step(cur_state, eps, explore=False)  # this is the set of get action "explore" is to decide whether to use stochastic or deterministic policy
                 next_state, norm_next_state = env.step(action, step)
                 # reward_aft_action, done_aft_action, check_goal = env.ss_reward(step)
@@ -240,10 +244,11 @@ def main(args):
                     # model.reset()
                     break  # this is to break out from "while True:", which is one play
             elif args.mode == "eval":
-                action = model.choose_action(norm_cur_state, episode, noisy=False)
+                eps = 0  # In evaluation mode we ensure no exploration
+                action = model.step(cur_state, eps, explore=False)  # this is the set of get action "explore" is to decide whether to use stochastic or deterministic policy
                 next_state, norm_next_state = env.step(action, step)
                 # reward_aft_action, done_aft_action, check_goal = env.get_step_reward(step)
-                reward_aft_action, done_aft_action, check_goal = env.get_step_reward_5_v3(step)
+                reward_aft_action, done_aft_action, check_goal, step_reward_record = env.get_step_reward_5_v3(step, step_reward_record)
 
                 step += 1
                 total_step += 1
@@ -252,77 +257,77 @@ def main(args):
                 trajectory_eachPlay.append([[each_agent_traj[0], each_agent_traj[1]] for each_agent_traj in cur_state])
                 accum_reward = accum_reward + sum(reward_aft_action)
                 # reward_each_agent.append(reward_aft_action)
-                # if args.episode_length < step or (True in done_aft_action):  # when termination condition reached
-                #     print("[Episode %05d] reward %6.4f " % (episode, accum_reward))
-                #     # display trajectory
-                #     os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
-                #     matplotlib.use('TkAgg')
-                #     fig, ax = plt.subplots(1, 1)
-                #     # display initial condition
-                #     for agentIdx, agent in env.all_agents.items():
-                #
-                #         plt.plot(agent.ini_pos[0], agent.ini_pos[1],
-                #                  marker=MarkerStyle(">",
-                #                                     fillstyle="right",
-                #                                     transform=Affine2D().rotate_deg(math.degrees(agent.heading))),
-                #                  color='y')
-                #         plt.text(agent.ini_pos[0], agent.ini_pos[1], agent.agent_name)
-                #         # plot self_circle of the drone
-                #         self_circle = Point(agent.ini_pos[0],
-                #                             agent.ini_pos[1]).buffer(agent.protectiveBound, cap_style='round')
-                #         grid_mat_Scir = shapelypoly_to_matpoly(self_circle, inFill=False, Edgecolor='k')
-                #         ax.add_patch(grid_mat_Scir)
-                #
-                #         # plot drone's detection range
-                #         detec_circle = Point(agent.ini_pos[0],
-                #                              agent.ini_pos[1]).buffer(agent.detectionRange / 2, cap_style='round')
-                #         detec_circle_mat = shapelypoly_to_matpoly(detec_circle, inFill=False, Edgecolor='g')
-                #         ax.add_patch(detec_circle_mat)
-                #
-                #         # link individual drone's starting position with its goal
-                #         ini = agent.ini_pos
-                #         for wp in agent.goal:
-                #             plt.plot(wp[0], wp[1], marker='*', color='y', markersize=10)
-                #             plt.plot([wp[0], ini[0]], [wp[1], ini[1]], '--', color='c')
-                #             ini = wp
-                #
-                #     # draw trajectory in current episode
-                #     for trajectory_idx, trajectory_val in enumerate(trajectory_eachPlay):  # each time step
-                #         for agentIDX, each_agent_traj in enumerate(trajectory_val):  # for each agent's motion in a time step
-                #             x, y = each_agent_traj[0], each_agent_traj[1]
-                #             plt.plot(x, y, 'o', color='r')
-                #
-                #             # plt.text(x-1, y-1, str(round(float(reward_each_agent[trajectory_idx][agentIDX]),2)))
-                #
-                #             self_circle = Point(x, y).buffer(env.all_agents[0].protectiveBound, cap_style='round')
-                #             grid_mat_Scir = shapelypoly_to_matpoly(self_circle, False, 'k')
-                #             ax.add_patch(grid_mat_Scir)
-                #
-                #     # draw occupied_poly
-                #     for one_poly in env.world_map_2D_polyList[0][0]:
-                #         one_poly_mat = shapelypoly_to_matpoly(one_poly, True, 'y', 'b')
-                #         ax.add_patch(one_poly_mat)
-                #     # draw non-occupied_poly
-                #     for zero_poly in env.world_map_2D_polyList[0][1]:
-                #         zero_poly_mat = shapelypoly_to_matpoly(zero_poly, False, 'y')
-                #         # ax.add_patch(zero_poly_mat)
-                #
-                #     # show building obstacles
-                #     for poly in env.buildingPolygons:
-                #         matp_poly = shapelypoly_to_matpoly(poly, False, 'red')  # the 3rd parameter is the edge color
-                #         ax.add_patch(matp_poly)
-                #
-                #     plt.axis('equal')
-                #     plt.xlim(env.bound[0], env.bound[1])
-                #     plt.ylim(env.bound[2], env.bound[3])
-                #     plt.axvline(x=env.bound[0], c="green")
-                #     plt.axvline(x=env.bound[1], c="green")
-                #     plt.axhline(y=env.bound[2], c="green")
-                #     plt.axhline(y=env.bound[3], c="green")
-                #     plt.xlabel("X axis")
-                #     plt.ylabel("Y axis")
-                #     plt.show()
-                #     break
+                if args.episode_length < step or (True in done_aft_action):  # when termination condition reached
+                    print("[Episode %05d] reward %6.4f " % (episode, accum_reward))
+                    # display trajectory
+                    os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
+                    matplotlib.use('TkAgg')
+                    fig, ax = plt.subplots(1, 1)
+                    # display initial condition
+                    for agentIdx, agent in env.all_agents.items():
+
+                        plt.plot(agent.ini_pos[0], agent.ini_pos[1],
+                                 marker=MarkerStyle(">",
+                                                    fillstyle="right",
+                                                    transform=Affine2D().rotate_deg(math.degrees(agent.heading))),
+                                 color='y')
+                        plt.text(agent.ini_pos[0], agent.ini_pos[1], agent.agent_name)
+                        # plot self_circle of the drone
+                        self_circle = Point(agent.ini_pos[0],
+                                            agent.ini_pos[1]).buffer(agent.protectiveBound, cap_style='round')
+                        grid_mat_Scir = shapelypoly_to_matpoly(self_circle, inFill=False, Edgecolor='k')
+                        ax.add_patch(grid_mat_Scir)
+
+                        # plot drone's detection range
+                        detec_circle = Point(agent.ini_pos[0],
+                                             agent.ini_pos[1]).buffer(agent.detectionRange / 2, cap_style='round')
+                        detec_circle_mat = shapelypoly_to_matpoly(detec_circle, inFill=False, Edgecolor='g')
+                        ax.add_patch(detec_circle_mat)
+
+                        # link individual drone's starting position with its goal
+                        ini = agent.ini_pos
+                        for wp in agent.goal:
+                            plt.plot(wp[0], wp[1], marker='*', color='y', markersize=10)
+                            plt.plot([wp[0], ini[0]], [wp[1], ini[1]], '--', color='c')
+                            ini = wp
+
+                    # draw trajectory in current episode
+                    for trajectory_idx, trajectory_val in enumerate(trajectory_eachPlay):  # each time step
+                        for agentIDX, each_agent_traj in enumerate(trajectory_val):  # for each agent's motion in a time step
+                            x, y = each_agent_traj[0], each_agent_traj[1]
+                            plt.plot(x, y, 'o', color='r')
+
+                            # plt.text(x-1, y-1, str(round(float(reward_each_agent[trajectory_idx][agentIDX]),2)))
+
+                            self_circle = Point(x, y).buffer(env.all_agents[0].protectiveBound, cap_style='round')
+                            grid_mat_Scir = shapelypoly_to_matpoly(self_circle, False, 'k')
+                            ax.add_patch(grid_mat_Scir)
+
+                    # draw occupied_poly
+                    for one_poly in env.world_map_2D_polyList[0][0]:
+                        one_poly_mat = shapelypoly_to_matpoly(one_poly, True, 'y', 'b')
+                        ax.add_patch(one_poly_mat)
+                    # draw non-occupied_poly
+                    for zero_poly in env.world_map_2D_polyList[0][1]:
+                        zero_poly_mat = shapelypoly_to_matpoly(zero_poly, False, 'y')
+                        # ax.add_patch(zero_poly_mat)
+
+                    # show building obstacles
+                    for poly in env.buildingPolygons:
+                        matp_poly = shapelypoly_to_matpoly(poly, False, 'red')  # the 3rd parameter is the edge color
+                        ax.add_patch(matp_poly)
+
+                    plt.axis('equal')
+                    plt.xlim(env.bound[0], env.bound[1])
+                    plt.ylim(env.bound[2], env.bound[3])
+                    plt.axvline(x=env.bound[0], c="green")
+                    plt.axvline(x=env.bound[1], c="green")
+                    plt.axhline(y=env.bound[2], c="green")
+                    plt.axhline(y=env.bound[3], c="green")
+                    plt.xlabel("X axis")
+                    plt.ylabel("Y axis")
+                    plt.show()
+                    break
     # wandb.finish()
 
     # if args.tensorboard:
@@ -334,7 +339,7 @@ if __name__ == '__main__':
     parser.add_argument('--scenario', default="simple_spread", type=str)
     parser.add_argument('--max_episodes', default=15000, type=int)  # rnu for a total of 60000 episodes
     parser.add_argument('--algo', default="maddpg", type=str, help="commnet/bicnet/maddpg")
-    parser.add_argument('--mode', default="train", type=str, help="train/eval")
+    parser.add_argument('--mode', default="eval", type=str, help="train/eval")
     parser.add_argument('--episode_length', default=50, type=int)  # maximum play per episode
     parser.add_argument('--memory_length', default=int(1e5), type=int)
     parser.add_argument('--tau', default=0.001, type=float)
