@@ -40,16 +40,16 @@ def main(args):
         torch.set_default_tensor_type(torch.FloatTensor)
         print('Using CPU')
 
-    today = datetime.date.today()
-    current_date = today.strftime("%d%m%y")
-    current_time = datetime.datetime.now()
-    formatted_time = current_time.strftime("%H_%M_%S")
-    file_name = 'D:\MADDPG_2nd_jp/' + str(current_date) + '_' + str(formatted_time)
-    if not os.path.exists(file_name):
-        os.makedirs(file_name)
-    plot_file_name = file_name + '/toplot'
-    if not os.path.exists(plot_file_name):
-        os.makedirs(plot_file_name)
+    # today = datetime.date.today()
+    # current_date = today.strftime("%d%m%y")
+    # current_time = datetime.datetime.now()
+    # formatted_time = current_time.strftime("%H_%M_%S")
+    # file_name = 'D:\MADDPG_2nd_jp/' + str(current_date) + '_' + str(formatted_time)
+    # if not os.path.exists(file_name):
+    #     os.makedirs(file_name)
+    # plot_file_name = file_name + '/toplot'
+    # if not os.path.exists(plot_file_name):
+    #     os.makedirs(plot_file_name)
 
     # wandb.login(key="efb76db851374f93228250eda60639c70a93d1ec")
     # wandb.init(
