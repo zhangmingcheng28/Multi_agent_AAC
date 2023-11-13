@@ -13,7 +13,7 @@ class BasePolicy(nn.Module):
     Base policy network
     """
     def __init__(self, input_dim, out_dim, hidden_dim=64, nonlin=F.leaky_relu,
-                 norm_in=True, onehot_dim=0):
+                 norm_in=False, onehot_dim=0):
         """
         Inputs:
             input_dim (int): Number of dimensions in input
@@ -22,7 +22,8 @@ class BasePolicy(nn.Module):
             nonlin (PyTorch function): Nonlinearity to apply to hidden layers
         """
         super(BasePolicy, self).__init__()
-
+        # if norm_in == True:
+        #     self.norm_in = nn.BatchNorm1d(input_dim, affine=False)
         self.own_fc = nn.Sequential(nn.Linear(input_dim, 128), nn.ReLU())
         # self.intrude_fc = nn.Sequential(nn.Linear(input_dim[2], 128), nn.ReLU())
         # self.own_grid_fc = nn.Sequential(nn.Linear(input_dim[1], 128), nn.ReLU())
@@ -51,6 +52,8 @@ class BasePolicy(nn.Module):
         # self.log_std_linear.bias.data.uniform_(-3e-3, 3e-3)
 
     def forward(self, state):
+        # norm = self.norm_in(state[0])
+        # own_e = self.own_fc(norm)
         own_e = self.own_fc(state[0])
         # ------------------------ #
         fc2_out = self.fc2(own_e)

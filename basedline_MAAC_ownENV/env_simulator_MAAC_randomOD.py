@@ -36,6 +36,7 @@ import torch.nn as nn
 class env_simulator:
     def __init__(self, world_map, building_polygons, grid_length, bound, allGridPoly, agentConfig):  # allGridPoly[0][0] is all grid=1
         self.world_map_2D = world_map  # 2D binary matrix, in ndarray form.
+        self.world_map_2D_jps = None
         self.centroid_to_position_empty = {}
         self.centroid_to_position_occupied = {}
         self.world_map_2D_polyList = allGridPoly  # [0][0] is all occupied polygon, [0][1] is all non-occupied polygon
@@ -99,6 +100,7 @@ class env_simulator:
                 else:
                     print("no corresponding coordinate found in side world 2D grid centroids, please debug!")
         self.world_map_2D = world_2D
+        self.world_map_2D_jps = world_2D.astype(int).tolist()
         
     def reset_world(self, total_agentNum, show):  # set initialize position and observation for all agents
         self.global_time = 0.0
@@ -222,12 +224,12 @@ class env_simulator:
             start_pos_memory.append(np.array(random_start_pos))
             self.all_agents[agentIdx].removed_goal = None
 
-            large_start = [random_start_pos[0] / self.gridlength, random_start_pos[1] / self.gridlength]
-            large_end = [random_end_pos[0] / self.gridlength, random_end_pos[1] / self.gridlength]
-            small_area_map_start = [large_start[0] - math.ceil(self.bound[0] / self.gridlength),
-                                    large_start[1] - math.ceil(self.bound[2] / self.gridlength)]
-            small_area_map_end = [large_end[0] - math.ceil(self.bound[0] / self.gridlength),
-                                  large_end[1] - math.ceil(self.bound[2] / self.gridlength)]
+            # large_start = [random_start_pos[0] / self.gridlength, random_start_pos[1] / self.gridlength]
+            # large_end = [random_end_pos[0] / self.gridlength, random_end_pos[1] / self.gridlength]
+            # small_area_map_start = [large_start[0] - math.ceil(self.bound[0] / self.gridlength),
+            #                         large_start[1] - math.ceil(self.bound[2] / self.gridlength)]
+            # small_area_map_end = [large_end[0] - math.ceil(self.bound[0] / self.gridlength),
+            #                       large_end[1] - math.ceil(self.bound[2] / self.gridlength)]
 
             small_area_map_s = self.centroid_to_position_empty[random_start_pos]
             small_area_map_e = self.centroid_to_position_empty[random_end_pos]
@@ -235,7 +237,7 @@ class env_simulator:
             width = self.world_map_2D.shape[0]
             height = self.world_map_2D.shape[1]
 
-            jps_map = self.world_map_2D.astype(int).tolist()
+            jps_map = self.world_map_2D_jps
             outPath = jps.find_path(small_area_map_s, small_area_map_e, width, height, jps_map)[0]
             # outPath = jps.find_path(small_area_map_start, small_area_map_end, 22, 13, self.world_map_2D)[0]
 
@@ -621,9 +623,14 @@ class env_simulator:
                 host_refline = LineString([agent.ini_pos, agent.goal[0]])
             cross_track_deviation = curPoint.distance(host_refline)  # deviation from the reference line, cross track error
 
+            others = []
+            for other_idx, other_agent in self.all_agents.items():
+                if other_idx != agent_idx:
+                    others.append(other_agent.pos)
+
             agent_own = np.array(
                 [agent.pos[0], agent.pos[1], cross_track_deviation, agent.goal[-1][0], agent.goal[-1][1],
-                 agent.vel[0], agent.vel[1]])
+                 agent.vel[0], agent.vel[1], others[0][0], others[0][1], others[1][0], others[1][1]])
 
             # agent_own = np.concatenate((agent_own, all_other_posdiff))
             # populate normalized agent_own
@@ -1044,8 +1051,9 @@ class env_simulator:
         check_goal = [False] * len(self.all_agents)
         reward_record_idx = 0  # this is used as a list index, increase with for loop. No need go with agent index, this index is also shared by done checking
         # crash_penalty = -200
-        crash_penalty = -300
-        reach_target = 300
+        # crash_penalty = -300
+        crash_penalty = -100
+        reach_target = 30
         potential_conflict_count = 0
         final_goal_toadd = 0
         fixed_domino_reward = 1
@@ -1081,18 +1089,19 @@ class env_simulator:
                 self.all_agents[drone_idx].protectiveBound)
             # neigh_keys is the drone_idx for current neighbors
             # loop through neighbors from previous time step
-            for neigh_keys in self.all_agents[drone_idx].pre_surroundingNeighbor:
-                # compute potential conflicts before and after the action for the current drone with its neighbours
-                try:
-                    one_pc_before = compute_potential_conflict(drone_obj.pre_pos, drone_obj.pre_vel,
-                                                           drone_obj.protectiveBound, self.all_agents[neigh_keys].pre_pos,
-                                                           self.all_agents[neigh_keys].pre_vel,
-                                                           self.all_agents[neigh_keys].protectiveBound, neigh_keys,
-                                                           current_ts)
-                except:
-                    print("pause")
-                if len(one_pc_before) > 0:
-                    pc_before.append(one_pc_before)
+            # for neigh_keys in self.all_agents[drone_idx].pre_surroundingNeighbor:
+            #     # compute potential conflicts before and after the action for the current drone with its neighbours
+            #     try:
+            #         one_pc_before = compute_potential_conflict(drone_obj.pre_pos, drone_obj.pre_vel,
+            #                                                drone_obj.protectiveBound, self.all_agents[neigh_keys].pre_pos,
+            #                                                self.all_agents[neigh_keys].pre_vel,
+            #                                                self.all_agents[neigh_keys].protectiveBound, neigh_keys,
+            #                                                current_ts)
+            #     except:
+            #         print("pause")
+            #     if len(one_pc_before) > 0:
+            #         pc_before.append(one_pc_before)
+
             # loop through neighbors from current time step
             for neigh_keys in self.all_agents[drone_idx].surroundingNeighbor:
                 # compute potential conflicts before and after the action for the current drone with its neighbours
@@ -1133,13 +1142,15 @@ class env_simulator:
             #     dominoTerm = fixed_domino_reward
             # else:
             #     dominoTerm = (len(pc_before) - len(pc_after)) / len(pc_after)
-            dominoTerm = []  # reset for every new decision making drone
-            for neigh_keys, t_cpa, d_cpa in pc_after:
-                # td_cpa[1] is d_cpa, td_cpa[0] is t_cpa
-                # dominoValue = ((2*drone_obj.protectiveBound)/math.exp(td_cpa[1])) * (math.exp(-td_cpa[0]))
-                dominoValue = ((5/math.exp((d_cpa-5)/3))+1) * (1-(1/(5**(3-t_cpa))))
-                dominoTerm.append(dominoValue)
-            dominoTerm_sum = -sum(dominoTerm)  # use -ve to indicate a penalty
+
+
+            # dominoTerm = []  # reset for every new decision making drone
+            # for neigh_keys, t_cpa, d_cpa in pc_after:
+            #     # td_cpa[1] is d_cpa, td_cpa[0] is t_cpa
+            #     # dominoValue = ((2*drone_obj.protectiveBound)/math.exp(td_cpa[1])) * (math.exp(-td_cpa[0]))
+            #     dominoValue = ((5/math.exp((d_cpa-5)/3))+1) * (1-(1/(5**(3-t_cpa))))
+            #     dominoTerm.append(dominoValue)
+            # dominoTerm_sum = -sum(dominoTerm)  # use -ve to indicate a penalty
 
             # check whether current actions leads to a collision with any buildings in the airspace
             # possiblePoly = self.allbuildingSTR.query(host_current_circle)
@@ -1149,7 +1160,7 @@ class env_simulator:
             #         print("drone_{} crash into building when moving from {} to {} at time step {}".format(drone_idx, self.all_agents[drone_idx].pre_pos, self.all_agents[drone_idx].pos, current_ts))
             #         break
 
-            tar_circle = Point(self.all_agents[drone_idx].goal[0]).buffer(1, cap_style='round')
+            tar_circle = Point(self.all_agents[drone_idx].goal[-1]).buffer(1, cap_style='round')
             # when there is no intersection between two geometries, "RuntimeWarning" will appear
             # RuntimeWarning is, "invalid value encountered in intersection"
             goal_cur_intru_intersect = host_passed_volume.intersection(tar_circle)
@@ -1197,10 +1208,15 @@ class env_simulator:
             # cross_track_error = (20 / ((cross_track_deviation * cross_track_deviation) / 200 + 1)) - 3.5  # original
             cross_track_error = (math.e ** (5 - cross_track_deviation / 7) / 5) - 0.5  # original on 24_07
             # cross_track_error = (5 * math.e ** ((5 - cross_track_deviation) / 7)) - 1  # cross_track_deviation>16.266 -> <0, cross_track_deviation=0 -> 9.2
+
+            # distance between drone and its final goal.
+            # delta_hg = -np.linalg.norm(drone_obj.pos - drone_obj.goal[-1])
+            delta_hg = -(np.linalg.norm(drone_obj.pos - drone_obj.goal[-1])/np.linalg.norm(drone_obj.ini_pos - drone_obj.goal[-1]))  # reduced reward
+
             # Distance between drone and its goal for two consecutive time step
-            before_dist_hg = np.linalg.norm(drone_obj.pre_pos - drone_obj.goal[0])
-            after_dist_hg = np.linalg.norm(drone_obj.pos - drone_obj.goal[0])  # distance to goal after action
-            delta_hg = goalCoefficient * (before_dist_hg - after_dist_hg)
+            # before_dist_hg = np.linalg.norm(drone_obj.pre_pos - drone_obj.goal[0])
+            # after_dist_hg = np.linalg.norm(drone_obj.pos - drone_obj.goal[0])  # distance to goal after action
+            # delta_hg = goalCoefficient * (before_dist_hg - after_dist_hg)
             if len(dist_toHost) == 0:  # meaning there is no neighbouring drone goes into host drone's detection range
                 slowChanging_dist_penalty_others = 0
             else:
@@ -1210,11 +1226,11 @@ class env_simulator:
                 # slowChanging_dist_penalty_others = 1 * (-10 * math.exp((5 - dist_to_host_minimum) / 2))
                 slowChanging_dist_penalty_others = -(math.e ** (5 - dist_to_host_minimum / 7) / 5)  # from -14.5 to 0
 
-            # a small penalty for discourage the agent to stay in one single spot
-            if (before_dist_hg - after_dist_hg) <= 2:
-                small_step_penalty = 50
-            else:
-                small_step_penalty = 0
+            # # a small penalty for discourage the agent to stay in one single spot
+            # if (before_dist_hg - after_dist_hg) <= 2:
+            #     small_step_penalty = 50
+            # else:
+            #     small_step_penalty = 0
             alive_penalty = -60
             # -------------end of pre-processed condition for a normal step -----------------
 
@@ -1224,43 +1240,51 @@ class env_simulator:
             #     done.append(True)
             #     # done.append(False)
             if len(collision_drones) > 0:
-                reward.append(np.array(crash_penalty))
+                # reward.append(np.array(crash_penalty))
+                reward.append(np.array(delta_hg+crash_penalty))
                 done.append(True)
 
             # exceed bound condition, don't use current point, use current circle or else will have condition that
             elif x_left_bound.intersects(host_passed_volume) or x_right_bound.intersects(host_passed_volume) or y_bottom_bound.intersects(host_passed_volume) or y_top_bound.intersects(host_passed_volume):
                 print("drone_{} has crash into boundary at time step {}".format(drone_idx, current_ts))
-                reward.append(np.array(crash_penalty))
+                # reward.append(np.array(crash_penalty))
+                reward.append(np.array(delta_hg + crash_penalty))
                 done.append(True)
                 # done.append(False)
 
             elif not goal_cur_intru_intersect.is_empty:  # reached goal?
 
-                if len(drone_obj.goal) > 1:  # meaning the current agent has more than one target/goal
-                    print("drone_{} has reached its way point at time step {}".format(drone_idx, current_ts))
-                    drone_obj.reach_target = False  # reset this flag
-                    drone_obj.removed_goal = drone_obj.goal.pop(0)
-                    # normal_step_rw = crossCoefficient*cross_track_error + slowChanging_dist_penalty_others + alive_penalty
-                    # normal_step_rw = crossCoefficient * cross_track_error + delta_hg + alive_penalty
-                    # normal_step_rw = crossCoefficient*cross_track_error + delta_hg + alive_penalty + slowChanging_dist_penalty_others
-                    # normal_step_rw = crossCoefficient*cross_track_error + delta_hg + alive_penalty + dominoCoefficient*dominoTerm_sum
-                    normal_step_rw = -delta_hg
-                    reward.append(np.array(normal_step_rw))
-                    # below two lines are used to debug
-                    # reward.append(np.array(reach_target))
-                    # agent_to_remove.append(drone_idx)  # NOTE: drone_idx is the key value.
-                else:
-                    check_goal[reward_record_idx] = True  # drone_obj.reach_target = True, and "check_goal" list also don't track agent's index
-                    # normal_step_rw = crossCoefficient * cross_track_error + delta_hg
-                    reward.append(np.array(reach_target))
-                    # reward.append(np.array(normal_step_rw))
-                    print("drone_{} has reached its final goal at time step {}".format(drone_idx, current_ts))
-                    agent_to_remove.append(drone_idx)  # NOTE: drone_idx is the key value.
+                # if len(drone_obj.goal) > 1:  # meaning the current agent has more than one target/goal
+                #     print("drone_{} has reached its way point at time step {}".format(drone_idx, current_ts))
+                #     drone_obj.reach_target = False  # reset this flag
+                #     drone_obj.removed_goal = drone_obj.goal.pop(0)
+                #     # normal_step_rw = crossCoefficient*cross_track_error + slowChanging_dist_penalty_others + alive_penalty
+                #     # normal_step_rw = crossCoefficient * cross_track_error + delta_hg + alive_penalty
+                #     # normal_step_rw = crossCoefficient*cross_track_error + delta_hg + alive_penalty + slowChanging_dist_penalty_others
+                #     # normal_step_rw = crossCoefficient*cross_track_error + delta_hg + alive_penalty + dominoCoefficient*dominoTerm_sum
+                #     # normal_step_rw = -delta_hg
+                #     reward.append(np.array(normal_step_rw))
+                #     # below two lines are used to debug
+                #     # reward.append(np.array(reach_target))
+                #     # agent_to_remove.append(drone_idx)  # NOTE: drone_idx is the key value.
+                # else:
+                #     check_goal[reward_record_idx] = True  # drone_obj.reach_target = True, and "check_goal" list also don't track agent's index
+                #     # normal_step_rw = crossCoefficient * cross_track_error + delta_hg
+                #     reward.append(np.array(reach_target))
+                #     # reward.append(np.array(normal_step_rw))
+                #     print("drone_{} has reached its final goal at time step {}".format(drone_idx, current_ts))
+                #     agent_to_remove.append(drone_idx)  # NOTE: drone_idx is the key value.
 
+                check_goal[reward_record_idx] = True  # drone_obj.reach_target = True, and "check_goal" list also don't track agent's index
+                # normal_step_rw = crossCoefficient * cross_track_error + delta_hg
+                reward.append(np.array(reach_target))
+                # reward.append(np.array(normal_step_rw))
+                print("drone_{} has reached its final goal at time step {}".format(drone_idx, current_ts))
+                agent_to_remove.append(drone_idx)  # NOTE: drone_idx is the key value.
                 done.append(False)
             else:  # a normal step taken
                 # step_reward =crossCoefficient*cross_track_error + delta_hg + alive_penalty + dominoCoefficient*dominoTerm_sum
-                step_reward = -delta_hg
+                step_reward = delta_hg
 
                 # we remove the above termination condition
                 done.append(False)
@@ -1268,7 +1292,8 @@ class env_simulator:
                 step_reward = np.array(step_reward)
                 reward.append(step_reward)
                 # for debug, record the reward
-                one_step_reward = [crossCoefficient*cross_track_error, delta_hg, alive_penalty, dominoCoefficient*dominoTerm_sum]
+                # one_step_reward = [crossCoefficient*cross_track_error, delta_hg, alive_penalty, dominoCoefficient*dominoTerm_sum]
+                one_step_reward = [step_reward]
                 step_reward_record[reward_record_idx] = one_step_reward
             reward_record_idx = reward_record_idx + 1
 

@@ -11,7 +11,7 @@ class AttentionCritic(nn.Module):
     observation and action, and can also attend over the other agents' encoded
     observations and actions.
     """
-    def __init__(self, sa_sizes, critic_input_dim=None, hidden_dim=32, norm_in=True, attend_heads=1):
+    def __init__(self, sa_sizes, critic_input_dim=None, hidden_dim=32, norm_in=False, attend_heads=1):
         """
         Inputs:
             sa_sizes (list of (int, int)): Size of state and action spaces per

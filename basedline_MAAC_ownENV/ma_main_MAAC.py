@@ -40,16 +40,16 @@ def main(args):
         torch.set_default_tensor_type(torch.FloatTensor)
         print('Using CPU')
 
-    # today = datetime.date.today()
-    # current_date = today.strftime("%d%m%y")
-    # current_time = datetime.datetime.now()
-    # formatted_time = current_time.strftime("%H_%M_%S")
-    # file_name = 'D:\MADDPG_2nd_jp/' + str(current_date) + '_' + str(formatted_time)
-    # if not os.path.exists(file_name):
-    #     os.makedirs(file_name)
-    # plot_file_name = file_name + '/toplot'
-    # if not os.path.exists(plot_file_name):
-    #     os.makedirs(plot_file_name)
+    today = datetime.date.today()
+    current_date = today.strftime("%d%m%y")
+    current_time = datetime.datetime.now()
+    formatted_time = current_time.strftime("%H_%M_%S")
+    file_name = 'D:\MADDPG_2nd_jp/' + str(current_date) + '_' + str(formatted_time)
+    if not os.path.exists(file_name):
+        os.makedirs(file_name)
+    plot_file_name = file_name + '/toplot'
+    if not os.path.exists(plot_file_name):
+        os.makedirs(plot_file_name)
 
     # wandb.login(key="efb76db851374f93228250eda60639c70a93d1ec")
     # wandb.init(
@@ -58,7 +58,6 @@ def main(args):
     #     name='MAAC_D_ownENV_'+str(current_date) + '_' + str(formatted_time),
     #     # track hyperparameters and run metadata
     #     config={
-    #         "learning_rate": args.a_lr,
     #         "epochs": args.max_episodes,
     #     }
     # )
@@ -72,8 +71,8 @@ def main(args):
     # create world
     # actor_dim = [6+(total_agentNum-1)*2, 10, 6]  # dim host, maximum dim grid, dim other drones
     # critic_dim = [6+(total_agentNum-1)*2, 10, 6]
-    actor_dim = [7, 9, 6]  # dim host, maximum dim grid, dim other drones
-    critic_dim = [7, 9, 6]
+    actor_dim = [7+4, 9, 6]  # dim host, maximum dim grid, dim other drones
+    critic_dim = [7+4, 9, 6]
     n_actions = 9
     acc_range = [-4, 4]
 
@@ -120,7 +119,7 @@ def main(args):
     c_loss, a_loss = None, None
     eps_start = 1.0
     eps_end = 0.05
-    eps_period = round(args.max_episodes*0.4)   # The number of steps needed for the epsilon to drop until the minimum number of the "eps_end"
+    eps_period = round(args.max_episodes*0.3)   # The number of steps needed for the epsilon to drop until the minimum number of the "eps_end"
     eps = eps_start
     while episode < args.max_episodes:
 
@@ -146,6 +145,8 @@ def main(args):
         while True:
             step_reward_record = [None] * n_agents
             if args.mode == "train":
+                # eps = 0
+                # action = model.step(cur_state, eps, explore=True)  # this is the set of get action "explore" is to decide whether to use stochastic or deterministic policy
                 action = model.step(cur_state, eps, explore=False)  # this is the set of get action "explore" is to decide whether to use stochastic or deterministic policy
                 next_state, norm_next_state = env.step(action, step)
                 # reward_aft_action, done_aft_action, check_goal = env.ss_reward(step)
@@ -339,14 +340,14 @@ if __name__ == '__main__':
     parser.add_argument('--scenario', default="simple_spread", type=str)
     parser.add_argument('--max_episodes', default=15000, type=int)  # rnu for a total of 60000 episodes
     parser.add_argument('--algo', default="maddpg", type=str, help="commnet/bicnet/maddpg")
-    parser.add_argument('--mode', default="eval", type=str, help="train/eval")
+    parser.add_argument('--mode', default="train", type=str, help="train/eval")
     parser.add_argument('--episode_length', default=50, type=int)  # maximum play per episode
     parser.add_argument('--memory_length', default=int(1e5), type=int)
     parser.add_argument('--tau', default=0.001, type=float)
     parser.add_argument('--gamma', default=0.95, type=float)
     parser.add_argument('--seed', default=777, type=int)
-    parser.add_argument('--a_lr', default=0.001, type=float)
-    parser.add_argument('--c_lr', default=0.001, type=float)
+    # parser.add_argument('--a_lr', default=0.001, type=float)
+    # parser.add_argument('--c_lr', default=0.001, type=float)
     parser.add_argument('--batch_size', default=256, type=int)  # original 256
     parser.add_argument('--render_flag', default=False, type=bool)
     parser.add_argument('--ou_theta', default=0.15, type=float)

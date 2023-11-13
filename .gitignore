@@ -30,3 +30,4 @@ MADDPG_ownENV_v3/__pycache__/Utilities_own_MADDPGv3.cpython-39.pyc
 /MADDPG_ownENV_v3_trafficflow/wandb/
 *.pyc
 basedline_MAAC_ownENV/__pycache__/agent_MAAC.cpython-39.pyc
+/MADDPG_ownENV_v3_randomOD/wandb/

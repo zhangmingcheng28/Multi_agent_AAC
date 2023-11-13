@@ -143,12 +143,12 @@ class AttentionSAC(object):
             #     # target_q -= log_pi / self.reward_scale  # this reward_scale is set to 100
             #     target_q -= AC_alpha * log_pi
             q_loss += MSELoss(pq, target_q.detach())  # summing the MSE loss across all agents
-            for reg in regs:
-                q_loss += reg  # regularizing attention
+            # for reg in regs:
+            #     q_loss += reg  # regularizing attention
             all_agent_q_loss.append(q_loss)
         q_loss.backward()
         self.critic.scale_shared_grads()
-        grad_norm = torch.nn.utils.clip_grad_norm_(self.critic.parameters(), 10 * self.nagents)
+        # grad_norm = torch.nn.utils.clip_grad_norm_(self.critic.parameters(), 10 * self.nagents)
         self.critic_optimizer.step()
         self.critic_optimizer.zero_grad()
 
@@ -185,15 +185,15 @@ class AttentionSAC(object):
             # else:
             #     pol_loss = (log_pi * (-pol_target).detach()).mean()
             pol_loss = (log_pi * (-pol_target).detach()).mean()
-            for reg in pol_regs:
-                pol_loss += 1e-3 * reg  # policy regularization
+            # for reg in pol_regs:
+            #     pol_loss += 1e-3 * reg  # policy regularization
             all_agent_pol_loss.append(pol_loss)
             # don't want critic to accumulate gradients from policy loss
             disable_gradients(self.critic)
             pol_loss.backward()
             enable_gradients(self.critic)
 
-            grad_norm = torch.nn.utils.clip_grad_norm_(curr_agent.policy.parameters(), 0.5)
+            # grad_norm = torch.nn.utils.clip_grad_norm_(curr_agent.policy.parameters(), 0.5)
             curr_agent.policy_optimizer.step()
             curr_agent.policy_optimizer.zero_grad()
         return all_agent_pol_loss
