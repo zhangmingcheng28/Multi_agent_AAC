@@ -7,22 +7,25 @@ import json
 import pandas as pd
 import geopandas as gpd
 import numpy as np
-from grid_env_generation_newframe_MADDPGv3_randomOD import env_generation
+# from grid_env_generation_newframe_MAAC import env_generation
 import math
 
 # 地图数据；0：能通过；1:障碍，不能通过
 # set boundary
-xlow = 455
-xhigh = 680
-ylow = 255
-yhigh = 385
-bound = [xlow, xhigh, ylow, yhigh]
-shapePath = 'F:\githubClone\deep_Q_learning\DQN_new_framework\lakesideMap\lakeSide.shp'
+# xlow = 455
+# xhigh = 680
+# ylow = 255
+# yhigh = 385
+# bound = [xlow, xhigh, ylow, yhigh]
+#
+# # shapePath = 'F:\githubClone\deep_Q_learning\DQN_new_framework\lakesideMap\lakeSide.shp'
 # shapePath = 'D:\deep_Q_learning\DQN_new_framework\lakesideMap\lakeSide.shp'
-#map_test = gpd.read_file('C:\deep_Q_learning\lakesideMap\lakeSide.shp')
-start_row, end_row = xlow/10, xhigh/10
-start_col, end_col = ylow/10, yhigh/10
-map_test = env_generation(shapePath, bound)[0].astype(int).tolist()
+# #map_test = gpd.read_file('C:\deep_Q_learning\lakesideMap\lakeSide.shp')
+#
+# # start_row, end_row = xlow/10, xhigh/10
+# # start_col, end_col = ylow/10, yhigh/10
+#
+# map_test = env_generation(shapePath, bound)[0].astype(int).tolist()
 
 # 可行走方向
 g_dir = [[1, 0], [0, 1], [0, -1], [-1, 0], [1, 1], [1, -1], [-1, 1], [-1, -1]]
@@ -46,9 +49,10 @@ class Node:
 class JPS:
 
     # 注意w,h两个参数，如果你修改了地图，需要传入一个正确值或者修改这里的默认参数
-    def __init__(self, width, height):
+    def __init__(self, width, height, maptest):
         self.s_pos = None
         self.e_pos = Node
+        self.map_test = maptest
 
         self.width = width
         self.height = height
@@ -199,7 +203,8 @@ class JPS:
 
     def is_pass(self, x, y):
         return x >= 0 and x < self.width and y >= 0 and y < self.height and (
-                    map_test[int(x)][int(y)] != 1 or [x, y] == self.e_pos)
+                    self.map_test[int(x)][int(y)] != 1 or [x, y] == self.e_pos)
+                    # map_test[int(x)][int(y)] != 1 or [x, y] == self.e_pos)
 
     # 查找路径的入口函数
     def find_path(self, s_pos, e_pos):
@@ -291,15 +296,16 @@ class JPS:
 
     def print_path(self):
         for n in self.path:
-            map_test[int(n[0])][int(n[1])] = 6
+            self.map_test[int(n[0])][int(n[1])] = 6
+            # map_test[int(n[0])][int(n[1])] = 6
 
         # print('------------------------------')
         # for ns in map_test:
         #     print(''.join(str(ns)))
 
 
-def find_path(s_pos, e_pos, xlen, ylen):
-    jps = JPS(xlen, ylen)
+def find_path(s_pos, e_pos, xlen, ylen, maptest):
+    jps = JPS(xlen, ylen, maptest)
     err = jps.find_path(s_pos, e_pos)
     searched = jps.get_searched()
     path = jps.path

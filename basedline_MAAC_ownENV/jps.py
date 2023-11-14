@@ -142,7 +142,7 @@ class JPS:
                 * 1 0       0 0 0
                 0 → 0       0 0 0
                 * 1 0       0 0 0
-
+    
                 '''
                 print
                 '水平方向:', self.is_pass(now[0] + dir[0], now[1] + 1), self.is_pass(now[0], now[1] + 1), self.is_pass(
@@ -156,7 +156,7 @@ class JPS:
                 0 0 0
                 1 ↓ 1
                 0 0 0
-
+                
                 '''
                 print
                 '垂直方向:', self.is_pass(now[0] + 1, now[1] + dir[1]), self.is_pass(now[0] + 1, now[1]), self.is_pass(

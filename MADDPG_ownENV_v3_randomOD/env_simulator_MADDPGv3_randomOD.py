@@ -36,6 +36,9 @@ import torch.nn as nn
 class env_simulator:
     def __init__(self, world_map, building_polygons, grid_length, bound, allGridPoly, agentConfig):  # allGridPoly[0][0] is all grid=1
         self.world_map_2D = world_map  # 2D binary matrix, in ndarray form.
+        self.world_map_2D_jps = None
+        self.centroid_to_position_empty = {}
+        self.centroid_to_position_occupied = {}
         self.world_map_2D_polyList = allGridPoly  # [0][0] is all occupied polygon, [0][1] is all non-occupied polygon
         self.agentConfig = agentConfig
         self.gridlength = grid_length
@@ -66,6 +69,38 @@ class env_simulator:
             agent.target_update_step = target_update
             self.all_agents[agent_i] = agent
         self.dummy_agent = self.all_agents[0]
+
+        # adjustment to world_map_2D
+        # draw world_map_scatter
+        scatterX = []
+        scatterY = []
+        centroid_pair_empty = []
+        centroid_pair_occupied = []
+        for poly in self.world_map_2D_polyList[0][1]:  # [0] is occupied, [1] is non occupied centroid
+            scatterX.append(poly.centroid.x)
+            scatterY.append(poly.centroid.y)
+            centroid_pair_empty.append((poly.centroid.x, poly.centroid.y))
+        for poly in self.world_map_2D_polyList[0][0]:  # [0] is occupied, [1] is non occupied centroid
+            # scatterX.append(poly.centroid.x)
+            # scatterY.append(poly.centroid.y)
+            centroid_pair_occupied.append((poly.centroid.x, poly.centroid.y))
+        start_x = int(min(scatterX))
+        start_y = int(min(scatterY))
+        end_x = int(max(scatterX))
+        end_y = int(max(scatterY))
+        world_2D = np.zeros((len(range(int(start_x), int(end_x+1), self.gridlength)), len(range(int(start_y), int(end_y+1), self.gridlength))))
+        for j_idx, j_val in enumerate(range(start_y, end_y+1, self.gridlength)):
+            for i_idx, i_val in enumerate(range(start_x, end_x+1, self.gridlength)):
+                if (i_val, j_val) in centroid_pair_empty:
+                    world_2D[i_idx][j_idx] = 0
+                    self.centroid_to_position_empty[(i_val, j_val)] = [float(i_idx), float(j_idx)]
+                elif (i_val, j_val) in centroid_pair_occupied:
+                    world_2D[i_idx][j_idx] = 1
+                    self.centroid_to_position_occupied[(i_val, j_val)] = [float(i_idx), float(j_idx)]
+                else:
+                    print("no corresponding coordinate found in side world 2D grid centroids, please debug!")
+        self.world_map_2D = world_2D
+        self.world_map_2D_jps = world_2D.astype(int).tolist()
 
     def reset_world(self, total_agentNum, show):  # set initialize position and observation for all agents
         self.global_time = 0.0
@@ -174,16 +209,22 @@ class env_simulator:
             start_pos_memory.append(np.array(random_start_pos))
             self.all_agents[agentIdx].removed_goal = None
 
-            large_start = [random_start_pos[0] / self.gridlength, random_start_pos[1] / self.gridlength]
-            large_end = [random_end_pos[0] / self.gridlength, random_end_pos[1] / self.gridlength]
-            small_area_map_start = [large_start[0] - math.ceil(self.bound[0] / self.gridlength),
-                                    large_start[1] - math.ceil(self.bound[2] / self.gridlength)]
-            small_area_map_end = [large_end[0] - math.ceil(self.bound[0] / self.gridlength),
-                                  large_end[1] - math.ceil(self.bound[2] / self.gridlength)]
+            # large_start = [random_start_pos[0] / self.gridlength, random_start_pos[1] / self.gridlength]
+            # large_end = [random_end_pos[0] / self.gridlength, random_end_pos[1] / self.gridlength]
+            # small_area_map_start = [large_start[0] - math.ceil(self.bound[0] / self.gridlength),
+            #                         large_start[1] - math.ceil(self.bound[2] / self.gridlength)]
+            # small_area_map_end = [large_end[0] - math.ceil(self.bound[0] / self.gridlength),
+            #                       large_end[1] - math.ceil(self.bound[2] / self.gridlength)]
+
+            small_area_map_s = self.centroid_to_position_empty[random_start_pos]
+            small_area_map_e = self.centroid_to_position_empty[random_end_pos]
+
             width = self.world_map_2D.shape[0]
             height = self.world_map_2D.shape[1]
 
-            outPath = jps.find_path(small_area_map_start, small_area_map_end, width, height)[0]
+            jps_map = self.world_map_2D_jps
+            outPath = jps.find_path(small_area_map_s, small_area_map_e, width, height, jps_map)[0]
+            # outPath = jps.find_path(small_area_map_start, small_area_map_end, 22, 13, self.world_map_2D)[0]
 
             refinedPath = []
             curHeading = math.atan2((outPath[1][1] - outPath[0][1]),

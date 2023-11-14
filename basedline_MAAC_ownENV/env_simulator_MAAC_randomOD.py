@@ -60,7 +60,7 @@ class env_simulator:
         self.OU_noise = OUNoise(n_actions, largest_Nsigma, smallest_Nsigma, ini_Nsigma)
         self.normalizer = NormalizeData([self.bound[0], self.bound[1]], [self.bound[2], self.bound[3]], max_spd, acc_range)
         self.all_agents = {}
-        self.allbuildingSTR = STRtree(self.world_map_2D_polyList[0][0])  # within the defined boundary
+        self.allbuildingSTR = STRtree(self.world_map_2D_polyList[0][0])
         worldGrid_polyCombine = []
         worldGrid_polyCombine.append(self.world_map_2D_polyList[0][0] + self.world_map_2D_polyList[0][1])
         self.world_STRtree = STRtree(worldGrid_polyCombine[0])
