@@ -50,18 +50,17 @@ def main(args):
         if not os.path.exists(plot_file_name):
             os.makedirs(plot_file_name)
 
-    # wandb = None
-    # wandb.login(key="efb76db851374f93228250eda60639c70a93d1ec")
-    # wandb.init(
-    #     # set the wandb project where this run will be logged
-    #     project="MADDPG_FrameWork",
-    #     name='MADDPG_test_'+str(current_date) + '_' + str(formatted_time),
-    #     # track hyperparameters and run metadata
-    #     config={
-    #         # "learning_rate": args.a_lr,
-    #         "epochs": args.max_episodes,
-    #     }
-    # )
+        wandb.login(key="efb76db851374f93228250eda60639c70a93d1ec")
+        wandb.init(
+            # set the wandb project where this run will be logged
+            project="MADDPG_FrameWork",
+            name='MADDPG_test_'+str(current_date) + '_' + str(formatted_time),
+            # track hyperparameters and run metadata
+            config={
+                # "learning_rate": args.a_lr,
+                "epochs": args.max_episodes,
+            }
+        )
 
     # -------------- create my own environment -----------------
     n_episodes, max_t, eps_start, eps_end, eps_period, eps, env, \
@@ -72,10 +71,10 @@ def main(args):
     # create world
     # actor_dim = [6+(total_agentNum-1)*2, 10, 6]  # dim host, maximum dim grid, dim other drones
     # critic_dim = [6+(total_agentNum-1)*2, 10, 6]
-    # actor_dim = [6, 9, 6]  # dim host, maximum dim grid, dim other drones
-    actor_dim = [16, 9, 6]  # dim host, maximum dim grid, dim other drones
-    # critic_dim = [6, 9, 6]
-    critic_dim = [16, 9, 6]
+    actor_dim = [6, 9, 6]  # dim host, maximum dim grid, dim other drones
+    # actor_dim = [16, 9, 6]  # dim host, maximum dim grid, dim other drones
+    critic_dim = [6, 9, 6]
+    # critic_dim = [16, 9, 6]
     n_actions = 2
     acc_range = [-4, 4]
 
@@ -89,7 +88,7 @@ def main(args):
     # actorNet_lr = 1e-3
     actorNet_lr = 0.0001
     # criticNet_lr = 1e-4
-    criticNet_lr = 0.0001
+    criticNet_lr = 0.001
 
     # noise parameter ini
     largest_Nsigma = 0.5
@@ -138,10 +137,12 @@ def main(args):
     # while episode < args.max_episodes:
     while (episode < args.max_episodes):  # start of an episode
         # ------------ my own env.reset() ------------ #
+        # cur_state, norm_cur_state = env.reset_world_fixedOD(show=0)
         cur_state, norm_cur_state = env.reset_world(total_agentNum, show=0)
         episode_decision = [False] * 2
         agents_added = []
         eps_reward = []
+        eps_noise = []
         episode += 1
         # print("current episode is {}, scaling factor is {}".format(episode, model.var[0]))
         step = 0
@@ -164,13 +165,13 @@ def main(args):
             if args.mode == "train":
                 step_reward_record = [None] * n_agents
                 # cur_state, norm_cur_state = env.fill_agent_reset(cur_state, norm_cur_state, agents_added)  # if a new agent is filled, we need to reset the state information for the newly added agents
-                action = model.choose_action(norm_cur_state, episode, step, noisy=False) # noisy is false because we are using stochastic policy
+                action, noise_val = model.choose_action(norm_cur_state, episode, step, noisy=True) # noisy is false because we are using stochastic policy
                 # action = model.choose_action(cur_state, episode, noisy=True)
                 next_state, norm_next_state = env.step(action, step)
                 # reward_aft_action, done_aft_action, check_goal, step_reward_record, agents_added = env.get_step_reward_5_v3(step, step_reward_record)   # remove reached agent here
                 # reward_aft_action, done_aft_action, check_goal, step_reward_record = env.get_step_reward_5_v3(step, step_reward_record)   # remove reached agent here
                 reward_aft_action, done_aft_action, check_goal, step_reward_record = env.ss_reward(step, step_reward_record)   # remove reached agent here
-                reward_aft_action = [eachRWD / 300 for eachRWD in reward_aft_action]  # scale the reward down
+                # reward_aft_action = [eachRWD / 300 for eachRWD in reward_aft_action]  # scale the reward down
                 # new_length = len(agents_added)  # check if length of agnet_to_remove increased during each step
                 # agent_added = agent_added + new_length
 
@@ -237,8 +238,13 @@ def main(args):
                     # display condition of failing
                     # here onwards is end of an episode's play
                     score_history.append(accum_reward)
+                    eps_noise.append(noise_val)
                     print("[Episode %05d] reward %6.4f" % (episode, accum_reward))
-                    # wandb.log({'overall_reward': float(accum_reward)})
+                    wandb.log({'overall_reward': float(accum_reward)})
+                    with open(file_name + '/GFG.csv', 'w') as f:
+                        # using csv.writer method from CSV package
+                        write = csv.writer(f)
+                        write.writerows([score_history])
                     if c_loss and a_loss:
                         for idx, val in enumerate(c_loss):
                             print(" agent %s, a_loss %3.2f c_loss %3.2f" % (idx, a_loss[idx].item(), c_loss[idx].item()))
@@ -254,6 +260,8 @@ def main(args):
                     eps_reward_record.append(eps_reward)
                     with open(plot_file_name + '/all_episode_reward.pickle', 'wb') as handle:
                         pickle.dump(eps_reward_record, handle, protocol=pickle.HIGHEST_PROTOCOL)
+                    with open(plot_file_name + '/all_episode_noise.pickle', 'wb') as handle:
+                        pickle.dump(eps_noise, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
                     break  # this is to break out from "while True:", which is one play
             elif args.mode == "eval":
@@ -398,7 +406,7 @@ def main(args):
                     plt.ylabel("Y axis")
                     plt.show()
                     break
-    # wandb.finish()
+    wandb.finish()
 
     # if args.tensorboard:
     #     writer.close()
@@ -407,10 +415,10 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--scenario', default="simple_spread", type=str)
-    parser.add_argument('--max_episodes', default=15000, type=int)  # run for a total of 60000 episodes
+    parser.add_argument('--max_episodes', default=50000, type=int)  # run for a total of 50000 episodes
     parser.add_argument('--algo', default="maddpg", type=str, help="commnet/bicnet/maddpg")
     parser.add_argument('--mode', default="train", type=str, help="train/eval")
-    parser.add_argument('--episode_length', default=50, type=int)  # maximum play per episode
+    parser.add_argument('--episode_length', default=30, type=int)  # maximum play per episode
     parser.add_argument('--memory_length', default=int(1e5), type=int)
     parser.add_argument('--tau', default=0.001, type=float)
     parser.add_argument('--gamma', default=0.95, type=float)

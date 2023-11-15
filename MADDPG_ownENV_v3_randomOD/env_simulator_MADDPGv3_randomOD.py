@@ -252,6 +252,7 @@ class env_simulator:
                                              random_spd*math.sin(self.all_agents[agentIdx].heading)])
 
             self.all_agents[agentIdx].observableSpace = self.current_observable_space(self.all_agents[agentIdx])
+
             cur_circle = Point(self.all_agents[agentIdx].pos[0],
                                self.all_agents[agentIdx].pos[1]).buffer(self.all_agents[agentIdx].protectiveBound,
                                                                         cap_style='round')
@@ -262,7 +263,8 @@ class env_simulator:
 
             agentsCoor_list.append(self.all_agents[agentIdx].pos)
 
-        overall_state, norm_overall_state = self.cur_state_norm_state_fully_observable(agentRefer_dict)
+        # overall_state, norm_overall_state = self.cur_state_norm_state_fully_observable(agentRefer_dict)
+        overall_state, norm_overall_state = self.cur_state_norm_state_v3(agentRefer_dict)
 
         if show:
             os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
@@ -303,6 +305,109 @@ class env_simulator:
                 ax.add_patch(matp_poly)
 
 
+
+            # plt.axvline(x=self.bound[0], c="green")
+            # plt.axvline(x=self.bound[1], c="green")
+            # plt.axhline(y=self.bound[2], c="green")
+            # plt.axhline(y=self.bound[3], c="green")
+
+            plt.xlabel("X axis")
+            plt.ylabel("Y axis")
+            plt.axis('equal')
+            plt.show()
+
+        return overall_state, norm_overall_state
+
+    def reset_world_fixedOD(self, show):
+        self.global_time = 0.0
+        self.time_step = 0.5
+        # reset OU_noise as well
+        self.OU_noise.reset()
+
+        #  custom agent position
+        # x-bound: [0, 1800), y-bound: [0, 1300)
+        # read the Excel file into a pandas dataframe
+        df = pd.read_excel(self.agentConfig)
+        # convert the dataframe to a NumPy array
+        custom_agent_data = np.array(df)
+        # custom_agent_data = custom_agent_data.astype(float)
+        agentsCoor_list = []  # for store all agents as circle polygon
+        agentRefer_dict = {}  # A dictionary to use agent's current pos as key, their agent name (idx) as value
+        for agentIdx in self.all_agents.keys():
+            self.all_agents[agentIdx].pos = custom_agent_data[agentIdx][0:2]
+            self.all_agents[agentIdx].ini_pos = custom_agent_data[agentIdx][0:2]
+            self.all_agents[agentIdx].removed_goal = None
+
+            if not isinstance(custom_agent_data[agentIdx][2:4][0], str):
+                self.all_agents[agentIdx].goal = [custom_agent_data[agentIdx][2:4]]
+            else:
+                x_coords = np.array([int(coord.split('; ')[0]) for coord in custom_agent_data[agentIdx][2:4]])
+                y_coords = np.array([int(coord.split('; ')[1]) for coord in custom_agent_data[agentIdx][2:4]])
+                self.all_agents[agentIdx].goal = [x_coords, y_coords]
+
+            # self.all_agents[agentIdx].vel = custom_agent_data[agentIdx][4:6]
+
+            # heading in rad, must be goal_pos-intruder_pos, and y2-y1, x2-x1
+            self.all_agents[agentIdx].heading = math.atan2(self.all_agents[agentIdx].goal[0][1] -
+                                                           self.all_agents[agentIdx].pos[1],
+                                                           self.all_agents[agentIdx].goal[0][0] -
+                                                           self.all_agents[agentIdx].pos[0])
+
+            random_spd = random.randint(0, self.all_agents[agentIdx].maxSpeed)  # initial speed is randomly picked from 0 to max speed
+            self.all_agents[agentIdx].vel = np.array([random_spd*math.cos(self.all_agents[agentIdx].heading),
+                                             random_spd*math.sin(self.all_agents[agentIdx].heading)])
+
+            self.all_agents[agentIdx].observableSpace = self.current_observable_space(self.all_agents[agentIdx])
+            cur_circle = Point(self.all_agents[agentIdx].pos[0],
+                               self.all_agents[agentIdx].pos[1]).buffer(self.all_agents[agentIdx].protectiveBound,
+                                                                        cap_style='round')
+            agentRefer_dict[(self.all_agents[agentIdx].pos[0],
+                             self.all_agents[agentIdx].pos[1])] = self.all_agents[agentIdx].agent_name
+
+            # agentSTR_list.append(cur_circle)
+            agentsCoor_list.append(self.all_agents[agentIdx].pos)
+
+        self.cur_allAgentCoor_KD = KDTree(agentsCoor_list)
+        overall_state, norm_overall_state = self.cur_state_norm_state_v3(agentRefer_dict)
+
+        if show:
+            os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
+            matplotlib.use('TkAgg')
+            fig, ax = plt.subplots(1, 1)
+            for agentIdx, agent in self.all_agents.items():
+                plt.plot(agent.pos[0], agent.pos[1], marker=MarkerStyle(">", fillstyle="right",
+                                                                        transform=Affine2D().rotate_deg(
+                                                                            math.degrees(agent.heading))), color='y')
+                plt.text(agent.pos[0], agent.pos[1], agent.agent_name)
+                # plot self_circle of the drone
+                self_circle = Point(agent.pos[0], agent.pos[1]).buffer(agent.protectiveBound, cap_style='round')
+                grid_mat_Scir = shapelypoly_to_matpoly(self_circle, False, 'k')
+                ax.add_patch(grid_mat_Scir)
+
+                # plot drone's detection range
+                detec_circle = Point(agent.pos[0], agent.pos[1]).buffer(agent.detectionRange / 2, cap_style='round')
+                detec_circle_mat = shapelypoly_to_matpoly(detec_circle, False, 'r')
+                ax.add_patch(detec_circle_mat)
+
+                ini = agent.pos
+                for wp in agent.goal:
+                    plt.plot(wp[0], wp[1], marker='*', color='y', markersize=10)
+                    plt.plot([wp[0], ini[0]], [wp[1], ini[1]], '--', color='c')
+                    ini = wp
+
+            # draw occupied_poly
+            for one_poly in self.world_map_2D_polyList[0][0]:
+                one_poly_mat = shapelypoly_to_matpoly(one_poly, True, 'y', 'b')
+                ax.add_patch(one_poly_mat)
+            # draw non-occupied_poly
+            for zero_poly in self.world_map_2D_polyList[0][1]:
+                zero_poly_mat = shapelypoly_to_matpoly(zero_poly, False, 'y')
+                # ax.add_patch(zero_poly_mat)
+
+            # show building obstacles
+            for poly in self.buildingPolygons:
+                matp_poly = shapelypoly_to_matpoly(poly, False, 'red')  # the 3rd parameter is the edge color
+                ax.add_patch(matp_poly)
 
             # plt.axvline(x=self.bound[0], c="green")
             # plt.axvline(x=self.bound[1], c="green")
@@ -580,21 +685,27 @@ class env_simulator:
             # all_other_posdiff = np.array(all_other_posdiff)
 
 
-            agent_own = np.array(
-                [agent.pos[0], agent.pos[1], agent.goal[0][0] - agent.pos[0], agent.goal[0][1] - agent.pos[1],
-                 agent.vel[0], agent.vel[1]])
+            # agent_own = np.array(
+            #     [agent.pos[0], agent.pos[1], agent.goal[0][0] - agent.pos[0], agent.goal[0][1] - agent.pos[1],
+            #      agent.vel[0], agent.vel[1]])
+            # agent_own = np.array([agent.pos[0], agent.pos[1], agent.vel[0], agent.vel[1], agent.goal[-1][0], agent.goal[-1][1]])
+            agent_own = np.array([agent.pos[0], agent.pos[1], agent.vel[0], agent.vel[1],
+                                  agent.goal[-1][0]-agent.pos[0], agent.goal[-1][1]-agent.pos[1]])
             # agent_own = np.concatenate((agent_own, all_other_posdiff))
             # populate normalized agent_own
             # norm_agent_own = []
             norm_pos = self.normalizer.nmlz_pos([agent.pos[0], agent.pos[1]])
 
             norm_G_diff = self.normalizer.nmlz_pos_diff(
-                [agent.goal[0][0] - agent.pos[0], agent.goal[0][1] - agent.pos[1]])
+                [agent.goal[-1][0] - agent.pos[0], agent.goal[-1][1] - agent.pos[1]])
+            norm_G = self.normalizer.nmlz_pos([agent.goal[-1][0], agent.goal[-1][1]])
 
             # norm_other_diff = tuple(self.normalizer.nmlz_pos_diff(pos_diff_pair) for pos_diff_pair in pair_posdiff)
 
             norm_vel = self.normalizer.nmlz_vel([agent.vel[0], agent.vel[1]])
-            norm_agent_own = np.array(list(norm_pos + norm_G_diff + norm_vel))
+            # norm_agent_own = np.array(list(norm_pos + norm_G_diff + norm_vel))
+            # norm_agent_own = np.array(list(norm_pos + norm_vel + norm_G))
+            norm_agent_own = np.array(list(norm_pos + norm_vel + norm_G_diff))
             # norm_agent_own = np.array(list(norm_pos + norm_G_diff + norm_vel + norm_other_diff[0] + norm_other_diff[1]))
 
             other_agents = []
@@ -1205,8 +1316,11 @@ class env_simulator:
                     # reward.append(np.array(normal_step_rw))
                     print("drone_{} has reached its final goal at time step {}".format(drone_idx, current_ts))
                     agent_to_remove.append(drone_idx)  # NOTE: drone_idx is the key value.
-
-                done.append(False)
+                if all(check_goal):
+                    done.append(True)
+                else:
+                    done.append(False)
+                # done.append(False)
             else:  # a normal step taken
                 step_reward =crossCoefficient*cross_track_error + delta_hg + alive_penalty + dominoCoefficient*dominoTerm_sum
 
@@ -1256,8 +1370,8 @@ class env_simulator:
         check_goal = [False] * len(self.all_agents)
         reward_record_idx = 0  # this is used as a list index, increase with for loop. No need go with agent index, this index is also shared by done checking
         # crash_penalty = -200
-        crash_penalty = 300
-        reach_target = 300
+        crash_penalty = 50
+        reach_target = 50
         potential_conflict_count = 0
         final_goal_toadd = 0
         fixed_domino_reward = 1
@@ -1306,7 +1420,8 @@ class env_simulator:
                     print("drone_{} crash into building when moving from {} to {} at time step {}".format(drone_idx, self.all_agents[drone_idx].pre_pos, self.all_agents[drone_idx].pos, current_ts))
                     break
 
-            tar_circle = Point(self.all_agents[drone_idx].goal[0]).buffer(1, cap_style='round')
+            # tar_circle = Point(self.all_agents[drone_idx].goal[0]).buffer(1, cap_style='round')
+            tar_circle = Point(self.all_agents[drone_idx].goal[-1]).buffer(1, cap_style='round')  # set to [-1] so there are no more reference path
             # when there is no intersection between two geometries, "RuntimeWarning" will appear
             # RuntimeWarning is, "invalid value encountered in intersection"
             goal_cur_intru_intersect = host_current_circle.intersection(tar_circle)
@@ -1328,34 +1443,41 @@ class env_simulator:
                 reward.append(np.array(rew))
             # crash into buildings or crash with other neighbors
             elif collide_building == 1:
-                done.append(True)
-                # done.append(False)
+                # done.append(True)
+                done.append(False)
                 rew = rew - crash_penalty
                 reward.append(np.array(rew))
             elif len(collision_drones) > 0:
-                done.append(True)
-                # done.append(False)
+                # done.append(True)
+                done.append(False)
                 rew = rew - crash_penalty
                 reward.append(np.array(rew))
             elif not goal_cur_intru_intersect.is_empty:  # reached goal?
-                if len(drone_obj.goal) > 1:  # meaning the current agent has more than one target/goal
-                    print("drone_{} has reached its way point at time step {}".format(drone_idx, current_ts))
-                    drone_obj.reach_target = False  # reset this flag
-                    drone_obj.removed_goal = drone_obj.goal.pop(0)
-                    after_dist_hg = np.linalg.norm(drone_obj.pos - drone_obj.goal[0])  # distance to next goal
-                    rew = rew - after_dist_hg
-                    reward.append(np.array(rew))
-                    # below two lines are used to debug
-                    # reward.append(np.array(reach_target))
-                    # agent_to_remove.append(drone_idx)  # NOTE: drone_idx is the key value.
-                else:
-                    check_goal[reward_record_idx] = True  # drone_obj.reach_target = True, and "check_goal" list also don't track agent's index
-                    # normal_step_rw = crossCoefficient * cross_track_error + delta_hg
-                    # reward.append(np.array(normal_step_rw))
-                    print("drone_{} has reached its final goal at time step {}".format(drone_idx, current_ts))
-                    agent_to_remove.append(drone_idx)  # NOTE: drone_idx is the key value.
-                    rew = rew + reach_target
-                    reward.append(np.array(rew))
+                # --------------- with way point -----------------------
+                # if len(drone_obj.goal) > 1:  # meaning the current agent has more than one target/goal
+                #     print("drone_{} has reached its way point at time step {}".format(drone_idx, current_ts))
+                #     drone_obj.reach_target = False  # reset this flag
+                #     drone_obj.removed_goal = drone_obj.goal.pop(0)
+                #     after_dist_hg = np.linalg.norm(drone_obj.pos - drone_obj.goal[0])  # distance to next goal
+                #     rew = rew - after_dist_hg
+                #     reward.append(np.array(rew))
+                #     # below two lines are used to debug
+                #     # reward.append(np.array(reach_target))
+                #     # agent_to_remove.append(drone_idx)  # NOTE: drone_idx is the key value.
+                # else:
+                #     check_goal[reward_record_idx] = True  # drone_obj.reach_target = True, and "check_goal" list also don't track agent's index
+                #     # normal_step_rw = crossCoefficient * cross_track_error + delta_hg
+                #     # reward.append(np.array(normal_step_rw))
+                #     print("drone_{} has reached its final goal at time step {}".format(drone_idx, current_ts))
+                #     agent_to_remove.append(drone_idx)  # NOTE: drone_idx is the key value.
+                #     rew = rew + reach_target
+                #     reward.append(np.array(rew))
+                # --------------- end of with way point -----------------------
+
+
+                # without wap point
+                rew = rew + reach_target
+                reward.append(np.array(rew))
                 done.append(False)
             else:  # a normal step taken
                 rew = rew - after_dist_hg
@@ -1480,7 +1602,8 @@ class env_simulator:
                              self.all_agents[drone_idx].pos[1])] = self.all_agents[drone_idx].agent_name
         self.cur_allAgentCoor_KD = KDTree(agentCoorKD_list_update)  # update all agent coordinate KDtree
 
-        next_state, next_state_norm = self.cur_state_norm_state_fully_observable(agentRefer_dict)
+        # next_state, next_state_norm = self.cur_state_norm_state_fully_observable(agentRefer_dict)
+        next_state, next_state_norm = self.cur_state_norm_state_v3(agentRefer_dict)
 
         # # update current agent's observable space state
         # agent.observableSpace = self.current_observable_space(agent)

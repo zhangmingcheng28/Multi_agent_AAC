@@ -1,6 +1,5 @@
 # from Nnetworks_MADDPGv3 import CriticNetwork_0724, ActorNetwork
-# from Nnetworks_MADDPGv3_randomOD import CriticNetwork, ActorNetwork, Stocha_actor
-from Nnetworks_MADDPGv3_randomOD import CriticNetwork, Stocha_actor
+from Nnetworks_MADDPGv3_randomOD import CriticNetwork, ActorNetwork, Stocha_actor
 import torch
 from copy import deepcopy
 from torch.optim import Adam
@@ -39,7 +38,8 @@ class MADDPG:
         # self.actors = [Actor(dim_obs, dim_act) for _ in range(n_agents)]
         # self.critics = [Critic(n_agents, dim_obs, dim_act) for _ in range(n_agents)]
 
-        self.actors = [Stocha_actor(actor_dim, dim_act) for _ in range(n_agents)]
+        # self.actors = [Stocha_actor(actor_dim, dim_act) for _ in range(n_agents)]  # use stochastic policy
+        self.actors = [ActorNetwork(actor_dim, dim_act) for _ in range(n_agents)]  # use deterministic policy
         # self.critics = [CriticNetwork_0724(critic_dim, n_agents, dim_act) for _ in range(n_agents)]
         self.critics = [CriticNetwork(critic_dim, n_agents, dim_act) for _ in range(n_agents)]
 
@@ -357,6 +357,7 @@ class MADDPG:
     def choose_action(self, state, episode, step, noisy=True):
         obs = torch.from_numpy(np.stack(state[0])).float().to(device)
         obs_grid = torch.from_numpy(np.stack(state[1])).float().to(device)
+        noise_value = np.zeros(2)
         all_obs_surAgent = []
         for each_agent_sur in state[2]:
             try:
@@ -372,7 +373,7 @@ class MADDPG:
         # this for loop used to decrease noise level for all agents before taking any action
         for i in range(self.n_agents):
             if step == 0 and episode > 1:  # only decrease noise at start of the episode
-                self.var[i] = self.get_scaling_factor(episode, 2000)  # self.var[i] will decrease as the episode increase
+                self.var[i] = self.get_scaling_factor(episode, 15000)  # self.var[i] will decrease as the episode increase
 
         for i in range(self.n_agents):
             # sb = obs[i].detach()
@@ -385,14 +386,15 @@ class MADDPG:
             # act = self.actors[i]([sb.unsqueeze(0), sb_surAgent.unsqueeze(0)]).squeeze()
             act = self.actors[i]([sb.unsqueeze(0)]).squeeze()
             if noisy:
-                act += torch.from_numpy(np.random.randn(2) * self.var[i]).type(FloatTensor)
+                noise_value = np.random.randn(2) * self.var[i]
+                act += torch.from_numpy(noise_value).type(FloatTensor)
                 # print("Episode {}, agent {}, noise level is {}".format(episode, i, self.var[i]))
 
             # act = torch.clamp(act, -1.0, 1.0)  # when using stochastic policy, we are not require to clamp again.
 
             actions[i, :] = act
         self.steps_done += 1
-        return actions.data.cpu().numpy()
+        return actions.data.cpu().numpy(), noise_value
 
     def get_scaling_factor(self, episode, drop_point, start_scale=1, end_scale=0.03):  # start_scale=1 this is the original
         if episode <= drop_point:
