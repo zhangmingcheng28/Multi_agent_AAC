@@ -698,6 +698,7 @@ class env_simulator:
 
             norm_G_diff = self.normalizer.nmlz_pos_diff(
                 [agent.goal[-1][0] - agent.pos[0], agent.goal[-1][1] - agent.pos[1]])
+
             norm_G = self.normalizer.nmlz_pos([agent.goal[-1][0], agent.goal[-1][1]])
 
             # norm_other_diff = tuple(self.normalizer.nmlz_pos_diff(pos_diff_pair) for pos_diff_pair in pair_posdiff)

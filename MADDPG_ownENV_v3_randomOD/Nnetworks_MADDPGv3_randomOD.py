@@ -56,11 +56,11 @@ class ActorNetwork(nn.Module):
         # self.own_fc_lay2 = nn.Sequential(nn.Linear(256, 256), nn.ReLU(), nn.Linear(256, 256), nn.ReLU())
 
         # gru layer
-        self.gru = nn.GRU(256, 256, 1, batch_first=True)
+        # self.gru = nn.GRU(256, 256, 1, batch_first=True)
 
-        # self.own_fc_lay2 = nn.Sequential(nn.Linear(256, 256), nn.ReLU(),
-        #                                  nn.Linear(256, 256), nn.ReLU())
-        self.own_fc_lay2 = nn.Sequential(nn.Linear(256, 256), nn.ReLU())
+        self.own_fc_lay2 = nn.Sequential(nn.Linear(256, 256), nn.ReLU(),
+                                         nn.Linear(256, 256), nn.ReLU())
+        # self.own_fc_lay2 = nn.Sequential(nn.Linear(256, 256), nn.ReLU())
 
         self.own_fc_outlay = nn.Sequential(nn.Linear(256, n_actions), nn.Tanh())
         # self.intrude_fc = nn.Sequential(nn.Linear(6, 256), nn.ReLU())
@@ -114,10 +114,10 @@ class ActorNetwork(nn.Module):
     def forward(self, state):
         own_e = self.own_fc(state[0])
 
-        gru_output, hn = self.gru(own_e)  # h0 is not necessary, as it auto set to 0.
+        # gru_output, hn = self.gru(own_e)  # h0 is not necessary, as it auto set to 0.
 
-        # own_hidden = self.own_fc_lay2(own_e)
-        own_hidden = self.own_fc_lay2(hn)
+        own_hidden = self.own_fc_lay2(own_e)
+        # own_hidden = self.own_fc_lay2(hn)
 
         action_out = self.own_fc_outlay(own_hidden)
         # x_e = self.intrude_fc(state[1])
