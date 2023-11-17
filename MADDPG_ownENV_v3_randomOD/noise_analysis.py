@@ -26,10 +26,10 @@ def get_custom_linear_scaling_factor(episode, eps_end, start_scale=1, end_scale=
     return current_scale
 
 matplotlib.use('TkAgg')
-# pre_fix = r'D:\MADDPG_2nd_jp\161123_10_32_08\toplot'
-# file_path = pre_fix + r'\all_episode_noise.pickle'
-# with open(file_path, 'rb') as handle:
-#     combine_noise_1 = pickle.load(handle)
+pre_fix = r'D:\MADDPG_2nd_jp\161123_20_55_14\toplot'
+file_path = pre_fix + r'\all_episode_noise.pickle'
+with open(file_path, 'rb') as handle:
+    combine_noise_1 = pickle.load(handle)
 #
 # pre_fix = r'D:\MADDPG_2nd_jp\161123_10_19_52\toplot'
 # file_path = pre_fix + r'\all_episode_noise.pickle'
@@ -39,14 +39,14 @@ matplotlib.use('TkAgg')
 # # x-acc noise
 x1_acc_noise = []
 x_acc_noise = []
-# y1_acc_noise = []
-# for each_eps in combine_noise_1:
-#     for each_step in each_eps:
-#         x1_acc_noise.append(each_step[0])
-#         y1_acc_noise.append(each_step[1])
-#
-# plot1 = plt.plot(x1_acc_noise, label='Initial_var_0.5')
-# # plot2 = plt.plot(y_acc_noise, label='y_noise')
+y1_acc_noise = []
+for each_eps in combine_noise_1:
+    for each_step in each_eps:
+        x1_acc_noise.append(each_step[0])
+        y1_acc_noise.append(each_step[1])
+
+plot1 = plt.plot(x1_acc_noise, label='Initial_var_0.5')
+# plot2 = plt.plot(y_acc_noise, label='y_noise')
 #
 # x_acc_noise = []
 # y_acc_noise = []
@@ -57,22 +57,23 @@ x_acc_noise = []
 #
 # plot2 = plt.plot(x_acc_noise, label='Initial_var_1')
 
-#  test noise
-Total_episode = 5000
-eps_end = 3000
-var_ = 1
-var_2 = 0.5
-for each_eps in range(Total_episode):
-    # if each_eps > 0:
-    input_var = get_custom_linear_scaling_factor(each_eps, eps_end, var_)
-    input_var_2 = get_custom_linear_scaling_factor(each_eps, eps_end, var_2)
-    noise_value = np.random.randn(2) * input_var
-    noise_value_2 = np.random.randn(2) * input_var_2
-    x_acc_noise.append(noise_value[0])
-    x1_acc_noise.append(noise_value_2[0])
-
-plot1 = plt.plot(x_acc_noise, label='Initial_var_1')
-plot2 = plt.plot(x1_acc_noise, label='Initial_var_0.5')
+# ---------- test noise---------------
+# Total_episode = 5000
+# eps_end = 3000
+# var_ = 1
+# var_2 = 0.5
+# for each_eps in range(Total_episode):
+#     # if each_eps > 0:
+#     input_var = get_custom_linear_scaling_factor(each_eps, eps_end, var_)
+#     input_var_2 = get_custom_linear_scaling_factor(each_eps, eps_end, var_2)
+#     noise_value = np.random.randn(2) * input_var
+#     noise_value_2 = np.random.randn(2) * input_var_2
+#     x_acc_noise.append(noise_value[0])
+#     x1_acc_noise.append(noise_value_2[0])
+#
+# plot1 = plt.plot(x_acc_noise, label='Initial_var_1')
+# plot2 = plt.plot(x1_acc_noise, label='Initial_var_0.5')
+# ---------- end of test noise---------------
 plt.grid(linestyle='-.')
 plt.xlabel('steps taken')
 plt.ylabel('noise level')

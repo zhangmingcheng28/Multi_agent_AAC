@@ -89,7 +89,7 @@ def main(args):
     # # actorNet_lr = 1e-3
     actorNet_lr = 0.0001
     # # criticNet_lr = 1e-4
-    criticNet_lr = 0.001
+    criticNet_lr = 0.0001
     #
     # # noise parameter ini
     # largest_Nsigma = 0.5
@@ -204,10 +204,9 @@ def main(args):
                 else:
                     model.memory(state, action, reward, next_state, done_tensor)
 
+                state = next_state
                 c_loss, a_loss = model.update_myown(episode, total_step,
                                                     UPDATE_EVERY, wandb)  # last working learning framework
-
-                state = next_state
                 # norm_cur_state = norm_next_state
                 # eps_reward.append(step_reward_record)
                 # if ((args.episode_length < step) and (300 not in reward_aft_action)):
@@ -403,7 +402,7 @@ if __name__ == '__main__':
     parser.add_argument('--scenario', default="simple_spread", type=str)
     parser.add_argument('--max_episodes', default=20000, type=int)  # run for a total of 50000 episodes
     parser.add_argument('--algo', default="maddpg", type=str, help="commnet/bicnet/maddpg")
-    parser.add_argument('--mode', default="train", type=str, help="train/eval")
+    parser.add_argument('--mode', default="eval", type=str, help="train/eval")
     parser.add_argument('--episode_length', default=30, type=int)  # maximum play per episode
     parser.add_argument('--memory_length', default=int(1e5), type=int)
     parser.add_argument('--tau', default=0.001, type=float)
@@ -411,7 +410,7 @@ if __name__ == '__main__':
     parser.add_argument('--seed', default=777, type=int)  # may choose to use 3407
     # parser.add_argument('--a_lr', default=0.0001, type=float)
     # parser.add_argument('--c_lr', default=0.0001, type=float)
-    parser.add_argument('--batch_size', default=512, type=int)  # original 512
+    parser.add_argument('--batch_size', default=256, type=int)  # original 512
     parser.add_argument('--render_flag', default=False, type=bool)
     parser.add_argument('--ou_theta', default=0.15, type=float)
     parser.add_argument('--ou_mu', default=0.0, type=float)

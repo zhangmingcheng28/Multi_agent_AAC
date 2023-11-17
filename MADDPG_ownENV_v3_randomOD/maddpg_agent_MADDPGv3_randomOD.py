@@ -389,8 +389,7 @@ class MADDPG:
                 act += torch.from_numpy(noise_value).type(FloatTensor)
                 # print("Episode {}, agent {}, noise level is {}".format(episode, i, self.var[i]))
 
-            # act = torch.clamp(act, -1.0, 1.0)  # when using stochastic policy, we are not require to clamp again.
-
+                act = torch.clamp(act, -1.0, 1.0)  # when using stochastic policy, we are not require to clamp again.
             actions[i, :] = act
         self.steps_done += 1
         return actions.data.cpu().numpy(), noise_value

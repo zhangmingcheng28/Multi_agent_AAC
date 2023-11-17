@@ -50,17 +50,17 @@ def main(args):
         if not os.path.exists(plot_file_name):
             os.makedirs(plot_file_name)
 
-        wandb.login(key="efb76db851374f93228250eda60639c70a93d1ec")
-        wandb.init(
-            # set the wandb project where this run will be logged
-            project="MADDPG_FrameWork",
-            name='MADDPG_test_'+str(current_date) + '_' + str(formatted_time),
-            # track hyperparameters and run metadata
-            config={
-                # "learning_rate": args.a_lr,
-                "epochs": args.max_episodes,
-            }
-        )
+        # wandb.login(key="efb76db851374f93228250eda60639c70a93d1ec")
+        # wandb.init(
+        #     # set the wandb project where this run will be logged
+        #     project="MADDPG_FrameWork",
+        #     name='MADDPG_test_'+str(current_date) + '_' + str(formatted_time),
+        #     # track hyperparameters and run metadata
+        #     config={
+        #         # "learning_rate": args.a_lr,
+        #         "epochs": args.max_episodes,
+        #     }
+        # )
 
     # -------------- create my own environment -----------------
     n_episodes, max_t, eps_start, eps_end, eps_period, eps, env, \
@@ -88,7 +88,7 @@ def main(args):
     # actorNet_lr = 1e-3
     actorNet_lr = 0.0001
     # criticNet_lr = 1e-4
-    criticNet_lr = 0.001
+    criticNet_lr = 0.0001
 
     # noise parameter ini
     largest_Nsigma = 0.5
@@ -127,13 +127,13 @@ def main(args):
     eps_end = 5000  # at eps = eps_end, the eps value drops to lowest value which is 0.03 (this value is fixed)
     noise_start_level = 0.5
     if args.mode == "eval":
-        # args.max_episodes = 1  # only evaluate one episode during evaluation mode.
-        matplotlib.use('TkAgg')
-        plt.ion()
-        # Create figure and axis objects
-        fig, ax = plt.subplots()
-        ax.set_xlim(env.bound[0], env.bound[1])  # Set x-axis limits from 0 to 5
-        ax.set_ylim(env.bound[2], env.bound[3])  # Set y-axis limits from 0 to 5
+        args.max_episodes = 1  # only evaluate one episode during evaluation mode.
+        # matplotlib.use('TkAgg')
+        # plt.ion()
+        # # Create figure and axis objects
+        # fig, ax = plt.subplots()
+        # ax.set_xlim(env.bound[0], env.bound[1])  # Set x-axis limits from 0 to 5
+        # ax.set_ylim(env.bound[2], env.bound[3])  # Set y-axis limits from 0 to 5
     max_agent_to_add = 100 - n_agents
 
     # while episode < args.max_episodes:
@@ -153,8 +153,8 @@ def main(args):
 
         trajectory_eachPlay = []
 
-        pre_fix = r'D:\MADDPG_2nd_jp\290823_20_59_38\interval_record_eps'
-        episode_to_check = str(4000)
+        pre_fix = r'D:\MADDPG_2nd_jp\161123_20_55_14\interval_record_eps'
+        episode_to_check = str(11000)
         load_filepath_0 = pre_fix + '\episode_' + episode_to_check + '_agent_0actor_net.pth'
         load_filepath_1 = pre_fix + '\episode_' + episode_to_check + '_agent_1actor_net.pth'
         load_filepath_2 = pre_fix + '\episode_' + episode_to_check + '_agent_2actor_net.pth'
@@ -243,7 +243,7 @@ def main(args):
                     score_history.append(accum_reward)
 
                     print("[Episode %05d] reward %6.4f" % (episode, accum_reward))
-                    wandb.log({'overall_reward': float(accum_reward)})
+                    # wandb.log({'overall_reward': float(accum_reward)})
                     with open(file_name + '/GFG.csv', 'w') as f:
                         # using csv.writer method from CSV package
                         write = csv.writer(f)
@@ -301,19 +301,19 @@ def main(args):
                 # plt.show(block=False)
 
                 step_reward_record = [None] * n_agents
-                action = model.choose_action(norm_cur_state, episode, step, eps_end, noise_start_level, noisy=False)
+                action, step_noise_val = model.choose_action(norm_cur_state, episode, step, eps_end, noise_start_level, noisy=False)
                 # action = model.choose_action(cur_state, episode, noisy=False)
                 # action = env.get_actions_noCR()  # only update heading, don't update any other attribute
                 next_state, norm_next_state = env.step(action, step)  # no heading update here
-                # reward_aft_action, done_aft_action, check_goal = env.get_step_reward(step)
-                reward_aft_action, done_aft_action, check_goal, step_reward_record = env.get_step_reward_5_v3(step, step_reward_record)
+                reward_aft_action, done_aft_action, check_goal, step_reward_record = env.ss_reward(step, step_reward_record)
+                # reward_aft_action, done_aft_action, check_goal, step_reward_record = env.get_step_reward_5_v3(step, step_reward_record)
 
                 step += 1
                 total_step += 1
                 cur_state = next_state
                 norm_cur_state = norm_next_state
                 trajectory_eachPlay.append([[each_agent_traj[0], each_agent_traj[1]] for each_agent_traj in cur_state[0]])
-                accum_reward = accum_reward + reward_aft_action[0]
+                accum_reward = accum_reward + sum(reward_aft_action)
 
                 # # # draw occupied_poly
                 # # for one_poly in env.world_map_2D_polyList[0][0]:
@@ -346,7 +346,7 @@ def main(args):
                     matplotlib.use('TkAgg')
                     fig, ax = plt.subplots(1, 1)
                     # display initial condition
-                    global_state = env.reset_world(show=0)  # just a dummy to reset all condition so that initial condition can be added to the output graph
+                    # global_state = env.reset_world(show=0)  # just a dummy to reset all condition so that initial condition can be added to the output graph
                     for agentIdx, agent in env.all_agents.items():
                         plt.plot(agent.ini_pos[0], agent.ini_pos[1],
                                  marker=MarkerStyle(">",
@@ -368,11 +368,12 @@ def main(args):
 
                         # link individual drone's starting position with its goal
                         ini = agent.ini_pos
-                        for wp in agent.goal:
-                            plt.plot(wp[0], wp[1], marker='*', color='y', markersize=10)
-                            plt.plot([wp[0], ini[0]], [wp[1], ini[1]], '--', color='c')
-                            ini = wp
-
+                        # for wp in agent.goal:
+                        #     plt.plot(wp[0], wp[1], marker='*', color='y', markersize=10)
+                        #     plt.plot([wp[0], ini[0]], [wp[1], ini[1]], '--', color='c')
+                        #     ini = wp
+                        plt.plot(agent.goal[-1][0], agent.goal[-1][1], marker='*', color='y', markersize=10)
+                        plt.text(agent.goal[-1][0], agent.goal[-1][1], agent.agent_name)
                     # draw trajectory in current episode
                     for trajectory_idx, trajectory_val in enumerate(trajectory_eachPlay):  # each time step
                         for agentIDX, each_agent_traj in enumerate(trajectory_val):  # for each agent's motion in a time step
@@ -410,7 +411,7 @@ def main(args):
                     plt.ylabel("Y axis")
                     plt.show()
                     break
-    wandb.finish()
+    # wandb.finish()
 
     # if args.tensorboard:
     #     writer.close()
@@ -421,7 +422,7 @@ if __name__ == '__main__':
     parser.add_argument('--scenario', default="simple_spread", type=str)
     parser.add_argument('--max_episodes', default=20000, type=int)  # run for a total of 50000 episodes
     parser.add_argument('--algo', default="maddpg", type=str, help="commnet/bicnet/maddpg")
-    parser.add_argument('--mode', default="train", type=str, help="train/eval")
+    parser.add_argument('--mode', default="eval", type=str, help="train/eval")
     parser.add_argument('--episode_length', default=30, type=int)  # maximum play per episode
     parser.add_argument('--memory_length', default=int(1e5), type=int)
     parser.add_argument('--tau', default=0.001, type=float)
