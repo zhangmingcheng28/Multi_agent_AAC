@@ -33,3 +33,4 @@ basedline_MAAC_ownENV/__pycache__/agent_MAAC.cpython-39.pyc
 /MADDPG_ownENV_v3_randomOD/wandb/
 *.pyc
 basedline_MAAC_ownENV/__pycache__/attention_sac_MAAC.cpython-39.pyc
+/MADDPG_SS_baseV3/wandb/
