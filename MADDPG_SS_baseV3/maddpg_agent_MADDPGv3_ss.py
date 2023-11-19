@@ -260,6 +260,7 @@ class MADDPG:
 
         # original
         if total_step_count % UPDATE_EVERY == 0:  # evert "UPDATE_EVERY" step, do a soft update
+        # if self.train_num % UPDATE_EVERY == 0:  # evert "UPDATE_EVERY" episode, do a soft update
             for i in range(self.n_agents):
                 print("all agents NN update at total step {}".format(total_step_count))
                 soft_update(self.critics_target[i], self.critics[i], self.tau)
@@ -275,7 +276,7 @@ class MADDPG:
                 # print(f"Gradient for {name} is {param.grad.norm()}")
                 wandb.log({name: float(param.grad.norm())})
 
-    def choose_action(self, state, episode, step, eps_end, noise_start_level, noisy=True):
+    def choose_action(self, state, cur_total_step, step, total_training_steps, noise_start_level, noisy=True):
         obs = torch.from_numpy(np.stack(state)).float().to(device)
 
         # obs = torch.from_numpy(np.stack(state[0])).float().to(device)
@@ -295,7 +296,7 @@ class MADDPG:
         FloatTensor = torch.cuda.FloatTensor if self.use_cuda else torch.FloatTensor
         # this for loop used to decrease noise level for all agents before taking any action
         for i in range(self.n_agents):
-            self.var[i] = self.get_custom_linear_scaling_factor(episode, eps_end, noise_start_level)
+            self.var[i] = self.linear_decay(cur_total_step, total_training_steps, noise_start_level)
 
         for i in range(self.n_agents):
             # sb = obs[i].detach()
@@ -311,8 +312,8 @@ class MADDPG:
                 noise_value = np.random.randn(2) * self.var[i]
                 act += torch.from_numpy(noise_value).type(FloatTensor)
                 # print("Episode {}, agent {}, noise level is {}".format(episode, i, self.var[i]))
+                act = torch.clamp(act, -1.0, 1.0)  # when using stochastic policy, we are not require to clamp again.
 
-            act = torch.clamp(act, -1.0, 1.0)  # when using stochastic policy, we are not require to clamp again.
             actions[i, :] = act
         self.steps_done += 1
         return actions.data.cpu().numpy(), noise_value
@@ -322,6 +323,18 @@ class MADDPG:
         if episode <= eps_end:
             slope = (end_scale - start_scale) / (eps_end - 1)
             current_scale = start_scale + slope * (episode - 1)
+        else:
+            current_scale = end_scale
+        return current_scale
+
+    def linear_decay(self, cur_total_step, total_training_steps, start_scale=1, end_scale=0.03):
+        current_scale = start_scale
+        # Calculate the slope of the linear decrease only up to eps_end
+        if cur_total_step == 0:
+            return current_scale
+        if current_scale > end_scale:
+            eps_delta = (start_scale - end_scale) / total_training_steps
+            current_scale = start_scale - eps_delta
         else:
             current_scale = end_scale
         return current_scale

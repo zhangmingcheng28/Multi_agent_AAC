@@ -120,7 +120,7 @@ def main(args):
     if args.algo == "maddpg":
         actor_dim = n_states
         critic_dim = n_states
-        UPDATE_EVERY = 100  # update the NN every ... steps.
+        UPDATE_EVERY = 50  # update the NN every ... steps.
         GAMMA = 0.99
         TAU = 1e-3
         model = MADDPG(actor_dim, critic_dim, n_actions, n_agents, args, criticNet_lr, actorNet_lr, GAMMA, TAU)
@@ -133,8 +133,8 @@ def main(args):
     score_history = []
     eps_reward_record = []
     eps_noise_record = []
-    eps_end = 5000  # at eps = eps_end, the eps value drops to lowest value which is 0.03 (this value is fixed)
-    noise_start_level = 0.5
+    eps_end = 30000  # at eps = eps_end, the eps value drops to lowest value which is 0.03 (this value is fixed)
+    noise_start_level = 1
     if args.mode == "eval":
         # args.max_episodes = 1  # only evaluate one episode during evaluation mode.
         matplotlib.use('TkAgg')
@@ -174,7 +174,7 @@ def main(args):
             model.load_model([load_filepath_0, load_filepath_1, load_filepath_2])
         while True:  # start of an episode (this episode ends when (agent_added < max_agent_to_add))
             if args.mode == "train":
-                action, step_noise_val = model.choose_action(state, episode, step, eps_end, noise_start_level, noisy=True)
+                action, step_noise_val = model.choose_action(state, total_step, step, eps_end, noise_start_level, noisy=True)
                 next_state, reward, done, info = env.step(action)
 
                 step += 1  # current play step
@@ -205,8 +205,8 @@ def main(args):
                     model.memory(state, action, reward, next_state, done_tensor)
 
                 state = next_state
-                c_loss, a_loss = model.update_myown(episode, total_step,
-                                                    UPDATE_EVERY, wandb)  # last working learning framework
+                # c_loss, a_loss = model.update_myown(episode, total_step,
+                #                                     UPDATE_EVERY, wandb)  # last working learning framework
                 # norm_cur_state = norm_next_state
                 # eps_reward.append(step_reward_record)
                 # if ((args.episode_length < step) and (300 not in reward_aft_action)):
@@ -220,6 +220,8 @@ def main(args):
                 #     print("More than 50 drones has reaches the destination, current episode {} ends".format(episode))
                 # if ((args.episode_length < step) and (300 not in reward_aft_action)) or (True in done_aft_action) or (agent_added>50):
                 if (True in done) or args.episode_length < step:
+                    c_loss, a_loss = model.update_myown(episode, total_step,
+                                                        UPDATE_EVERY, wandb)  # last working learning framework
                     # display bound lines
                     # display condition of failing
                     # here onwards is end of an episode's play
@@ -400,10 +402,10 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--scenario', default="simple_spread", type=str)
-    parser.add_argument('--max_episodes', default=20000, type=int)  # run for a total of 50000 episodes
+    parser.add_argument('--max_episodes', default=50000, type=int)  # run for a total of 50000 episodes
     parser.add_argument('--algo', default="maddpg", type=str, help="commnet/bicnet/maddpg")
-    parser.add_argument('--mode', default="eval", type=str, help="train/eval")
-    parser.add_argument('--episode_length', default=30, type=int)  # maximum play per episode
+    parser.add_argument('--mode', default="train", type=str, help="train/eval")
+    parser.add_argument('--episode_length', default=50, type=int)  # maximum play per episode
     parser.add_argument('--memory_length', default=int(1e5), type=int)
     parser.add_argument('--tau', default=0.001, type=float)
     parser.add_argument('--gamma', default=0.95, type=float)

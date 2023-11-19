@@ -50,22 +50,13 @@ class ActorNetwork(nn.Module):
         # self.n_heads = 3
         # self.single_head_dim = int((64+64+64) / self.n_heads)
 
-        # self.own_fc = nn.Sequential(nn.Linear(actor_dim[0], 128), nn.ReLU())
-        # self.own_fc = nn.Sequential(nn.Linear(actor_dim[0], 256), nn.ReLU())
-        self.own_fc = nn.Sequential(nn.Linear(actor_dim, 256), nn.ReLU())
-        # self.own_fc_lay2 = nn.Sequential(nn.Linear(256, 256), nn.ReLU())
-        # self.own_fc_lay2 = nn.Sequential(nn.Linear(256, 256), nn.ReLU(), nn.Linear(256, 256), nn.ReLU())
-
+        self.own_fc = nn.Sequential(nn.Linear(actor_dim, 512), nn.ReLU())
         # gru layer
         # self.gru = nn.GRU(256, 256, 1, batch_first=True)
+        self.own_fc_lay2 = nn.Sequential(nn.Linear(512, 128), nn.ReLU())
 
-        self.own_fc_lay2 = nn.Sequential(nn.Linear(256, 256), nn.ReLU(),
-                                         nn.Linear(256, 256), nn.ReLU())
-        # self.own_fc_lay2 = nn.Sequential(nn.Linear(256, 256), nn.ReLU())
+        self.own_fc_outlay = nn.Sequential(nn.Linear(128, n_actions), nn.Tanh())
 
-        self.own_fc_outlay = nn.Sequential(nn.Linear(256, n_actions), nn.Tanh())
-        # self.intrude_fc = nn.Sequential(nn.Linear(6, 256), nn.ReLU())
-        # self.own_grid_fc = nn.Sequential(nn.Linear(actor_dim[1], 128), nn.ReLU())
 
         # perform a self-attention for own obs_grids, actor_obs[1], assume actor_obs = [6, 6, 6]
 
@@ -227,8 +218,8 @@ class CriticNetwork(nn.Module):
         # self.combine_env_fc = nn.Sequential(nn.Linear(256+128, 128), nn.ReLU())
         # self.combine_env_fc = nn.Sequential(nn.Linear(128+(2*n_agents), 256), nn.ReLU())
         # self.combine_env_fc = nn.Sequential(nn.Linear(1024+(2*n_agents), 512), nn.ReLU())
-        self.combine_env_fc = nn.Sequential(nn.Linear(1024+(2*n_agents), 512), nn.ReLU(),
-                                            nn.Linear(512, 512), nn.ReLU())
+        self.combine_env_fc = nn.Sequential(nn.Linear(1024+(2*n_agents), 512), nn.ReLU())
+                                            # nn.Linear(512, 512), nn.ReLU())
         # self.combine_env_fc = nn.Sequential(nn.Linear(1024+(2*n_agents), 512), nn.ReLU(),
         #                                     nn.Linear(512, 512), nn.ReLU(),
         #                                     nn.Linear(512, 512), nn.ReLU())
