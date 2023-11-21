@@ -1419,7 +1419,7 @@ class env_simulator:
             for element in possiblePoly:
                 if self.allbuildingSTR.geometries.take(element).intersection(host_current_circle):
                     collide_building = 1
-                    # print("drone_{} crash into building when moving from {} to {} at time step {}".format(drone_idx, self.all_agents[drone_idx].pre_pos, self.all_agents[drone_idx].pos, current_ts))
+                    print("drone_{} crash into building when moving from {} to {} at time step {}".format(drone_idx, self.all_agents[drone_idx].pre_pos, self.all_agents[drone_idx].pos, current_ts))
                     break
 
             # tar_circle = Point(self.all_agents[drone_idx].goal[0]).buffer(1, cap_style='round')
@@ -1447,11 +1447,11 @@ class env_simulator:
                 # done.append(False)
                 reward.append(np.array(rew))
             # crash into buildings or crash with other neighbors
-            # elif collide_building == 1:
-            #     # done.append(True)
-            #     done.append(False)
-            #     rew = rew - crash_penalty_wall
-            #     reward.append(np.array(rew))
+            elif collide_building == 1:
+                # done.append(True)
+                done.append(True)
+                rew = rew - crash_penalty_wall
+                reward.append(np.array(rew))
             # elif len(collision_drones) > 0:
             #     # done.append(True)
             #     done.append(False)
