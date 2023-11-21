@@ -1429,7 +1429,7 @@ class env_simulator:
             goal_cur_intru_intersect = host_current_circle.intersection(tar_circle)
 
             # ------------- pre-processed condition for a normal step -----------------
-            rew = 0
+            rew = 5
             # after_dist_hg = np.linalg.norm(drone_obj.pos - drone_obj.goal[-1])  # distance to goal after action
             x_norm, y_norm = self.normalizer.nmlz_pos(drone_obj.pos)
             tx_norm, ty_norm = self.normalizer.nmlz_pos(drone_obj.goal[-1])
