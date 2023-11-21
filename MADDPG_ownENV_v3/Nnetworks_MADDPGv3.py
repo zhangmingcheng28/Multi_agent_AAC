@@ -50,15 +50,13 @@ class ActorNetwork(nn.Module):
 
         # self.own_fc = nn.Sequential(nn.Linear(actor_dim[0], 128), nn.ReLU())
         # self.own_fc = nn.Sequential(nn.Linear(actor_dim[0], 256), nn.ReLU())
-        self.own_fc = nn.Sequential(nn.Linear(actor_dim[0], 256), nn.ReLU())
+        self.own_fc = nn.Sequential(nn.Linear(actor_dim[0], 1024), nn.ReLU())
         # self.own_fc_lay2 = nn.Sequential(nn.Linear(256, 256), nn.ReLU())
         # self.own_fc_lay2 = nn.Sequential(nn.Linear(256, 256), nn.ReLU(), nn.Linear(256, 256), nn.ReLU())
-        self.own_fc_lay2 = nn.Sequential(nn.Linear(256, 256), nn.ReLU(),
-                                         nn.Linear(256, 256), nn.ReLU(),
-                                         nn.Linear(256, 256), nn.ReLU())
+        self.own_fc_lay2 = nn.Sequential(nn.Linear(1024, 1024), nn.ReLU())
         # self.own_fc_lay2 = nn.Sequential(nn.Linear(512, 512), nn.ReLU(),
         #                                  nn.Linear(512, 256), nn.ReLU())
-        self.own_fc_outlay = nn.Sequential(nn.Linear(256, n_actions), nn.Tanh())
+        self.own_fc_outlay = nn.Sequential(nn.Linear(1024, n_actions), nn.Tanh())
         # self.intrude_fc = nn.Sequential(nn.Linear(6, 128), nn.ReLU())
         # self.own_grid_fc = nn.Sequential(nn.Linear(actor_dim[1], 128), nn.ReLU())
 

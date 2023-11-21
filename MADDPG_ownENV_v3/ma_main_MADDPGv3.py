@@ -137,7 +137,7 @@ def main(args):
         accum_reward = 0
         trajectory_eachPlay = []
 
-        pre_fix = r'D:\MADDPG_2nd_jp\070923_15_21_47\interval_record_eps'
+        pre_fix = r'D:\MADDPG_2nd_jp\110923_08_46_42\interval_record_eps'
         episode_to_check = str(12000)
         load_filepath_0 = pre_fix + '\episode_' + episode_to_check + '_agent_0actor_net.pth'
         load_filepath_1 = pre_fix + '\episode_' + episode_to_check + '_agent_1actor_net.pth'

@@ -1411,7 +1411,7 @@ class env_simulator:
                 # get distance from host to all the surrounding vehicles
                 diff_dist_vec = drone_obj.pos - self.all_agents[neigh_keys].pos  # host pos vector - intruder pos vector
                 if np.linalg.norm(diff_dist_vec) <= drone_obj.protectiveBound * 2:
-                    print("drone_{} collide with drone_{} at time step {}".format(drone_idx, neigh_keys, current_ts))
+                    # print("drone_{} collide with drone_{} at time step {}".format(drone_idx, neigh_keys, current_ts))
                     collision_drones.append(neigh_keys)
 
             # check whether current actions leads to a collision with any buildings in the airspace
@@ -1419,7 +1419,7 @@ class env_simulator:
             for element in possiblePoly:
                 if self.allbuildingSTR.geometries.take(element).intersection(host_current_circle):
                     collide_building = 1
-                    print("drone_{} crash into building when moving from {} to {} at time step {}".format(drone_idx, self.all_agents[drone_idx].pre_pos, self.all_agents[drone_idx].pos, current_ts))
+                    # print("drone_{} crash into building when moving from {} to {} at time step {}".format(drone_idx, self.all_agents[drone_idx].pre_pos, self.all_agents[drone_idx].pos, current_ts))
                     break
 
             # tar_circle = Point(self.all_agents[drone_idx].goal[0]).buffer(1, cap_style='round')
@@ -1447,16 +1447,16 @@ class env_simulator:
                 # done.append(False)
                 reward.append(np.array(rew))
             # crash into buildings or crash with other neighbors
-            elif collide_building == 1:
-                # done.append(True)
-                done.append(False)
-                rew = rew - crash_penalty_wall
-                reward.append(np.array(rew))
-            elif len(collision_drones) > 0:
-                # done.append(True)
-                done.append(False)
-                rew = rew - crash_penalty_drone
-                reward.append(np.array(rew))
+            # elif collide_building == 1:
+            #     # done.append(True)
+            #     done.append(False)
+            #     rew = rew - crash_penalty_wall
+            #     reward.append(np.array(rew))
+            # elif len(collision_drones) > 0:
+            #     # done.append(True)
+            #     done.append(False)
+            #     rew = rew - crash_penalty_drone
+            #     reward.append(np.array(rew))
             elif not goal_cur_intru_intersect.is_empty:  # reached goal?
                 # --------------- with way point -----------------------
                 # if len(drone_obj.goal) > 1:  # meaning the current agent has more than one target/goal
@@ -1493,10 +1493,12 @@ class env_simulator:
                 # step_reward_record[reward_record_idx] = one_step_reward
                 step_reward_record[reward_record_idx] = [step_reward]
             reward_record_idx = reward_record_idx + 1
-
+            actual_after_dist_hg = math.sqrt(((drone_obj.pos[0] - drone_obj.goal[-1][0]) ** 2 + (drone_obj.pos[1] - drone_obj.goal[-1][1]) ** 2))
+            # print("current drone {} distance to goal is {}, current reward is {}".format(drone_idx, actual_after_dist_hg, reward[-1]))
         # check if length of reward does not equals to 3
         if len(reward) != 3:
             print("check")
+
         return reward, done, check_goal, step_reward_record
 
 

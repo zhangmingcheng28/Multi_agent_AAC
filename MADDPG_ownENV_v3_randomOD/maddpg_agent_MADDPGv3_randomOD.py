@@ -62,8 +62,8 @@ class MADDPG:
         self.GAMMA = gamma
         self.tau = tau
 
-        # self.var = [1.0 for i in range(n_agents)]
-        self.var = [0.5 for i in range(n_agents)]
+        self.var = [1.0 for i in range(n_agents)]
+        # self.var = [0.5 for i in range(n_agents)]
 
         # original, critic learning rate is 10 times larger compared to actor
         # self.critic_optimizer = [Adam(x.parameters(), lr=0.001) for x in self.critics]
@@ -354,7 +354,47 @@ class MADDPG:
                 # print(f"Gradient for {name} is {param.grad.norm()}")
                 wandb.log({name: float(param.grad.norm())})
 
-    def choose_action(self, state, episode, step, eps_end, noise_start_level, noisy=True):
+    def choose_action(self, state, cur_total_step, step, total_training_steps, noise_start_level, noisy=True):
+        # ------------- MADDPG_test_181123_10_10_54 version noise -------------------
+        # obs = torch.from_numpy(np.stack(state[0])).float().to(device)
+        # obs_grid = torch.from_numpy(np.stack(state[1])).float().to(device)
+        # noise_value = np.zeros(2)
+        # all_obs_surAgent = []
+        # for each_agent_sur in state[2]:
+        #     try:
+        #         each_obs_surAgent = np.squeeze(np.array(each_agent_sur), axis=1)
+        #         all_obs_surAgent.append(torch.from_numpy(each_obs_surAgent).float().to(device))
+        #     except:
+        #         print("pause and check")
+        #
+        # # obs_surAgent = torch.from_numpy(np.stack(state[2])).float().to(device)
+        #
+        # actions = torch.zeros(self.n_agents, self.n_actions)
+        # FloatTensor = torch.cuda.FloatTensor if self.use_cuda else torch.FloatTensor
+        # # this for loop used to decrease noise level for all agents before taking any action
+        # for i in range(self.n_agents):
+        #     self.var[i] = self.get_custom_linear_scaling_factor(episode, eps_end, noise_start_level)  # self.var[i] will decrease as the episode increase
+        #
+        # for i in range(self.n_agents):
+        #     # sb = obs[i].detach()
+        #     # sb_grid = obs_grid[i].detach()
+        #     # sb_surAgent = all_obs_surAgent[i].detach()
+        #     sb = obs[i]
+        #     sb_grid = obs_grid[i]
+        #     sb_surAgent = all_obs_surAgent[i]
+        #     # act = self.actors[i]([sb.unsqueeze(0), sb_grid.unsqueeze(0), sb_surAgent.unsqueeze(0)]).squeeze()
+        #     # act = self.actors[i]([sb.unsqueeze(0), sb_surAgent.unsqueeze(0)]).squeeze()
+        #     act = self.actors[i]([sb.unsqueeze(0)]).squeeze()
+        #     if noisy:
+        #         noise_value = np.random.randn(2) * self.var[i]
+        #         act += torch.from_numpy(noise_value).type(FloatTensor)
+        #         # print("Episode {}, agent {}, noise level is {}".format(episode, i, self.var[i]))
+        #         act = torch.clamp(act, -1.0, 1.0)  # when using stochastic policy, we are not require to clamp again.
+        #
+        #     actions[i, :] = act
+        # self.steps_done += 1
+        # ------------- end of MADDPG_test_181123_10_10_54 version noise -------------------
+
         obs = torch.from_numpy(np.stack(state[0])).float().to(device)
         obs_grid = torch.from_numpy(np.stack(state[1])).float().to(device)
         noise_value = np.zeros(2)
@@ -371,8 +411,8 @@ class MADDPG:
         actions = torch.zeros(self.n_agents, self.n_actions)
         FloatTensor = torch.cuda.FloatTensor if self.use_cuda else torch.FloatTensor
         # this for loop used to decrease noise level for all agents before taking any action
-        for i in range(self.n_agents):
-            self.var[i] = self.get_custom_linear_scaling_factor(episode, eps_end, noise_start_level)  # self.var[i] will decrease as the episode increase
+        # for i in range(self.n_agents):
+        #     self.var[i] = self.get_custom_linear_scaling_factor(episode, eps_end, noise_start_level)  # self.var[i] will decrease as the episode increase
 
         for i in range(self.n_agents):
             # sb = obs[i].detach()
@@ -388,9 +428,13 @@ class MADDPG:
                 noise_value = np.random.randn(2) * self.var[i]
                 act += torch.from_numpy(noise_value).type(FloatTensor)
                 # print("Episode {}, agent {}, noise level is {}".format(episode, i, self.var[i]))
-
                 act = torch.clamp(act, -1.0, 1.0)  # when using stochastic policy, we are not require to clamp again.
+
             actions[i, :] = act
+
+        for i in range(self.n_agents):
+            if self.var[i] > 0.05:  # noise decrease at every step instead of every episode.
+                self.var[i] = self.var[i] * 0.999998
         self.steps_done += 1
         return actions.data.cpu().numpy(), noise_value
 
@@ -399,6 +443,18 @@ class MADDPG:
         if episode <= eps_end:
             slope = (end_scale - start_scale) / (eps_end - 1)
             current_scale = start_scale + slope * (episode - 1)
+        else:
+            current_scale = end_scale
+        return current_scale
+
+    def linear_decay(self, cur_total_step, total_training_steps, start_scale=1, end_scale=0.03):
+        current_scale = start_scale
+        # Calculate the slope of the linear decrease only up to eps_end
+        if cur_total_step == 0:
+            return current_scale
+        if current_scale > end_scale:
+            eps_delta = (start_scale - end_scale) / total_training_steps
+            current_scale = start_scale - eps_delta
         else:
             current_scale = end_scale
         return current_scale
