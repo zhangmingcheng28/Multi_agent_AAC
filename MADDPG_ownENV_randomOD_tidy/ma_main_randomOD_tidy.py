@@ -2,16 +2,18 @@ import sys
 # sys.path.append('F:\githubClone\Multi_agent_AAC\old_framework_test')
 # sys.path.append('D:\Multi_agent_AAC\old_framework_test')
 from env.make_env import make_env
-import argparse, datetime
+import argparse
+import datetime
 import pandas as pd
 import numpy as np
-import torch, os
+import torch
+import os
 import time
 import pickle
 import wandb
-from parameters_MADDPGv3_randomOD import initialize_parameters
-from maddpg_agent_MADDPGv3_randomOD import MADDPG
-from utils_MADDPGv3_randomOD import *
+from parameters_randomOD_tidy import initialize_parameters
+from maddpg_agent_randomOD_tidy import MADDPG
+from utils_randomOD_tidy import *
 from copy import deepcopy
 import torch
 import matplotlib.pyplot as plt
@@ -21,22 +23,23 @@ from shapely.strtree import STRtree
 from matplotlib.markers import MarkerStyle
 import math
 from matplotlib.transforms import Affine2D
-from Utilities_own_MADDPGv3_randomOD import *
+from Utilities_own_randomOD_tidy import *
 import csv
+
+num_devices = torch.cuda.device_count()
+print("Number of GPUs:", num_devices)
+# Get the names of the available GPUs
+gpu_names = [torch.cuda.get_device_name(i) for i in range(num_devices)]
+print("GPU Names:", gpu_names)
+if torch.cuda.is_available():
+    device = torch.device('cuda')
+    print('Using GPU')
+else:
+    device = torch.device('cpu')
+    print('Using CPU')
 
 
 def main(args):
-    num_devices = torch.cuda.device_count()
-    print("Number of GPUs:", num_devices)
-    # Get the names of the available GPUs
-    gpu_names = [torch.cuda.get_device_name(i) for i in range(num_devices)]
-    print("GPU Names:", gpu_names)
-    if torch.cuda.is_available():
-        device = torch.device('cuda')
-        print('Using GPU')
-    else:
-        device = torch.device('cpu')
-        print('Using CPU')
 
     if args.mode == "train":
         today = datetime.date.today()
@@ -83,16 +86,7 @@ def main(args):
     n_actions = 2
     acc_range = [-4, 4]
 
-    # original
-    # actorNet_lr = learning_rate
-    # criticNet_lr = learning_rate
-
-    # actorNet_lr = 2e-5
-    # criticNet_lr = 2e-4
-
-    # actorNet_lr = 1e-3
     actorNet_lr = 0.0001
-    # criticNet_lr = 1e-4
     criticNet_lr = 0.0001
 
     # noise parameter ini
@@ -102,12 +96,6 @@ def main(args):
 
     max_spd = 15
     env.create_world(total_agentNum, n_actions, GAMMA, TAU, UPDATE_EVERY, largest_Nsigma, smallest_Nsigma, ini_Nsigma, max_xy, max_spd, acc_range)
-    #
-
-    # --------- original -----------
-    # n_agents = env.n
-    # n_actions = env.world.dim_p
-    # n_states = env.observation_space[0].shape[0]
 
     # --------- my own -----------
     n_agents = len(env.all_agents)
@@ -115,14 +103,8 @@ def main(args):
 
     torch.manual_seed(args.seed)  # this is the seed
 
-    # if args.tensorboard and args.mode == "train":
-    #     writer = SummaryWriter(log_dir='runs/' + args.algo + "/" + args.log_dir)
-
     if args.algo == "maddpg":
         model = MADDPG(actor_dim, critic_dim, n_actions, n_agents, args, criticNet_lr, actorNet_lr, GAMMA, TAU)
-
-    # print(model)
-    #model.load_model()
 
     episode = 0
     total_step = 0
@@ -133,21 +115,18 @@ def main(args):
     noise_start_level = 1
     if args.mode == "eval":
         # args.max_episodes = 1  # only evaluate one episode during evaluation mode.
-        args.max_episodes = 10  # only evaluate one episode during evaluation mode.
-        # matplotlib.use('TkAgg')
-        # plt.ion()
-        # # Create figure and axis objects
-        # fig, ax = plt.subplots()
-        # ax.set_xlim(env.bound[0], env.bound[1])  # Set x-axis limits from 0 to 5
-        # ax.set_ylim(env.bound[2], env.bound[3])  # Set y-axis limits from 0 to 5
+        args.max_episodes = 10
     max_agent_to_add = 100 - n_agents
 
     # while episode < args.max_episodes:
-    while (episode < args.max_episodes):  # start of an episode
+    while episode < args.max_episodes:  # start of an episode
         # ------------ my own env.reset() ------------ #
-        start_time = time.time()
+
         # cur_state, norm_cur_state = env.reset_world_fixedOD(show=0)
+
         cur_state, norm_cur_state = env.reset_world(total_agentNum, show=0)
+
+
         episode_decision = [False] * 2
         agents_added = []
         eps_reward = []
@@ -227,11 +206,12 @@ def main(args):
                 # accum_reward = accum_reward + reward_aft_action[0]  # we just take the first agent's reward, because we are using a joint reward, so all agents obtain the same reward.
                 accum_reward = accum_reward + sum(reward_aft_action)
 
-                c_loss, a_loss = model.update_myown(episode, total_step, UPDATE_EVERY, wandb)  # last working learning framework
+                # c_loss, a_loss = model.update_myown(episode, total_step, UPDATE_EVERY, wandb)  # last working learning framework
 
                 cur_state = next_state
                 norm_cur_state = norm_next_state
                 eps_reward.append(step_reward_record)
+
                 if ((args.episode_length < step) and (300 not in reward_aft_action)):
                     episode_decision[0] = True
                     print("Agents stuck in some places, maximum step in one episode reached, current episode {} ends".format(episode))
@@ -243,15 +223,16 @@ def main(args):
                 #     print("More than 50 drones has reaches the destination, current episode {} ends".format(episode))
                 # if ((args.episode_length < step) and (300 not in reward_aft_action)) or (True in done_aft_action) or (agent_added>50):
                 if True in episode_decision:
-                    # c_loss, a_loss = model.update_myown(episode, total_step, UPDATE_EVERY, wandb)  # last working learning framework
-                    time_used = time.time() - start_time
+                    c_loss, a_loss = model.update_myown(episode, total_step, UPDATE_EVERY, wandb)  # last working learning framework
+                    # time_used = time.time() - start_time
                     # print("update function used {} seconds to run".format(time_used))
                     # display bound lines
                     # display condition of failing
                     # here onwards is end of an episode's play
                     score_history.append(accum_reward)
 
-                    print("[Episode %05d] reward %6.4f time used is %.2f sec" % (episode, accum_reward, time_used))
+                    # print("[Episode %05d] reward %6.4f time used is %.2f sec" % (episode, accum_reward, time_used))
+                    print("[Episode %05d] reward %6.4f" % (episode, accum_reward))
                     if use_wanDB:
                         wandb.log({'overall_reward': float(accum_reward)})
                     with open(file_name + '/GFG.csv', 'w') as f:
@@ -427,6 +408,7 @@ def main(args):
                 # if args.episode_length < step or (True in done_aft_action):
                 #     print("[Episode %05d] reward %6.4f" % (episode, accum_reward))
                 #     break
+
     if use_wanDB:
         wandb.finish()
 

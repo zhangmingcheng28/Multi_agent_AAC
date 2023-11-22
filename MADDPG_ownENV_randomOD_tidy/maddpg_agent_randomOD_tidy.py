@@ -1,16 +1,17 @@
 # from Nnetworks_MADDPGv3 import CriticNetwork_0724, ActorNetwork
-from Nnetworks_MADDPGv3_randomOD import CriticNetwork, ActorNetwork, Stocha_actor
+from Nnetworks_randomOD_tidy import CriticNetwork, ActorNetwork, Stocha_actor
 import torch
 from copy import deepcopy
 from torch.optim import Adam
-from memory_MADDPGv3_randomOD import ReplayMemory, Experience
-from random_process_MADDPGv3_randomOD import OrnsteinUhlenbeckProcess
+from memory_randomOD_tidy import ReplayMemory, Experience
+# from random_process_MADDPGv3_randomOD import OrnsteinUhlenbeckProcess
 from torch.autograd import Variable
 import os
 import torch.nn as nn
+import time
 import numpy as np
 import torch as T
-from utils_MADDPGv3_randomOD import device
+from utils_randomOD_tidy import device
 import csv
 scale_reward = 0.01
 
@@ -212,6 +213,7 @@ class MADDPG:
         #     return None, None
 
         if len(self.memory) <= self.batch_size:
+        # if True:
             return None, None
 
         BoolTensor = torch.cuda.BoolTensor if self.use_cuda else torch.BoolTensor
@@ -265,6 +267,7 @@ class MADDPG:
         non_final_next_states_both_ele = torch.stack([s_[0] for s_idx, s_ in enumerate(batch.next_states) if non_final_mask[s_idx]])  # s_[0] meaning only the 1st element
         stacked_next_combine_agent = non_final_next_states_both_ele.view(non_final_next_states_both_ele.shape[0], -1)
 
+
         # next_state_list3 = [x_[2] for x_idx, x_ in enumerate(batch.next_states) if non_final_mask[x_idx]]
         # non_final_next_states3 = []
         # for i in range(self.n_agents):
@@ -274,7 +277,6 @@ class MADDPG:
         #         each_agent_sur_agent[-len(every_agent[i]):, :] = every_agent[i]
         #         all_batch_one_agent.append(each_agent_sur_agent)
         #     non_final_next_states3.append(torch.stack(all_batch_one_agent).to(device))
-
         for agent in range(self.n_agents):
             # --------- original---------
             # non_final_mask = BoolTensor(list(map(lambda s: s is not None, batch.next_states)))  # create a boolean tensor, that has same length as the "batch.next_states", if an element is batch.next_state is not "None" then assign a True value, False otherwise.
@@ -338,18 +340,12 @@ class MADDPG:
             c_loss.append(loss_Q)
             a_loss.append(actor_loss)
 
-        # original
         if total_step_count % UPDATE_EVERY == 0:  # every "UPDATE_EVERY" step, do a soft update
         # if self.train_num % UPDATE_EVERY == 0: # every "UPDATE_EVERY" episode, we do a soft update.
             for i in range(self.n_agents):
                 print("all agents NN update at total step {}".format(total_step_count))
                 soft_update(self.critics_target[i], self.critics[i], self.tau)
                 soft_update(self.actors_target[i], self.actors[i], self.tau)
-        # if total_step_count % UPDATE_EVERY == 0:  # evert 100 step, do a soft update
-        #     print("all agents NN update at total step {}".format(total_step_count))
-        #     for i in range(self.n_agents):
-        #         soft_update(self.critics_target[i], self.critics[i], self.tau)
-        #         soft_update(self.actors_target[i], self.actors[i], self.tau)
 
         return c_loss, a_loss
 

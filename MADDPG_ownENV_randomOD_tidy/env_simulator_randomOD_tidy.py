@@ -14,7 +14,7 @@ from scipy.spatial import KDTree
 import random
 import itertools
 from copy import deepcopy
-from agent_MADDPGv3_randomOD import Agent
+from agent_randomOD_tidy import Agent
 import pandas as pd
 import math
 import numpy as np
@@ -26,7 +26,7 @@ import matplotlib.pyplot as plt
 import matplotlib
 import re
 import time
-from Utilities_own_MADDPGv3_randomOD import *
+from Utilities_own_randomOD_tidy import *
 import torch as T
 import torch
 import torch.nn.functional as F
@@ -54,6 +54,25 @@ class env_simulator:
         self.normalizer = None
         self.dummy_agent = None  # template for create a new agent
         self.max_agent_num = None
+
+        self.spawn_area1 = []
+        self.spawn_area1_polymat = []
+        self.spawn_area2 = []
+        self.spawn_area2_polymat = []
+        self.spawn_area3 = []
+        self.spawn_area3_polymat = []
+        self.spawn_area4 = []
+        self.spawn_area4_polymat = []
+        self.spawn_pool = None
+        self.target_area1 = []
+        self.target_area1_polymat = None
+        self.target_area2 = []
+        self.target_area2_polymat = None
+        self.target_area3 = []
+        self.target_area3_polymat = None
+        self.target_area4 = []
+        self.target_area4_polymat = None
+        self.target_pool = None
 
     def create_world(self, total_agentNum, n_actions, gamma, tau, target_update, largest_Nsigma, smallest_Nsigma, ini_Nsigma, max_xy, max_spd, acc_range):
         # config OU_noise
@@ -102,6 +121,61 @@ class env_simulator:
         self.world_map_2D = world_2D
         self.world_map_2D_jps = world_2D.astype(int).tolist()
 
+        # segment them using two lines
+        self.spawn_pool = [self.spawn_area1, self.spawn_area2, self.spawn_area3, self.spawn_area4]
+        self.target_pool = [self.target_area1, self.target_area2, self.target_area3, self.target_area4]
+        # target_pool_idx = [i for i in range(len(target_pool))]
+        # get centroid of all square polygon
+        non_occupied_polygon = self.world_map_2D_polyList[0][1]
+        x_segment = (self.bound[1] - self.bound[0]) / 2 + self.bound[0]
+        y_segment = (self.bound[3] - self.bound[2]) / 2 + self.bound[2]
+        x_left_bound = LineString([(self.bound[0], -9999), (self.bound[0], 9999)])
+        x_right_bound = LineString([(self.bound[1], -9999), (self.bound[1], 9999)])
+        y_bottom_bound = LineString([(-9999, self.bound[2]), (9999, self.bound[2])])
+        y_top_bound = LineString([(-9999, self.bound[3]), (9999, self.bound[3])])
+        for poly in non_occupied_polygon:
+            centre_coord = (poly.centroid.x, poly.centroid.y)
+            if poly.intersects(x_left_bound):
+                self.spawn_area1.append(poly)
+                # left line
+                self.spawn_area1_polymat.append(shapelypoly_to_matpoly(poly, inFill=True, Edgecolor='black', FcColor='y'))
+                # ax.add_patch(poly_mat)
+            elif poly.intersects(y_bottom_bound):
+                # bottom line
+                self.spawn_area2.append(poly)
+                self.spawn_area2_polymat.append(
+                    shapelypoly_to_matpoly(poly, inFill=True, Edgecolor='black', FcColor='m'))
+                # ax.add_patch(poly_mat)
+            elif poly.intersects(x_right_bound):
+                # right line
+                self.spawn_area3.append(poly)
+                self.spawn_area3_polymat.append(
+                    shapelypoly_to_matpoly(poly, inFill=True, Edgecolor='black', FcColor='b'))
+                # ax.add_patch(poly_mat)
+            elif poly.intersects(y_top_bound):
+                # top line
+                self.spawn_area4.append(poly)
+                self.spawn_area4_polymat.append(
+                    shapelypoly_to_matpoly(poly, inFill=True, Edgecolor='black', FcColor='g'))
+                # ax.add_patch(poly_mat)
+
+            if centre_coord[0] < x_segment and centre_coord[1] < y_segment:
+                self.target_area1.append(centre_coord)
+                # bottom left
+                # plt.plot(centre_coord[0], centre_coord[1], marker='.', color='y', markersize=2)
+            elif centre_coord[0] > x_segment and centre_coord[1] < y_segment:
+                self.target_area2.append(centre_coord)
+                # bottom right
+                # plt.plot(centre_coord[0], centre_coord[1], marker='.', color='m', markersize=2)
+            elif centre_coord[0] > x_segment and centre_coord[1] > y_segment:
+                self.target_area3.append(centre_coord)
+                # top right
+                # plt.plot(centre_coord[0], centre_coord[1], marker='.', color='b', markersize=2)
+            else:
+                self.target_area4.append(centre_coord)
+                # top left
+                # plt.plot(centre_coord[0], centre_coord[1], marker='.', color='g', markersize=2)
+
     def reset_world(self, total_agentNum, show):  # set initialize position and observation for all agents
         self.global_time = 0.0
         self.time_step = 0.5
@@ -115,91 +189,38 @@ class env_simulator:
             self.all_agents[new_Idx].pre_surroundingNeighbor = {}  # at start of each episode ensure all surrounding/pre-surrounding neighbours are cleared.
             self.all_agents[new_Idx].surroundingNeighbor = {}
 
+        # start_time = time.time()
         agentsCoor_list = []  # for store all agents as circle polygon
         agentRefer_dict = {}  # A dictionary to use agent's current pos as key, their agent name (idx) as value
 
-        # segment them using two lines
-        spawn_area1 = []  # (yellow, bottom left)
-        spawn_area2 = []  # (green, top left)
-        spawn_area3 = []  # (megent, bottom right)
-        spawn_area4 = []  # (black, middle right)
-        spawn_pool = [spawn_area1, spawn_area2, spawn_area3, spawn_area4]
-        target_area1 = []
-        target_area2 = []
-        target_area3 = []
-        target_area4 = []
-        target_pool = [target_area1, target_area2, target_area3, target_area4]
-        # target_pool_idx = [i for i in range(len(target_pool))]
-        # get centroid of all square polygon
-        non_occupied_polygon = self.world_map_2D_polyList[0][1]
-        x_segment = (self.bound[1] - self.bound[0]) / 2 + self.bound[0]
-        y_segment = (self.bound[3] - self.bound[2]) / 2 + self.bound[2]
-        x_left_bound = LineString([(self.bound[0], -9999), (self.bound[0], 9999)])
-        x_right_bound = LineString([(self.bound[1], -9999), (self.bound[1], 9999)])
-        y_bottom_bound = LineString([(-9999, self.bound[2]), (9999, self.bound[2])])
-        y_top_bound = LineString([(-9999, self.bound[3]), (9999, self.bound[3])])
-        for poly in non_occupied_polygon:
-            centre_coord = (poly.centroid.x, poly.centroid.y)
-            if poly.intersects(x_left_bound):
-                spawn_area1.append(poly)
-                # left line
-                poly_mat = shapelypoly_to_matpoly(poly, inFill=True, Edgecolor='black', FcColor='y')
-                # ax.add_patch(poly_mat)
-            elif poly.intersects(y_bottom_bound):
-                # bottom line
-                spawn_area2.append(poly)
-                poly_mat = shapelypoly_to_matpoly(poly, inFill=True, Edgecolor='black', FcColor='m')
-                # ax.add_patch(poly_mat)
-            elif poly.intersects(x_right_bound):
-                # right line
-                spawn_area3.append(poly)
-                poly_mat = shapelypoly_to_matpoly(poly, inFill=True, Edgecolor='black', FcColor='b')
-                # ax.add_patch(poly_mat)
-            elif poly.intersects(y_top_bound):
-                # top line
-                spawn_area4.append(poly)
-                poly_mat = shapelypoly_to_matpoly(poly, inFill=True, Edgecolor='black', FcColor='g')
-                # ax.add_patch(poly_mat)
-
-            if centre_coord[0] < x_segment and centre_coord[1] < y_segment:
-                target_area1.append(centre_coord)
-                # bottom left
-                # plt.plot(centre_coord[0], centre_coord[1], marker='.', color='y', markersize=2)
-            elif centre_coord[0] > x_segment and centre_coord[1] < y_segment:
-                target_area2.append(centre_coord)
-                # bottom right
-                # plt.plot(centre_coord[0], centre_coord[1], marker='.', color='m', markersize=2)
-            elif centre_coord[0] > x_segment and centre_coord[1] > y_segment:
-                target_area3.append(centre_coord)
-                # top right
-                # plt.plot(centre_coord[0], centre_coord[1], marker='.', color='b', markersize=2)
-            else:
-                target_area4.append(centre_coord)
-                # top left
-                # plt.plot(centre_coord[0], centre_coord[1], marker='.', color='g', markersize=2)
         # with open('all_agents.pickle', 'rb') as handle:
         #     b = pickle.load(handle)
+        # print('time used is {}'.format(time.time()-start_time))
+
+        # start_time = time.time()
         start_pos_memory = []
 
         for agentIdx in self.all_agents.keys():
+
             # ---------------- using random initialized agent position for traffic flow ---------
-            random_start_index = random.randint(0, len(target_pool) - 1)
-            numbers_left = list(range(0, random_start_index)) + list(range(random_start_index + 1, len(target_pool)))
+            random_start_index = random.randint(0, len(self.target_pool) - 1)
+            numbers_left = list(range(0, random_start_index)) + list(range(random_start_index + 1, len(self.target_pool)))
             random_target_index = random.choice(numbers_left)
-            random_start_pos = random.choice(target_pool[random_start_index])
+            random_start_pos = random.choice(self.target_pool[random_start_index])
             if len(start_pos_memory) > 0:
                 while True:  # make sure the starting drone generated do not collide with any existing drone
                     # Generate a new point
-                    random_start_index = random.randint(0, len(target_pool) - 1)
+                    random_start_index = random.randint(0, len(self.target_pool) - 1)
                     numbers_left = list(range(0, random_start_index)) + list(
-                        range(random_start_index + 1, len(target_pool)))
+                        range(random_start_index + 1, len(self.target_pool)))
                     random_target_index = random.choice(numbers_left)
-                    random_start_pos = random.choice(target_pool[random_start_index])
+                    random_start_pos = random.choice(self.target_pool[random_start_index])
                     # Check that the distance to all existing points is more than 5
                     if all(np.linalg.norm(np.array(random_start_pos)-point) > self.all_agents[agentIdx].protectiveBound*2 for point in start_pos_memory):
                         break
-            random_end_pos = random.choice(target_pool[random_target_index])
+            random_end_pos = random.choice(self.target_pool[random_target_index])
             dist_between_se = np.linalg.norm(np.array(random_end_pos) - np.array(random_start_pos))
+
             # while dist_between_se >= 40:  # the distance between start & end point is less than 30m, we reset SE pairs.
             #     random_end_pos = random.choice(target_pool[random_target_index])
             #     dist_between_se = np.linalg.norm(np.array(random_end_pos) - np.array(random_start_pos))
@@ -264,6 +285,7 @@ class env_simulator:
             agentsCoor_list.append(self.all_agents[agentIdx].pos)
 
         # overall_state, norm_overall_state = self.cur_state_norm_state_fully_observable(agentRefer_dict)
+        # print('time used is {}'.format(time.time() - start_time))
         overall_state, norm_overall_state = self.cur_state_norm_state_v3(agentRefer_dict)
 
         if show:
@@ -304,7 +326,14 @@ class env_simulator:
                 matp_poly = shapelypoly_to_matpoly(poly, False, 'red')  # the 3rd parameter is the edge color
                 ax.add_patch(matp_poly)
 
-
+            # for ele in self.spawn_area1_polymat:
+            #     ax.add_patch(ele)
+            # for ele2 in self.spawn_area2_polymat:
+            #     ax.add_patch(ele2)
+            # for ele3 in self.spawn_area3_polymat:
+            #     ax.add_patch(ele3)
+            # for ele4 in self.spawn_area4_polymat:
+            #     ax.add_patch(ele4)
 
             # plt.axvline(x=self.bound[0], c="green")
             # plt.axvline(x=self.bound[1], c="green")
