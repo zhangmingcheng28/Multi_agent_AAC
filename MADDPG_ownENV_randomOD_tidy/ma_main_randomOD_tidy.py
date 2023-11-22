@@ -53,8 +53,8 @@ def main(args):
         if not os.path.exists(plot_file_name):
             os.makedirs(plot_file_name)
 
-    use_wanDB = False
-    # use_wanDB = True
+    # use_wanDB = False
+    use_wanDB = True
 
     if use_wanDB:
         wandb.login(key="efb76db851374f93228250eda60639c70a93d1ec")
@@ -206,7 +206,7 @@ def main(args):
                 # accum_reward = accum_reward + reward_aft_action[0]  # we just take the first agent's reward, because we are using a joint reward, so all agents obtain the same reward.
                 accum_reward = accum_reward + sum(reward_aft_action)
 
-                # c_loss, a_loss = model.update_myown(episode, total_step, UPDATE_EVERY, wandb)  # last working learning framework
+                c_loss, a_loss = model.update_myown(episode, total_step, UPDATE_EVERY, wandb)  # last working learning framework
 
                 cur_state = next_state
                 norm_cur_state = norm_next_state
@@ -223,7 +223,7 @@ def main(args):
                 #     print("More than 50 drones has reaches the destination, current episode {} ends".format(episode))
                 # if ((args.episode_length < step) and (300 not in reward_aft_action)) or (True in done_aft_action) or (agent_added>50):
                 if True in episode_decision:
-                    c_loss, a_loss = model.update_myown(episode, total_step, UPDATE_EVERY, wandb)  # last working learning framework
+                    # c_loss, a_loss = model.update_myown(episode, total_step, UPDATE_EVERY, wandb)  # last working learning framework
                     # time_used = time.time() - start_time
                     # print("update function used {} seconds to run".format(time_used))
                     # display bound lines
