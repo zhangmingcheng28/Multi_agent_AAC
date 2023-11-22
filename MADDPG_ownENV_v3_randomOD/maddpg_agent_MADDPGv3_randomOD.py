@@ -327,7 +327,7 @@ class MADDPG:
             ac[:, agent, :] = action_i  # replace the actor from self.actors[agent] into action batch
             whole_action_action_replaced = ac.view(self.batch_size, -1)
 
-            actor_loss = -self.critics[agent](whole_state, whole_action_action_replaced).mean()
+            actor_loss = 15-self.critics[agent](whole_state, whole_action_action_replaced).mean()
             self.actor_optimizer[agent].zero_grad()
             actor_loss.backward()
 
@@ -339,8 +339,8 @@ class MADDPG:
             a_loss.append(actor_loss)
 
         # original
-        # if total_step_count % UPDATE_EVERY == 0:  # every "UPDATE_EVERY" step, do a soft update
-        if self.train_num % UPDATE_EVERY == 0: # every "UPDATE_EVERY" episode, we do a soft update.
+        if total_step_count % UPDATE_EVERY == 0:  # every "UPDATE_EVERY" step, do a soft update
+        # if self.train_num % UPDATE_EVERY == 0: # every "UPDATE_EVERY" episode, we do a soft update.
             for i in range(self.n_agents):
                 print("all agents NN update at total step {}".format(total_step_count))
                 soft_update(self.critics_target[i], self.critics[i], self.tau)

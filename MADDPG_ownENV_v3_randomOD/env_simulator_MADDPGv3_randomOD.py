@@ -1430,6 +1430,7 @@ class env_simulator:
 
             # ------------- pre-processed condition for a normal step -----------------
             rew = 5
+            # rew = 0
             # after_dist_hg = np.linalg.norm(drone_obj.pos - drone_obj.goal[-1])  # distance to goal after action
             x_norm, y_norm = self.normalizer.nmlz_pos(drone_obj.pos)
             tx_norm, ty_norm = self.normalizer.nmlz_pos(drone_obj.goal[-1])

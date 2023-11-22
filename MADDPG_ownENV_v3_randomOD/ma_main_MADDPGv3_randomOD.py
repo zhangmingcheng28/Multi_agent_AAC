@@ -50,8 +50,8 @@ def main(args):
         if not os.path.exists(plot_file_name):
             os.makedirs(plot_file_name)
 
-    use_wanDB = False
-    # use_wanDB = True
+    # use_wanDB = False
+    use_wanDB = True
 
     if use_wanDB:
         wandb.login(key="efb76db851374f93228250eda60639c70a93d1ec")
@@ -71,7 +71,7 @@ def main(args):
     agent_grid_obs, BUFFER_SIZE, BATCH_SIZE, GAMMA, TAU, learning_rate, UPDATE_EVERY, seed_used, max_xy = initialize_parameters()
     # total_agentNum = len(pd.read_excel(env.agentConfig))
     total_agentNum = 3
-    UPDATE_EVERY = 1
+    UPDATE_EVERY = 30
     # max_nei_num = 5
     # create world
     # actor_dim = [6+(total_agentNum-1)*2, 10, 6]  # dim host, maximum dim grid, dim other drones
@@ -132,7 +132,8 @@ def main(args):
     eps_end = 5000  # at eps = eps_end, the eps value drops to lowest value which is 0.03 (this value is fixed)
     noise_start_level = 1
     if args.mode == "eval":
-        args.max_episodes = 1  # only evaluate one episode during evaluation mode.
+        # args.max_episodes = 1  # only evaluate one episode during evaluation mode.
+        args.max_episodes = 10  # only evaluate one episode during evaluation mode.
         # matplotlib.use('TkAgg')
         # plt.ion()
         # # Create figure and axis objects
@@ -144,6 +145,7 @@ def main(args):
     # while episode < args.max_episodes:
     while (episode < args.max_episodes):  # start of an episode
         # ------------ my own env.reset() ------------ #
+        start_time = time.time()
         # cur_state, norm_cur_state = env.reset_world_fixedOD(show=0)
         cur_state, norm_cur_state = env.reset_world(total_agentNum, show=0)
         episode_decision = [False] * 2
@@ -158,8 +160,8 @@ def main(args):
 
         trajectory_eachPlay = []
 
-        pre_fix = r'D:\MADDPG_2nd_jp\211123_17_20_31\interval_record_eps'
-        episode_to_check = str(9000)
+        pre_fix = r'D:\MADDPG_2nd_jp\211123_20_51_45\interval_record_eps'
+        episode_to_check = str(15000)
         load_filepath_0 = pre_fix + '\episode_' + episode_to_check + '_agent_0actor_net.pth'
         load_filepath_1 = pre_fix + '\episode_' + episode_to_check + '_agent_1actor_net.pth'
         load_filepath_2 = pre_fix + '\episode_' + episode_to_check + '_agent_2actor_net.pth'
@@ -225,8 +227,7 @@ def main(args):
                 # accum_reward = accum_reward + reward_aft_action[0]  # we just take the first agent's reward, because we are using a joint reward, so all agents obtain the same reward.
                 accum_reward = accum_reward + sum(reward_aft_action)
 
-                # c_loss, a_loss = model.update_myown(episode, total_step,
-                #                                     UPDATE_EVERY, wandb)  # last working learning framework
+                c_loss, a_loss = model.update_myown(episode, total_step, UPDATE_EVERY, wandb)  # last working learning framework
 
                 cur_state = next_state
                 norm_cur_state = norm_next_state
@@ -242,16 +243,15 @@ def main(args):
                 #     print("More than 50 drones has reaches the destination, current episode {} ends".format(episode))
                 # if ((args.episode_length < step) and (300 not in reward_aft_action)) or (True in done_aft_action) or (agent_added>50):
                 if True in episode_decision:
-                    start_time = time.time()
-                    c_loss, a_loss = model.update_myown(episode, total_step, UPDATE_EVERY, wandb)  # last working learning framework
+                    # c_loss, a_loss = model.update_myown(episode, total_step, UPDATE_EVERY, wandb)  # last working learning framework
                     time_used = time.time() - start_time
-                    print("update function used {} seconds to run".format(time_used))
+                    # print("update function used {} seconds to run".format(time_used))
                     # display bound lines
                     # display condition of failing
                     # here onwards is end of an episode's play
                     score_history.append(accum_reward)
 
-                    print("[Episode %05d] reward %6.4f" % (episode, accum_reward))
+                    print("[Episode %05d] reward %6.4f time used is %.2f sec" % (episode, accum_reward, time_used))
                     if use_wanDB:
                         wandb.log({'overall_reward': float(accum_reward)})
                     with open(file_name + '/GFG.csv', 'w') as f:
@@ -437,9 +437,9 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--scenario', default="simple_spread", type=str)
-    parser.add_argument('--max_episodes', default=20000, type=int)  # run for a total of 50000 episodes
+    parser.add_argument('--max_episodes', default=15000, type=int)  # run for a total of 50000 episodes
     parser.add_argument('--algo', default="maddpg", type=str, help="commnet/bicnet/maddpg")
-    parser.add_argument('--mode', default="eval", type=str, help="train/eval")
+    parser.add_argument('--mode', default="train", type=str, help="train/eval")
     parser.add_argument('--episode_length', default=30, type=int)  # maximum play per episode
     parser.add_argument('--memory_length', default=int(1e5), type=int)
     parser.add_argument('--tau', default=0.001, type=float)
