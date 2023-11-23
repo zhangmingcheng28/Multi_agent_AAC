@@ -221,9 +221,9 @@ class env_simulator:
             random_end_pos = random.choice(self.target_pool[random_target_index])
             dist_between_se = np.linalg.norm(np.array(random_end_pos) - np.array(random_start_pos))
 
-            # while dist_between_se >= 40:  # the distance between start & end point is less than 30m, we reset SE pairs.
-            #     random_end_pos = random.choice(target_pool[random_target_index])
-            #     dist_between_se = np.linalg.norm(np.array(random_end_pos) - np.array(random_start_pos))
+            while dist_between_se >= 100:  # the distance between start & end point is more than a threshold, we reset SE pairs.
+                random_end_pos = random.choice(self.target_pool[random_target_index])
+                dist_between_se = np.linalg.norm(np.array(random_end_pos) - np.array(random_start_pos))
 
             self.all_agents[agentIdx].pos = np.array(random_start_pos)
             self.all_agents[agentIdx].ini_pos = np.array(random_start_pos)
@@ -1400,7 +1400,7 @@ class env_simulator:
         check_goal = [False] * len(self.all_agents)
         reward_record_idx = 0  # this is used as a list index, increase with for loop. No need go with agent index, this index is also shared by done checking
         # crash_penalty = -200
-        crash_penalty_wall = 2
+        crash_penalty_wall = 5
         crash_penalty_drone = 1
         reach_target = 1
         potential_conflict_count = 0
@@ -1458,7 +1458,7 @@ class env_simulator:
             goal_cur_intru_intersect = host_current_circle.intersection(tar_circle)
 
             # ------------- pre-processed condition for a normal step -----------------
-            rew = 15
+            rew = 3
             # rew = 0
             # after_dist_hg = np.linalg.norm(drone_obj.pos - drone_obj.goal[-1])  # distance to goal after action
             x_norm, y_norm = self.normalizer.nmlz_pos(drone_obj.pos)

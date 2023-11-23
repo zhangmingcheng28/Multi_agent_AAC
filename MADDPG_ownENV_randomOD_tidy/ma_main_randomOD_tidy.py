@@ -1,7 +1,7 @@
 import sys
 # sys.path.append('F:\githubClone\Multi_agent_AAC\old_framework_test')
 # sys.path.append('D:\Multi_agent_AAC\old_framework_test')
-from env.make_env import make_env
+
 import argparse
 import datetime
 import pandas as pd
@@ -53,8 +53,8 @@ def main(args):
         if not os.path.exists(plot_file_name):
             os.makedirs(plot_file_name)
 
-    # use_wanDB = False
-    use_wanDB = True
+    use_wanDB = False
+    # use_wanDB = True
 
     if use_wanDB:
         wandb.login(key="efb76db851374f93228250eda60639c70a93d1ec")
@@ -86,8 +86,8 @@ def main(args):
     n_actions = 2
     acc_range = [-4, 4]
 
-    actorNet_lr = 0.0001
-    criticNet_lr = 0.0001
+    actorNet_lr = 0.001
+    criticNet_lr = 0.001
 
     # noise parameter ini
     largest_Nsigma = 0.5
@@ -116,7 +116,6 @@ def main(args):
     if args.mode == "eval":
         # args.max_episodes = 1  # only evaluate one episode during evaluation mode.
         args.max_episodes = 10
-    max_agent_to_add = 100 - n_agents
 
     # while episode < args.max_episodes:
     while episode < args.max_episodes:  # start of an episode
@@ -226,8 +225,6 @@ def main(args):
                     # c_loss, a_loss = model.update_myown(episode, total_step, UPDATE_EVERY, wandb)  # last working learning framework
                     # time_used = time.time() - start_time
                     # print("update function used {} seconds to run".format(time_used))
-                    # display bound lines
-                    # display condition of failing
                     # here onwards is end of an episode's play
                     score_history.append(accum_reward)
 
@@ -261,37 +258,6 @@ def main(args):
                     break  # this is to break out from "while True:", which is one play
             elif args.mode == "eval":
 
-                # ax.set_xlim(env.bound[0], env.bound[1])  # Set x-axis limits from 0 to 5
-                # ax.set_ylim(env.bound[2], env.bound[3])  # Set y-axis limits from 0 to 5
-                # # # draw occupied_poly
-                # # for one_poly in env.world_map_2D_polyList[0][0]:
-                # #     one_poly_mat = shapelypoly_to_matpoly(one_poly, True, 'y', 'b')
-                # #     ax.add_patch(one_poly_mat)
-                # # display initial condition
-                # for agentIdx, agent in env.all_agents.items():
-                #     ax.text(agent.ini_pos[0], agent.ini_pos[1], agent.agent_name)
-                #     # plot self_circle of the drone
-                #     self_circle = Point(agent.ini_pos[0],
-                #                         agent.ini_pos[1]).buffer(agent.protectiveBound, cap_style='round')
-                #     grid_mat_Scir = shapelypoly_to_matpoly(self_circle, inFill=False, Edgecolor='k')
-                #     ax.add_patch(grid_mat_Scir)
-                #
-                #     # plot drone's detection range
-                #     detec_circle = Point(agent.ini_pos[0],
-                #                          agent.ini_pos[1]).buffer(agent.detectionRange / 2, cap_style='round')
-                #     detec_circle_mat = shapelypoly_to_matpoly(detec_circle, inFill=False, Edgecolor='g')
-                #     ax.add_patch(detec_circle_mat)
-                #
-                #     # link individual drone's starting position with its goal
-                #     ini = agent.ini_pos
-                #     for wp in agent.goal:
-                #         # plt.plot(wp[0], wp[1], marker='*', color='y', markersize=10)
-                #         plt.plot([wp[0], ini[0]], [wp[1], ini[1]], '--', color='c')
-                #         ini = wp
-                #
-                # # Ensure the plot window is displayed
-                # plt.show(block=False)
-
                 step_reward_record = [None] * n_agents
                 action, step_noise_val = model.choose_action(norm_cur_state, total_step, episode, step, eps_end, noise_start_level, noisy=False)
                 # action = model.choose_action(cur_state, episode, noisy=False)
@@ -306,31 +272,6 @@ def main(args):
                 norm_cur_state = norm_next_state
                 trajectory_eachPlay.append([[each_agent_traj[0], each_agent_traj[1]] for each_agent_traj in cur_state[0]])
                 accum_reward = accum_reward + sum(reward_aft_action)
-
-                # # # draw occupied_poly
-                # # for one_poly in env.world_map_2D_polyList[0][0]:
-                # #     one_poly_mat = shapelypoly_to_matpoly(one_poly, True, 'y', 'b')
-                # #     ax.add_patch(one_poly_mat)
-                # # display  condition
-                # for agentIdx, agent in env.all_agents.items():
-                #     ax.text(agent.pos[0], agent.pos[1], agent.agent_name)
-                #     # plot self_circle of the drone
-                #     self_circle = Point(agent.pos[0],
-                #                         agent.pos[1]).buffer(agent.protectiveBound, cap_style='round')
-                #     grid_mat_Scir = shapelypoly_to_matpoly(self_circle, inFill=False, Edgecolor='k')
-                #     ax.add_patch(grid_mat_Scir)
-                #     # plot drone's detection range
-                #     detec_circle = Point(agent.pos[0],
-                #                          agent.pos[1]).buffer(agent.detectionRange / 2, cap_style='round')
-                #     detec_circle_mat = shapelypoly_to_matpoly(detec_circle, inFill=False, Edgecolor='g')
-                #     ax.add_patch(detec_circle_mat)
-                # fig.canvas.draw()
-                # fig.canvas.flush_events()
-                # # Pause for 0.01 seconds
-                # # time.sleep(0.01)
-                # ax.cla()
-
-                # reward_each_agent.append(reward_aft_action)
 
                 if args.episode_length < step or (True in done_aft_action):  # when termination condition reached
                     print("[Episode %05d] reward %6.4f " % (episode, accum_reward))
@@ -412,10 +353,6 @@ def main(args):
     if use_wanDB:
         wandb.finish()
 
-    # if args.tensorboard:
-    #     writer.close()
-
-
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--scenario', default="simple_spread", type=str)
@@ -427,8 +364,6 @@ if __name__ == '__main__':
     parser.add_argument('--tau', default=0.001, type=float)
     parser.add_argument('--gamma', default=0.95, type=float)
     parser.add_argument('--seed', default=777, type=int)  # may choose to use 3407
-    # parser.add_argument('--a_lr', default=0.0001, type=float)
-    # parser.add_argument('--c_lr', default=0.0001, type=float)
     parser.add_argument('--batch_size', default=512, type=int)  # original 512
     parser.add_argument('--render_flag', default=False, type=bool)
     parser.add_argument('--ou_theta', default=0.15, type=float)

@@ -329,7 +329,8 @@ class MADDPG:
             ac[:, agent, :] = action_i  # replace the actor from self.actors[agent] into action batch
             whole_action_action_replaced = ac.view(self.batch_size, -1)
 
-            actor_loss = -self.critics[agent](whole_state, whole_action_action_replaced).mean()
+            # actor_loss = -self.critics[agent](whole_state, whole_action_action_replaced).mean()
+            actor_loss = 3-self.critics[agent](whole_state, whole_action_action_replaced).mean()
             self.actor_optimizer[agent].zero_grad()
             actor_loss.backward()
 
