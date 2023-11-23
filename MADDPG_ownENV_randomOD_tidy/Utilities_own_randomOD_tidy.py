@@ -158,6 +158,8 @@ class OUNoise:
 
 class NormalizeData:
     def __init__(self, x_min_max, y_min_max, spd_max, acc_range):
+        self.normalize_max = 1
+        self.normalize_min = -1
         self.dis_min_x = x_min_max[0]
         self.dis_max_x = x_min_max[1]
         self.dis_min_y = y_min_max[0]
@@ -165,12 +167,25 @@ class NormalizeData:
         self.spd_max = spd_max
         self.acc_min = acc_range[0]
         self.acc_max = acc_range[1]
+        self.scale_attribute()
+
+    def scale_attribute(self):
+        self.x_scale = (self.normalize_max-self.normalize_min)/(self.dis_max_x - self.dis_min_x)
+        self.y_scale = (self.normalize_max-self.normalize_min)/(self.dis_max_y - self.dis_min_y)
 
     def nmlz_pos(self, pos_c):
         x, y = pos_c[0], pos_c[1]
         x_normalized = 2 * ((x - self.dis_min_x) / (self.dis_max_x - self.dis_min_x)) - 1
         y_normalized = 2 * ((y - self.dis_min_y) / (self.dis_max_y - self.dis_min_y)) - 1
         return x_normalized, y_normalized
+
+    def scale_pos(self, pos_c):  # NOTE: this method is essentially same as min-max normalize approach, but we need this appraoch to calculate x & y scale
+        x_normalized = self.normalize_min + (pos_c[0] - self.dis_min_x) * self.x_scale
+        y_normalized = self.normalize_min + (pos_c[1] - self.dis_min_y) * self.y_scale
+        return np.array([x_normalized, y_normalized])
+
+    def scale_vel(self, change_in_pos):
+        return np.array([self.x_scale * change_in_pos[0], self.y_scale * change_in_pos[1]])
 
     def nmlz_pos_diff(self, diff):
         dx, dy = diff[0], diff[1]

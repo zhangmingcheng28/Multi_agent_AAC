@@ -51,18 +51,18 @@ class ActorNetwork(nn.Module):
         # self.single_head_dim = int((64+64+64) / self.n_heads)
 
         # self.own_fc = nn.Sequential(nn.Linear(actor_dim[0], 128), nn.ReLU())
-        self.own_fc = nn.Sequential(nn.Linear(actor_dim[0], 256), nn.ReLU())
+        self.own_fc = nn.Sequential(nn.Linear(actor_dim[0], 64), nn.ReLU())
         # self.own_fc_lay2 = nn.Sequential(nn.Linear(256, 256), nn.ReLU())
         # self.own_fc_lay2 = nn.Sequential(nn.Linear(256, 256), nn.ReLU(), nn.Linear(256, 256), nn.ReLU())
 
         # gru layer
         # self.gru = nn.GRU(256, 256, 1, batch_first=True)
 
-        self.own_fc_lay2 = nn.Sequential(nn.Linear(256, 256), nn.ReLU(),
-                                         nn.Linear(256, 256), nn.ReLU())
+        self.own_fc_lay2 = nn.Sequential(nn.Linear(64, 64), nn.ReLU(),
+                                         nn.Linear(64, 64), nn.ReLU())
         # self.own_fc_lay2 = nn.Sequential(nn.Linear(256, 256), nn.ReLU())
 
-        self.own_fc_outlay = nn.Sequential(nn.Linear(256, n_actions), nn.Tanh())
+        self.own_fc_outlay = nn.Sequential(nn.Linear(64, n_actions), nn.Tanh())
         # self.intrude_fc = nn.Sequential(nn.Linear(6, 256), nn.ReLU())
         # self.own_grid_fc = nn.Sequential(nn.Linear(actor_dim[1], 128), nn.ReLU())
 
@@ -189,7 +189,7 @@ class CriticNetwork(nn.Module):
         # self.sum_own_fc = nn.Sequential(nn.Linear(critic_obs[0]*n_agents, 256), nn.ReLU())  # may be here can be replaced with another attention mechanism
         # self.sum_grid_fc = nn.Sequential(nn.Linear(critic_obs[1]*n_agents, 128), nn.ReLU())
         # self.sum_combine_fc = nn.Sequential(nn.Linear((critic_obs[0]+critic_obs[1])*n_agents, 128), nn.ReLU())
-        self.sum_combine_fc = nn.Sequential(nn.Linear((critic_obs[0])*n_agents, 1024), nn.ReLU())
+        self.sum_combine_fc = nn.Sequential(nn.Linear((critic_obs[0])*n_agents, 256), nn.ReLU())
         # self.sum_combine_fc = nn.Sequential(nn.Linear((critic_obs[0])*n_agents, 2048), nn.ReLU(),
         #                                     nn.Linear(2048, 1024), nn.ReLU())
         # self.sum_combine_fc = nn.Sequential(nn.Linear((critic_obs[0])*n_agents, 2048), nn.ReLU(),
@@ -225,8 +225,8 @@ class CriticNetwork(nn.Module):
         # self.combine_env_fc = nn.Sequential(nn.Linear(256+128, 128), nn.ReLU())
         # self.combine_env_fc = nn.Sequential(nn.Linear(128+(2*n_agents), 256), nn.ReLU())
         # self.combine_env_fc = nn.Sequential(nn.Linear(1024+(2*n_agents), 512), nn.ReLU())
-        self.combine_env_fc = nn.Sequential(nn.Linear(1024+(2*n_agents), 512), nn.ReLU(),
-                                            nn.Linear(512, 512), nn.ReLU())
+        self.combine_env_fc = nn.Sequential(nn.Linear(256+(2*n_agents), 256), nn.ReLU(),
+                                            nn.Linear(256, 256), nn.ReLU())
         # self.combine_env_fc = nn.Sequential(nn.Linear(1024+(2*n_agents), 512), nn.ReLU(),
         #                                     nn.Linear(512, 512), nn.ReLU(),
         #                                     nn.Linear(512, 512), nn.ReLU())
@@ -242,7 +242,7 @@ class CriticNetwork(nn.Module):
 
         # self.combine_all = nn.Sequential(nn.Linear(128+n_agents * n_actions, 64), nn.ReLU(), nn.Linear(64, 1))
         # self.combine_all = nn.Sequential(nn.Linear(256, 64), nn.ReLU(), nn.Linear(64, 1))
-        self.combine_all = nn.Sequential(nn.Linear(512, 256), nn.ReLU(), nn.Linear(256, 1))
+        self.combine_all = nn.Sequential(nn.Linear(256, 256), nn.ReLU(), nn.Linear(256, 1))
         # self.combine_all = nn.Sequential(nn.Linear(512, 256), nn.ReLU(), nn.Linear(256, 256), nn.ReLU(), nn.Linear(256, 1))
         # self.combine_all = nn.Sequential(nn.Linear(512, 512), nn.ReLU(), nn.Linear(512, 1))
 

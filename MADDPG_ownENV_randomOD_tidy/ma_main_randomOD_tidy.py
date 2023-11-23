@@ -111,7 +111,7 @@ def main(args):
     score_history = []
     eps_reward_record = []
     eps_noise_record = []
-    eps_end = 5000  # at eps = eps_end, the eps value drops to lowest value which is 0.03 (this value is fixed)
+    eps_end = 3000  # at eps = eps_end, the eps value drops to lowest value which is 0.03 (this value is fixed)
     noise_start_level = 1
     if args.mode == "eval":
         # args.max_episodes = 1  # only evaluate one episode during evaluation mode.
@@ -153,7 +153,7 @@ def main(args):
             if args.mode == "train":
                 step_reward_record = [None] * n_agents
                 # cur_state, norm_cur_state = env.fill_agent_reset(cur_state, norm_cur_state, agents_added)  # if a new agent is filled, we need to reset the state information for the newly added agents
-                action, step_noise_val = model.choose_action(norm_cur_state, total_step, episode, step, eps_end, noise_start_level, noisy=False) # noisy is false because we are using stochastic policy
+                action, step_noise_val = model.choose_action(norm_cur_state, total_step, episode, step, eps_end, noise_start_level, noisy=True) # noisy is false because we are using stochastic policy
                 # action = model.choose_action(cur_state, episode, noisy=True)
                 next_state, norm_next_state = env.step(action, step)
                 # reward_aft_action, done_aft_action, check_goal, step_reward_record, agents_added = env.get_step_reward_5_v3(step, step_reward_record)   # remove reached agent here
@@ -361,7 +361,7 @@ if __name__ == '__main__':
     parser.add_argument('--mode', default="train", type=str, help="train/eval")
     parser.add_argument('--episode_length', default=30, type=int)  # maximum play per episode
     parser.add_argument('--memory_length', default=int(1e5), type=int)
-    parser.add_argument('--tau', default=0.001, type=float)
+    parser.add_argument('--tau', default=0.001, type=float)  # original 0.001
     parser.add_argument('--gamma', default=0.95, type=float)
     parser.add_argument('--seed', default=777, type=int)  # may choose to use 3407
     parser.add_argument('--batch_size', default=512, type=int)  # original 512

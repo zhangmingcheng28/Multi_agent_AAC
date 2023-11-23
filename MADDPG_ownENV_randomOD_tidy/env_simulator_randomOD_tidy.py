@@ -221,9 +221,9 @@ class env_simulator:
             random_end_pos = random.choice(self.target_pool[random_target_index])
             dist_between_se = np.linalg.norm(np.array(random_end_pos) - np.array(random_start_pos))
 
-            while dist_between_se >= 100:  # the distance between start & end point is more than a threshold, we reset SE pairs.
-                random_end_pos = random.choice(self.target_pool[random_target_index])
-                dist_between_se = np.linalg.norm(np.array(random_end_pos) - np.array(random_start_pos))
+            # while dist_between_se >= 100:  # the distance between start & end point is more than a threshold, we reset SE pairs.
+            #     random_end_pos = random.choice(self.target_pool[random_target_index])
+            #     dist_between_se = np.linalg.norm(np.array(random_end_pos) - np.array(random_start_pos))
 
             self.all_agents[agentIdx].pos = np.array(random_start_pos)
             self.all_agents[agentIdx].ini_pos = np.array(random_start_pos)
@@ -268,9 +268,20 @@ class env_simulator:
                                                            self.all_agents[agentIdx].goal[0][0] -
                                                            self.all_agents[agentIdx].pos[0])
 
-            random_spd = random.randint(0, self.all_agents[agentIdx].maxSpeed)  # initial speed is randomly picked from 0 to max speed
+            random_spd = random.randint(1, self.all_agents[agentIdx].maxSpeed)  # initial speed is randomly picked from 1 to max speed
             self.all_agents[agentIdx].vel = np.array([random_spd*math.cos(self.all_agents[agentIdx].heading),
                                              random_spd*math.sin(self.all_agents[agentIdx].heading)])
+
+            # NOTE: UAV's max speed don't change with time, so when we find it normalized bound, we use max speed
+            # the below is the maximum normalized velocity range for map range -1 to 1, and maxSPD = 15m/s
+            norm_vel_x_range = [
+                -self.normalizer.scale_vel([self.all_agents[agentIdx].maxSpeed, self.all_agents[agentIdx].maxSpeed])[0],
+                self.normalizer.scale_vel([self.all_agents[agentIdx].maxSpeed, self.all_agents[agentIdx].maxSpeed])[0]]
+            norm_vel_y_range = [
+                -self.normalizer.scale_vel([self.all_agents[agentIdx].maxSpeed, self.all_agents[agentIdx].maxSpeed])[1],
+                self.normalizer.scale_vel([self.all_agents[agentIdx].maxSpeed, self.all_agents[agentIdx].maxSpeed])[1]]
+
+            # ----------------end of initialize normalized velocity, but based on normalized map. map pos_x & pos_y are normalized to [-1, 1]---------------
 
             self.all_agents[agentIdx].observableSpace = self.current_observable_space(self.all_agents[agentIdx])
 
@@ -703,40 +714,18 @@ class env_simulator:
             # update the "surroundingNeighbor" attribute
             agent.surroundingNeighbor = self.get_current_agent_nei(agent, agentRefer_dict)
 
-            # all_other_posdiff = []
-            # pair_posdiff = []
-            # for other_agentIdx, other_agent in self.all_agents.items():
-            #     if other_agentIdx == agentIdx:
-            #         continue
-            #     all_other_posdiff.append(other_agent.pos[0]-agent.pos[0])
-            #     all_other_posdiff.append(other_agent.pos[1]-agent.pos[1])
-            #     pair_posdiff.append(other_agent.pos-agent.pos)
-            # all_other_posdiff = np.array(all_other_posdiff)
+            norm_pos = self.normalizer.scale_pos([agent.pos[0], agent.pos[1]])
 
-
-            # agent_own = np.array(
-            #     [agent.pos[0], agent.pos[1], agent.goal[0][0] - agent.pos[0], agent.goal[0][1] - agent.pos[1],
-            #      agent.vel[0], agent.vel[1]])
-            # agent_own = np.array([agent.pos[0], agent.pos[1], agent.vel[0], agent.vel[1], agent.goal[-1][0], agent.goal[-1][1]])
-            agent_own = np.array([agent.pos[0], agent.pos[1], agent.vel[0], agent.vel[1],
-                                  agent.goal[-1][0]-agent.pos[0], agent.goal[-1][1]-agent.pos[1]])
-            # agent_own = np.concatenate((agent_own, all_other_posdiff))
-            # populate normalized agent_own
-            # norm_agent_own = []
-            norm_pos = self.normalizer.nmlz_pos([agent.pos[0], agent.pos[1]])
-
-            norm_G_diff = self.normalizer.nmlz_pos_diff(
-                [agent.goal[-1][0] - agent.pos[0], agent.goal[-1][1] - agent.pos[1]])
+            norm_vel = self.normalizer.scale_vel([agent.vel[0], agent.vel[1]])
 
             norm_G = self.normalizer.nmlz_pos([agent.goal[-1][0], agent.goal[-1][1]])
 
-            # norm_other_diff = tuple(self.normalizer.nmlz_pos_diff(pos_diff_pair) for pos_diff_pair in pair_posdiff)
+            norm_deltaG = norm_G - norm_pos
 
-            norm_vel = self.normalizer.nmlz_vel([agent.vel[0], agent.vel[1]])
-            # norm_agent_own = np.array(list(norm_pos + norm_G_diff + norm_vel))
-            # norm_agent_own = np.array(list(norm_pos + norm_vel + norm_G))
-            norm_agent_own = np.array(list(norm_pos + norm_vel + norm_G_diff))
-            # norm_agent_own = np.array(list(norm_pos + norm_G_diff + norm_vel + norm_other_diff[0] + norm_other_diff[1]))
+            agent_own = np.array([agent.pos[0], agent.pos[1], agent.vel[0], agent.vel[1],
+                                  agent.goal[-1][0]-agent.pos[0], agent.goal[-1][1]-agent.pos[1]])
+
+            norm_agent_own = np.concatenate([norm_pos, norm_vel, norm_deltaG], axis=0)
 
             other_agents = []
             norm_other_agents = []
@@ -1448,7 +1437,7 @@ class env_simulator:
             for element in possiblePoly:
                 if self.allbuildingSTR.geometries.take(element).intersection(host_current_circle):
                     collide_building = 1
-                    print("drone_{} crash into building when moving from {} to {} at time step {}".format(drone_idx, self.all_agents[drone_idx].pre_pos, self.all_agents[drone_idx].pos, current_ts))
+                    # print("drone_{} crash into building when moving from {} to {} at time step {}".format(drone_idx, self.all_agents[drone_idx].pre_pos, self.all_agents[drone_idx].pos, current_ts))
                     break
 
             # tar_circle = Point(self.all_agents[drone_idx].goal[0]).buffer(1, cap_style='round')
@@ -1477,11 +1466,11 @@ class env_simulator:
                 # done.append(False)
                 reward.append(np.array(rew))
             # crash into buildings or crash with other neighbors
-            elif collide_building == 1:
-                # done.append(True)
-                done.append(True)
-                rew = rew - crash_penalty_wall
-                reward.append(np.array(rew))
+            # elif collide_building == 1:
+            #     # done.append(True)
+            #     done.append(True)
+            #     rew = rew - crash_penalty_wall
+            #     reward.append(np.array(rew))
             # elif len(collision_drones) > 0:
             #     # done.append(True)
             #     done.append(False)
@@ -1565,8 +1554,12 @@ class env_simulator:
             ax, ay = drone_act[0], drone_act[1]
             # map output action from NN to actual range
             # here is the action scaling part
-            ax = map_range(ax, coe_a)
-            ay = map_range(ay, coe_a)
+            # ax = map_range(ax, coe_a)
+            # ay = map_range(ay, coe_a)
+
+            ax = ax * coe_a
+            ay = ay * coe_a
+
             # check velocity limit
             curVelx = self.all_agents[drone_idx].vel[0] + ax * self.time_step
             curVely = self.all_agents[drone_idx].vel[1] + ay * self.time_step
@@ -1594,36 +1587,6 @@ class env_simulator:
             if abs(next_heading - counterCheck_heading) > 1e-3 :
                 print("debug, heading different")
             # ------------- end of acceleration in x and acceleration in y state transition control ---------------#
-
-            # # ------------------ for default evaluation ---------------------
-            # # # for action generated by default action
-            # curVelx = drone_act[0]
-            # curVely = drone_act[1]
-            # # # end of action generated by default action
-            #
-            # if np.linalg.norm([curVelx, curVely]) >= self.all_agents[drone_idx].maxSpeed:
-            #     next_heading = math.atan2(curVely, curVelx)
-            #     # update host velocity when chosen speed has exceeded the max speed
-            #     hvx = self.all_agents[drone_idx].maxSpeed * math.cos(next_heading)
-            #     hvy = self.all_agents[drone_idx].maxSpeed * math.sin(next_heading)
-            #     self.all_agents[drone_idx].vel = np.array([hvx, hvy])
-            # else:
-            #     # update host velocity when max speed is not exceeded
-            #     self.all_agents[drone_idx].vel = np.array([curVelx, curVely])
-            #
-            # # print("At time step {} the drone_{}'s output speed is {}".format(current_ts, drone_idx, np.linalg.norm(self.all_agents[drone_idx].vel)))
-            #
-            # # update the drone's position based on the update velocities
-            # if self.all_agents[drone_idx].reach_target == True:
-            #     print("agent {} reached the target, agent will currently halt".format(drone_idx))
-            #     self.all_agents[drone_idx].pos = self.all_agents[drone_idx].pos
-            # else:
-            #     delta_x = self.all_agents[drone_idx].vel[0] * self.time_step
-            #     delta_y = self.all_agents[drone_idx].vel[1] * self.time_step
-            #     self.all_agents[drone_idx].pos = np.array([self.all_agents[drone_idx].pos[0] + delta_x,
-            #                                                self.all_agents[drone_idx].pos[1] + delta_y])
-            # # ---------------- end of for default evaluation --------------
-
 
             self.all_agents[drone_idx].pos = np.array([self.all_agents[drone_idx].pos[0] + delta_x,
                                                        self.all_agents[drone_idx].pos[1] + delta_y])
