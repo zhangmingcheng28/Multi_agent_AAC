@@ -53,8 +53,8 @@ def main(args):
         if not os.path.exists(plot_file_name):
             os.makedirs(plot_file_name)
 
-    use_wanDB = False
-    # use_wanDB = True
+    # use_wanDB = False
+    use_wanDB = True
 
     if use_wanDB:
         wandb.login(key="efb76db851374f93228250eda60639c70a93d1ec")
@@ -86,8 +86,8 @@ def main(args):
     n_actions = 2
     acc_range = [-4, 4]
 
-    actorNet_lr = 0.001
-    criticNet_lr = 0.001
+    actorNet_lr = 0.0001
+    criticNet_lr = 0.0001
 
     # noise parameter ini
     largest_Nsigma = 0.5
@@ -115,7 +115,7 @@ def main(args):
     noise_start_level = 1
     if args.mode == "eval":
         # args.max_episodes = 1  # only evaluate one episode during evaluation mode.
-        args.max_episodes = 10
+        args.max_episodes = 5
 
     # while episode < args.max_episodes:
     while episode < args.max_episodes:  # start of an episode
@@ -125,7 +125,7 @@ def main(args):
 
         cur_state, norm_cur_state = env.reset_world(total_agentNum, show=0)
 
-
+        eps_status_holder = [None] * n_agents
         episode_decision = [False] * 2
         agents_added = []
         eps_reward = []
@@ -138,7 +138,7 @@ def main(args):
 
         trajectory_eachPlay = []
 
-        pre_fix = r'D:\MADDPG_2nd_jp\211123_17_20_31\interval_record_eps'
+        pre_fix = r'D:\MADDPG_2nd_jp\231123_20_55_58\interval_record_eps'
         episode_to_check = str(20000)
         load_filepath_0 = pre_fix + '\episode_' + episode_to_check + '_agent_0actor_net.pth'
         load_filepath_1 = pre_fix + '\episode_' + episode_to_check + '_agent_1actor_net.pth'
@@ -158,7 +158,7 @@ def main(args):
                 next_state, norm_next_state = env.step(action, step)
                 # reward_aft_action, done_aft_action, check_goal, step_reward_record, agents_added = env.get_step_reward_5_v3(step, step_reward_record)   # remove reached agent here
                 # reward_aft_action, done_aft_action, check_goal, step_reward_record = env.get_step_reward_5_v3(step, step_reward_record)   # remove reached agent here
-                reward_aft_action, done_aft_action, check_goal, step_reward_record = env.ss_reward(step, step_reward_record)   # remove reached agent here
+                reward_aft_action, done_aft_action, check_goal, step_reward_record, status_holder = env.ss_reward(step, step_reward_record, eps_status_holder)   # remove reached agent here
                 # reward_aft_action = [eachRWD / 300 for eachRWD in reward_aft_action]  # scale the reward down
                 # new_length = len(agents_added)  # check if length of agnet_to_remove increased during each step
                 # agent_added = agent_added + new_length
@@ -257,13 +257,12 @@ def main(args):
 
                     break  # this is to break out from "while True:", which is one play
             elif args.mode == "eval":
-
                 step_reward_record = [None] * n_agents
                 action, step_noise_val = model.choose_action(norm_cur_state, total_step, episode, step, eps_end, noise_start_level, noisy=False)
                 # action = model.choose_action(cur_state, episode, noisy=False)
                 # action = env.get_actions_noCR()  # only update heading, don't update any other attribute
                 next_state, norm_next_state = env.step(action, step)  # no heading update here
-                reward_aft_action, done_aft_action, check_goal, step_reward_record = env.ss_reward(step, step_reward_record)
+                reward_aft_action, done_aft_action, check_goal, step_reward_record, eps_status_holder = env.ss_reward(step, step_reward_record, eps_status_holder)
                 # reward_aft_action, done_aft_action, check_goal, step_reward_record = env.get_step_reward_5_v3(step, step_reward_record)
 
                 step += 1
@@ -274,6 +273,11 @@ def main(args):
                 accum_reward = accum_reward + sum(reward_aft_action)
 
                 if args.episode_length < step or (True in done_aft_action):  # when termination condition reached
+                    # display current episode out status through status_holder
+                    for each_agent_idx, each_agent in enumerate(eps_status_holder):
+                        for step_idx, step_dist_rw in enumerate(each_agent):
+                            print("agent {}, step {}, distance to goal is {} m, current reward is {}".format(each_agent_idx, step_idx, step_dist_rw[0], step_dist_rw[1]))
+
                     print("[Episode %05d] reward %6.4f " % (episode, accum_reward))
                     # display trajectory
                     os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
@@ -356,10 +360,10 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--scenario', default="simple_spread", type=str)
-    parser.add_argument('--max_episodes', default=15000, type=int)  # run for a total of 50000 episodes
+    parser.add_argument('--max_episodes', default=20000, type=int)  # run for a total of 50000 episodes
     parser.add_argument('--algo', default="maddpg", type=str, help="commnet/bicnet/maddpg")
     parser.add_argument('--mode', default="train", type=str, help="train/eval")
-    parser.add_argument('--episode_length', default=30, type=int)  # maximum play per episode
+    parser.add_argument('--episode_length', default=50, type=int)  # maximum play per episode
     parser.add_argument('--memory_length', default=int(1e5), type=int)
     parser.add_argument('--tau', default=0.001, type=float)  # original 0.001
     parser.add_argument('--gamma', default=0.95, type=float)

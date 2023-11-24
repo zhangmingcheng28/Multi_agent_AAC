@@ -1382,7 +1382,7 @@ class env_simulator:
         # return reward, done, check_goal, step_reward_record, agent_filled
         return reward, done, check_goal, step_reward_record
 
-    def ss_reward(self, current_ts, step_reward_record):
+    def ss_reward(self, current_ts, step_reward_record, eps_status_holder):
         reward, done = [], []
         agent_to_remove = []
         one_step_reward = []
@@ -1401,6 +1401,7 @@ class env_simulator:
         y_top_bound = LineString([(-9999, self.bound[3]), (9999, self.bound[3])])
 
         for drone_idx, drone_obj in self.all_agents.items():
+            drone_status_record = []
             one_agent_reward_record = []
             # re-initialize these two list for individual agents at each time step,this is to ensure collision
             # condition is reset for each agent at every time step
@@ -1437,7 +1438,7 @@ class env_simulator:
             for element in possiblePoly:
                 if self.allbuildingSTR.geometries.take(element).intersection(host_current_circle):
                     collide_building = 1
-                    # print("drone_{} crash into building when moving from {} to {} at time step {}".format(drone_idx, self.all_agents[drone_idx].pre_pos, self.all_agents[drone_idx].pos, current_ts))
+                    print("drone_{} crash into building when moving from {} to {} at time step {}".format(drone_idx, self.all_agents[drone_idx].pre_pos, self.all_agents[drone_idx].pos, current_ts))
                     break
 
             # tar_circle = Point(self.all_agents[drone_idx].goal[0]).buffer(1, cap_style='round')
@@ -1466,11 +1467,11 @@ class env_simulator:
                 # done.append(False)
                 reward.append(np.array(rew))
             # crash into buildings or crash with other neighbors
-            # elif collide_building == 1:
-            #     # done.append(True)
-            #     done.append(True)
-            #     rew = rew - crash_penalty_wall
-            #     reward.append(np.array(rew))
+            elif collide_building == 1:
+                # done.append(True)
+                done.append(True)
+                rew = rew - crash_penalty_wall
+                reward.append(np.array(rew))
             # elif len(collision_drones) > 0:
             #     # done.append(True)
             #     done.append(False)
@@ -1514,11 +1515,23 @@ class env_simulator:
             reward_record_idx = reward_record_idx + 1
             actual_after_dist_hg = math.sqrt(((drone_obj.pos[0] - drone_obj.goal[-1][0]) ** 2 + (drone_obj.pos[1] - drone_obj.goal[-1][1]) ** 2))
             # print("current drone {} distance to goal is {}, current reward is {}".format(drone_idx, actual_after_dist_hg, reward[-1]))
+
+            # record status of each step.
+            eps_status_holder = self.display_one_eps_status(eps_status_holder, drone_idx, actual_after_dist_hg, reward[-1])
+            # overall_status_record[2].append()  # 3rd is accumulated reward till that step for each agent
+
         # check if length of reward does not equals to 3
         if len(reward) != 3:
             print("check")
 
-        return reward, done, check_goal, step_reward_record
+        return reward, done, check_goal, step_reward_record, eps_status_holder
+
+    def display_one_eps_status(self, status_holder, drone_idx, cur_step_dist, cur_step_reward):
+        if status_holder[drone_idx] == None:
+            status_holder[drone_idx] = [[cur_step_dist, cur_step_reward]]
+        else:
+            status_holder[drone_idx].append([cur_step_dist, cur_step_reward])
+        return status_holder
 
 
     def step(self, actions, current_ts):
