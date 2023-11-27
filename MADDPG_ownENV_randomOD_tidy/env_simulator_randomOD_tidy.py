@@ -1561,7 +1561,6 @@ class env_simulator:
 
 
     def step(self, actions, current_ts):
-        step_start_time = time.time()
         next_combine_state = []
         agentCoorKD_list_update = []
         agentRefer_dict = {}  # A dictionary to use agent's current pos as key, their agent name (idx) as value
@@ -1747,11 +1746,6 @@ class env_simulator:
         #     time.sleep(2)
         #     fig.canvas.flush_events()
         #     ax.cla()
-        print("one step time used is {} milliseconds".format((time.time() - step_start_time) * 1000))
-        if (time.time() - step_start_time) * 1000 == 0:
-            print("debug")
-        elif (time.time() - step_start_time) * 1000 >= 10:
-            print("debug")
         
         return next_state, next_state_norm
 

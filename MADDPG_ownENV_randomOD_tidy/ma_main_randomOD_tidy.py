@@ -114,6 +114,10 @@ def main(args):
     eps_end = 3000  # at eps = eps_end, the eps value drops to lowest value which is 0.03 (this value is fixed)
     noise_start_level = 1
     training_start_time = time.time()
+
+    # ------------ record episode time ------------- #
+    eps_time_record = []
+
     if args.mode == "eval":
         # args.max_episodes = 1  # only evaluate one episode during evaluation mode.
         args.max_episodes = 5
@@ -125,7 +129,8 @@ def main(args):
 
         eps_reset_start_time = time.time()
         cur_state, norm_cur_state = env.reset_world(total_agentNum, show=0)
-        print("current episode {} reset time used is {} milliseconds".format(episode, time.time()-eps_reset_start_time))
+        eps_reset_time_used = (time.time()-eps_reset_start_time)*1000
+        print("current episode {} reset time used is {} milliseconds".format(episode, eps_reset_time_used))
 
         eps_status_holder = [None] * n_agents
         episode_decision = [False] * 2
@@ -133,6 +138,7 @@ def main(args):
         eps_reward = []
         eps_noise = []
         episode += 1
+        step_time_breakdown = []
         # print("current episode is {}, scaling factor is {}".format(episode, model.var[0]))
         step = 0
         agent_added = 0  # this is an initialization for each new episode
@@ -155,24 +161,28 @@ def main(args):
             if args.mode == "train":
                 step_start_time = time.time()
                 step_reward_record = [None] * n_agents
+
                 # cur_state, norm_cur_state = env.fill_agent_reset(cur_state, norm_cur_state, agents_added)  # if a new agent is filled, we need to reset the state information for the newly added agents
 
                 step_obtain_action_time_start = time.time()
                 action, step_noise_val = model.choose_action(norm_cur_state, total_step, episode, step, eps_end, noise_start_level, noisy=True) # noisy is false because we are using stochastic policy
-                print("current step obtain action time used is {} milliseconds".format(time.time() - step_obtain_action_time_start))
+                generate_action_time = (time.time() - step_obtain_action_time_start)*1000
+                print("current step obtain action time used is {} milliseconds".format(generate_action_time))
 
                 # action = model.choose_action(cur_state, episode, noisy=True)
 
                 one_step_transition_start = time.time()
                 next_state, norm_next_state = env.step(action, step)
-                print("current step transition time used is {} milliseconds".format(time.time() - one_step_transition_start))
+                step_transition_time = (time.time() - one_step_transition_start)*1000
+                print("current step transition time used is {} milliseconds".format(step_transition_time))
 
                 # reward_aft_action, done_aft_action, check_goal, step_reward_record, agents_added = env.get_step_reward_5_v3(step, step_reward_record)   # remove reached agent here
                 # reward_aft_action, done_aft_action, check_goal, step_reward_record = env.get_step_reward_5_v3(step, step_reward_record)   # remove reached agent here
 
                 one_step_reward_start = time.time()
                 reward_aft_action, done_aft_action, check_goal, step_reward_record, status_holder = env.ss_reward(step, step_reward_record, eps_status_holder)   # remove reached agent here
-                print("current step reward time used is {} milliseconds".format(time.time() - one_step_reward_start))
+                reward_generation_time = (time.time() - one_step_reward_start)*1000
+                print("current step reward time used is {} milliseconds".format(reward_generation_time))
 
                 # reward_aft_action = [eachRWD / 300 for eachRWD in reward_aft_action]  # scale the reward down
                 # new_length = len(agents_added)  # check if length of agnet_to_remove increased during each step
@@ -222,25 +232,28 @@ def main(args):
 
                 step_update_time_start = time.time()
                 c_loss, a_loss = model.update_myown(episode, total_step, UPDATE_EVERY, wandb)  # last working learning framework
-                print("current step update time used is {} milliseconds".format(time.time() - step_update_time_start))
+                update_time_used = (time.time() - step_update_time_start)*1000
+                print("current step update time used is {} milliseconds".format(update_time_used))
                 cur_state = next_state
                 norm_cur_state = norm_next_state
                 eps_reward.append(step_reward_record)
-
-                print("current episode, one whole step time used is {} milliseconds".format(time.time()-step_start_time))
-
+                whole_step_time = (time.time()-step_start_time)*1000
+                print("current episode, one whole step time used is {} milliseconds".format(whole_step_time))
+                step_time_breakdown.append([generate_action_time, step_transition_time, reward_generation_time, update_time_used, whole_step_time])
                 if ((args.episode_length < step) and (300 not in reward_aft_action)):
                     episode_decision[0] = True
-                    print("Agents stuck in some places, maximum step in one episode reached, current episode {} ends".format(episode))
+                    print("Agents stuck in some places, maximum step in one episode reached, current episode {} ends, all {} steps used".format(episode, args.episode_length))
                 elif (True in done_aft_action):
                     episode_decision[1] = True
-                    print("Some agent triggers termination condition like collision, current episode {} ends".format(episode))
+                    print("Some agent triggers termination condition like collision, current episode {} ends at step {}".format(episode, step-1))  # we need to -1 here, because we perform step + 1 after each complete step. Just to be consistent with the step count inside the reward function.
                 # elif (agent_added>50):
                 #     episode_decision[2] = True
                 #     print("More than 50 drones has reaches the destination, current episode {} ends".format(episode))
                 # if ((args.episode_length < step) and (300 not in reward_aft_action)) or (True in done_aft_action) or (agent_added>50):
+
                 if True in episode_decision:
-                    # c_loss, a_loss = model.update_myown(episode, total_step, UPDATE_EVERY, wandb)  # last working learning framework
+                    # end of an episode starts here
+
                     # time_used = time.time() - start_time
                     # print("update function used {} seconds to run".format(time_used))
                     # here onwards is end of an episode's play
@@ -254,9 +267,9 @@ def main(args):
                         # using csv.writer method from CSV package
                         write = csv.writer(f)
                         write.writerows([score_history])
-                    if c_loss and a_loss:
-                        for idx, val in enumerate(c_loss):
-                            print(" agent %s, a_loss %3.2f c_loss %3.2f" % (idx, a_loss[idx].item(), c_loss[idx].item()))
+                    # if c_loss and a_loss:
+                    #     for idx, val in enumerate(c_loss):
+                    #         print(" agent %s, a_loss %3.2f c_loss %3.2f" % (idx, a_loss[idx].item(), c_loss[idx].item()))
                             # wandb.log({'agent' + str(idx) + 'actor_loss': float(a_loss[idx].item())})
                             # wandb.log({'agent' + str(idx) + 'critic_loss': float(c_loss[idx].item())})
                     if episode % args.save_interval == 0 and args.mode == "train":
@@ -273,7 +286,15 @@ def main(args):
                     with open(plot_file_name + '/all_episode_noise.pickle', 'wb') as handle:
                         pickle.dump(eps_noise_record, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
-                    print("episode {} used time is {} seconds".format(episode, time.time()-episode_start_time))
+                    epsTime = time.time()-episode_start_time
+                    eps_time_record.append([eps_reset_time_used, epsTime, step_time_breakdown])
+
+                    with open(plot_file_name + '/all_episode_time.pickle', 'wb') as handle:
+                        pickle.dump(eps_noise_record, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+                    if epsTime >= 1:
+                        print("check")
+                    print("episode {} used time is {} seconds".format(episode, epsTime))
                     break  # this is to break out from "while True:", which is one play
             elif args.mode == "eval":
                 step_reward_record = [None] * n_agents
