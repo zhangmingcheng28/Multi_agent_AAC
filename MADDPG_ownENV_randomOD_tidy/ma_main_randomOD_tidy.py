@@ -290,7 +290,7 @@ def main(args):
                     eps_time_record.append([eps_reset_time_used, epsTime, step_time_breakdown])
 
                     with open(plot_file_name + '/all_episode_time.pickle', 'wb') as handle:
-                        pickle.dump(eps_noise_record, handle, protocol=pickle.HIGHEST_PROTOCOL)
+                        pickle.dump(eps_time_record, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
                     if epsTime >= 1:
                         print("check")
