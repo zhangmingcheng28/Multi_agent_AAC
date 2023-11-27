@@ -53,8 +53,8 @@ def main(args):
         if not os.path.exists(plot_file_name):
             os.makedirs(plot_file_name)
 
-    # use_wanDB = False
-    use_wanDB = True
+    use_wanDB = False
+    # use_wanDB = True
 
     if use_wanDB:
         wandb.login(key="efb76db851374f93228250eda60639c70a93d1ec")
@@ -113,6 +113,7 @@ def main(args):
     eps_noise_record = []
     eps_end = 3000  # at eps = eps_end, the eps value drops to lowest value which is 0.03 (this value is fixed)
     noise_start_level = 1
+    training_start_time = time.time()
     if args.mode == "eval":
         # args.max_episodes = 1  # only evaluate one episode during evaluation mode.
         args.max_episodes = 5
@@ -120,10 +121,11 @@ def main(args):
     # while episode < args.max_episodes:
     while episode < args.max_episodes:  # start of an episode
         # ------------ my own env.reset() ------------ #
+        episode_start_time = time.time()
 
-        # cur_state, norm_cur_state = env.reset_world_fixedOD(show=0)
-
+        eps_reset_start_time = time.time()
         cur_state, norm_cur_state = env.reset_world(total_agentNum, show=0)
+        print("current episode {} reset time used is {} milliseconds".format(episode, time.time()-eps_reset_start_time))
 
         eps_status_holder = [None] * n_agents
         episode_decision = [False] * 2
@@ -151,14 +153,27 @@ def main(args):
             model.load_model([load_filepath_0, load_filepath_1, load_filepath_2])
         while True:  # start of an episode (this episode ends when (agent_added < max_agent_to_add))
             if args.mode == "train":
+                step_start_time = time.time()
                 step_reward_record = [None] * n_agents
                 # cur_state, norm_cur_state = env.fill_agent_reset(cur_state, norm_cur_state, agents_added)  # if a new agent is filled, we need to reset the state information for the newly added agents
+
+                step_obtain_action_time_start = time.time()
                 action, step_noise_val = model.choose_action(norm_cur_state, total_step, episode, step, eps_end, noise_start_level, noisy=True) # noisy is false because we are using stochastic policy
+                print("current step obtain action time used is {} milliseconds".format(time.time() - step_obtain_action_time_start))
+
                 # action = model.choose_action(cur_state, episode, noisy=True)
+
+                one_step_transition_start = time.time()
                 next_state, norm_next_state = env.step(action, step)
+                print("current step transition time used is {} milliseconds".format(time.time() - one_step_transition_start))
+
                 # reward_aft_action, done_aft_action, check_goal, step_reward_record, agents_added = env.get_step_reward_5_v3(step, step_reward_record)   # remove reached agent here
                 # reward_aft_action, done_aft_action, check_goal, step_reward_record = env.get_step_reward_5_v3(step, step_reward_record)   # remove reached agent here
+
+                one_step_reward_start = time.time()
                 reward_aft_action, done_aft_action, check_goal, step_reward_record, status_holder = env.ss_reward(step, step_reward_record, eps_status_holder)   # remove reached agent here
+                print("current step reward time used is {} milliseconds".format(time.time() - one_step_reward_start))
+
                 # reward_aft_action = [eachRWD / 300 for eachRWD in reward_aft_action]  # scale the reward down
                 # new_length = len(agents_added)  # check if length of agnet_to_remove increased during each step
                 # agent_added = agent_added + new_length
@@ -205,11 +220,14 @@ def main(args):
                 # accum_reward = accum_reward + reward_aft_action[0]  # we just take the first agent's reward, because we are using a joint reward, so all agents obtain the same reward.
                 accum_reward = accum_reward + sum(reward_aft_action)
 
+                step_update_time_start = time.time()
                 c_loss, a_loss = model.update_myown(episode, total_step, UPDATE_EVERY, wandb)  # last working learning framework
-
+                print("current step update time used is {} milliseconds".format(time.time() - step_update_time_start))
                 cur_state = next_state
                 norm_cur_state = norm_next_state
                 eps_reward.append(step_reward_record)
+
+                print("current episode, one whole step time used is {} milliseconds".format(time.time()-step_start_time))
 
                 if ((args.episode_length < step) and (300 not in reward_aft_action)):
                     episode_decision[0] = True
@@ -255,12 +273,15 @@ def main(args):
                     with open(plot_file_name + '/all_episode_noise.pickle', 'wb') as handle:
                         pickle.dump(eps_noise_record, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
+                    print("episode {} used time is {} seconds".format(episode, time.time()-episode_start_time))
                     break  # this is to break out from "while True:", which is one play
             elif args.mode == "eval":
                 step_reward_record = [None] * n_agents
                 action, step_noise_val = model.choose_action(norm_cur_state, total_step, episode, step, eps_end, noise_start_level, noisy=False)
                 # action = model.choose_action(cur_state, episode, noisy=False)
                 # action = env.get_actions_noCR()  # only update heading, don't update any other attribute
+                for a_idx, action_ele in enumerate(action):
+                    action[a_idx] = [-0.3535, 0.3535]
                 next_state, norm_next_state = env.step(action, step)  # no heading update here
                 reward_aft_action, done_aft_action, check_goal, step_reward_record, eps_status_holder = env.ss_reward(step, step_reward_record, eps_status_holder)
                 # reward_aft_action, done_aft_action, check_goal, step_reward_record = env.get_step_reward_5_v3(step, step_reward_record)
@@ -354,6 +375,7 @@ def main(args):
                 #     print("[Episode %05d] reward %6.4f" % (episode, accum_reward))
                 #     break
 
+    print(f'training finishes, time spent: {datetime.timedelta(seconds=int(time.time() - training_start_time))}')
     if use_wanDB:
         wandb.finish()
 
@@ -365,8 +387,6 @@ if __name__ == '__main__':
     parser.add_argument('--mode', default="train", type=str, help="train/eval")
     parser.add_argument('--episode_length', default=50, type=int)  # maximum play per episode
     parser.add_argument('--memory_length', default=int(1e5), type=int)
-    parser.add_argument('--tau', default=0.001, type=float)  # original 0.001
-    parser.add_argument('--gamma', default=0.95, type=float)
     parser.add_argument('--seed', default=777, type=int)  # may choose to use 3407
     parser.add_argument('--batch_size', default=512, type=int)  # original 512
     parser.add_argument('--render_flag', default=False, type=bool)

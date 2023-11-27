@@ -98,7 +98,9 @@ if __name__ == '__main__':
 
         for step in range(args.episode_length):  # interact with the env for an episode
             actions = maddpg.select_action(obs)
+            step_start_time = time.time()
             next_obs, rewards, dones, infos = env.step(actions)
+            print("one step time used is {} milliseconds".format((time.time()-step_start_time)*1000))
             #print(next_obs)
             #episode_reward[step] = rewards
             episode_reward.append(rewards)

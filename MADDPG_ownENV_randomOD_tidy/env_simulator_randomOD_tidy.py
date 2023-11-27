@@ -200,6 +200,10 @@ class env_simulator:
         # start_time = time.time()
         start_pos_memory = []
 
+        # any_collision = 0
+        # loop_count = 0
+        # while not any_collision:
+        #     start_pos_memory = []  # make it here just to test any initial collision condition
         for agentIdx in self.all_agents.keys():
 
             # ---------------- using random initialized agent position for traffic flow ---------
@@ -208,7 +212,7 @@ class env_simulator:
             random_target_index = random.choice(numbers_left)
             random_start_pos = random.choice(self.target_pool[random_start_index])
             if len(start_pos_memory) > 0:
-                while True:  # make sure the starting drone generated do not collide with any existing drone
+                while len(start_pos_memory) < len(self.all_agents):  # make sure the starting drone generated do not collide with any existing drone
                     # Generate a new point
                     random_start_index = random.randint(0, len(self.target_pool) - 1)
                     numbers_left = list(range(0, random_start_index)) + list(
@@ -218,12 +222,21 @@ class env_simulator:
                     # Check that the distance to all existing points is more than 5
                     if all(np.linalg.norm(np.array(random_start_pos)-point) > self.all_agents[agentIdx].protectiveBound*2 for point in start_pos_memory):
                         break
+
             random_end_pos = random.choice(self.target_pool[random_target_index])
             dist_between_se = np.linalg.norm(np.array(random_end_pos) - np.array(random_start_pos))
 
             # while dist_between_se >= 100:  # the distance between start & end point is more than a threshold, we reset SE pairs.
             #     random_end_pos = random.choice(self.target_pool[random_target_index])
             #     dist_between_se = np.linalg.norm(np.array(random_end_pos) - np.array(random_start_pos))
+            host_current_circle = Point(np.array(random_start_pos)[0], np.array(random_start_pos)[1]).buffer(self.all_agents[agentIdx].protectiveBound)
+
+            possiblePoly = self.allbuildingSTR.query(host_current_circle)
+            for element in possiblePoly:
+                if self.allbuildingSTR.geometries.take(element).intersection(host_current_circle):
+                    any_collision = 1
+                    print("Initial start point {} collision with buildings".format(np.array(random_start_pos)))
+                    break
 
             self.all_agents[agentIdx].pos = np.array(random_start_pos)
             self.all_agents[agentIdx].ini_pos = np.array(random_start_pos)
@@ -268,7 +281,8 @@ class env_simulator:
                                                            self.all_agents[agentIdx].goal[0][0] -
                                                            self.all_agents[agentIdx].pos[0])
 
-            random_spd = random.randint(1, self.all_agents[agentIdx].maxSpeed)  # initial speed is randomly picked from 1 to max speed
+            # random_spd = random.randint(1, self.all_agents[agentIdx].maxSpeed)  # initial speed is randomly picked from 1 to max speed
+            random_spd = random.randint(1, 3)  # initial speed is randomly picked from 1 to max speed
             self.all_agents[agentIdx].vel = np.array([random_spd*math.cos(self.all_agents[agentIdx].heading),
                                              random_spd*math.sin(self.all_agents[agentIdx].heading)])
 
@@ -294,6 +308,11 @@ class env_simulator:
                              self.all_agents[agentIdx].pos[1])] = self.all_agents[agentIdx].agent_name
 
             agentsCoor_list.append(self.all_agents[agentIdx].pos)
+        
+        #     loop_count = loop_count + 1
+        #     if loop_count % 500 == 0:
+        #         print("set {} generated".format(loop_count))
+        # print("The {}th set starting point generated, one initial collision case happened".format(loop_count))
 
         # overall_state, norm_overall_state = self.cur_state_norm_state_fully_observable(agentRefer_dict)
         # print('time used is {}'.format(time.time() - start_time))
@@ -706,13 +725,19 @@ class env_simulator:
             else:
                 agent_idx = None
                 raise ValueError('No number found in string')
-            # get agent's observable space around it
-            self.all_agents[agentIdx].observableSpace = self.current_observable_space_fixedLength_fromv2_flow(self.all_agents[agentIdx])
 
-            # self.all_agents[agentIdx].observableSpace = self.current_observable_space_fixedLength(self.all_agents[agentIdx])
+            # get agent's observable space around it
+            # obs_grid_time = time.time()
+            # self.all_agents[agentIdx].observableSpace = self.current_observable_space_fixedLength_fromv2_flow(self.all_agents[agentIdx])
+            self.all_agents[agentIdx].observableSpace = np.zeros((9))
+            # print("generate grid time is {} milliseconds".format((time.time()-obs_grid_time)*1000))
+            #
             # identify neighbors (use distance)
-            # update the "surroundingNeighbor" attribute
+            # obs_nei_time = time.time()
             agent.surroundingNeighbor = self.get_current_agent_nei(agent, agentRefer_dict)
+            # print("generate nei time is {} milliseconds".format((time.time() - obs_nei_time) * 1000))
+
+            rest_compu_time = time.time()
 
             norm_pos = self.normalizer.scale_pos([agent.pos[0], agent.pos[1]])
 
@@ -770,6 +795,7 @@ class env_simulator:
         norm_overall.append(norm_overall_state_p1)
         norm_overall.append(norm_overall_state_p2)
         norm_overall.append(norm_overall_state_p3)
+        # print("rest compute time is {} milliseconds".format((time.time() - rest_compu_time) * 1000))
         return overall, norm_overall
 
     def cur_state_norm_state_fully_observable(self, agentRefer_dict):
@@ -1535,6 +1561,7 @@ class env_simulator:
 
 
     def step(self, actions, current_ts):
+        step_start_time = time.time()
         next_combine_state = []
         agentCoorKD_list_update = []
         agentRefer_dict = {}  # A dictionary to use agent's current pos as key, their agent name (idx) as value
@@ -1543,10 +1570,13 @@ class env_simulator:
         coe_a = 4  # coe_a is the coefficient of action is 4 because our time step is 0.5 sec
         # based on the input stack of actions we propagate all agents forward
         # for drone_idx, drone_act in actions.items():  # this is for evaluation with default action
+        count = 1
         for drone_idx_obj, drone_act in zip(self.all_agents.items(), actions):
+
             drone_idx = drone_idx_obj[0]
             drone_obj = drone_idx_obj[1]
             # let current neighbor become neighbor recorded before action
+            start_deepcopy_time = time.time()
             self.all_agents[drone_idx].pre_surroundingNeighbor = deepcopy(self.all_agents[drone_idx].surroundingNeighbor)
             # let current position become position is the previous state, so that new position can be updated
             self.all_agents[drone_idx].pre_pos = deepcopy(self.all_agents[drone_idx].pos)
@@ -1554,6 +1584,8 @@ class env_simulator:
             self.all_agents[drone_idx].pre_vel = deepcopy(self.all_agents[drone_idx].vel)
                         # fill previous acceleration
             self.all_agents[drone_idx].pre_acc = deepcopy(self.all_agents[drone_idx].acc)
+            # print("deepcopy done, time used {} nanosecond".format((time.time()-start_deepcopy_time)*1000000000))
+            print("deepcopy done, time used {} milliseconds".format((time.time()-start_deepcopy_time)*1000))
 
             # --------------- speed & heading angle control for training -------------------- #
             # raw_speed, raw_heading_angle = drone_act[0], drone_act[1]
@@ -1562,6 +1594,7 @@ class env_simulator:
             # delta_x = speed * math.cos(heading_angle) * self.time_step
             # delta_y = speed * math.sin(heading_angle) * self.time_step
             # -------------- end of speed & heading angle control ---------------------#
+
 
             # ----------------- acceleration in x and acceleration in y state transition control for training-------------------- #
             ax, ay = drone_act[0], drone_act[1]
@@ -1596,6 +1629,7 @@ class env_simulator:
             # update current acceleration of the agent after an action
             self.all_agents[drone_idx].acc = np.array([ax, ay])
 
+
             counterCheck_heading = math.atan2(delta_y, delta_x)
             if abs(next_heading - counterCheck_heading) > 1e-3 :
                 print("debug, heading different")
@@ -1611,10 +1645,16 @@ class env_simulator:
             agentCoorKD_list_update.append(self.all_agents[drone_idx].pos)
             agentRefer_dict[(self.all_agents[drone_idx].pos[0],
                              self.all_agents[drone_idx].pos[1])] = self.all_agents[drone_idx].agent_name
-        self.cur_allAgentCoor_KD = KDTree(agentCoorKD_list_update)  # update all agent coordinate KDtree
+            count = count + 1
+        # self.cur_allAgentCoor_KD = KDTree(agentCoorKD_list_update)  # update all agent coordinate KDtree
+
+        # print("for loop run {} times".format(count))
 
         # next_state, next_state_norm = self.cur_state_norm_state_fully_observable(agentRefer_dict)
+        # start_acceleration_time = time.time()
         next_state, next_state_norm = self.cur_state_norm_state_v3(agentRefer_dict)
+        # print("obtain_current_state, time used {} milliseconds".format(
+        #     (time.time() - start_acceleration_time) * 1000))
 
         # # update current agent's observable space state
         # agent.observableSpace = self.current_observable_space(agent)
@@ -1707,6 +1747,12 @@ class env_simulator:
         #     time.sleep(2)
         #     fig.canvas.flush_events()
         #     ax.cla()
+        print("one step time used is {} milliseconds".format((time.time() - step_start_time) * 1000))
+        if (time.time() - step_start_time) * 1000 == 0:
+            print("debug")
+        elif (time.time() - step_start_time) * 1000 >= 10:
+            print("debug")
+        
         return next_state, next_state_norm
 
     def fill_agents(self, max_agent_train, cur_state, norm_cur_state, remove_agent_keys):

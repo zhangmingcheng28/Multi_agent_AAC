@@ -372,7 +372,7 @@ class MADDPG:
     def choose_action(self, state, cur_total_step, cur_episode, step, total_training_steps, noise_start_level, noisy=True):
         # ------------- MADDPG_test_181123_10_10_54 version noise -------------------
         obs = torch.from_numpy(np.stack(state[0])).float().to(device)
-        obs_grid = torch.from_numpy(np.stack(state[1])).float().to(device)
+        # obs_grid = torch.from_numpy(np.stack(state[1])).float().to(device)
         noise_value = np.zeros(2)
         all_obs_surAgent = []
         for each_agent_sur in state[2]:
@@ -396,7 +396,7 @@ class MADDPG:
             # sb_grid = obs_grid[i].detach()
             # sb_surAgent = all_obs_surAgent[i].detach()
             sb = obs[i]
-            sb_grid = obs_grid[i]
+            # sb_grid = obs_grid[i]
             sb_surAgent = all_obs_surAgent[i]
             # act = self.actors[i]([sb.unsqueeze(0), sb_grid.unsqueeze(0), sb_surAgent.unsqueeze(0)]).squeeze()
             # act = self.actors[i]([sb.unsqueeze(0), sb_surAgent.unsqueeze(0)]).squeeze()
