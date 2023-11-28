@@ -1499,7 +1499,7 @@ class env_simulator:
             # must use "host_passed_volume", or else, we unable to confirm whether the host's circle is at left or right of the boundary lines
             if x_left_bound.intersects(host_passed_volume) or x_right_bound.intersects(host_passed_volume) or y_bottom_bound.intersects(host_passed_volume) or y_top_bound.intersects(host_passed_volume):
                 print("drone_{} has crash into boundary at time step {}".format(drone_idx, current_ts))
-                rew = rew - dist_to_ref_line - crash_penalty_wall
+                rew = rew - dist_to_ref_line - crash_penalty_wall - dist_to_goal
                 done.append(True)
                 # done.append(False)
                 reward.append(np.array(rew))
@@ -1507,7 +1507,7 @@ class env_simulator:
             elif collide_building == 1:
                 # done.append(True)
                 done.append(True)
-                rew = rew - dist_to_ref_line - crash_penalty_wall
+                rew = rew - dist_to_ref_line - crash_penalty_wall - dist_to_goal
                 reward.append(np.array(rew))
             # elif len(collision_drones) > 0:
             #     # done.append(True)
