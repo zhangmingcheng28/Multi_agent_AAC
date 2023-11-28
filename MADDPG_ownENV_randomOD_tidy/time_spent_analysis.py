@@ -38,6 +38,12 @@ plt.title('Plot of episode_time vs episode_step_num')
 plt.xlabel('episode time (seconds)')
 plt.ylabel('episode step number')
 
+plt.figure(3)  # mean running time.
+plt.plot(np.array(episode_time)/np.array(episode_step_num), color='blue')
+plt.title('Plot of mean time take for each step in episode')
+plt.xlabel('episode time (seconds)')
+plt.ylabel('episode number')
+
 fig, axs = plt.subplots(2, 5)
 # 3rd list holder contains generate_action_time, step_transition_time, reward_generation_time, update_time_used, whole_step_time
 
@@ -84,5 +90,8 @@ for i, ax in enumerate(axs.flatten(), start=1):
         # ax.set_title(plot_holder_title[i-1])
         ax.set_ylabel('milliseconds')
         ax.set_xlabel('episode number')
+
+
+
 
 plt.show()

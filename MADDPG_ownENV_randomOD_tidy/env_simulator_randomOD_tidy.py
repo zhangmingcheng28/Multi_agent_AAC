@@ -1454,7 +1454,8 @@ class env_simulator:
             norm_cross_track_deviation_y = cross_track_deviation_y * self.normalizer.y_scale
             host_pass_line = LineString([self.all_agents[drone_idx].pre_pos, self.all_agents[drone_idx].pos])
             host_passed_volume = host_pass_line.buffer(self.all_agents[drone_idx].protectiveBound, cap_style='round')
-            host_current_circle = Point(self.all_agents[drone_idx].pos[0], self.all_agents[drone_idx].pos[1]).buffer(self.all_agents[drone_idx].protectiveBound)
+            host_current_circle = Point(self.all_agents[drone_idx].pos[0], self.all_agents[drone_idx].pos[1]).buffer(
+                self.all_agents[drone_idx].protectiveBound)
 
             # loop through neighbors from current time step
             for neigh_keys in self.all_agents[drone_idx].surroundingNeighbor:
