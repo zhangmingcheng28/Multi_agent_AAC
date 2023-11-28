@@ -496,7 +496,7 @@ def main(args):
                     # Create animation
                     ani = animation.FuncAnimation(fig, animate, fargs=(ax, env, trajectory_eachPlay), frames=len(trajectory_eachPlay), interval=300, blit=False)
                     # Save as GIF
-                    gif_path = 'F:\githubClone\Multi_agent_AAC\MADDPG_ownENV_randomOD_tidy/animated_simulation.gif'
+                    gif_path = pre_fix + '\episode_' + episode_to_check + 'simulation_num_'+str(episode)+'.gif'
                     ani.save(gif_path, writer='pillow')
 
                     # Close figure
