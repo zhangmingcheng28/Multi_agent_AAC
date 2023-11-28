@@ -13,7 +13,7 @@ import matplotlib
 import numpy as np
 
 matplotlib.use('TkAgg')
-pre_fix = r'D:\MADDPG_2nd_jp\271123_14_33_40\toplot'
+pre_fix = r'D:\MADDPG_2nd_jp\281123_14_05_09\toplot'
 file_path = pre_fix + r'\all_episode_time.pickle'
 with open(file_path, 'rb') as handle:
     combine_time = pickle.load(handle)
@@ -35,8 +35,8 @@ episode_step_num = [len(eps_time_record[2]) for eps_time_record in combine_time]
 plt.scatter(episode_time, episode_step_num, color='blue')
 # Title and labels
 plt.title('Plot of episode_time vs episode_step_num')
-plt.xlabel('episode time (milliseconds)')
-plt.ylabel('episode step_num')
+plt.xlabel('episode time (seconds)')
+plt.ylabel('episode step number')
 
 fig, axs = plt.subplots(2, 5)
 # 3rd list holder contains generate_action_time, step_transition_time, reward_generation_time, update_time_used, whole_step_time

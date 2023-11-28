@@ -51,6 +51,8 @@ def animate(frame_num, ax, env, trajectory_eachPlay):
     plt.xlabel("X axis")
     plt.ylabel("Y axis")
 
+
+
     # draw occupied_poly
     for one_poly in env.world_map_2D_polyList[0][0]:
         one_poly_mat = shapelypoly_to_matpoly(one_poly, True, 'y', 'b')
@@ -74,6 +76,13 @@ def animate(frame_num, ax, env, trajectory_eachPlay):
         plt.text(agent.ini_pos[0], agent.ini_pos[1], agent.agent_name)
         plt.plot(agent.goal[-1][0], agent.goal[-1][1], marker='*', color='y', markersize=10)
         plt.text(agent.goal[-1][0], agent.goal[-1][1], agent.agent_name)
+
+        # link individual drone's starting position with its goal
+        ini = agent.ini_pos
+        for wp in agent.goal:
+            # plt.plot(wp[0], wp[1], marker='*', color='y', markersize=10)
+            plt.plot([wp[0], ini[0]], [wp[1], ini[1]], '--', color='c')
+            ini = wp
 
     for agent in trajectory_eachPlay[frame_num]:
         x, y = agent[0], agent[1]
@@ -101,8 +110,8 @@ def main(args):
         if not os.path.exists(plot_file_name):
             os.makedirs(plot_file_name)
 
-    # use_wanDB = False
-    use_wanDB = True
+    use_wanDB = False
+    # use_wanDB = True
 
     if use_wanDB:
         wandb.login(key="efb76db851374f93228250eda60639c70a93d1ec")
@@ -134,8 +143,8 @@ def main(args):
     n_actions = 2
     acc_range = [-4, 4]
 
-    actorNet_lr = 0.0001
-    criticNet_lr = 0.0001
+    actorNet_lr = 0.001
+    criticNet_lr = 0.001
 
     # noise parameter ini
     largest_Nsigma = 0.5
@@ -194,8 +203,8 @@ def main(args):
 
         trajectory_eachPlay = []
 
-        pre_fix = r'D:\MADDPG_2nd_jp\261123_16_45_36\interval_record_eps'
-        episode_to_check = str(1000)
+        pre_fix = r'D:\MADDPG_2nd_jp\281123_14_05_09\interval_record_eps'
+        episode_to_check = str(15000)
         load_filepath_0 = pre_fix + '\episode_' + episode_to_check + '_agent_0actor_net.pth'
         load_filepath_1 = pre_fix + '\episode_' + episode_to_check + '_agent_1actor_net.pth'
         load_filepath_2 = pre_fix + '\episode_' + episode_to_check + '_agent_2actor_net.pth'
@@ -287,7 +296,8 @@ def main(args):
                 eps_reward.append(step_reward_record)
                 whole_step_time = (time.time()-step_start_time)*1000
                 print("current episode, one whole step time used is {} milliseconds".format(whole_step_time))
-                step_time_breakdown.append([generate_action_time, step_transition_time, reward_generation_time, update_time_used, whole_step_time])
+                step_time_breakdown.append([generate_action_time, step_transition_time, reward_generation_time,
+                                            update_time_used, whole_step_time])
                 if ((args.episode_length < step) and (300 not in reward_aft_action)):
                     episode_decision[0] = True
                     print("Agents stuck in some places, maximum step in one episode reached, current episode {} ends, all {} steps used".format(episode, args.episode_length))
@@ -349,8 +359,8 @@ def main(args):
                 action, step_noise_val = model.choose_action(norm_cur_state, total_step, episode, step, eps_end, noise_start_level, noisy=False)
                 # action = model.choose_action(cur_state, episode, noisy=False)
                 # action = env.get_actions_noCR()  # only update heading, don't update any other attribute
-                for a_idx, action_ele in enumerate(action):
-                    action[a_idx] = [-0.3535, 0.3535]
+                # for a_idx, action_ele in enumerate(action):
+                #     action[a_idx] = [-0.3535, 0.3535]
                 next_state, norm_next_state = env.step(action, step)  # no heading update here
                 reward_aft_action, done_aft_action, check_goal, step_reward_record, eps_status_holder = env.ss_reward(step, step_reward_record, eps_status_holder)
                 # reward_aft_action, done_aft_action, check_goal, step_reward_record = env.get_step_reward_5_v3(step, step_reward_record)
@@ -518,7 +528,7 @@ if __name__ == '__main__':
     parser.add_argument('--scenario', default="simple_spread", type=str)
     parser.add_argument('--max_episodes', default=20000, type=int)  # run for a total of 50000 episodes
     parser.add_argument('--algo', default="maddpg", type=str, help="commnet/bicnet/maddpg")
-    parser.add_argument('--mode', default="train", type=str, help="train/eval")
+    parser.add_argument('--mode', default="eval", type=str, help="train/eval")
     parser.add_argument('--episode_length', default=50, type=int)  # maximum play per episode
     parser.add_argument('--memory_length', default=int(1e5), type=int)
     parser.add_argument('--seed', default=777, type=int)  # may choose to use 3407
