@@ -1446,7 +1446,12 @@ class env_simulator:
                 host_refline = LineString([self.all_agents[drone_idx].removed_goal, self.all_agents[drone_idx].goal[0]])
             else:
                 host_refline = LineString([self.all_agents[drone_idx].ini_pos, self.all_agents[drone_idx].goal[0]])
+
             cross_track_deviation = curPoint.distance(host_refline)  # deviation from the reference line, cross track error
+            cross_track_deviation_x = abs(cross_track_deviation*math.cos(drone_obj.heading))
+            cross_track_deviation_y = abs(cross_track_deviation*math.sin(drone_obj.heading))
+            norm_cross_track_deviation_x = cross_track_deviation_x * self.normalizer.x_scale
+            norm_cross_track_deviation_y = cross_track_deviation_y * self.normalizer.y_scale
             host_pass_line = LineString([self.all_agents[drone_idx].pre_pos, self.all_agents[drone_idx].pos])
             host_passed_volume = host_pass_line.buffer(self.all_agents[drone_idx].protectiveBound, cap_style='round')
             host_current_circle = Point(self.all_agents[drone_idx].pos[0], self.all_agents[drone_idx].pos[1]).buffer(self.all_agents[drone_idx].protectiveBound)
@@ -1473,13 +1478,19 @@ class env_simulator:
             # RuntimeWarning is, "invalid value encountered in intersection"
             goal_cur_intru_intersect = host_current_circle.intersection(tar_circle)
 
+            wp_circle = Point(self.all_agents[drone_idx].goal[0]).buffer(1, cap_style='round')
+            wp_intersect = host_current_circle.intersection(wp_circle)
+
             # ------------- pre-processed condition for a normal step -----------------
             rew = 3
             # rew = 0
             # after_dist_hg = np.linalg.norm(drone_obj.pos - drone_obj.goal[-1])  # distance to goal after action
             x_norm, y_norm = self.normalizer.nmlz_pos(drone_obj.pos)
             tx_norm, ty_norm = self.normalizer.nmlz_pos(drone_obj.goal[-1])
-            after_dist_hg = math.sqrt(((x_norm-tx_norm)**2 + (y_norm-ty_norm)**2))
+            dist_to_goal = math.sqrt(((x_norm-tx_norm)**2 + (y_norm-ty_norm)**2))
+
+            dist_to_ref_line = math.sqrt(norm_cross_track_deviation_x ** 2 + norm_cross_track_deviation_y ** 2)
+
             alive_penalty = -60
             # -------------end of pre-processed condition for a normal step -----------------
 
@@ -1488,7 +1499,7 @@ class env_simulator:
             # must use "host_passed_volume", or else, we unable to confirm whether the host's circle is at left or right of the boundary lines
             if x_left_bound.intersects(host_passed_volume) or x_right_bound.intersects(host_passed_volume) or y_bottom_bound.intersects(host_passed_volume) or y_top_bound.intersects(host_passed_volume):
                 print("drone_{} has crash into boundary at time step {}".format(drone_idx, current_ts))
-                rew = rew - crash_penalty_wall
+                rew = rew - dist_to_ref_line - crash_penalty_wall
                 done.append(True)
                 # done.append(False)
                 reward.append(np.array(rew))
@@ -1496,7 +1507,7 @@ class env_simulator:
             elif collide_building == 1:
                 # done.append(True)
                 done.append(True)
-                rew = rew - crash_penalty_wall
+                rew = rew - dist_to_ref_line - crash_penalty_wall
                 reward.append(np.array(rew))
             # elif len(collision_drones) > 0:
             #     # done.append(True)
@@ -1505,40 +1516,42 @@ class env_simulator:
             #     reward.append(np.array(rew))
             elif not goal_cur_intru_intersect.is_empty:  # reached goal?
                 # --------------- with way point -----------------------
-                # if len(drone_obj.goal) > 1:  # meaning the current agent has more than one target/goal
-                #     print("drone_{} has reached its way point at time step {}".format(drone_idx, current_ts))
-                #     drone_obj.reach_target = False  # reset this flag
-                #     drone_obj.removed_goal = drone_obj.goal.pop(0)
-                #     after_dist_hg = np.linalg.norm(drone_obj.pos - drone_obj.goal[0])  # distance to next goal
-                #     rew = rew - after_dist_hg
-                #     reward.append(np.array(rew))
-                #     # below two lines are used to debug
-                #     # reward.append(np.array(reach_target))
-                #     # agent_to_remove.append(drone_idx)  # NOTE: drone_idx is the key value.
-                # else:
-                #     check_goal[reward_record_idx] = True  # drone_obj.reach_target = True, and "check_goal" list also don't track agent's index
-                #     # normal_step_rw = crossCoefficient * cross_track_error + delta_hg
-                #     # reward.append(np.array(normal_step_rw))
-                #     print("drone_{} has reached its final goal at time step {}".format(drone_idx, current_ts))
-                #     agent_to_remove.append(drone_idx)  # NOTE: drone_idx is the key value.
-                #     rew = rew + reach_target
-                #     reward.append(np.array(rew))
-                # --------------- end of with way point -----------------------
-                # without wap point
+                check_goal[reward_record_idx] = True
+                print("drone_{} has reached its final goal at time step {}".format(drone_idx, current_ts))
+                agent_to_remove.append(drone_idx)  # NOTE: drone_idx is the key value.
                 rew = rew + reach_target
                 reward.append(np.array(rew))
                 done.append(False)
+                # --------------- end of with way point -----------------------
+                # without wap point
+                # rew = rew + reach_target
+                # reward.append(np.array(rew))
+                # print("final goal has reached")
+                # done.append(False)
             else:  # a normal step taken
-                rew = rew - after_dist_hg
+                if (not wp_intersect.is_empty) and len(drone_obj.goal) > 1: # check if wp reached, and this is not the end point
+                    drone_obj.removed_goal = drone_obj.goal.pop(0)  # remove current wp
+                    
+                    # re-calculate dist_to_ref_line
+                    host_refline = LineString([drone_obj.removed_goal, self.all_agents[drone_idx].goal[0]])
+                    cross_track_deviation = curPoint.distance(
+                        host_refline)  # deviation from the NEW reference line, cross track error
+                    cross_track_deviation_x = abs(cross_track_deviation * math.cos(drone_obj.heading))
+                    cross_track_deviation_y = abs(cross_track_deviation * math.sin(drone_obj.heading))
+                    norm_cross_track_deviation_x = cross_track_deviation_x * self.normalizer.x_scale
+                    norm_cross_track_deviation_y = cross_track_deviation_y * self.normalizer.y_scale
+                    dist_to_ref_line = math.sqrt(norm_cross_track_deviation_x ** 2 + norm_cross_track_deviation_y ** 2)
+
+                rew = rew - dist_to_ref_line - dist_to_goal
                 # we remove the above termination condition
                 done.append(False)
                 step_reward = np.array(rew)
                 reward.append(step_reward)
                 # for debug, record the reward
                 # one_step_reward = [crossCoefficient*cross_track_error, delta_hg, alive_penalty, dominoCoefficient*dominoTerm_sum]
-                # step_reward_record[reward_record_idx] = one_step_reward
-                step_reward_record[reward_record_idx] = [step_reward]
-            reward_record_idx = reward_record_idx + 1
+
+            step_reward_record[drone_idx] = [dist_to_ref_line, dist_to_goal]
+
             actual_after_dist_hg = math.sqrt(((drone_obj.pos[0] - drone_obj.goal[-1][0]) ** 2 + (drone_obj.pos[1] - drone_obj.goal[-1][1]) ** 2))
             # print("current drone {} distance to goal is {}, current reward is {}".format(drone_idx, actual_after_dist_hg, reward[-1]))
 
