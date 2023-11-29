@@ -1522,9 +1522,14 @@ class env_simulator:
             end_v3_time = (time.time() - start_of_v3_time)*1000*1000
             print("check building collision V3 time used is {} micro".format(end_v3_time))
             # -------- end check collision with building V3-------------
-
             step_collision_record[drone_idx].append([end_v1_time, end_v2_time, end_v3_time,
                                                      v1_decision, v2_decision, v3_decision])
+            # if step_collision_record[drone_idx] == None:
+            #     step_collision_record[drone_idx] = [[end_v1_time, end_v2_time, end_v3_time,
+            #                                          v1_decision, v2_decision, v3_decision]]
+            # else:
+            #     step_collision_record[drone_idx].append([end_v1_time, end_v2_time, end_v3_time,
+            #                                              v1_decision, v2_decision, v3_decision])
 
             # tar_circle = Point(self.all_agents[drone_idx].goal[0]).buffer(1, cap_style='round')
             tar_circle = Point(self.all_agents[drone_idx].goal[-1]).buffer(1, cap_style='round')  # set to [-1] so there are no more reference path
@@ -1542,7 +1547,7 @@ class env_simulator:
             x_norm, y_norm = self.normalizer.nmlz_pos(drone_obj.pos)
             tx_norm, ty_norm = self.normalizer.nmlz_pos(drone_obj.goal[-1])
             dist_to_goal = math.sqrt(((x_norm-tx_norm)**2 + (y_norm-ty_norm)**2))
-            coef_ref_line = 5
+            coef_ref_line = 6
             dist_to_ref_line = coef_ref_line*math.sqrt(norm_cross_track_deviation_x ** 2 + norm_cross_track_deviation_y ** 2)
 
             alive_penalty = -60

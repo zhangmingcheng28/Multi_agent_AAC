@@ -270,7 +270,7 @@ def main(args):
         cur_state, norm_cur_state = env.reset_world(total_agentNum, show=0)
         eps_reset_time_used = (time.time()-eps_reset_start_time)*1000
         print("current episode {} reset time used is {} milliseconds".format(episode, eps_reset_time_used))  # need to + 1 here, or else will misrecord as the previous episode
-
+        step_collision_record = [[], [], []]  # reset at each episode, so that we can record down collision at each step for each agent.
         eps_status_holder = [None] * n_agents
         episode_decision = [False] * 2
         agents_added = []
@@ -299,7 +299,7 @@ def main(args):
             if args.mode == "train":
                 step_start_time = time.time()
                 step_reward_record = [None] * n_agents
-                step_collision_record = [None] * n_agents
+
 
                 # cur_state, norm_cur_state = env.fill_agent_reset(cur_state, norm_cur_state, agents_added)  # if a new agent is filled, we need to reset the state information for the newly added agents
 
