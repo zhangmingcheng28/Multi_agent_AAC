@@ -1,7 +1,8 @@
 import sys
 # sys.path.append('F:\githubClone\Multi_agent_AAC\old_framework_test')
 # sys.path.append('D:\Multi_agent_AAC\old_framework_test')
-
+from openpyxl import load_workbook
+from openpyxl import Workbook
 import argparse
 import datetime
 import pandas as pd
@@ -39,6 +40,77 @@ else:
     device = torch.device('cpu')
     print('Using CPU')
 
+
+def initialize_excel_file(file_path):
+    # Create a new workbook and add three empty sheets
+    wb = Workbook()
+    wb.save(file_path)
+
+
+def append_to_excel(file_path, data):
+    # Try to load the workbook, and create it if it does not exist
+    try:
+        wb = load_workbook(file_path)
+        new_workbook = False
+    except FileNotFoundError:
+        wb = Workbook()
+        new_workbook = True
+        # wb.remove(wb.active)  # Remove the default sheet created by openpyxl if not need
+    except Exception as e:  # Catch other exceptions, such as invalid file format
+        print(f"An error occurred: {e}")
+        return
+    if new_workbook:
+        if 'Sheet' in wb.sheetnames:
+            # If the sheet exists, remove it
+            wb.remove('Sheet')
+    # Check if the required sheets exist, if not create them
+    if len(data) == 3:  # for record eps time
+        number_of_sheets = len(data)
+        required_sheets = ['Sheet'+str(i) for i in range(number_of_sheets)]
+        for sheet_name in required_sheets:
+            if sheet_name not in wb.sheetnames:
+                wb.create_sheet(title=sheet_name)
+
+        # Append the data to the respective sheets
+        for i, portion in enumerate(data):
+            sheet = wb[required_sheets[i]]
+            if isinstance(portion, list):
+                for item in portion:
+                    sheet.append(item if isinstance(item, list) else [item])
+                # If this is the last portion of data, append -1 to the last row
+                if i == len(data) - 1:
+                    sheet.append([-1])
+            else:
+                sheet.append([portion])
+    else:
+        if isinstance(data[0], list):  # for record reward
+            # In reward record, we are recording in the form that one step have 3 agents
+            required_sheets = ["agent0", "agent1", "agent2"]
+            for sheet_name in required_sheets:
+                if sheet_name not in wb.sheetnames:
+                    wb.create_sheet(title=sheet_name)
+            for idx, step_reward in enumerate(data):
+                for agent_idx, single_sheet_name in enumerate(required_sheets):
+                    sheet = wb[single_sheet_name]
+                    sheet.append(step_reward[agent_idx])
+                    if idx == len(data)-1:
+                        sheet.append([-9999])
+
+        else:  # for record noise
+            wb.create_sheet(title='noise given at each step')
+            sheet = wb['noise given at each step']
+            for i, portion in enumerate(data):
+                sheet.append(list(portion))
+            sheet.append([-999])
+
+
+
+
+
+    # Save the workbook
+    wb.save(file_path)
+
+
 def animate(frame_num, ax, env, trajectory_eachPlay):
     ax.clear()
     plt.axis('equal')
@@ -50,8 +122,6 @@ def animate(frame_num, ax, env, trajectory_eachPlay):
     plt.axhline(y=env.bound[3], c="green")
     plt.xlabel("X axis")
     plt.ylabel("Y axis")
-
-
 
     # draw occupied_poly
     for one_poly in env.world_map_2D_polyList[0][0]:
@@ -96,6 +166,7 @@ def animate(frame_num, ax, env, trajectory_eachPlay):
 
     return ax.patches + [ax.texts]
 
+
 def main(args):
 
     if args.mode == "train":
@@ -109,6 +180,14 @@ def main(args):
         plot_file_name = file_name + '/toplot'
         if not os.path.exists(plot_file_name):
             os.makedirs(plot_file_name)
+        # ------------ this portion is to save using excel instead of pickle -----------
+        # excel_file_path_reward = plot_file_name + '/all_episode_reward.xlsx'
+        # excel_file_path_noise = plot_file_name + '/all_episode_noise.xlsx'
+        # excel_file_path_time = plot_file_name + '/all_episode_time.xlsx'
+        # initialize_excel_file(excel_file_path_reward)
+        # initialize_excel_file(excel_file_path_noise)
+        # initialize_excel_file(excel_file_path_time)
+        # ------------ end of this portion is to save using excel instead of pickle -----------
 
     use_wanDB = False
     # use_wanDB = True
@@ -183,18 +262,17 @@ def main(args):
     while episode < args.max_episodes:  # start of an episode
         # ------------ my own env.reset() ------------ #
         episode_start_time = time.time()
-
+        episode += 1
         eps_reset_start_time = time.time()
         cur_state, norm_cur_state = env.reset_world(total_agentNum, show=0)
         eps_reset_time_used = (time.time()-eps_reset_start_time)*1000
-        print("current episode {} reset time used is {} milliseconds".format(episode, eps_reset_time_used))
+        print("current episode {} reset time used is {} milliseconds".format(episode, eps_reset_time_used))  # need to + 1 here, or else will misrecord as the previous episode
 
         eps_status_holder = [None] * n_agents
         episode_decision = [False] * 2
         agents_added = []
         eps_reward = []
         eps_noise = []
-        episode += 1
         step_time_breakdown = []
         # print("current episode is {}, scaling factor is {}".format(episode, model.var[0]))
         step = 0
@@ -203,8 +281,8 @@ def main(args):
 
         trajectory_eachPlay = []
 
-        pre_fix = r'D:\MADDPG_2nd_jp\281123_14_05_09\interval_record_eps'
-        episode_to_check = str(15000)
+        pre_fix = r'D:\MADDPG_2nd_jp\281123_20_42_06\interval_record_eps'
+        episode_to_check = str(20000)
         load_filepath_0 = pre_fix + '\episode_' + episode_to_check + '_agent_0actor_net.pth'
         load_filepath_1 = pre_fix + '\episode_' + episode_to_check + '_agent_1actor_net.pth'
         load_filepath_2 = pre_fix + '\episode_' + episode_to_check + '_agent_2actor_net.pth'
@@ -319,8 +397,11 @@ def main(args):
 
                     # print("[Episode %05d] reward %6.4f time used is %.2f sec" % (episode, accum_reward, time_used))
                     print("[Episode %05d] reward %6.4f" % (episode, accum_reward))
+
                     if use_wanDB:
                         wandb.log({'overall_reward': float(accum_reward)})
+
+                    save_to_csv_and_model = time.time()
                     with open(file_name + '/GFG.csv', 'w') as f:
                         # using csv.writer method from CSV package
                         write = csv.writer(f)
@@ -335,24 +416,27 @@ def main(args):
                         # save model to my own directory
                         filepath = file_name+'/interval_record_eps'
                         model.save_model(episode, filepath)  # this is the original save model
-
+                    time_used_for_csv_model_save = (time.time()-save_to_csv_and_model)*1000  # *1000 for milliseconds
+                    print("current episode used time in save csv and model is {} milliseconds".format(episode, time_used_for_csv_model_save))
                     # save episodes reward for entire system at each of one episode
                     eps_reward_record.append(eps_reward)
                     eps_noise_record.append(eps_noise)
-                    with open(plot_file_name + '/all_episode_reward.pickle', 'wb') as handle:
-                        pickle.dump(eps_reward_record, handle, protocol=pickle.HIGHEST_PROTOCOL)
-                    with open(plot_file_name + '/all_episode_noise.pickle', 'wb') as handle:
-                        pickle.dump(eps_noise_record, handle, protocol=pickle.HIGHEST_PROTOCOL)
-
                     epsTime = time.time()-episode_start_time
                     eps_time_record.append([eps_reset_time_used, epsTime, step_time_breakdown])
+                    print("episode {} used time in calculation is  {} seconds".format(episode, epsTime))
 
-                    with open(plot_file_name + '/all_episode_time.pickle', 'wb') as handle:
-                        pickle.dump(eps_time_record, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
-                    if epsTime >= 1:
-                        print("check")
-                    print("episode {} used time is {} seconds".format(episode, epsTime))
+                    # --------- removed to save time ----------
+                    # storage_time = time.time()  # storage time is too long, one episode is >= 150 milliseconds
+                    # append_to_excel(excel_file_path_time, eps_time_record[-1])
+                    # append_to_excel(excel_file_path_noise, eps_noise_record[-1])
+                    # append_to_excel(excel_file_path_reward, eps_reward_record[-1])
+                    # end_of_storage_time = (time.time()-storage_time)*1000  # just compute storage time in milliseconds
+                    # print("episode {} used time in storage is  {} milliseconds".format(episode, end_of_storage_time))
+                    # total_time_one_episode = (end_of_storage_time)/1000 + epsTime
+                    # print("episode {} used time in total {} seconds".format(episode, total_time_one_episode))
+                    #
+
                     break  # this is to break out from "while True:", which is one play
             elif args.mode == "eval":
                 step_reward_record = [None] * n_agents
@@ -517,7 +601,13 @@ def main(args):
                 # if args.episode_length < step or (True in done_aft_action):
                 #     print("[Episode %05d] reward %6.4f" % (episode, accum_reward))
                 #     break
-
+    if args.mode == "train":  # only save pickle at end of training to save computational time.
+        with open(plot_file_name + '/all_episode_reward.pickle', 'wb') as handle:
+            pickle.dump(eps_reward_record, handle, protocol=pickle.HIGHEST_PROTOCOL)
+        with open(plot_file_name + '/all_episode_noise.pickle', 'wb') as handle:
+            pickle.dump(eps_noise_record, handle, protocol=pickle.HIGHEST_PROTOCOL)
+        with open(plot_file_name + '/all_episode_time.pickle', 'wb') as handle:
+            pickle.dump(eps_time_record, handle, protocol=pickle.HIGHEST_PROTOCOL)
     print(f'training finishes, time spent: {datetime.timedelta(seconds=int(time.time() - training_start_time))}')
     if use_wanDB:
         wandb.finish()

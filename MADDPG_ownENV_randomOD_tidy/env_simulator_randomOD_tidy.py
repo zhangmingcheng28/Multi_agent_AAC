@@ -1489,8 +1489,8 @@ class env_simulator:
             x_norm, y_norm = self.normalizer.nmlz_pos(drone_obj.pos)
             tx_norm, ty_norm = self.normalizer.nmlz_pos(drone_obj.goal[-1])
             dist_to_goal = math.sqrt(((x_norm-tx_norm)**2 + (y_norm-ty_norm)**2))
-
-            dist_to_ref_line = math.sqrt(norm_cross_track_deviation_x ** 2 + norm_cross_track_deviation_y ** 2)
+            coef_ref_line = 5
+            dist_to_ref_line = coef_ref_line*math.sqrt(norm_cross_track_deviation_x ** 2 + norm_cross_track_deviation_y ** 2)
 
             alive_penalty = -60
             # -------------end of pre-processed condition for a normal step -----------------
@@ -1541,7 +1541,7 @@ class env_simulator:
                     cross_track_deviation_y = abs(cross_track_deviation * math.sin(drone_obj.heading))
                     norm_cross_track_deviation_x = cross_track_deviation_x * self.normalizer.x_scale
                     norm_cross_track_deviation_y = cross_track_deviation_y * self.normalizer.y_scale
-                    dist_to_ref_line = math.sqrt(norm_cross_track_deviation_x ** 2 + norm_cross_track_deviation_y ** 2)
+                    dist_to_ref_line = coef_ref_line*math.sqrt(norm_cross_track_deviation_x ** 2 + norm_cross_track_deviation_y ** 2)
 
                 rew = rew - dist_to_ref_line - dist_to_goal
                 # we remove the above termination condition
