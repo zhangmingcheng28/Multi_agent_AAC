@@ -208,10 +208,6 @@ class MADDPG:
 
         self.train_num = i_episode
 
-        # ------------ original -------------
-        # if self.train_num <= self.episodes_before_train:
-        #     return None, None
-
         if len(self.memory) <= self.batch_size:
         # if True:
             return None, None
@@ -224,90 +220,38 @@ class MADDPG:
 
         transitions = self.memory.sample(self.batch_size)
         batch = Experience(*zip(*transitions))
-        # cur_state_list1 = [torch.stack([elem[0] for elem in batch.states])[:, i, :] for i in range(self.n_agents)]
-        # cur_state_list2 = [torch.stack([elem[1] for elem in batch.states])[:, i, :] for i in range(self.n_agents)]
 
         action_batch = torch.stack(batch.actions).type(FloatTensor)
         reward_batch = torch.stack(batch.rewards).type(FloatTensor)
 
         # stack tensors only once
         stacked_elem_0 = torch.stack([elem[0] for elem in batch.states]).to(device)
-        # stacked_elem_1 = torch.stack([elem[1] for elem in batch.states]).to(device)
-        # stacked_both_elem = torch.stack([torch.cat((elem[0], elem[1]), dim=1) for elem in batch.states]).to(device)  # bs x agentNo x (6+9)
-        # stacked_combine_agent = stacked_both_elem.view(self.batch_size, -1)  # bs x (agentNo x (6+9))  # own_state + own_grid
+
         stacked_elem_0_combine = stacked_elem_0.view(self.batch_size, -1)  # own_state only
-        # stacked_elem_1_combine = stacked_elem_1.view(self.batch_size, -1)  # own_grid only
 
         # use the stacked tensors
         # current_state in the form of list of length of agents in the environments, then, batchNo X individual Feature length
         cur_state_list1 = [stacked_elem_0[:, i, :] for i in range(self.n_agents)]
-        # cur_state_list2 = [stacked_elem_1[:, i, :] for i in range(self.n_agents)]
-        # cur_state_list3 = []
-        #
-        # state_tuple3 = tuple(x[2] for x in batch.states)
-        # for i in range(self.n_agents):
-        #     all_batch_one_agent = []
-        #     for batch_idx, every_agent in enumerate(state_tuple3):
-        #         each_agent_sur_agent = torch.zeros((self.n_agents - 1, self.n_actor_dim[2]))  #zeros(max_neighbour, feature_number)
-        #         each_agent_sur_agent[-len(every_agent[i]):, :] = every_agent[i]
-        #         all_batch_one_agent.append(each_agent_sur_agent)
-        #     cur_state_list3.append(torch.stack(all_batch_one_agent).to(device))
 
         # for next state
         next_stacked_elem_0 = torch.stack([elem[0] for elem in batch.next_states]).to(device)
         next_stacked_elem_0_combine = next_stacked_elem_0.view(self.batch_size, -1)
-        # next_cur_state_list1 = [stacked_elem_0[:, i, :] for i in range(self.n_agents)]
 
         # for done
         dones_stacked = torch.stack([three_agent_dones for three_agent_dones in batch.dones]).to(device)
 
-        # non_final_mask = BoolTensor(list(map(lambda s: True not in s, batch.dones)))   # create a boolean tensor, that has same length as the "batch.next_states", if an element is batch.next_state is not "None" then assign a True value, False otherwise.
-        # non_final_next_states1_pre = [s_[0] for s_idx, s_ in enumerate(batch.next_states) if non_final_mask[s_idx]]
-        # non_final_next_states1_combine = torch.stack(non_final_next_states1_pre).view(len(non_final_next_states1_pre), -1)
-        # non_final_next_states1 = [torch.stack([tensor[i] for tensor in non_final_next_states1_pre], dim=0).to(device) for i in range(self.n_agents)]
-
-        # non_final_next_states2_pre = [s_[1] for s_idx, s_ in enumerate(batch.next_states) if non_final_mask[s_idx]]
-        # non_final_next_states2_combine = torch.stack(non_final_next_states2_pre).view(len(non_final_next_states2_pre), -1)
-        # non_final_next_states2 = [torch.stack([tensor[i] for tensor in non_final_next_states2_pre], dim=0).to(device) for i in range(self.n_agents)]
-
-        # non_final_next_states_both_ele = torch.stack([torch.cat((s_[0], s_[1]), dim=1) for s_idx, s_ in enumerate(batch.next_states) if non_final_mask[s_idx]])
-        # non_final_next_states_both_ele = torch.stack([s_[0] for s_idx, s_ in enumerate(batch.next_states) if non_final_mask[s_idx]])  # s_[0] meaning only the 1st element
-        # non_final_next_states_both_ele = torch.stack([s_[0] for s_idx, s_ in enumerate(batch.next_states) if non_final_mask[s_idx]])  # s_[0] meaning only the 1st element
-        # stacked_next_combine_agent = non_final_next_states_both_ele.view(non_final_next_states_both_ele.shape[0], -1)
-
-
-        # next_state_list3 = [x_[2] for x_idx, x_ in enumerate(batch.next_states) if non_final_mask[x_idx]]
-        # non_final_next_states3 = []
-        # for i in range(self.n_agents):
-        #     all_batch_one_agent = []
-        #     for batch_idx, every_agent in enumerate(next_state_list3):
-        #         each_agent_sur_agent = torch.zeros((5 - 1, 6))  # 5 is the maximum agent in the environment
-        #         each_agent_sur_agent[-len(every_agent[i]):, :] = every_agent[i]
-        #         all_batch_one_agent.append(each_agent_sur_agent)
-        #     non_final_next_states3.append(torch.stack(all_batch_one_agent).to(device))
         for agent in range(self.n_agents):
-            # --------- original---------
-            # non_final_mask = BoolTensor(list(map(lambda s: s is not None, batch.next_states)))  # create a boolean tensor, that has same length as the "batch.next_states", if an element is batch.next_state is not "None" then assign a True value, False otherwise.
-
-            # whole_state = [cur_state_list1, cur_state_list2, cur_state_list3]  # follow CriticNetwork_0724
-            # whole_state = [stacked_elem_0_combine, stacked_elem_1_combine]
-            # whole_state = stacked_combine_agent
             whole_state = stacked_elem_0_combine  # own_state only
-            # whole_state = [cur_state_list1, cur_state_list3]  # own_state + surrounding_state
 
-            # non_final_next_states_actorin = [non_final_next_states1, non_final_next_states2, non_final_next_states3]  # all 3 portion avilable
-            # non_final_next_states_actorin = [non_final_next_states1, non_final_next_states3]  # 2 portion avilable
             non_final_next_states_actorin = [next_stacked_elem_0]  # 2 portion avilable
 
             # configured for target Q
 
             whole_action = action_batch.view(self.batch_size, -1)
 
-            # non_final_next_actions = [self.actors_target[i]([non_final_next_states_actorin[0][i], non_final_next_states_actorin[1][i], non_final_next_states_actorin[2][i]]) for i in range(self.n_agents)]  #
             non_final_next_actions = [self.actors_target[i]([non_final_next_states_actorin[0][:,i,:]]) for i in range(self.n_agents)]  #
 
             non_final_next_actions = torch.stack(non_final_next_actions).view(self.batch_size, -1)
-            # non_final_next_actions = (non_final_next_actions.transpose(0, 1).contiguous())  # using () at outer most will leads to creation of a new tensor, (batch_size X agentNo X action_dim)
 
             # get current Q-estimate, using agent's critic network
             current_Q = self.critics[agent](whole_state, whole_action)
@@ -315,11 +259,6 @@ class MADDPG:
             # if has_positive_values:
             #     print("true")
             with T.no_grad():
-                # target_Q = torch.zeros(self.batch_size).type(FloatTensor)
-                # target_Q[non_final_mask] = self.critics_target[agent](non_final_next_states_criticin, non_final_next_actions.view(-1,self.n_agents * self.n_actions)).squeeze()  # .view(-1, self.n_agents * self.n_actions)
-                # target_Q[non_final_mask] = self.critics_target[agent](stacked_next_combine_agent, non_final_next_actions.view(-1,self.n_agents * self.n_actions)).squeeze()  # .view(-1, self.n_agents * self.n_actions)
-                # target_Q = (target_Q.unsqueeze(1) * self.GAMMA) + (reward_batch[:, agent].unsqueeze(1))
-
                 next_target_critic_value = self.critics_target[agent](next_stacked_elem_0_combine, non_final_next_actions.view(-1,self.n_agents * self.n_actions)).squeeze()
                 target_Q = (reward_batch[:, agent]) + (self.GAMMA * next_target_critic_value * (1-dones_stacked[:, agent]))
                 target_Q = target_Q.unsqueeze(1)
@@ -332,8 +271,6 @@ class MADDPG:
             # self.has_gradients(self.critics[agent], wandb)  # Replace with your actor network variable
             self.critic_optimizer[agent].step()
 
-
-            # action_i = self.actors[agent]([cur_state_list1[agent], cur_state_list2[agent], cur_state_list3[agent]])
             action_i = self.actors[agent]([cur_state_list1[agent]])
             ac = action_batch.clone()
 
@@ -353,7 +290,6 @@ class MADDPG:
             a_loss.append(actor_loss)
 
         if total_step_count % UPDATE_EVERY == 0:  # every "UPDATE_EVERY" step, do a soft update
-        # if self.train_num % UPDATE_EVERY == 0: # every "UPDATE_EVERY" episode, we do a soft update.
             for i in range(self.n_agents):
                 print("all agents NN update at total step {}".format(total_step_count))
                 soft_update(self.critics_target[i], self.critics[i], self.tau)

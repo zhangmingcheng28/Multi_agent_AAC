@@ -44,7 +44,8 @@ class env_simulator:
         self.gridlength = grid_length
         self.buildingPolygons = building_polygons  # contain all polygon in the world that has building
         self.world_STRtree = None  # contains all polygon in the environment
-        self.allbuildingSTR = None  
+        self.allbuildingSTR = None
+        self.allbuilding_centre = None
         self.bound = bound
         self.global_time = 0.0  # in sec
         self.time_step = 0.5  # in second as well
@@ -80,6 +81,10 @@ class env_simulator:
         self.normalizer = NormalizeData([self.bound[0], self.bound[1]], [self.bound[2], self.bound[3]], max_spd, acc_range)
         self.all_agents = {}
         self.allbuildingSTR = STRtree(self.world_map_2D_polyList[0][0])
+        building_centroid = [poly.centroid.coords[0] for poly in self.world_map_2D_polyList[0][0]]
+        self.allbuilding_centre = np.array(building_centroid)
+            
+        # self.allbuilding_centre =
         worldGrid_polyCombine = []
         worldGrid_polyCombine.append(self.world_map_2D_polyList[0][0] + self.world_map_2D_polyList[0][1])
         self.world_STRtree = STRtree(worldGrid_polyCombine[0])
@@ -1408,7 +1413,7 @@ class env_simulator:
         # return reward, done, check_goal, step_reward_record, agent_filled
         return reward, done, check_goal, step_reward_record
 
-    def ss_reward(self, current_ts, step_reward_record, eps_status_holder):
+    def ss_reward(self, current_ts, step_reward_record, eps_status_holder, step_collision_record):
         reward, done = [], []
         agent_to_remove = []
         one_step_reward = []
@@ -1466,12 +1471,60 @@ class env_simulator:
                     collision_drones.append(neigh_keys)
 
             # check whether current actions leads to a collision with any buildings in the airspace
+
+            # -------- check collision with building V1-------------
+            start_of_v1_time = time.time()
+            v1_decision = 0
             possiblePoly = self.allbuildingSTR.query(host_current_circle)
             for element in possiblePoly:
                 if self.allbuildingSTR.geometries.take(element).intersection(host_current_circle):
                     collide_building = 1
+                    v1_decision = collide_building
                     print("drone_{} crash into building when moving from {} to {} at time step {}".format(drone_idx, self.all_agents[drone_idx].pre_pos, self.all_agents[drone_idx].pos, current_ts))
                     break
+            end_v1_time = (time.time() - start_of_v1_time)*1000*1000
+            print("check building collision V1 time used is {} micro".format(end_v1_time))
+            # -----------end of check collision with building v1 ---------
+
+
+            # -------- check collision with building V2-------------
+            start_of_v2_time = time.time()
+            v2_decision = 0
+            drone_r = drone_obj.protectiveBound
+            building_square_diagonal = math.sqrt(self.gridlength ** 2 + self.gridlength ** 2)
+            distances = np.sqrt(np.sum((self.allbuilding_centre - np.array(drone_obj.pos)) ** 2, axis=1))
+            collisions = distances < (building_square_diagonal + drone_r)
+            if np.any(collisions):
+                collide_building = 1
+                v2_decision = collide_building
+            print("drone {} crash into building at time step {}".format(drone_idx, current_ts))
+            end_v2_time = (time.time() - start_of_v2_time)*1000*1000
+            print("check building collision V2 time used is {} micro".format(end_v2_time))
+            # -------- end check collision with building V2-------------
+            
+            # -------- check collision with building V3-------------
+            start_of_v3_time = time.time()
+            v3_decision = 0
+            drone_r = drone_obj.protectiveBound
+            vectors = self.allbuilding_centre - np.array(drone_obj.pos)
+            abs_vectors = np.abs(vectors)
+            half_square_size = self.gridlength / 2
+            # potential_collisions = abs_vectors < (half_square_size + drone_r)  # check for intersection
+            # Check for collision along x-direction
+            collision_x = (abs_vectors[:, 0] <= half_square_size) & (abs_vectors[:, 1] <= drone_r)
+            # Check for collision along y-direction
+            collision_y = (abs_vectors[:, 1] <= half_square_size) & (abs_vectors[:, 0] <= drone_r)
+            collisions = collision_x | collision_y
+            if np.any(collisions):
+                collide_building = 1
+                v3_decision = collide_building
+            print("drone {} crash into building at time step {}".format(drone_idx, current_ts))
+            end_v3_time = (time.time() - start_of_v3_time)*1000*1000
+            print("check building collision V3 time used is {} micro".format(end_v3_time))
+            # -------- end check collision with building V3-------------
+
+            step_collision_record[drone_idx].append([end_v1_time, end_v2_time, end_v3_time,
+                                                     v1_decision, v2_decision, v3_decision])
 
             # tar_circle = Point(self.all_agents[drone_idx].goal[0]).buffer(1, cap_style='round')
             tar_circle = Point(self.all_agents[drone_idx].goal[-1]).buffer(1, cap_style='round')  # set to [-1] so there are no more reference path
@@ -1564,7 +1617,7 @@ class env_simulator:
         if len(reward) != 3:
             print("check")
 
-        return reward, done, check_goal, step_reward_record, eps_status_holder
+        return reward, done, check_goal, step_reward_record, eps_status_holder, step_collision_record
 
     def display_one_eps_status(self, status_holder, drone_idx, cur_step_dist, cur_step_reward):
         if status_holder[drone_idx] == None:
@@ -1597,8 +1650,7 @@ class env_simulator:
             self.all_agents[drone_idx].pre_vel = deepcopy(self.all_agents[drone_idx].vel)
                         # fill previous acceleration
             self.all_agents[drone_idx].pre_acc = deepcopy(self.all_agents[drone_idx].acc)
-            # print("deepcopy done, time used {} nanosecond".format((time.time()-start_deepcopy_time)*1000000000))
-            print("deepcopy done, time used {} milliseconds".format((time.time()-start_deepcopy_time)*1000))
+            # print("deepcopy done, time used {} milliseconds".format((time.time()-start_deepcopy_time)*1000))
 
             # --------------- speed & heading angle control for training -------------------- #
             # raw_speed, raw_heading_angle = drone_act[0], drone_act[1]

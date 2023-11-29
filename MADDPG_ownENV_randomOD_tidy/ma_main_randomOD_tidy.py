@@ -246,6 +246,7 @@ def main(args):
     total_step = 0
     score_history = []
     eps_reward_record = []
+    eps_check_collision = []
     eps_noise_record = []
     eps_end = 3000  # at eps = eps_end, the eps value drops to lowest value which is 0.03 (this value is fixed)
     noise_start_level = 1
@@ -253,6 +254,8 @@ def main(args):
 
     # ------------ record episode time ------------- #
     eps_time_record = []
+    # ----------- record each collision checking version running time and decision -------#
+
 
     if args.mode == "eval":
         # args.max_episodes = 1  # only evaluate one episode during evaluation mode.
@@ -296,28 +299,29 @@ def main(args):
             if args.mode == "train":
                 step_start_time = time.time()
                 step_reward_record = [None] * n_agents
+                step_collision_record = [None] * n_agents
 
                 # cur_state, norm_cur_state = env.fill_agent_reset(cur_state, norm_cur_state, agents_added)  # if a new agent is filled, we need to reset the state information for the newly added agents
 
                 step_obtain_action_time_start = time.time()
                 action, step_noise_val = model.choose_action(norm_cur_state, total_step, episode, step, eps_end, noise_start_level, noisy=True) # noisy is false because we are using stochastic policy
                 generate_action_time = (time.time() - step_obtain_action_time_start)*1000
-                print("current step obtain action time used is {} milliseconds".format(generate_action_time))
+                # print("current step obtain action time used is {} milliseconds".format(generate_action_time))
 
                 # action = model.choose_action(cur_state, episode, noisy=True)
 
                 one_step_transition_start = time.time()
                 next_state, norm_next_state = env.step(action, step)
                 step_transition_time = (time.time() - one_step_transition_start)*1000
-                print("current step transition time used is {} milliseconds".format(step_transition_time))
+                # print("current step transition time used is {} milliseconds".format(step_transition_time))
 
                 # reward_aft_action, done_aft_action, check_goal, step_reward_record, agents_added = env.get_step_reward_5_v3(step, step_reward_record)   # remove reached agent here
                 # reward_aft_action, done_aft_action, check_goal, step_reward_record = env.get_step_reward_5_v3(step, step_reward_record)   # remove reached agent here
 
                 one_step_reward_start = time.time()
-                reward_aft_action, done_aft_action, check_goal, step_reward_record, status_holder = env.ss_reward(step, step_reward_record, eps_status_holder)   # remove reached agent here
+                reward_aft_action, done_aft_action, check_goal, step_reward_record, status_holder, step_collision_record = env.ss_reward(step, step_reward_record, eps_status_holder, step_collision_record)   # remove reached agent here
                 reward_generation_time = (time.time() - one_step_reward_start)*1000
-                print("current step reward time used is {} milliseconds".format(reward_generation_time))
+                # print("current step reward time used is {} milliseconds".format(reward_generation_time))
 
                 # reward_aft_action = [eachRWD / 300 for eachRWD in reward_aft_action]  # scale the reward down
                 # new_length = len(agents_added)  # check if length of agnet_to_remove increased during each step
@@ -420,6 +424,7 @@ def main(args):
                     print("current episode used time in save csv and model is {} milliseconds".format(episode, time_used_for_csv_model_save))
                     # save episodes reward for entire system at each of one episode
                     eps_reward_record.append(eps_reward)
+                    eps_check_collision.append(step_collision_record)
                     eps_noise_record.append(eps_noise)
                     epsTime = time.time()-episode_start_time
                     eps_time_record.append([eps_reset_time_used, epsTime, step_time_breakdown])
@@ -608,6 +613,8 @@ def main(args):
             pickle.dump(eps_noise_record, handle, protocol=pickle.HIGHEST_PROTOCOL)
         with open(plot_file_name + '/all_episode_time.pickle', 'wb') as handle:
             pickle.dump(eps_time_record, handle, protocol=pickle.HIGHEST_PROTOCOL)
+        with open(plot_file_name + '/all_episode_collision.pickle', 'wb') as handle:
+            pickle.dump(eps_check_collision, handle, protocol=pickle.HIGHEST_PROTOCOL)
     print(f'training finishes, time spent: {datetime.timedelta(seconds=int(time.time() - training_start_time))}')
     if use_wanDB:
         wandb.finish()
@@ -618,7 +625,7 @@ if __name__ == '__main__':
     parser.add_argument('--scenario', default="simple_spread", type=str)
     parser.add_argument('--max_episodes', default=20000, type=int)  # run for a total of 50000 episodes
     parser.add_argument('--algo', default="maddpg", type=str, help="commnet/bicnet/maddpg")
-    parser.add_argument('--mode', default="eval", type=str, help="train/eval")
+    parser.add_argument('--mode', default="train", type=str, help="train/eval")
     parser.add_argument('--episode_length', default=50, type=int)  # maximum play per episode
     parser.add_argument('--memory_length', default=int(1e5), type=int)
     parser.add_argument('--seed', default=777, type=int)  # may choose to use 3407
