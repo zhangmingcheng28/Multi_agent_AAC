@@ -1423,6 +1423,7 @@ class env_simulator:
         crash_penalty_wall = 5
         crash_penalty_drone = 1
         reach_target = 1
+
         potential_conflict_count = 0
         final_goal_toadd = 0
         fixed_domino_reward = 1
@@ -1432,6 +1433,14 @@ class env_simulator:
         y_top_bound = LineString([(-9999, self.bound[3]), (9999, self.bound[3])])
 
         for drone_idx, drone_obj in self.all_agents.items():
+
+            # ------- small step penalty calculation -------
+            # no penalty if current spd is larger than drone's radius per time step.
+            # norm_rx = (drone_obj.protectiveBound*math.cos(drone_obj.heading))*self.normalizer.x_scale
+            # norm_ry = (drone_obj.protectiveBound*math.sin(drone_obj.heading))*self.normalizer.y_scale
+            # norm_r = math.sqrt(norm_rx**2 + norm_ry**2)
+            
+
             drone_status_record = []
             one_agent_reward_record = []
             # re-initialize these two list for individual agents at each time step,this is to ensure collision
@@ -1487,41 +1496,42 @@ class env_simulator:
             # -----------end of check collision with building v1 ---------
 
 
-            # -------- check collision with building V2-------------
-            start_of_v2_time = time.time()
-            v2_decision = 0
-            drone_r = drone_obj.protectiveBound
-            building_square_diagonal = math.sqrt(self.gridlength ** 2 + self.gridlength ** 2)
-            distances = np.sqrt(np.sum((self.allbuilding_centre - np.array(drone_obj.pos)) ** 2, axis=1))
-            collisions = distances < (building_square_diagonal + drone_r)
-            if np.any(collisions):
-                collide_building = 1
-                v2_decision = collide_building
-            print("drone {} crash into building at time step {}".format(drone_idx, current_ts))
-            end_v2_time = (time.time() - start_of_v2_time)*1000*1000
-            print("check building collision V2 time used is {} micro".format(end_v2_time))
-            # -------- end check collision with building V2-------------
+            # # -------- check collision with building V2-------------
+            # start_of_v2_time = time.time()
+            # v2_decision = 0
+            # drone_r = drone_obj.protectiveBound
+            # building_square_diagonal = math.sqrt(self.gridlength ** 2 + self.gridlength ** 2)
+            # distances = np.sqrt(np.sum((self.allbuilding_centre - np.array(drone_obj.pos)) ** 2, axis=1))
+            # collisions = distances < (building_square_diagonal + drone_r)
+            # if np.any(collisions):
+            #     collide_building = 1
+            #     v2_decision = collide_building
+            # print("drone {} crash into building at time step {}".format(drone_idx, current_ts))
+            # end_v2_time = (time.time() - start_of_v2_time)*1000*1000
+            # print("check building collision V2 time used is {} micro".format(end_v2_time))
+            # # -------- end check collision with building V2-------------
             
-            # -------- check collision with building V3-------------
-            start_of_v3_time = time.time()
-            v3_decision = 0
-            drone_r = drone_obj.protectiveBound
-            vectors = self.allbuilding_centre - np.array(drone_obj.pos)
-            abs_vectors = np.abs(vectors)
-            half_square_size = self.gridlength / 2
-            # potential_collisions = abs_vectors < (half_square_size + drone_r)  # check for intersection
-            # Check for collision along x-direction
-            collision_x = (abs_vectors[:, 0] <= half_square_size) & (abs_vectors[:, 1] <= drone_r)
-            # Check for collision along y-direction
-            collision_y = (abs_vectors[:, 1] <= half_square_size) & (abs_vectors[:, 0] <= drone_r)
-            collisions = collision_x | collision_y
-            if np.any(collisions):
-                collide_building = 1
-                v3_decision = collide_building
-            print("drone {} crash into building at time step {}".format(drone_idx, current_ts))
-            end_v3_time = (time.time() - start_of_v3_time)*1000*1000
-            print("check building collision V3 time used is {} micro".format(end_v3_time))
-            # -------- end check collision with building V3-------------
+            # # -------- check collision with building V3-------------
+            # start_of_v3_time = time.time()
+            # v3_decision = 0
+            # drone_r = drone_obj.protectiveBound
+            # vectors = self.allbuilding_centre - np.array(drone_obj.pos)
+            # abs_vectors = np.abs(vectors)
+            # half_square_size = self.gridlength / 2
+            # # potential_collisions = abs_vectors < (half_square_size + drone_r)  # check for intersection
+            # # Check for collision along x-direction
+            # collision_x = (abs_vectors[:, 0] <= half_square_size) & (abs_vectors[:, 1] <= drone_r)
+            # # Check for collision along y-direction
+            # collision_y = (abs_vectors[:, 1] <= half_square_size) & (abs_vectors[:, 0] <= drone_r)
+            # collisions = collision_x | collision_y
+            # if np.any(collisions):
+            #     collide_building = 1
+            #     v3_decision = collide_building
+            # print("drone {} crash into building at time step {}".format(drone_idx, current_ts))
+            # end_v3_time = (time.time() - start_of_v3_time)*1000*1000
+            # print("check building collision V3 time used is {} micro".format(end_v3_time))
+            # # -------- end check collision with building V3-------------
+            end_v2_time, end_v3_time, v2_decision, v3_decision = 0,0,0,0,
             step_collision_record[drone_idx].append([end_v1_time, end_v2_time, end_v3_time,
                                                      v1_decision, v2_decision, v3_decision])
             # if step_collision_record[drone_idx] == None:
@@ -1549,6 +1559,7 @@ class env_simulator:
             dist_to_goal = math.sqrt(((x_norm-tx_norm)**2 + (y_norm-ty_norm)**2))
             coef_ref_line = 6
             dist_to_ref_line = coef_ref_line*math.sqrt(norm_cross_track_deviation_x ** 2 + norm_cross_track_deviation_y ** 2)
+            small_step_penalty = (drone_obj.protectiveBound - np.clip(np.linalg.norm(drone_obj.vel), 0, drone_obj.protectiveBound)) * (1.0 / drone_obj.protectiveBound)
 
             alive_penalty = -60
             # -------------end of pre-processed condition for a normal step -----------------
@@ -1558,7 +1569,7 @@ class env_simulator:
             # must use "host_passed_volume", or else, we unable to confirm whether the host's circle is at left or right of the boundary lines
             if x_left_bound.intersects(host_passed_volume) or x_right_bound.intersects(host_passed_volume) or y_bottom_bound.intersects(host_passed_volume) or y_top_bound.intersects(host_passed_volume):
                 print("drone_{} has crash into boundary at time step {}".format(drone_idx, current_ts))
-                rew = rew - dist_to_ref_line - crash_penalty_wall - dist_to_goal
+                rew = rew - dist_to_ref_line - crash_penalty_wall - dist_to_goal - small_step_penalty
                 done.append(True)
                 # done.append(False)
                 reward.append(np.array(rew))
@@ -1566,7 +1577,7 @@ class env_simulator:
             elif collide_building == 1:
                 # done.append(True)
                 done.append(True)
-                rew = rew - dist_to_ref_line - crash_penalty_wall - dist_to_goal
+                rew = rew - dist_to_ref_line - crash_penalty_wall - dist_to_goal - small_step_penalty
                 reward.append(np.array(rew))
             # elif len(collision_drones) > 0:
             #     # done.append(True)
@@ -1601,7 +1612,7 @@ class env_simulator:
                     norm_cross_track_deviation_y = cross_track_deviation_y * self.normalizer.y_scale
                     dist_to_ref_line = coef_ref_line*math.sqrt(norm_cross_track_deviation_x ** 2 + norm_cross_track_deviation_y ** 2)
 
-                rew = rew - dist_to_ref_line - dist_to_goal
+                rew = rew - dist_to_ref_line - dist_to_goal - small_step_penalty
                 # we remove the above termination condition
                 done.append(False)
                 step_reward = np.array(rew)
