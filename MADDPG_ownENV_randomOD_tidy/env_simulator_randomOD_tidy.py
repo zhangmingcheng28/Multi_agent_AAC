@@ -1492,7 +1492,7 @@ class env_simulator:
                     print("drone_{} crash into building when moving from {} to {} at time step {}".format(drone_idx, self.all_agents[drone_idx].pre_pos, self.all_agents[drone_idx].pos, current_ts))
                     break
             end_v1_time = (time.time() - start_of_v1_time)*1000*1000
-            print("check building collision V1 time used is {} micro".format(end_v1_time))
+            # print("check building collision V1 time used is {} micro".format(end_v1_time))
             # -----------end of check collision with building v1 ---------
 
 
@@ -1557,9 +1557,10 @@ class env_simulator:
             x_norm, y_norm = self.normalizer.nmlz_pos(drone_obj.pos)
             tx_norm, ty_norm = self.normalizer.nmlz_pos(drone_obj.goal[-1])
             dist_to_goal = math.sqrt(((x_norm-tx_norm)**2 + (y_norm-ty_norm)**2))
-            coef_ref_line = 6
+            coef_ref_line = 4
             dist_to_ref_line = coef_ref_line*math.sqrt(norm_cross_track_deviation_x ** 2 + norm_cross_track_deviation_y ** 2)
-            small_step_penalty = (drone_obj.protectiveBound - np.clip(np.linalg.norm(drone_obj.vel), 0, drone_obj.protectiveBound)) * (1.0 / drone_obj.protectiveBound)
+            # small_step_penalty = (drone_obj.protectiveBound - np.clip(np.linalg.norm(drone_obj.vel), 0, drone_obj.protectiveBound)) * (1.0 / drone_obj.protectiveBound)
+            small_step_penalty = 0
 
             alive_penalty = -60
             # -------------end of pre-processed condition for a normal step -----------------
@@ -1709,7 +1710,6 @@ class env_simulator:
             
             # update current acceleration of the agent after an action
             self.all_agents[drone_idx].acc = np.array([ax, ay])
-
 
             counterCheck_heading = math.atan2(delta_y, delta_x)
             if abs(next_heading - counterCheck_heading) > 1e-3 :
