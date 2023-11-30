@@ -8,7 +8,9 @@
 """
 import copy
 import jps
+from shapely.ops import nearest_points
 from shapely.strtree import STRtree
+from scipy.interpolate import interp1d
 from shapely.geometry import LineString, Point, Polygon
 from scipy.spatial import KDTree
 import random
@@ -278,7 +280,16 @@ class env_simulator:
             refinedPath.append(outPath[-1])
 
             # load the to goal, but remove the 1st point, which is the initial position
-            self.all_agents[agentIdx].goal = [[(points[0] + math.ceil(self.bound[0] / self.gridlength)) * self.gridlength, (points[1] + math.ceil(self.bound[2] / self.gridlength)) * self.gridlength]for points in refinedPath if not np.array_equal(np.array([(points[0] + math.ceil(self.bound[0] / self.gridlength)) * self.gridlength, (points[1] + math.ceil(self.bound[2] / self.gridlength)) * self.gridlength]), self.all_agents[agentIdx].ini_pos)]  # if not np.array_equal(np.array(points), self.all_agents[agentIdx].ini_pos)
+            self.all_agents[agentIdx].goal = [[(points[0] + math.ceil(self.bound[0] / self.gridlength)) * self.gridlength,
+                                               (points[1] + math.ceil(self.bound[2] / self.gridlength)) * self.gridlength]
+                                              for points in refinedPath if not np.array_equal(np.array([(points[0] + math.ceil(self.bound[0] / self.gridlength)) * self.gridlength,
+                                                                                                        (points[1] + math.ceil(self.bound[2] / self.gridlength)) * self.gridlength]),
+                                                                                              self.all_agents[agentIdx].ini_pos)]  # if not np.array_equal(np.array(points), self.all_agents[agentIdx].ini_pos)
+            # load the to goal but we include the initial position
+            goalPt_withini = [[(points[0] + math.ceil(self.bound[0] / self.gridlength)) * self.gridlength,
+                                               (points[1] + math.ceil(self.bound[2] / self.gridlength)) * self.gridlength]
+                                              for points in refinedPath]
+            self.all_agents[agentIdx].ref_line = LineString(goalPt_withini)
 
             # heading in rad, must be goal_pos-intruder_pos, and y2-y1, x2-x1
             self.all_agents[agentIdx].heading = math.atan2(self.all_agents[agentIdx].goal[0][1] -
@@ -1461,16 +1472,17 @@ class env_simulator:
             else:
                 host_refline = LineString([self.all_agents[drone_idx].ini_pos, self.all_agents[drone_idx].goal[0]])
 
-            cross_track_deviation = curPoint.distance(host_refline)  # deviation from the reference line, cross track error
-            cross_track_deviation_x = abs(cross_track_deviation*math.cos(drone_obj.heading))
-            cross_track_deviation_y = abs(cross_track_deviation*math.sin(drone_obj.heading))
-            norm_cross_track_deviation_x = cross_track_deviation_x * self.normalizer.x_scale
-            norm_cross_track_deviation_y = cross_track_deviation_y * self.normalizer.y_scale
+            # cross_track_deviation = curPoint.distance(host_refline)  #
+            # cross_track_deviation_x = abs(cross_track_deviation*math.cos(drone_obj.heading))
+            # cross_track_deviation_y = abs(cross_track_deviation*math.sin(drone_obj.heading))
+            # norm_cross_track_deviation_x = cross_track_deviation_x * self.normalizer.x_scale
+            # norm_cross_track_deviation_y = cross_track_deviation_y * self.normalizer.y_scale
+
             host_pass_line = LineString([self.all_agents[drone_idx].pre_pos, self.all_agents[drone_idx].pos])
             host_passed_volume = host_pass_line.buffer(self.all_agents[drone_idx].protectiveBound, cap_style='round')
             host_current_circle = Point(self.all_agents[drone_idx].pos[0], self.all_agents[drone_idx].pos[1]).buffer(
                 self.all_agents[drone_idx].protectiveBound)
-
+            host_current_point = Point(self.all_agents[drone_idx].pos[0], self.all_agents[drone_idx].pos[1])
             # loop through neighbors from current time step
             for neigh_keys in self.all_agents[drone_idx].surroundingNeighbor:
                 # get distance from host to all the surrounding vehicles
@@ -1556,8 +1568,11 @@ class env_simulator:
             # after_dist_hg = np.linalg.norm(drone_obj.pos - drone_obj.goal[-1])  # distance to goal after action
             x_norm, y_norm = self.normalizer.nmlz_pos(drone_obj.pos)
             tx_norm, ty_norm = self.normalizer.nmlz_pos(drone_obj.goal[-1])
-            dist_to_goal = math.sqrt(((x_norm-tx_norm)**2 + (y_norm-ty_norm)**2))
+            dist_to_goal = math.sqrt(((x_norm-tx_norm)**2 + (y_norm-ty_norm)**2))  # 0~2.828
             coef_ref_line = 4
+            cross_err_distance, x_error, y_error = self.cross_track_error(host_current_point, drone_obj.ref_line)  # deviation from the reference line, cross track error
+            norm_cross_track_deviation_x = x_error * self.normalizer.x_scale
+            norm_cross_track_deviation_y = y_error * self.normalizer.y_scale
             dist_to_ref_line = coef_ref_line*math.sqrt(norm_cross_track_deviation_x ** 2 + norm_cross_track_deviation_y ** 2)
             # small_step_penalty = (drone_obj.protectiveBound - np.clip(np.linalg.norm(drone_obj.vel), 0, drone_obj.protectiveBound)) * (1.0 / drone_obj.protectiveBound)
             small_step_penalty = 0
@@ -1600,19 +1615,8 @@ class env_simulator:
                 # print("final goal has reached")
                 # done.append(False)
             else:  # a normal step taken
-                if (not wp_intersect.is_empty) and len(drone_obj.goal) > 1: # check if wp reached, and this is not the end point
-                    drone_obj.removed_goal = drone_obj.goal.pop(0)  # remove current wp
-                    
-                    # re-calculate dist_to_ref_line
-                    host_refline = LineString([drone_obj.removed_goal, self.all_agents[drone_idx].goal[0]])
-                    cross_track_deviation = curPoint.distance(
-                        host_refline)  # deviation from the NEW reference line, cross track error
-                    cross_track_deviation_x = abs(cross_track_deviation * math.cos(drone_obj.heading))
-                    cross_track_deviation_y = abs(cross_track_deviation * math.sin(drone_obj.heading))
-                    norm_cross_track_deviation_x = cross_track_deviation_x * self.normalizer.x_scale
-                    norm_cross_track_deviation_y = cross_track_deviation_y * self.normalizer.y_scale
-                    dist_to_ref_line = coef_ref_line*math.sqrt(norm_cross_track_deviation_x ** 2 + norm_cross_track_deviation_y ** 2)
-
+                # if (not wp_intersect.is_empty) and len(drone_obj.goal) > 1: # check if wp reached, and this is not the end point
+                #     drone_obj.removed_goal = drone_obj.goal.pop(0)  # remove current wp
                 rew = rew - dist_to_ref_line - dist_to_goal - small_step_penalty
                 # we remove the above termination condition
                 done.append(False)
@@ -1624,7 +1628,8 @@ class env_simulator:
             step_reward_record[drone_idx] = [dist_to_ref_line, dist_to_goal]
 
             actual_after_dist_hg = math.sqrt(((drone_obj.pos[0] - drone_obj.goal[-1][0]) ** 2 + (drone_obj.pos[1] - drone_obj.goal[-1][1]) ** 2))
-            # print("current drone {} distance to goal is {}, current reward is {}".format(drone_idx, actual_after_dist_hg, reward[-1]))
+            # print("current drone {} actual distance to goal is {}, current reward is {}".format(drone_idx, actual_after_dist_hg, reward[-1]))
+            # print("current drone {} actual distance to goal is {}, current reward to gaol is {}, current ref line reward is {}, current step reward is {}".format(drone_idx, actual_after_dist_hg, dist_to_goal, dist_to_ref_line, rew))
 
             # record status of each step.
             eps_status_holder = self.display_one_eps_status(eps_status_holder, drone_idx, actual_after_dist_hg, reward[-1])
@@ -1642,7 +1647,6 @@ class env_simulator:
         else:
             status_holder[drone_idx].append([cur_step_dist, cur_step_reward])
         return status_holder
-
 
     def step(self, actions, current_ts):
         next_combine_state = []
@@ -2216,6 +2220,19 @@ class env_simulator:
                 agent.update_count = 0  # reset update count
 
         return critic_losses, actor_losses
+
+    def cross_track_error(self, point, line):
+        # Find the nearest point on the line to the given point
+        nearest_pt = nearest_points(point, line)[1]
+
+        # Calculate the cross-track distance
+        distance = point.distance(nearest_pt)
+
+        # Calculate the x and y components of the cross-track error
+        x_error = abs(point.x - nearest_pt.x)
+        y_error = abs(point.y - nearest_pt.y)
+
+        return distance, x_error, y_error
 
     def save_model_actor_net(self, file_path):
         if not os.path.exists(file_path):

@@ -32,6 +32,7 @@ class Agent:
         self.pre_acc = np.zeros(2)
         self.maxSpeed = maxSPD
         self.goal = None
+        self.ref_line = None
         self.heading = None
         self.detectionRange = 30  # in meters, this is the in diameter
         self.protectiveBound = 2.5  # diameter is 2.5*2, this is radius
