@@ -1629,10 +1629,10 @@ class env_simulator:
 
             actual_after_dist_hg = math.sqrt(((drone_obj.pos[0] - drone_obj.goal[-1][0]) ** 2 + (drone_obj.pos[1] - drone_obj.goal[-1][1]) ** 2))
             # print("current drone {} actual distance to goal is {}, current reward is {}".format(drone_idx, actual_after_dist_hg, reward[-1]))
-            # print("current drone {} actual distance to goal is {}, current reward to gaol is {}, current ref line reward is {}, current step reward is {}".format(drone_idx, actual_after_dist_hg, dist_to_goal, dist_to_ref_line, rew))
+            print("current drone {} actual distance to goal is {}, current reward to gaol is {}, current ref line reward is {}, current step reward is {}".format(drone_idx, actual_after_dist_hg, dist_to_goal, dist_to_ref_line, rew))
 
             # record status of each step.
-            eps_status_holder = self.display_one_eps_status(eps_status_holder, drone_idx, actual_after_dist_hg, reward[-1])
+            eps_status_holder = self.display_one_eps_status(eps_status_holder, drone_idx, actual_after_dist_hg, [dist_to_goal, dist_to_ref_line, rew])
             # overall_status_record[2].append()  # 3rd is accumulated reward till that step for each agent
 
         # check if length of reward does not equals to 3
@@ -1643,9 +1643,9 @@ class env_simulator:
 
     def display_one_eps_status(self, status_holder, drone_idx, cur_step_dist, cur_step_reward):
         if status_holder[drone_idx] == None:
-            status_holder[drone_idx] = [[cur_step_dist, cur_step_reward]]
+            status_holder[drone_idx] = [[cur_step_dist] + cur_step_reward]
         else:
-            status_holder[drone_idx].append([cur_step_dist, cur_step_reward])
+            status_holder[drone_idx].append([cur_step_dist] + cur_step_reward)
         return status_holder
 
     def step(self, actions, current_ts):
