@@ -763,10 +763,24 @@ class env_simulator:
 
             norm_deltaG = norm_G - norm_pos
 
-            agent_own = np.array([agent.pos[0], agent.pos[1], agent.vel[0], agent.vel[1],
-                                  agent.goal[-1][0]-agent.pos[0], agent.goal[-1][1]-agent.pos[1]])
+            # agent_own = np.array([agent.pos[0], agent.pos[1], agent.vel[0], agent.vel[1],
+            #                       agent.goal[-1][0]-agent.pos[0], agent.goal[-1][1]-agent.pos[1]])
 
-            norm_agent_own = np.concatenate([norm_pos, norm_vel, norm_deltaG], axis=0)
+            # norm_agent_own = np.concatenate([norm_pos, norm_vel, norm_deltaG], axis=0)
+
+            # ---------- based on 1 Dec 2023, add obs for ref line -----------
+            host_current_point = Point(agent.pos[0], agent.pos[1])
+            cross_err_distance, x_error, y_error = self.cross_track_error(host_current_point, agent.ref_line)  # deviation from the reference line, cross track error
+            norm_cross_track_deviation_x = x_error * self.normalizer.x_scale
+            norm_cross_track_deviation_y = y_error * self.normalizer.y_scale
+
+            agent_own = np.array([agent.pos[0], agent.pos[1], agent.vel[0], agent.vel[1],
+                                  agent.goal[-1][0]-agent.pos[0], agent.goal[-1][1]-agent.pos[1], x_error, y_error])
+
+            norm_cross = np.array([norm_cross_track_deviation_x, norm_cross_track_deviation_y])
+
+            norm_agent_own = np.concatenate([norm_pos, norm_vel, norm_deltaG, norm_cross], axis=0)
+            # ---------- end of based on 1 Dec 2023, add obs for ref line -----------
 
             other_agents = []
             norm_other_agents = []

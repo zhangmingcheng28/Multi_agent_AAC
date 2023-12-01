@@ -185,8 +185,8 @@ def main(args):
         # initialize_excel_file(excel_file_path_time)
         # ------------ end of this portion is to save using excel instead of pickle -----------
 
-    # use_wanDB = False
-    use_wanDB = True
+    use_wanDB = False
+    # use_wanDB = True
     # simply_view_evaluation = True  # True = don't save gif
     simply_view_evaluation = False  # True = don't save gif
 
@@ -213,9 +213,9 @@ def main(args):
     # create world
     # actor_dim = [6+(total_agentNum-1)*2, 10, 6]  # dim host, maximum dim grid, dim other drones
     # critic_dim = [6+(total_agentNum-1)*2, 10, 6]
-    actor_dim = [6, 9, 6]  # dim host, maximum dim grid, dim other drones
+    actor_dim = [8, 9, 8]  # dim host, maximum dim grid, dim other drones
     # actor_dim = [16, 9, 6]  # dim host, maximum dim grid, dim other drones
-    critic_dim = [6, 9, 6]
+    critic_dim = [8, 9, 8]
     # critic_dim = [16, 9, 6]
     n_actions = 2
     acc_range = [-4, 4]
