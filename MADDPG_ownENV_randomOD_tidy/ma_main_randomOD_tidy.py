@@ -187,7 +187,8 @@ def main(args):
 
     # use_wanDB = False
     use_wanDB = True
-    simply_view_evaluation = True  # True = don't save gif
+    # simply_view_evaluation = True  # True = don't save gif
+    simply_view_evaluation = False  # True = don't save gif
 
     if use_wanDB:
         wandb.login(key="efb76db851374f93228250eda60639c70a93d1ec")
@@ -281,8 +282,8 @@ def main(args):
 
         trajectory_eachPlay = []
 
-        pre_fix = r'D:\MADDPG_2nd_jp\301123_12_39_15\interval_record_eps'
-        episode_to_check = str(36000)
+        pre_fix = r'D:\MADDPG_2nd_jp\011223_09_57_38\interval_record_eps'
+        episode_to_check = str(15000)
         load_filepath_0 = pre_fix + '\episode_' + episode_to_check + '_agent_0actor_net.pth'
         load_filepath_1 = pre_fix + '\episode_' + episode_to_check + '_agent_1actor_net.pth'
         load_filepath_2 = pre_fix + '\episode_' + episode_to_check + '_agent_2actor_net.pth'
@@ -456,8 +457,8 @@ def main(args):
                     # display current episode out status through status_holder
                     for each_agent_idx, each_agent in enumerate(eps_status_holder):
                         for step_idx, step_reward_decomposition in enumerate(each_agent):
-                            print("agent {}, step {}, distance to goal is {} m, goal reward is {}, ref line reward is {}, current step reward is {}.".format(each_agent_idx, step_idx, step_reward_decomposition[0], step_reward_decomposition[1], step_reward_decomposition[2], step_reward_decomposition[3]))
-
+                            print(r"agent {}, step {}, distance to goal is {} m, goal reward is {}, ref line reward is {}, current step reward is {}.".format(each_agent_idx, step_idx, step_reward_decomposition[0], step_reward_decomposition[1], step_reward_decomposition[2], step_reward_decomposition[3]))
+                            print("current spd is {} m/s, curent spd penalty is {}". format(step_reward_decomposition[5], step_reward_decomposition[4]))
                     print("[Episode %05d] reward %6.4f " % (episode, accum_reward))
 
                     if simply_view_evaluation:
