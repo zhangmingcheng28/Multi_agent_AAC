@@ -775,9 +775,10 @@ class env_simulator:
             norm_cross_track_deviation_y = y_error * self.normalizer.y_scale
 
             agent_own = np.array([agent.pos[0], agent.pos[1], agent.vel[0], agent.vel[1],
-                                  agent.goal[-1][0]-agent.pos[0], agent.goal[-1][1]-agent.pos[1], x_error, y_error])
+                                  agent.goal[-1][0]-agent.pos[0], agent.goal[-1][1]-agent.pos[1], x_error, y_error, cross_err_distance])
 
-            norm_cross = np.array([norm_cross_track_deviation_x, norm_cross_track_deviation_y])
+            combine_normXY = math.sqrt(norm_cross_track_deviation_x**2 + norm_cross_track_deviation_y**2)
+            norm_cross = np.array([norm_cross_track_deviation_x, norm_cross_track_deviation_y, combine_normXY])
 
             norm_agent_own = np.concatenate([norm_pos, norm_vel, norm_deltaG, norm_cross], axis=0)
             # ---------- end of based on 1 Dec 2023, add obs for ref line -----------

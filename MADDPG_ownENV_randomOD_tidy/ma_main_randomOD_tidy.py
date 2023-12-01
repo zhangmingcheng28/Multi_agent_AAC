@@ -213,9 +213,9 @@ def main(args):
     # create world
     # actor_dim = [6+(total_agentNum-1)*2, 10, 6]  # dim host, maximum dim grid, dim other drones
     # critic_dim = [6+(total_agentNum-1)*2, 10, 6]
-    actor_dim = [8, 9, 8]  # dim host, maximum dim grid, dim other drones
+    actor_dim = [9, 9, 9]  # dim host, maximum dim grid, dim other drones
     # actor_dim = [16, 9, 6]  # dim host, maximum dim grid, dim other drones
-    critic_dim = [8, 9, 8]
+    critic_dim = [9, 9, 9]
     # critic_dim = [16, 9, 6]
     n_actions = 2
     acc_range = [-4, 4]
@@ -624,7 +624,7 @@ if __name__ == '__main__':
     parser.add_argument('--max_episodes', default=20000, type=int)  # run for a total of 50000 episodes
     parser.add_argument('--algo', default="maddpg", type=str, help="commnet/bicnet/maddpg")
     parser.add_argument('--mode', default="train", type=str, help="train/eval")
-    parser.add_argument('--episode_length', default=50, type=int)  # maximum play per episode
+    parser.add_argument('--episode_length', default=100, type=int)  # maximum play per episode
     parser.add_argument('--memory_length', default=int(1e5), type=int)
     parser.add_argument('--seed', default=777, type=int)  # may choose to use 3407
     parser.add_argument('--batch_size', default=512, type=int)  # original 512
