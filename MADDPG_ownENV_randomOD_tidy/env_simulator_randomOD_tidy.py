@@ -1574,8 +1574,10 @@ class env_simulator:
             norm_cross_track_deviation_x = x_error * self.normalizer.x_scale
             norm_cross_track_deviation_y = y_error * self.normalizer.y_scale
             dist_to_ref_line = coef_ref_line*math.sqrt(norm_cross_track_deviation_x ** 2 + norm_cross_track_deviation_y ** 2)
-            # small_step_penalty = (drone_obj.protectiveBound - np.clip(np.linalg.norm(drone_obj.vel), 0, drone_obj.protectiveBound)) * (1.0 / drone_obj.protectiveBound)
-            small_step_penalty = 0
+            small_step_penalty = (drone_obj.protectiveBound -
+                                  np.clip(np.linalg.norm(drone_obj.vel), 0, drone_obj.protectiveBound)) * \
+                                 (1.0 / drone_obj.protectiveBound)
+            # small_step_penalty = 0
 
             alive_penalty = -60
             # -------------end of pre-processed condition for a normal step -----------------
@@ -1632,7 +1634,7 @@ class env_simulator:
             print("current drone {} actual distance to goal is {}, current reward to gaol is {}, current ref line reward is {}, current step reward is {}".format(drone_idx, actual_after_dist_hg, dist_to_goal, dist_to_ref_line, rew))
 
             # record status of each step.
-            eps_status_holder = self.display_one_eps_status(eps_status_holder, drone_idx, actual_after_dist_hg, [dist_to_goal, dist_to_ref_line, rew])
+            eps_status_holder = self.display_one_eps_status(eps_status_holder, drone_idx, actual_after_dist_hg, [dist_to_goal, dist_to_ref_line, rew, small_step_penalty])
             # overall_status_record[2].append()  # 3rd is accumulated reward till that step for each agent
 
         # check if length of reward does not equals to 3
