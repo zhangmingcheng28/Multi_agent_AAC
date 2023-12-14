@@ -150,11 +150,11 @@ def animate(frame_num, ax, env, trajectory_eachPlay):
             plt.plot([wp[0], ini[0]], [wp[1], ini[1]], '--', color='c')
             ini = wp
 
-    for agent in trajectory_eachPlay[frame_num]:
+    for a_idx, agent in enumerate(trajectory_eachPlay[frame_num]):
         x, y = agent[0], agent[1]
         plt.plot(x, y, 'o', color='r')
 
-        plt.text(x-1, y-1, str(round(float(frame_num),2)))
+        plt.text(x-1, y-1, 'agent_'+str(a_idx)+'_'+str(round(float(frame_num), 2)))
 
         self_circle = Point(x, y).buffer(env.all_agents[0].protectiveBound, cap_style='round')
         grid_mat_Scir = shapelypoly_to_matpoly(self_circle, False, 'k')
@@ -185,8 +185,8 @@ def main(args):
         # initialize_excel_file(excel_file_path_time)
         # ------------ end of this portion is to save using excel instead of pickle -----------
 
-    use_wanDB = False
-    # use_wanDB = True
+    # use_wanDB = False
+    use_wanDB = True
     # simply_view_evaluation = True  # True = don't save gif
     simply_view_evaluation = False  # True = don't save gif
 
@@ -208,14 +208,17 @@ def main(args):
     agent_grid_obs, BUFFER_SIZE, BATCH_SIZE, GAMMA, TAU, learning_rate, UPDATE_EVERY, seed_used, max_xy = initialize_parameters()
     # total_agentNum = len(pd.read_excel(env.agentConfig))
     total_agentNum = 3
-    UPDATE_EVERY = 30
+    # UPDATE_EVERY = 30
+    UPDATE_EVERY = 1
     # max_nei_num = 5
     # create world
     # actor_dim = [6+(total_agentNum-1)*2, 10, 6]  # dim host, maximum dim grid, dim other drones
     # critic_dim = [6+(total_agentNum-1)*2, 10, 6]
-    actor_dim = [9, 9, 9]  # dim host, maximum dim grid, dim other drones
+    actor_dim = [6, 9, 6]  # dim host, maximum dim grid, dim other drones
+    # actor_dim = [9, 9, 9]  # dim host, maximum dim grid, dim other drones
     # actor_dim = [16, 9, 6]  # dim host, maximum dim grid, dim other drones
-    critic_dim = [9, 9, 9]
+    critic_dim = [6, 9, 6]
+    # critic_dim = [9, 9, 9]
     # critic_dim = [16, 9, 6]
     n_actions = 2
     acc_range = [-4, 4]
@@ -246,7 +249,7 @@ def main(args):
     eps_reward_record = []
     eps_check_collision = []
     eps_noise_record = []
-    eps_end = 3000  # at eps = eps_end, the eps value drops to lowest value which is 0.03 (this value is fixed)
+    eps_end = 5000  # at eps = eps_end, the eps value drops to lowest value which is 0.03 (this value is fixed)
     noise_start_level = 1
     training_start_time = time.time()
 
@@ -257,7 +260,7 @@ def main(args):
 
     if args.mode == "eval":
         # args.max_episodes = 1  # only evaluate one episode during evaluation mode.
-        args.max_episodes = 5
+        args.max_episodes = 15
 
     # while episode < args.max_episodes:
     while episode < args.max_episodes:  # start of an episode
@@ -282,8 +285,8 @@ def main(args):
 
         trajectory_eachPlay = []
 
-        pre_fix = r'D:\MADDPG_2nd_jp\011223_09_57_38\interval_record_eps'
-        episode_to_check = str(15000)
+        pre_fix = r'D:\MADDPG_2nd_jp\111223_09_31_26\interval_record_eps'
+        episode_to_check = str(35000)
         load_filepath_0 = pre_fix + '\episode_' + episode_to_check + '_agent_0actor_net.pth'
         load_filepath_1 = pre_fix + '\episode_' + episode_to_check + '_agent_1actor_net.pth'
         load_filepath_2 = pre_fix + '\episode_' + episode_to_check + '_agent_2actor_net.pth'
@@ -301,7 +304,7 @@ def main(args):
                 # cur_state, norm_cur_state = env.fill_agent_reset(cur_state, norm_cur_state, agents_added)  # if a new agent is filled, we need to reset the state information for the newly added agents
 
                 step_obtain_action_time_start = time.time()
-                action, step_noise_val = model.choose_action(norm_cur_state, total_step, episode, step, eps_end, noise_start_level, noisy=True) # noisy is false because we are using stochastic policy
+                action, step_noise_val = model.choose_action(norm_cur_state, total_step, episode, step, eps_end, noise_start_level, noisy=False) # noisy is false because we are using stochastic policy
                 generate_action_time = (time.time() - step_obtain_action_time_start)*1000
                 # print("current step obtain action time used is {} milliseconds".format(generate_action_time))
 
@@ -458,6 +461,7 @@ def main(args):
                     for each_agent_idx, each_agent in enumerate(eps_status_holder):
                         for step_idx, step_reward_decomposition in enumerate(each_agent):
                             print(r"agent {}, step {}, distance to goal is {} m, goal reward is {}, ref line reward is {}, current step reward is {}.".format(each_agent_idx, step_idx, step_reward_decomposition[0], step_reward_decomposition[1], step_reward_decomposition[2], step_reward_decomposition[3]))
+                            print("near goal reward is {}".format(step_reward_decomposition[6]))
                             print("current spd is {} m/s, curent spd penalty is {}". format(step_reward_decomposition[5], step_reward_decomposition[4]))
                     print("[Episode %05d] reward %6.4f " % (episode, accum_reward))
 
@@ -621,10 +625,10 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--scenario', default="simple_spread", type=str)
-    parser.add_argument('--max_episodes', default=20000, type=int)  # run for a total of 50000 episodes
+    parser.add_argument('--max_episodes', default=35000, type=int)  # run for a total of 50000 episodes
     parser.add_argument('--algo', default="maddpg", type=str, help="commnet/bicnet/maddpg")
     parser.add_argument('--mode', default="train", type=str, help="train/eval")
-    parser.add_argument('--episode_length', default=100, type=int)  # maximum play per episode
+    parser.add_argument('--episode_length', default=150, type=int)  # maximum play per episode
     parser.add_argument('--memory_length', default=int(1e5), type=int)
     parser.add_argument('--seed', default=777, type=int)  # may choose to use 3407
     parser.add_argument('--batch_size', default=512, type=int)  # original 512

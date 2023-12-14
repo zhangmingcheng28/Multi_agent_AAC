@@ -289,9 +289,15 @@ class MADDPG:
             c_loss.append(loss_Q)
             a_loss.append(actor_loss)
 
-        if total_step_count % UPDATE_EVERY == 0:  # every "UPDATE_EVERY" step, do a soft update
+        # if total_step_count % UPDATE_EVERY == 0:  # every "UPDATE_EVERY" step, do a soft update
+        #     for i in range(self.n_agents):
+        #         print("all agents NN update at total step {}".format(total_step_count))
+        #         soft_update(self.critics_target[i], self.critics[i], self.tau)
+        #         soft_update(self.actors_target[i], self.actors[i], self.tau)
+
+        if i_episode % UPDATE_EVERY == 0:  # every "UPDATE_EVERY" episode, do a soft update
             for i in range(self.n_agents):
-                print("all agents NN update at total step {}".format(total_step_count))
+                print("all agents NN update at episode {}".format(i_episode))
                 soft_update(self.critics_target[i], self.critics[i], self.tau)
                 soft_update(self.actors_target[i], self.actors[i], self.tau)
 
@@ -310,13 +316,13 @@ class MADDPG:
         obs = torch.from_numpy(np.stack(state[0])).float().to(device)
         # obs_grid = torch.from_numpy(np.stack(state[1])).float().to(device)
         noise_value = np.zeros(2)
-        all_obs_surAgent = []
-        for each_agent_sur in state[2]:
-            try:
-                each_obs_surAgent = np.squeeze(np.array(each_agent_sur), axis=1)
-                all_obs_surAgent.append(torch.from_numpy(each_obs_surAgent).float().to(device))
-            except:
-                print("pause and check")
+        # all_obs_surAgent = []
+        # for each_agent_sur in state[2]:
+        #     try:
+        #         each_obs_surAgent = np.squeeze(np.array(each_agent_sur), axis=1)
+        #         all_obs_surAgent.append(torch.from_numpy(each_obs_surAgent).float().to(device))
+        #     except:
+        #         print("pause and check")
 
         # obs_surAgent = torch.from_numpy(np.stack(state[2])).float().to(device)
 
@@ -333,7 +339,7 @@ class MADDPG:
             # sb_surAgent = all_obs_surAgent[i].detach()
             sb = obs[i]
             # sb_grid = obs_grid[i]
-            sb_surAgent = all_obs_surAgent[i]
+            # sb_surAgent = all_obs_surAgent[i]
             # act = self.actors[i]([sb.unsqueeze(0), sb_grid.unsqueeze(0), sb_surAgent.unsqueeze(0)]).squeeze()
             # act = self.actors[i]([sb.unsqueeze(0), sb_surAgent.unsqueeze(0)]).squeeze()
             act = self.actors[i]([sb.unsqueeze(0)]).squeeze()

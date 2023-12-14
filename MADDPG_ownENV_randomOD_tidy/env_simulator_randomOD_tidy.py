@@ -8,6 +8,7 @@
 """
 import copy
 import jps
+from jps_straight import jps_find_path
 from shapely.ops import nearest_points
 from shapely.strtree import STRtree
 from scipy.interpolate import interp1d
@@ -195,6 +196,7 @@ class env_simulator:
             self.all_agents[new_Idx].agent_name = 'agent_%s' % new_Idx
             self.all_agents[new_Idx].pre_surroundingNeighbor = {}  # at start of each episode ensure all surrounding/pre-surrounding neighbours are cleared.
             self.all_agents[new_Idx].surroundingNeighbor = {}
+            self.all_agents[new_Idx].reach_target = False
 
         # start_time = time.time()
         agentsCoor_list = []  # for store all agents as circle polygon
@@ -264,8 +266,11 @@ class env_simulator:
             height = self.world_map_2D.shape[1]
 
             jps_map = self.world_map_2D_jps
-            outPath = jps.find_path(small_area_map_s, small_area_map_e, width, height, jps_map)[0]
-            # outPath = jps.find_path(small_area_map_start, small_area_map_end, 22, 13, self.world_map_2D)[0]
+
+
+            outPath = jps_find_path((int(small_area_map_s[0]),int(small_area_map_s[1])), (int(small_area_map_e[0]),int(small_area_map_e[1])), jps_map)
+
+            # outPath = jps.find_path(small_area_map_s, small_area_map_e, width, height, jps_map)[0]
 
             refinedPath = []
             curHeading = math.atan2((outPath[1][1] - outPath[0][1]),
@@ -763,24 +768,24 @@ class env_simulator:
 
             norm_deltaG = norm_G - norm_pos
 
-            # agent_own = np.array([agent.pos[0], agent.pos[1], agent.vel[0], agent.vel[1],
-            #                       agent.goal[-1][0]-agent.pos[0], agent.goal[-1][1]-agent.pos[1]])
+            agent_own = np.array([agent.pos[0], agent.pos[1], agent.vel[0], agent.vel[1],
+                                  agent.goal[-1][0]-agent.pos[0], agent.goal[-1][1]-agent.pos[1]])
 
-            # norm_agent_own = np.concatenate([norm_pos, norm_vel, norm_deltaG], axis=0)
+            norm_agent_own = np.concatenate([norm_pos, norm_vel, norm_deltaG], axis=0)
 
             # ---------- based on 1 Dec 2023, add obs for ref line -----------
-            host_current_point = Point(agent.pos[0], agent.pos[1])
-            cross_err_distance, x_error, y_error = self.cross_track_error(host_current_point, agent.ref_line)  # deviation from the reference line, cross track error
-            norm_cross_track_deviation_x = x_error * self.normalizer.x_scale
-            norm_cross_track_deviation_y = y_error * self.normalizer.y_scale
-
-            agent_own = np.array([agent.pos[0], agent.pos[1], agent.vel[0], agent.vel[1],
-                                  agent.goal[-1][0]-agent.pos[0], agent.goal[-1][1]-agent.pos[1], x_error, y_error, cross_err_distance])
-
-            combine_normXY = math.sqrt(norm_cross_track_deviation_x**2 + norm_cross_track_deviation_y**2)
-            norm_cross = np.array([norm_cross_track_deviation_x, norm_cross_track_deviation_y, combine_normXY])
-
-            norm_agent_own = np.concatenate([norm_pos, norm_vel, norm_deltaG, norm_cross], axis=0)
+            # host_current_point = Point(agent.pos[0], agent.pos[1])
+            # cross_err_distance, x_error, y_error = self.cross_track_error(host_current_point, agent.ref_line)  # deviation from the reference line, cross track error
+            # norm_cross_track_deviation_x = x_error * self.normalizer.x_scale
+            # norm_cross_track_deviation_y = y_error * self.normalizer.y_scale
+            #
+            # agent_own = np.array([agent.pos[0], agent.pos[1], agent.vel[0], agent.vel[1],
+            #                       agent.goal[-1][0]-agent.pos[0], agent.goal[-1][1]-agent.pos[1], x_error, y_error, cross_err_distance])
+            #
+            # combine_normXY = math.sqrt(norm_cross_track_deviation_x**2 + norm_cross_track_deviation_y**2)
+            # norm_cross = np.array([norm_cross_track_deviation_x, norm_cross_track_deviation_y, combine_normXY])
+            #
+            # norm_agent_own = np.concatenate([norm_pos, norm_vel, norm_deltaG, norm_cross], axis=0)
             # ---------- end of based on 1 Dec 2023, add obs for ref line -----------
 
             other_agents = []
@@ -1465,7 +1470,6 @@ class env_simulator:
             # norm_rx = (drone_obj.protectiveBound*math.cos(drone_obj.heading))*self.normalizer.x_scale
             # norm_ry = (drone_obj.protectiveBound*math.sin(drone_obj.heading))*self.normalizer.y_scale
             # norm_r = math.sqrt(norm_rx**2 + norm_ry**2)
-            
 
             drone_status_record = []
             one_agent_reward_record = []
@@ -1584,7 +1588,7 @@ class env_simulator:
             x_norm, y_norm = self.normalizer.nmlz_pos(drone_obj.pos)
             tx_norm, ty_norm = self.normalizer.nmlz_pos(drone_obj.goal[-1])
             dist_to_goal = math.sqrt(((x_norm-tx_norm)**2 + (y_norm-ty_norm)**2))  # 0~2.828
-            coef_ref_line = 4
+            coef_ref_line = 0
             cross_err_distance, x_error, y_error = self.cross_track_error(host_current_point, drone_obj.ref_line)  # deviation from the reference line, cross track error
             norm_cross_track_deviation_x = x_error * self.normalizer.x_scale
             norm_cross_track_deviation_y = y_error * self.normalizer.y_scale
@@ -1593,9 +1597,16 @@ class env_simulator:
             small_step_penalty = (spd_penalty_threshold -
                                   np.clip(np.linalg.norm(drone_obj.vel), 0, spd_penalty_threshold))*\
                                  (1.0 / spd_penalty_threshold)
-            # small_step_penalty = 0
 
-            alive_penalty = -60
+            near_goal_threshold = drone_obj.detectionRange
+            actual_after_dist_hg = math.sqrt(((drone_obj.pos[0] - drone_obj.goal[-1][0]) ** 2 +
+                                              (drone_obj.pos[1] - drone_obj.goal[-1][1]) ** 2))
+
+            near_goal_coefficient = 3  # so that near_goal_reward will become 0-3 instead of 0-1
+
+            near_goal_reward = near_goal_coefficient * ((near_goal_threshold -
+                                np.clip(actual_after_dist_hg, 0, near_goal_threshold)) * 1.0/near_goal_threshold)
+
             # -------------end of pre-processed condition for a normal step -----------------
 
             # Always check the boundary as the 1st condition, or else will encounter error where the agent crash into wall but also exceed the bound, but crash into wall did not stop the episode. So, we must put the check boundary condition 1st, so that episode can terminate in time and does not leads to exceed boundary with error in no polygon found.
@@ -1603,7 +1614,7 @@ class env_simulator:
             # must use "host_passed_volume", or else, we unable to confirm whether the host's circle is at left or right of the boundary lines
             if x_left_bound.intersects(host_passed_volume) or x_right_bound.intersects(host_passed_volume) or y_bottom_bound.intersects(host_passed_volume) or y_top_bound.intersects(host_passed_volume):
                 print("drone_{} has crash into boundary at time step {}".format(drone_idx, current_ts))
-                rew = rew - dist_to_ref_line - crash_penalty_wall - dist_to_goal - small_step_penalty
+                rew = rew - dist_to_ref_line - crash_penalty_wall - dist_to_goal - small_step_penalty + near_goal_reward
                 done.append(True)
                 # done.append(False)
                 reward.append(np.array(rew))
@@ -1611,7 +1622,7 @@ class env_simulator:
             elif collide_building == 1:
                 # done.append(True)
                 done.append(True)
-                rew = rew - dist_to_ref_line - crash_penalty_wall - dist_to_goal - small_step_penalty
+                rew = rew - dist_to_ref_line - crash_penalty_wall - dist_to_goal - small_step_penalty + near_goal_reward
                 reward.append(np.array(rew))
             # elif len(collision_drones) > 0:
             #     # done.append(True)
@@ -1621,9 +1632,10 @@ class env_simulator:
             elif not goal_cur_intru_intersect.is_empty:  # reached goal?
                 # --------------- with way point -----------------------
                 check_goal[reward_record_idx] = True
+                drone_obj.reach_target = True
                 print("drone_{} has reached its final goal at time step {}".format(drone_idx, current_ts))
                 agent_to_remove.append(drone_idx)  # NOTE: drone_idx is the key value.
-                rew = rew + reach_target
+                rew = rew + reach_target + near_goal_reward
                 reward.append(np.array(rew))
                 done.append(False)
                 # --------------- end of with way point -----------------------
@@ -1635,7 +1647,7 @@ class env_simulator:
             else:  # a normal step taken
                 # if (not wp_intersect.is_empty) and len(drone_obj.goal) > 1: # check if wp reached, and this is not the end point
                 #     drone_obj.removed_goal = drone_obj.goal.pop(0)  # remove current wp
-                rew = rew - dist_to_ref_line - dist_to_goal - small_step_penalty
+                rew = rew - dist_to_ref_line - dist_to_goal - small_step_penalty + near_goal_reward
                 # we remove the above termination condition
                 done.append(False)
                 step_reward = np.array(rew)
@@ -1645,17 +1657,22 @@ class env_simulator:
 
             step_reward_record[drone_idx] = [dist_to_ref_line, dist_to_goal]
 
-            actual_after_dist_hg = math.sqrt(((drone_obj.pos[0] - drone_obj.goal[-1][0]) ** 2 + (drone_obj.pos[1] - drone_obj.goal[-1][1]) ** 2))
+
             # print("current drone {} actual distance to goal is {}, current reward is {}".format(drone_idx, actual_after_dist_hg, reward[-1]))
             print("current drone {} actual distance to goal is {}, current reward to gaol is {}, current ref line reward is {}, current step reward is {}".format(drone_idx, actual_after_dist_hg, dist_to_goal, dist_to_ref_line, rew))
 
             # record status of each step.
-            eps_status_holder = self.display_one_eps_status(eps_status_holder, drone_idx, actual_after_dist_hg, [dist_to_goal, dist_to_ref_line, rew, small_step_penalty, np.linalg.norm(drone_obj.vel)])
+            eps_status_holder = self.display_one_eps_status(eps_status_holder, drone_idx, actual_after_dist_hg, [dist_to_goal, dist_to_ref_line, rew, small_step_penalty, np.linalg.norm(drone_obj.vel), near_goal_reward])
             # overall_status_record[2].append()  # 3rd is accumulated reward till that step for each agent
 
         # check if length of reward does not equals to 3
         if len(reward) != 3:
             print("check")
+
+        # all_reach_target = all(agent.reach_target == True for agent in self.all_agents.values())
+        # if all_reach_target:  # in this episode all agents have reached their target at least one
+        #     # we cannot just assign a single True to "done", as it must be a list to output from the function.
+        #     done = [True, True, True]
 
         return reward, done, check_goal, step_reward_record, eps_status_holder, step_collision_record
 

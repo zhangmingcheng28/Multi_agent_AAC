@@ -31,6 +31,7 @@ import math
 g_dir = [[1, 0], [0, 1], [0, -1], [-1, 0], [1, 1], [1, -1], [-1, 1], [-1, -1]]
 
 
+
 class Node:
     def __init__(self, parent, pos, g, h):
         self.parent = parent
@@ -117,61 +118,91 @@ class JPS:
         return nbs
 
     # ↑ ↓ ← → ↖ ↙ ↗ ↘
+    # def jump_node(self, now, pre):
+    #     dir = [a != b and (a - b) / abs(a - b) or 0 for a, b in zip(now, pre)]
+    #     print
+    #     "now = %s, pre = %s, dir = %s" % (now, pre, dir)
+    #
+    #     if now == self.e_pos:
+    #         return now
+    #
+    #     if self.is_pass(now[0], now[1]) is False:
+    #         return None
+    #     if dir[0] != 0 and dir[1] != 0:
+    #         # 左下能走且左不能走，或右上能走且上不能走
+    #         if (self.is_pass(now[0] - dir[0], now[1] + dir[1]) and not self.is_pass(now[0] - dir[0], now[1])) or (
+    #                 self.is_pass(now[0] + dir[0], now[1] - dir[1]) and not self.is_pass(now[0], now[1] - dir[1])):
+    #             return now
+    #     else:
+    #         # 水平方向
+    #         if dir[0] != 0:
+    #             # 右下能走且下不能走， 或右上能走且上不能走
+    #             '''
+    #             * 1 0       0 0 0
+    #             0 → 0       0 0 0
+    #             * 1 0       0 0 0
+    #
+    #             '''
+    #             print
+    #             '水平方向:', self.is_pass(now[0] + dir[0], now[1] + 1), self.is_pass(now[0], now[1] + 1), self.is_pass(
+    #                 now[0] + dir[0], now[1] - 1), self.is_pass(now[0], now[1] - 1)
+    #             if (self.is_pass(now[0] + dir[0], now[1] + 1) and not self.is_pass(now[0], now[1] + 1)) or (
+    #                     self.is_pass(now[0] + dir[0], now[1] - 1) and not self.is_pass(now[0], now[1] - 1)):
+    #                 return now
+    #         else:  # 垂直方向
+    #             # 右下能走且右不能走，或坐下能走且左不能走
+    #             '''
+    #             0 0 0
+    #             1 ↓ 1
+    #             0 0 0
+    #
+    #             '''
+    #             print
+    #             '垂直方向:', self.is_pass(now[0] + 1, now[1] + dir[1]), self.is_pass(now[0] + 1, now[1]), self.is_pass(
+    #                 now[0] - 1, now[1] + dir[1]), self.is_pass(now[0] - 1, now[1])
+    #             if (self.is_pass(now[0] + 1, now[1] + dir[1]) and not self.is_pass(now[0] + 1, now[1])) or (
+    #                     self.is_pass(now[0] - 1, now[1] + dir[1]) and not self.is_pass(now[0] - 1, now[1])):
+    #                 return now
+    #
+    #     if dir[0] != 0 and dir[1] != 0:
+    #         t1 = self.jump_node([now[0] + dir[0], now[1]], now)
+    #         t2 = self.jump_node([now[0], now[1] + dir[1]], now)
+    #         if t1 or t2:
+    #             return now
+    #     if self.is_pass(now[0] + dir[0], now[1]) or self.is_pass(now[0], now[1] + dir[1]):
+    #         t = self.jump_node([now[0] + dir[0], now[1] + dir[1]], now)
+    #         if t:
+    #             return t
+    #
+    #     return None
+
     def jump_node(self, now, pre):
         dir = [a != b and (a - b) / abs(a - b) or 0 for a, b in zip(now, pre)]
-        print
-        "now = %s, pre = %s, dir = %s" % (now, pre, dir)
+        print("now = %s, pre = %s, dir = %s" % (now, pre, dir))
 
         if now == self.e_pos:
             return now
 
         if self.is_pass(now[0], now[1]) is False:
             return None
-        if dir[0] != 0 and dir[1] != 0:
-            # 左下能走且左不能走，或右上能走且上不能走
-            if (self.is_pass(now[0] - dir[0], now[1] + dir[1]) and not self.is_pass(now[0] - dir[0], now[1])) or (
-                    self.is_pass(now[0] + dir[0], now[1] - dir[1]) and not self.is_pass(now[0], now[1] - dir[1])):
-                return now
-        else:
-            # 水平方向
-            if dir[0] != 0:
-                # 右下能走且下不能走， 或右上能走且上不能走
-                '''
-                * 1 0       0 0 0
-                0 → 0       0 0 0
-                * 1 0       0 0 0
-
-                '''
-                print
-                '水平方向:', self.is_pass(now[0] + dir[0], now[1] + 1), self.is_pass(now[0], now[1] + 1), self.is_pass(
-                    now[0] + dir[0], now[1] - 1), self.is_pass(now[0], now[1] - 1)
-                if (self.is_pass(now[0] + dir[0], now[1] + 1) and not self.is_pass(now[0], now[1] + 1)) or (
-                        self.is_pass(now[0] + dir[0], now[1] - 1) and not self.is_pass(now[0], now[1] - 1)):
-                    return now
-            else:  # 垂直方向
-                # 右下能走且右不能走，或坐下能走且左不能走
-                '''
-                0 0 0
-                1 ↓ 1
-                0 0 0
-
-                '''
-                print
-                '垂直方向:', self.is_pass(now[0] + 1, now[1] + dir[1]), self.is_pass(now[0] + 1, now[1]), self.is_pass(
-                    now[0] - 1, now[1] + dir[1]), self.is_pass(now[0] - 1, now[1])
-                if (self.is_pass(now[0] + 1, now[1] + dir[1]) and not self.is_pass(now[0] + 1, now[1])) or (
-                        self.is_pass(now[0] - 1, now[1] + dir[1]) and not self.is_pass(now[0] - 1, now[1])):
-                    return now
 
         if dir[0] != 0 and dir[1] != 0:
-            t1 = self.jump_node([now[0] + dir[0], now[1]], now)
-            t2 = self.jump_node([now[0], now[1] + dir[1]], now)
-            if t1 or t2:
-                return now
-        if self.is_pass(now[0] + dir[0], now[1]) or self.is_pass(now[0], now[1] + dir[1]):
-            t = self.jump_node([now[0] + dir[0], now[1] + dir[1]], now)
-            if t:
-                return t
+            return None  # Diagonal paths are excluded
+
+        if dir[0] != 0:
+            # Check only horizontal direction
+            if self.is_pass(now[0] + dir[0], now[1]) or self.is_pass(now[0], now[1] + 1) or self.is_pass(now[0],
+                                                                                                         now[1] - 1):
+                t = self.jump_node([now[0] + dir[0], now[1]], now)
+                if t:
+                    return t
+        elif dir[1] != 0:
+            # Check only vertical direction
+            if self.is_pass(now[0], now[1] + dir[1]) or self.is_pass(now[0] + 1, now[1]) or self.is_pass(now[0] - 1,
+                                                                                                         now[1]):
+                t = self.jump_node([now[0], now[1] + dir[1]], now)
+                if t:
+                    return t
 
         return None
 
