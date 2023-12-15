@@ -141,6 +141,25 @@ class ActorNetwork(nn.Module):
         return action_out
 
 
+class GRU_actor(nn.Module):
+    def __init__(self, actor_dim, n_actions, actor_hidden_state):
+        super(GRU_actor, self).__init__()
+        self.own_fc = nn.Sequential(nn.Linear(actor_dim[0], 64), nn.ReLU())
+        # gru layer
+        self.gru = nn.GRU(64, actor_hidden_state, 1, batch_first=True)
+        self.own_fc_lay2 = nn.Sequential(nn.Linear(64, 64), nn.ReLU(),
+                                         nn.Linear(64, 64), nn.ReLU())
+
+        self.own_fc_outlay = nn.Sequential(nn.Linear(64, n_actions), nn.Tanh())
+
+    def forward(self, state):
+        own_e = self.own_fc(state[0])
+        gru_out, hn = self.gru(own_e)  # hn = last column (or the most recent one) of the output hidden state
+        own_layer2out = self.own_fc_lay2(hn)
+        action_out = self.own_fc_outlay(own_layer2out)
+        return action_out, hn
+
+
 class Stocha_actor(nn.Module):
     def __init__(self, actor_dim, n_actions):  # actor_obs consists of three parts 0 = own, 1 = own grid, 2 = surrounding drones
         super(Stocha_actor, self).__init__()
@@ -315,6 +334,30 @@ class CriticNetwork(nn.Module):
         # entire_comb = torch.cat((sum_own_e, actor_actions), dim=1)
         q = self.combine_all(env_encode)
         return q
+
+
+class CriticNetwork_woGru(nn.Module):
+    def __init__(self, critic_obs, n_agents, n_actions, actor_hidden_state):
+        super(CriticNetwork_woGru, self).__init__()
+        self.combine_state_fc = nn.Sequential(nn.Linear((critic_obs[0]) * n_agents, 256), nn.ReLU()) #  extract combine state information
+        self.combine_hn_fc = nn.Sequential(nn.Linear(actor_hidden_state * n_agents, 256), nn.ReLU())  # extract hidden state information
+        self.sum_inputs = nn.Sequential(nn.Linear(256+256+(n_actions * n_agents), 512), nn.ReLU(),
+                                        nn.Linear(512, 512), nn.ReLU(), nn.Linear(512, 1))  # obtain Q value
+
+    def forward(self, state, actor_actions, actor_hn):
+        combine_state = self.combine_state_fc(state)
+        combine_hn = self.combine_hn_fc(actor_hn)
+        combine_S_A_hn = torch.cat((combine_state, combine_hn, actor_actions), dim=1)
+        q = self.sum_inputs(combine_S_A_hn)
+        return q
+
+
+class CriticNetwork_wGru(nn.Module):  #
+    def __init__(self, critic_obs, n_agents, n_actions, actor_hidden_state):
+        super(CriticNetwork_wGru, self).__init__()
+
+    def forward(self):
+        pass
 
 
 class CriticNetwork_0724(nn.Module):
