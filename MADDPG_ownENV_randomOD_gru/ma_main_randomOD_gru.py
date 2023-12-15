@@ -13,9 +13,9 @@ import time
 import matplotlib.animation as animation
 import pickle
 import wandb
-from parameters_randomOD_tidy import initialize_parameters
-from maddpg_agent_randomOD_tidy import MADDPG
-from utils_randomOD_tidy import *
+from parameters_randomOD_gru import initialize_parameters
+from maddpg_agent_randomOD_gru import MADDPG
+from utils_randomOD_gru import *
 from copy import deepcopy
 import torch
 import matplotlib.pyplot as plt
@@ -25,7 +25,7 @@ from shapely.strtree import STRtree
 from matplotlib.markers import MarkerStyle
 import math
 from matplotlib.transforms import Affine2D
-from Utilities_own_randomOD_tidy import *
+from Utilities_own_randomOD_gru import *
 import csv
 
 num_devices = torch.cuda.device_count()
@@ -306,8 +306,8 @@ def main(args):
                 # cur_state, norm_cur_state = env.fill_agent_reset(cur_state, norm_cur_state, agents_added)  # if a new agent is filled, we need to reset the state information for the newly added agents
 
                 step_obtain_action_time_start = time.time()
-                action, step_noise_val = model.choose_action(norm_cur_state, total_step, episode, step, eps_end, noise_start_level, noisy=False) # noisy is false because we are using stochastic policy
-                # action, step_noise_val, agents_hn = model.choose_action(norm_cur_state, total_step, episode, step, eps_end, noise_start_level, noisy=False) # noisy is false because we are using stochastic policy
+                # action, step_noise_val = model.choose_action(norm_cur_state, total_step, episode, step, eps_end, noise_start_level, noisy=False) # noisy is false because we are using stochastic policy
+                action, step_noise_val, agents_hn = model.choose_action(norm_cur_state, total_step, episode, step, eps_end, noise_start_level, noisy=False) # noisy is false because we are using stochastic policy
                 generate_action_time = (time.time() - step_obtain_action_time_start)*1000
                 # print("current step obtain action time used is {} milliseconds".format(generate_action_time))
 
@@ -362,10 +362,15 @@ def main(args):
                     rw_tensor = torch.FloatTensor(np.array(reward_aft_action)).to(device)
                     ac_tensor = torch.FloatTensor(action).to(device)
                     done_tensor = torch.FloatTensor(done_aft_action).to(device)
+                    # prepare hidden state information
+                    hs_tensor = torch.FloatTensor(agents_hn).to(device)
+
+                    # padded_tensor = torch.nn.functional.pad(hs_tensor, pad=(0, 0, 0, 0, 0, args.episode_length), mode='constant', value=0)
+
                     if args.algo == "commnet" and next_obs is not None:
                         model.memory.push(obs.data, ac_tensor, next_obs, rw_tensor, done_tensor)
                     if args.algo == "maddpg":
-                        model.memory.push(obs, ac_tensor, next_obs, rw_tensor, done_tensor)
+                        model.memory.push(obs, ac_tensor, next_obs, rw_tensor, done_tensor, hs_tensor)
                 else:
                     model.memory(cur_state, action, reward_aft_action, next_state, done_aft_action)
 
@@ -632,7 +637,7 @@ if __name__ == '__main__':
     parser.add_argument('--scenario', default="simple_spread", type=str)
     parser.add_argument('--max_episodes', default=35000, type=int)  # run for a total of 50000 episodes
     parser.add_argument('--algo', default="maddpg", type=str, help="commnet/bicnet/maddpg")
-    parser.add_argument('--mode', default="eval", type=str, help="train/eval")
+    parser.add_argument('--mode', default="train", type=str, help="train/eval")
     parser.add_argument('--episode_length', default=150, type=int)  # maximum play per episode
     parser.add_argument('--memory_length', default=int(1e5), type=int)
     parser.add_argument('--seed', default=777, type=int)  # may choose to use 3407

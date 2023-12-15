@@ -17,7 +17,7 @@ from scipy.spatial import KDTree
 import random
 import itertools
 from copy import deepcopy
-from agent_randomOD_tidy import Agent
+from agent_randomOD_gru import Agent
 import pandas as pd
 import math
 import numpy as np
@@ -29,7 +29,7 @@ import matplotlib.pyplot as plt
 import matplotlib
 import re
 import time
-from Utilities_own_randomOD_tidy import *
+from Utilities_own_randomOD_gru import *
 import torch as T
 import torch
 import torch.nn.functional as F

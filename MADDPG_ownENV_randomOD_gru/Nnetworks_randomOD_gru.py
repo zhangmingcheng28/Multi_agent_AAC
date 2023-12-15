@@ -142,11 +142,11 @@ class ActorNetwork(nn.Module):
 
 
 class GRU_actor(nn.Module):
-    def __init__(self, actor_dim, n_actions, actor_hidden_state):
+    def __init__(self, actor_dim, n_actions, actor_hidden_state_size):
         super(GRU_actor, self).__init__()
         self.own_fc = nn.Sequential(nn.Linear(actor_dim[0], 64), nn.ReLU())
         # gru layer
-        self.gru = nn.GRU(64, actor_hidden_state, 1, batch_first=True)
+        self.gru = nn.GRU(64, actor_hidden_state_size, 1, batch_first=True)
         self.own_fc_lay2 = nn.Sequential(nn.Linear(64, 64), nn.ReLU(),
                                          nn.Linear(64, 64), nn.ReLU())
 
@@ -154,6 +154,7 @@ class GRU_actor(nn.Module):
 
     def forward(self, state):
         own_e = self.own_fc(state[0])
+        own_e = own_e.unsqueeze(1)  # make sure the gru input has a sequence length=1 stated
         gru_out, hn = self.gru(own_e)  # hn = last column (or the most recent one) of the output hidden state
         own_layer2out = self.own_fc_lay2(hn)
         action_out = self.own_fc_outlay(own_layer2out)
@@ -337,10 +338,10 @@ class CriticNetwork(nn.Module):
 
 
 class CriticNetwork_woGru(nn.Module):
-    def __init__(self, critic_obs, n_agents, n_actions, actor_hidden_state):
+    def __init__(self, critic_obs, n_agents, n_actions, actor_hidden_state_size):
         super(CriticNetwork_woGru, self).__init__()
         self.combine_state_fc = nn.Sequential(nn.Linear((critic_obs[0]) * n_agents, 256), nn.ReLU()) #  extract combine state information
-        self.combine_hn_fc = nn.Sequential(nn.Linear(actor_hidden_state * n_agents, 256), nn.ReLU())  # extract hidden state information
+        self.combine_hn_fc = nn.Sequential(nn.Linear(actor_hidden_state_size * n_agents, 256), nn.ReLU())  # extract hidden state information
         self.sum_inputs = nn.Sequential(nn.Linear(256+256+(n_actions * n_agents), 512), nn.ReLU(),
                                         nn.Linear(512, 512), nn.ReLU(), nn.Linear(512, 1))  # obtain Q value
 

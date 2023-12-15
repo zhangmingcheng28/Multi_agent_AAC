@@ -8,7 +8,7 @@
 """
 import numpy as np
 import torch as T
-from Utilities_own_randomOD_tidy import padding_list
+from Utilities_own_randomOD_gru import padding_list
 
 
 class Agent:

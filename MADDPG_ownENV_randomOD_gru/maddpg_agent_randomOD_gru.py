@@ -1,9 +1,9 @@
 # from Nnetworks_MADDPGv3 import CriticNetwork_0724, ActorNetwork
-from Nnetworks_randomOD_tidy import CriticNetwork, ActorNetwork, Stocha_actor, GRU_actor, CriticNetwork_woGru, CriticNetwork_wGru
+from Nnetworks_randomOD_gru import CriticNetwork, ActorNetwork, Stocha_actor, GRU_actor, CriticNetwork_woGru, CriticNetwork_wGru
 import torch
 from copy import deepcopy
 from torch.optim import Adam
-from memory_randomOD_tidy import ReplayMemory, Experience
+from memory_randomOD_gru import ReplayMemory, Experience
 # from random_process_MADDPGv3_randomOD import OrnsteinUhlenbeckProcess
 from torch.autograd import Variable
 import os
@@ -11,7 +11,7 @@ import torch.nn as nn
 import time
 import numpy as np
 import torch as T
-from utils_randomOD_tidy import device
+from utils_randomOD_gru import device
 import csv
 scale_reward = 0.01
 
@@ -30,7 +30,7 @@ def hard_update(target, source):
 
 
 class MADDPG:
-    def __init__(self, actor_dim, critic_dim, dim_act, actor_hidden_state, n_agents, args, cr_lr, ac_lr, gamma, tau):
+    def __init__(self, actor_dim, critic_dim, dim_act, actor_hidden_state_size, n_agents, args, cr_lr, ac_lr, gamma, tau):
         self.args = args
         self.mode = args.mode
         self.actors = []
@@ -40,10 +40,11 @@ class MADDPG:
         # self.critics = [Critic(n_agents, dim_obs, dim_act) for _ in range(n_agents)]
 
         # self.actors = [Stocha_actor(actor_dim, dim_act) for _ in range(n_agents)]  # use stochastic policy
-        self.actors = [ActorNetwork(actor_dim, dim_act) for _ in range(n_agents)]  # use deterministic policy
-        # self.actors = [GRU_actor(actor_dim, dim_act, actor_hidden_state) for _ in range(n_agents)]  # use deterministic with GRU module policy
+        # self.actors = [ActorNetwork(actor_dim, dim_act) for _ in range(n_agents)]  # use deterministic policy
+        self.actors = [GRU_actor(actor_dim, dim_act, actor_hidden_state_size) for _ in range(n_agents)]  # use deterministic with GRU module policy
         # self.critics = [CriticNetwork_0724(critic_dim, n_agents, dim_act) for _ in range(n_agents)]
-        self.critics = [CriticNetwork(critic_dim, n_agents, dim_act) for _ in range(n_agents)]
+        # self.critics = [CriticNetwork(critic_dim, n_agents, dim_act) for _ in range(n_agents)]
+        self.critics = [CriticNetwork_woGru(critic_dim, n_agents, dim_act, actor_hidden_state_size) for _ in range(n_agents)]
 
         self.n_agents = n_agents
         self.n_actor_dim = actor_dim
@@ -224,6 +225,7 @@ class MADDPG:
 
         action_batch = torch.stack(batch.actions).type(FloatTensor)
         reward_batch = torch.stack(batch.rewards).type(FloatTensor)
+        hs_batch = torch.stack(batch.hidden_state).type(FloatTensor)
 
         # stack tensors only once
         stacked_elem_0 = torch.stack([elem[0] for elem in batch.states]).to(device)
@@ -249,18 +251,18 @@ class MADDPG:
             # configured for target Q
 
             whole_action = action_batch.view(self.batch_size, -1)
-
-            non_final_next_actions = [self.actors_target[i]([non_final_next_states_actorin[0][:,i,:]]) for i in range(self.n_agents)]  #
+            whole_hs = hs_batch.view(self.batch_size, -1)
+            non_final_next_actions = [self.actors_target[i]([non_final_next_states_actorin[0][:,i,:]])[0].squeeze(0) for i in range(self.n_agents)]  #
 
             non_final_next_actions = torch.stack(non_final_next_actions).view(self.batch_size, -1)
 
             # get current Q-estimate, using agent's critic network
-            current_Q = self.critics[agent](whole_state, whole_action)
+            current_Q = self.critics[agent](whole_state, whole_action, whole_hs)
             # has_positive_values = (current_Q > 0).any()
             # if has_positive_values:
             #     print("true")
             with T.no_grad():
-                next_target_critic_value = self.critics_target[agent](next_stacked_elem_0_combine, non_final_next_actions.view(-1,self.n_agents * self.n_actions)).squeeze()
+                next_target_critic_value = self.critics_target[agent](next_stacked_elem_0_combine, non_final_next_actions.view(-1,self.n_agents * self.n_actions), whole_hs).squeeze()
                 target_Q = (reward_batch[:, agent]) + (self.GAMMA * next_target_critic_value * (1-dones_stacked[:, agent]))
                 target_Q = target_Q.unsqueeze(1)
 
@@ -272,14 +274,14 @@ class MADDPG:
             # self.has_gradients(self.critics[agent], wandb)  # Replace with your actor network variable
             self.critic_optimizer[agent].step()
 
-            action_i = self.actors[agent]([cur_state_list1[agent]])
+            action_i = self.actors[agent]([cur_state_list1[agent]])[0]
             ac = action_batch.clone()
 
-            ac[:, agent, :] = action_i  # replace the actor from self.actors[agent] into action batch
+            ac[:, agent, :] = action_i.squeeze(0)  # replace the actor from self.actors[agent] into action batch
             whole_action_action_replaced = ac.view(self.batch_size, -1)
 
-            actor_loss = -self.critics[agent](whole_state, whole_action_action_replaced).mean()
-            # actor_loss = 3-self.critics[agent](whole_state, whole_action_action_replaced).mean()
+            # actor_loss = -self.critics[agent](whole_state, whole_action_action_replaced, whole_hs).mean()
+            actor_loss = 3-self.critics[agent](whole_state, whole_action_action_replaced, whole_hs).mean()
             self.actor_optimizer[agent].zero_grad()
             actor_loss.backward()
 
@@ -328,7 +330,7 @@ class MADDPG:
         # obs_surAgent = torch.from_numpy(np.stack(state[2])).float().to(device)
 
         actions = torch.zeros(self.n_agents, self.n_actions)
-        # act_hn = torch.zeros(self.n_agents, self.actors[0].gru.hidden_size)
+        act_hn = torch.zeros(self.n_agents, self.actors[0].gru.hidden_size)
         FloatTensor = torch.cuda.FloatTensor if self.use_cuda else torch.FloatTensor
         # this for loop used to decrease noise level for all agents before taking any action
         for i in range(self.n_agents):
@@ -345,7 +347,7 @@ class MADDPG:
             # act = self.actors[i]([sb.unsqueeze(0), sb_grid.unsqueeze(0), sb_surAgent.unsqueeze(0)]).squeeze()
             # act = self.actors[i]([sb.unsqueeze(0), sb_surAgent.unsqueeze(0)]).squeeze()
             act = self.actors[i]([sb.unsqueeze(0)])[0].squeeze()
-            # hn = self.actors[i]([sb.unsqueeze(0)])[1].squeeze()
+            hn = self.actors[i]([sb.unsqueeze(0)])[1].squeeze()
             if noisy:
                 noise_value = np.random.randn(2) * self.var[i]
                 act += torch.from_numpy(noise_value).type(FloatTensor)
@@ -353,7 +355,7 @@ class MADDPG:
                 act = torch.clamp(act, -1.0, 1.0)  # when using stochastic policy, we are not require to clamp again.
 
             actions[i, :] = act
-            # act_hn[i, :] = hn
+            act_hn[i, :] = hn
         self.steps_done += 1
         # ------------- end of MADDPG_test_181123_10_10_54 version noise -------------------
 
@@ -398,8 +400,8 @@ class MADDPG:
         #     if self.var[i] > 0.05:  # noise decrease at every step instead of every episode.
         #         self.var[i] = self.var[i] * 0.999998
         # self.steps_done += 1
-        # return actions.data.cpu().numpy(), noise_value, act_hn
-        return actions.data.cpu().numpy(), noise_value
+        return actions.data.cpu().numpy(), noise_value, act_hn.data.cpu()  # NOTE: tensor.data.cpu() is to make the tensor's "is_leaf" = True, this also prevent the error message on line "retain_graph=True"
+        # return actions.data.cpu().numpy(), noise_value
 
     def get_custom_linear_scaling_factor(self, episode, eps_end, start_scale=1, end_scale=0.03):
         # Calculate the slope of the linear decrease only up to eps_end
