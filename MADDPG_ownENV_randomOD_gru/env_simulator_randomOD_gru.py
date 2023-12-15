@@ -1451,8 +1451,7 @@ class env_simulator:
         check_goal = [False] * len(self.all_agents)
         reward_record_idx = 0  # this is used as a list index, increase with for loop. No need go with agent index, this index is also shared by done checking
         # crash_penalty = -200
-        # crash_penalty_wall = 5
-        crash_penalty_wall = 100
+        crash_penalty_wall = 5
         crash_penalty_drone = 1
         reach_target = 1
 
