@@ -185,8 +185,8 @@ def main(args):
         # initialize_excel_file(excel_file_path_time)
         # ------------ end of this portion is to save using excel instead of pickle -----------
 
-    use_wanDB = False
-    # use_wanDB = True
+    # use_wanDB = False
+    use_wanDB = True
     # simply_view_evaluation = True  # True = don't save gif
     simply_view_evaluation = False  # True = don't save gif
 
