@@ -185,8 +185,8 @@ def main(args):
         # initialize_excel_file(excel_file_path_time)
         # ------------ end of this portion is to save using excel instead of pickle -----------
 
-    # use_wanDB = False
-    use_wanDB = True
+    use_wanDB = False
+    # use_wanDB = True
     # simply_view_evaluation = True  # True = don't save gif
     simply_view_evaluation = False  # True = don't save gif
 
@@ -256,7 +256,7 @@ def main(args):
     # ------------ record episode time ------------- #
     eps_time_record = []
     # ----------- record each collision checking version running time and decision -------#
-
+    collision_count = 0
 
     if args.mode == "eval":
         # args.max_episodes = 1  # only evaluate one episode during evaluation mode.
@@ -264,6 +264,7 @@ def main(args):
 
     # while episode < args.max_episodes:
     while episode < args.max_episodes:  # start of an episode
+
         # ------------ my own env.reset() ------------ #
         episode_start_time = time.time()
         episode += 1
@@ -285,8 +286,8 @@ def main(args):
 
         trajectory_eachPlay = []
 
-        pre_fix = r'D:\MADDPG_2nd_jp\111223_09_31_26\interval_record_eps'
-        episode_to_check = str(35000)
+        pre_fix = r'D:\MADDPG_2nd_jp\141223_10_30_34\interval_record_eps'
+        episode_to_check = str(15000)
         load_filepath_0 = pre_fix + '\episode_' + episode_to_check + '_agent_0actor_net.pth'
         load_filepath_1 = pre_fix + '\episode_' + episode_to_check + '_agent_1actor_net.pth'
         load_filepath_2 = pre_fix + '\episode_' + episode_to_check + '_agent_2actor_net.pth'
@@ -456,7 +457,9 @@ def main(args):
                 trajectory_eachPlay.append([[each_agent_traj[0], each_agent_traj[1]] for each_agent_traj in cur_state[0]])
                 accum_reward = accum_reward + sum(reward_aft_action)
 
-                if args.episode_length < step or (True in done_aft_action):  # when termination condition reached
+
+                # if args.episode_length < step or (True in done_aft_action):  # when termination condition reached
+                if args.episode_length < step:  # when termination condition reached
                     # display current episode out status through status_holder
                     for each_agent_idx, each_agent in enumerate(eps_status_holder):
                         for step_idx, step_reward_decomposition in enumerate(each_agent):
@@ -598,12 +601,10 @@ def main(args):
 
                         # Close figure
                         plt.close(fig)
-
+                    if True in done_aft_action and step < args.episode_length:
+                        collision_count = collision_count + 1
                     break
 
-                # if args.episode_length < step or (True in done_aft_action):
-                #     print("[Episode %05d] reward %6.4f" % (episode, accum_reward))
-                #     break
     if args.mode == "train":  # only save pickle at end of training to save computational time.
         with open(plot_file_name + '/all_episode_reward.pickle', 'wb') as handle:
             pickle.dump(eps_reward_record, handle, protocol=pickle.HIGHEST_PROTOCOL)
@@ -617,6 +618,8 @@ def main(args):
             # using csv.writer method from CSV package
             write = csv.writer(f)
             write.writerows([score_history])
+    else:
+        print("total collision count is {}".format(collision_count))
     print(f'training finishes, time spent: {datetime.timedelta(seconds=int(time.time() - training_start_time))}')
     if use_wanDB:
         wandb.finish()
@@ -627,7 +630,7 @@ if __name__ == '__main__':
     parser.add_argument('--scenario', default="simple_spread", type=str)
     parser.add_argument('--max_episodes', default=35000, type=int)  # run for a total of 50000 episodes
     parser.add_argument('--algo', default="maddpg", type=str, help="commnet/bicnet/maddpg")
-    parser.add_argument('--mode', default="train", type=str, help="train/eval")
+    parser.add_argument('--mode', default="eval", type=str, help="train/eval")
     parser.add_argument('--episode_length', default=150, type=int)  # maximum play per episode
     parser.add_argument('--memory_length', default=int(1e5), type=int)
     parser.add_argument('--seed', default=777, type=int)  # may choose to use 3407
