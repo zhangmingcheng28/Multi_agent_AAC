@@ -146,18 +146,15 @@ class GRU_actor(nn.Module):
         super(GRU_actor, self).__init__()
         self.own_fc = nn.Sequential(nn.Linear(actor_dim[0], 64), nn.ReLU())
         # gru layer
-        self.gru = nn.GRU(64, actor_hidden_state_size, 1, batch_first=True)
-        self.own_fc_lay2 = nn.Sequential(nn.Linear(64, 64), nn.ReLU(),
-                                         nn.Linear(64, 64), nn.ReLU())
+        self.gru = nn.GRU(actor_dim[0], actor_hidden_state_size, 1, batch_first=True)
 
-        self.own_fc_outlay = nn.Sequential(nn.Linear(64, n_actions), nn.Tanh())
+        self.own_fc_outlay = nn.Sequential(nn.Linear(64+64, n_actions), nn.Tanh())
 
-    def forward(self, state):
-        own_e = self.own_fc(state[0])
-        own_e = own_e.unsqueeze(1)  # make sure the gru input has a sequence length=1 stated
-        gru_out, hn = self.gru(own_e)  # hn = last column (or the most recent one) of the output hidden state
-        own_layer2out = self.own_fc_lay2(hn)
-        action_out = self.own_fc_outlay(own_layer2out)
+    def forward(self, cur_state, history_info):
+        own_e = self.own_fc(cur_state)
+        gru_out, hn = self.gru(history_info)  # hn = last column (or the most recent one) of the output hidden state
+        hn_owne = torch.cat((own_e, hn.squeeze(0)),dim=1)
+        action_out = self.own_fc_outlay(hn_owne)
         return action_out, hn
 
 
@@ -338,27 +335,38 @@ class CriticNetwork(nn.Module):
 
 
 class CriticNetwork_woGru(nn.Module):
-    def __init__(self, critic_obs, n_agents, n_actions, actor_hidden_state_size):
+    def __init__(self, critic_obs, n_agents, n_actions, history_horizon_step):
         super(CriticNetwork_woGru, self).__init__()
-        self.combine_state_fc = nn.Sequential(nn.Linear((critic_obs[0]) * n_agents, 256), nn.ReLU()) #  extract combine state information
-        self.combine_hn_fc = nn.Sequential(nn.Linear(actor_hidden_state_size * n_agents, 256), nn.ReLU())  # extract hidden state information
-        self.sum_inputs = nn.Sequential(nn.Linear(256+256+(n_actions * n_agents), 512), nn.ReLU(),
+        self.combine_state_fc = nn.Sequential(nn.Linear((critic_obs[0]) * n_agents, 256), nn.ReLU()) # extract combine state information
+        self.combine_hn_fc = nn.Sequential(nn.Linear(history_horizon_step * (critic_obs[0]) * n_agents, 512), nn.ReLU()) # extract history state information
+        self.sum_inputs = nn.Sequential(nn.Linear(256+512+(n_actions * n_agents), 512), nn.ReLU(),
                                         nn.Linear(512, 512), nn.ReLU(), nn.Linear(512, 1))  # obtain Q value
 
-    def forward(self, state, actor_actions, actor_hn):
+    def forward(self, state, actor_actions, history_info):
         combine_state = self.combine_state_fc(state)
-        combine_hn = self.combine_hn_fc(actor_hn)
+        combine_hn = self.combine_hn_fc(history_info)
         combine_S_A_hn = torch.cat((combine_state, combine_hn, actor_actions), dim=1)
         q = self.sum_inputs(combine_S_A_hn)
         return q
 
 
 class CriticNetwork_wGru(nn.Module):  #
-    def __init__(self, critic_obs, n_agents, n_actions, actor_hidden_state):
+    def __init__(self, critic_obs, n_agents, n_actions, combine_history):
         super(CriticNetwork_wGru, self).__init__()
+        self.combine_state_fc = nn.Sequential(nn.Linear((critic_obs[0]) * n_agents, 256), nn.ReLU()) # extract combine state information
+        # gru layer
+        # self.gru = nn.GRU((critic_obs[0]) * n_agents, 256, 1, batch_first=True)
+        self.gru = nn.GRU(critic_obs[0], 256, 1, batch_first=True)
 
-    def forward(self):
-        pass
+        self.sum_inputs = nn.Sequential(nn.Linear(256+256+(n_actions * n_agents), 512), nn.ReLU(),
+                                        nn.Linear(512, 512), nn.ReLU(), nn.Linear(512, 1))  # obtain Q value
+
+    def forward(self, state, actor_actions, history_info):
+        combine_state = self.combine_state_fc(state)
+        combine_out, combine_hn = self.gru(history_info)
+        combine_S_A_hn = torch.cat((combine_state, combine_hn.squeeze(0), actor_actions), dim=1)
+        q = self.sum_inputs(combine_S_A_hn)
+        return q
 
 
 class CriticNetwork_0724(nn.Module):
