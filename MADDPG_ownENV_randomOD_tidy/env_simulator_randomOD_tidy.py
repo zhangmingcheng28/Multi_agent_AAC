@@ -189,14 +189,43 @@ class env_simulator:
         self.time_step = 0.5
         # reset OU_noise as well
         self.OU_noise.reset()
+
+        # # ----------------- using fixed OD -----------------
+        # # read the Excel file into a pandas dataframe
+        # # df = pd.read_excel(r"D:\Multi_agent_AAC\MA_ver1\fixedDrone_3drones.xlsx")
+        # df = pd.read_excel(r"F:\githubClone\Multi_agent_AAC\MA_ver1\fixedDrone_3drones.xlsx")
+        # # convert the dataframe to a NumPy array
+        # custom_agent_data = np.array(df)
+        # # custom_agent_data = custom_agent_data.astype(float)
+        # agentsCoor_list = []  # for store all agents as circle polygon
+        # agentRefer_dict = {}  # A dictionary to use agent's current pos as key, their agent name (idx) as value
+        # for agentIdx in self.all_agents.keys():
+        #     self.all_agents[agentIdx].pos = custom_agent_data[agentIdx][0:2]
+        #     self.all_agents[agentIdx].ini_pos = custom_agent_data[agentIdx][0:2]
+        #     self.all_agents[agentIdx].removed_goal = None
+        #     self.all_agents[agentIdx].reach_target = False
+        #     # for fixed OD, we include the initial point into our goal list as well
+        #     self.all_agents[agentIdx].goal = [self.all_agents[agentIdx].ini_pos]
+        #
+        #     if not isinstance(custom_agent_data[agentIdx][2:4][0], str):
+        #         self.all_agents[agentIdx].goal = self.all_agents[agentIdx].goal + [custom_agent_data[agentIdx][2:4]]
+        #     else:
+        #         x_coords = np.array([int(coord.split('; ')[0]) for coord in custom_agent_data[agentIdx][2:4]])
+        #         y_coords = np.array([int(coord.split('; ')[1]) for coord in custom_agent_data[agentIdx][2:4]])
+        #         self.all_agents[agentIdx].goal = self.all_agents[agentIdx].goal + [x_coords, y_coords]
+        #
+        #     self.all_agents[agentIdx].ref_line = LineString(self.all_agents[agentIdx].goal)
+        #
+        # # -----------------end of using fixed OD -----------------
+
         # reset the drone index to 0,1,2, ensure all index reset at starting of a new episode
-        keys = list(self.all_agents.keys())
-        for new_Idx, current_Idx in zip(range(total_agentNum), keys):
-            self.all_agents[new_Idx] = self.all_agents.pop(current_Idx)
-            self.all_agents[new_Idx].agent_name = 'agent_%s' % new_Idx
-            self.all_agents[new_Idx].pre_surroundingNeighbor = {}  # at start of each episode ensure all surrounding/pre-surrounding neighbours are cleared.
-            self.all_agents[new_Idx].surroundingNeighbor = {}
-            self.all_agents[new_Idx].reach_target = False
+        # keys = list(self.all_agents.keys())
+        # for new_Idx, current_Idx in zip(range(total_agentNum), keys):
+        #     self.all_agents[new_Idx] = self.all_agents.pop(current_Idx)
+        #     self.all_agents[new_Idx].agent_name = 'agent_%s' % new_Idx
+        #     self.all_agents[new_Idx].pre_surroundingNeighbor = {}  # at start of each episode ensure all surrounding/pre-surrounding neighbours are cleared.
+        #     self.all_agents[new_Idx].surroundingNeighbor = {}
+        #     self.all_agents[new_Idx].reach_target = False
 
         # start_time = time.time()
         agentsCoor_list = []  # for store all agents as circle polygon

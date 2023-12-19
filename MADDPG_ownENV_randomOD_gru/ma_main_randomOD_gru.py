@@ -232,6 +232,7 @@ def main(args):
     # actor_dim = [16, 9, 6]  # dim host, maximum dim grid, dim other drones
     critic_dim = [6, 9, 6]
     actor_hidden_state = 64
+    actor_hidden_state_list = [actor_hidden_state for _ in range(total_agentNum)]
 
     gru_history_length = 10
     gru_history = deque(maxlen=gru_history_length)
@@ -297,6 +298,11 @@ def main(args):
         eps_reward = []
         eps_noise = []
         step_time_breakdown = []
+        
+        cur_actor_hiddens = []
+        for hidden_dim in actor_hidden_state_list:
+            cur_actor_hiddens.append(np.zeros((hidden_dim)))
+
         # print("current episode is {}, scaling factor is {}".format(episode, model.var[0]))
         step = 0
         agent_added = 0  # this is an initialization for each new episode
@@ -325,7 +331,9 @@ def main(args):
                 gru_history.append(np.array(norm_cur_state[0]))
 
                 step_obtain_action_time_start = time.time()
-                action, step_noise_val = model.choose_action(norm_cur_state, total_step, episode, step, eps_end, noise_start_level, gru_history, noisy=False) # noisy is false because we are using stochastic policy
+                # action, step_noise_val = model.choose_action(norm_cur_state, total_step, episode, step, eps_end, noise_start_level, gru_history, noisy=False) # noisy is false because we are using stochastic policy
+                action, step_noise_val, cur_actor_hiddens, next_actor_hiddens = model.choose_action(norm_cur_state, total_step, episode, step, eps_end, noise_start_level, cur_actor_hiddens, noisy=False) # noisy is false because we are using stochastic policy
+
                 generate_action_time = (time.time() - step_obtain_action_time_start)*1000
                 # print("current step obtain action time used is {} milliseconds".format(generate_action_time))
 
@@ -351,47 +359,41 @@ def main(args):
                 step += 1  # current play step
                 total_step += 1  # steps taken from 1st episode
                 eps_noise.append(step_noise_val)
-                if len(gru_history)>=gru_history_length:
-                    if args.algo == "maddpg" or args.algo == "commnet":
-                        obs = []
-                        next_obs = []
-                        # ------------- to store norm or non-norm state into experience replay ---------------
-                        for elementIdx, element in enumerate(norm_cur_state):
-                        # for elementIdx, element in enumerate(cur_state):
-                            if elementIdx != len(norm_cur_state)-1:  # meaning is not the last element
-                            # if elementIdx != len(cur_state)-1:  # meaning is not the last element
-                                obs.append(torch.from_numpy(np.stack(element)).data.float().to(device))
-                            else:
-                                sur_agents = []
-                                for each_agent_list in element:
-                                    sur_agents.append(torch.from_numpy(np.squeeze(np.array(each_agent_list), axis=1)).float())
-                                obs.append(sur_agents)
+                if len(gru_history) >= gru_history_length:
+                    obs = []
+                    next_obs = []
+                    # ------------- to store norm or non-norm state into experience replay ---------------
+                    for elementIdx, element in enumerate(norm_cur_state):
+                    # for elementIdx, element in enumerate(cur_state):
+                        if elementIdx != len(norm_cur_state)-1:  # meaning is not the last element
+                        # if elementIdx != len(cur_state)-1:  # meaning is not the last element
+                            obs.append(torch.from_numpy(np.stack(element)).data.float().to(device))
+                        else:
+                            sur_agents = []
+                            for each_agent_list in element:
+                                sur_agents.append(torch.from_numpy(np.squeeze(np.array(each_agent_list), axis=1)).float())
+                            obs.append(sur_agents)
 
-                        for elementIdx, element in enumerate(norm_next_state):
-                        # for elementIdx, element in enumerate(cur_state):
-                            if elementIdx != len(norm_next_state)-1:  # meaning is not the last element
-                            # if elementIdx != len(cur_state)-1:  # meaning is not the last element
-                                next_obs.append(torch.from_numpy(np.stack(element)).data.float().to(device))
-                            else:
-                                sur_agents = []
-                                for each_agent_list in element:
-                                    sur_agents.append(torch.from_numpy(np.squeeze(np.array(each_agent_list), axis=1)).float())
-                                next_obs.append(sur_agents)
-                        # ------------------ end of store norm or non-norm state into experience replay --------------------
-                        rw_tensor = torch.FloatTensor(np.array(reward_aft_action)).to(device)
-                        ac_tensor = torch.FloatTensor(action).to(device)
-                        done_tensor = torch.FloatTensor(done_aft_action).to(device)
-                        # prepare hidden state information
-                        history_tensor = torch.FloatTensor(np.array(gru_history)).to(device)
+                    for elementIdx, element in enumerate(norm_next_state):
+                    # for elementIdx, element in enumerate(cur_state):
+                        if elementIdx != len(norm_next_state)-1:  # meaning is not the last element
+                        # if elementIdx != len(cur_state)-1:  # meaning is not the last element
+                            next_obs.append(torch.from_numpy(np.stack(element)).data.float().to(device))
+                        else:
+                            sur_agents = []
+                            for each_agent_list in element:
+                                sur_agents.append(torch.from_numpy(np.squeeze(np.array(each_agent_list), axis=1)).float())
+                            next_obs.append(sur_agents)
+                    # ------------------ end of store norm or non-norm state into experience replay --------------------
+                    rw_tensor = torch.FloatTensor(np.array(reward_aft_action)).to(device)
+                    ac_tensor = torch.FloatTensor(action).to(device)
+                    done_tensor = torch.FloatTensor(done_aft_action).to(device)
+                    # prepare hidden state information
+                    history_tensor = torch.FloatTensor(np.array(gru_history)).to(device)
 
-                        # padded_tensor = torch.nn.functional.pad(hs_tensor, pad=(0, 0, 0, 0, 0, args.episode_length), mode='constant', value=0)
+                    # padded_tensor = torch.nn.functional.pad(hs_tensor, pad=(0, 0, 0, 0, 0, args.episode_length), mode='constant', value=0)
 
-                        if args.algo == "commnet" and next_obs is not None:
-                            model.memory.push(obs.data, ac_tensor, next_obs, rw_tensor, done_tensor)
-                        if args.algo == "maddpg":
-                            model.memory.push(obs, ac_tensor, next_obs, rw_tensor, done_tensor, history_tensor)
-                    else:
-                        model.memory(cur_state, action, reward_aft_action, next_state, done_aft_action)
+                    model.memory.push(obs, ac_tensor, next_obs, rw_tensor, done_tensor, history_tensor, cur_actor_hiddens, next_actor_hiddens)
 
                 # accum_reward = accum_reward + reward_aft_action[0]  # we just take the first agent's reward, because we are using a joint reward, so all agents obtain the same reward.
                 accum_reward = accum_reward + sum(reward_aft_action)
@@ -402,6 +404,7 @@ def main(args):
                 print("current step update time used is {} milliseconds".format(update_time_used))
                 cur_state = next_state
                 norm_cur_state = norm_next_state
+                cur_actor_hiddens = next_actor_hiddens
                 eps_reward.append(step_reward_record)
                 whole_step_time = (time.time()-step_start_time)*1000
                 print("current episode, one whole step time used is {} milliseconds".format(whole_step_time))
@@ -452,7 +455,6 @@ def main(args):
                     eps_time_record.append([eps_reset_time_used, epsTime, step_time_breakdown])
                     print("episode {} used time in calculation is  {} seconds".format(episode, epsTime))
 
-
                     # --------- removed to save time ----------
                     # storage_time = time.time()  # storage time is too long, one episode is >= 150 milliseconds
                     # append_to_excel(excel_file_path_time, eps_time_record[-1])
@@ -485,7 +487,6 @@ def main(args):
                 norm_cur_state = norm_next_state
                 trajectory_eachPlay.append([[each_agent_traj[0], each_agent_traj[1]] for each_agent_traj in cur_state[0]])
                 accum_reward = accum_reward + sum(reward_aft_action)
-
 
                 if args.episode_length < step or (True in done_aft_action):  # when termination condition reached
                 # if args.episode_length < step:  # when termination condition reached, without counting drone collision to buildings/wall

@@ -192,7 +192,8 @@ class env_simulator:
 
         # ----------------- using fixed OD -----------------
         # read the Excel file into a pandas dataframe
-        df = pd.read_excel(r"D:\Multi_agent_AAC\MA_ver1\fixedDrone_3drones.xlsx")
+        # df = pd.read_excel(r"D:\Multi_agent_AAC\MA_ver1\fixedDrone_3drones.xlsx")
+        df = pd.read_excel(r"F:\githubClone\Multi_agent_AAC\MA_ver1\fixedDrone_3drones.xlsx")
         # convert the dataframe to a NumPy array
         custom_agent_data = np.array(df)
         # custom_agent_data = custom_agent_data.astype(float)
@@ -1630,7 +1631,6 @@ class env_simulator:
                                               (drone_obj.pos[1] - drone_obj.goal[-1][1]) ** 2))
 
             near_goal_coefficient = 3  # so that near_goal_reward will become 0-3 instead of 0-1
-
             near_goal_reward = near_goal_coefficient * ((near_goal_threshold -
                                 np.clip(actual_after_dist_hg, 0, near_goal_threshold)) * 1.0/near_goal_threshold)
 

@@ -158,6 +158,22 @@ class GRU_actor(nn.Module):
         return action_out, hn
 
 
+class GRUCELL_actor(nn.Module):
+    def __init__(self, actor_dim, n_actions, actor_hidden_state_size):
+        super(GRUCELL_actor, self).__init__()
+        self.rnn_hidden_dim = actor_hidden_state_size
+        self.own_fc = nn.Sequential(nn.Linear(actor_dim[0], 64), nn.ReLU())
+        self.gru_cell = nn.GRUCell(64, actor_hidden_state_size)
+        self.own_fc_outlay = nn.Sequential(nn.Linear(64, n_actions), nn.Tanh())
+
+    def forward(self, cur_state, history_hidden_state):
+        own_e = self.own_fc(cur_state)
+        h_in = history_hidden_state.reshape(-1, self.rnn_hidden_dim)
+        h = self.gru_cell(own_e, h_in)
+        action_out = self.own_fc_outlay(h)
+        return action_out, h
+
+
 class Stocha_actor(nn.Module):
     def __init__(self, actor_dim, n_actions):  # actor_obs consists of three parts 0 = own, 1 = own grid, 2 = surrounding drones
         super(Stocha_actor, self).__init__()
@@ -367,6 +383,23 @@ class CriticNetwork_wGru(nn.Module):  #
         combine_S_A_hn = torch.cat((combine_state, combine_hn.squeeze(0), actor_actions), dim=1)
         q = self.sum_inputs(combine_S_A_hn)
         return q
+
+
+class critic_single_obs_wGRU(nn.Module):
+    def __init__(self, critic_obs, n_agents, n_actions, single_history, hidden_state_size):
+        super(critic_single_obs_wGRU, self).__init__()
+        self.rnn_hidden_dim = hidden_state_size
+        self.SA_fc = nn.Sequential(nn.Linear(critic_obs[0]+n_actions, 64), nn.ReLU())
+        self.gru_cell = nn.GRUCell(64, hidden_state_size)
+        self.own_fc_outlay = nn.Linear(64, 1)
+
+    def forward(self, single_state, single_action, history_hidden_state):
+        SA_combine = torch.cat((single_state, single_action), dim=1)
+        SA_feature = self.SA_fc(SA_combine)
+        h_in = history_hidden_state.reshape(-1, self.rnn_hidden_dim)
+        h = self.gru_cell(SA_feature, h_in)
+        q = self.own_fc_outlay(h)
+        return q, h
 
 
 class CriticNetwork_0724(nn.Module):
