@@ -190,33 +190,32 @@ class env_simulator:
         # reset OU_noise as well
         self.OU_noise.reset()
 
-        # ----------------- using fixed OD -----------------
-        # read the Excel file into a pandas dataframe
-        # df = pd.read_excel(r"D:\Multi_agent_AAC\MA_ver1\fixedDrone_3drones.xlsx")
-        df = pd.read_excel(r"F:\githubClone\Multi_agent_AAC\MA_ver1\fixedDrone_3drones.xlsx")
-        # convert the dataframe to a NumPy array
-        custom_agent_data = np.array(df)
-        # custom_agent_data = custom_agent_data.astype(float)
-        agentsCoor_list = []  # for store all agents as circle polygon
-        agentRefer_dict = {}  # A dictionary to use agent's current pos as key, their agent name (idx) as value
-        for agentIdx in self.all_agents.keys():
-            self.all_agents[agentIdx].pos = custom_agent_data[agentIdx][0:2]
-            self.all_agents[agentIdx].ini_pos = custom_agent_data[agentIdx][0:2]
-            self.all_agents[agentIdx].removed_goal = None
-            self.all_agents[agentIdx].reach_target = False
-            # for fixed OD, we include the initial point into our goal list as well
-            self.all_agents[agentIdx].goal = [self.all_agents[agentIdx].ini_pos]
-
-            if not isinstance(custom_agent_data[agentIdx][2:4][0], str):
-                self.all_agents[agentIdx].goal = self.all_agents[agentIdx].goal + [custom_agent_data[agentIdx][2:4]]
-            else:
-                x_coords = np.array([int(coord.split('; ')[0]) for coord in custom_agent_data[agentIdx][2:4]])
-                y_coords = np.array([int(coord.split('; ')[1]) for coord in custom_agent_data[agentIdx][2:4]])
-                self.all_agents[agentIdx].goal = self.all_agents[agentIdx].goal + [x_coords, y_coords]
-
-            self.all_agents[agentIdx].ref_line = LineString(self.all_agents[agentIdx].goal)
-
-        # -----------------end of using fixed OD -----------------
+        # # ----------------- using fixed OD -----------------
+        # # read the Excel file into a pandas dataframe
+        # # df = pd.read_excel(r"D:\Multi_agent_AAC\MA_ver1\fixedDrone_3drones.xlsx")
+        # df = pd.read_excel(r"F:\githubClone\Multi_agent_AAC\MA_ver1\fixedDrone_3drones.xlsx")
+        # # convert the dataframe to a NumPy array
+        # custom_agent_data = np.array(df)
+        # # custom_agent_data = custom_agent_data.astype(float)
+        # agentsCoor_list = []  # for store all agents as circle polygon
+        # agentRefer_dict = {}  # A dictionary to use agent's current pos as key, their agent name (idx) as value
+        # for agentIdx in self.all_agents.keys():
+        #     self.all_agents[agentIdx].pos = custom_agent_data[agentIdx][0:2]
+        #     self.all_agents[agentIdx].ini_pos = custom_agent_data[agentIdx][0:2]
+        #     self.all_agents[agentIdx].removed_goal = None
+        #     self.all_agents[agentIdx].reach_target = False
+        #     # for fixed OD, we include the initial point into our goal list as well
+        #     self.all_agents[agentIdx].goal = [self.all_agents[agentIdx].ini_pos]
+        #
+        #     if not isinstance(custom_agent_data[agentIdx][2:4][0], str):
+        #         self.all_agents[agentIdx].goal = self.all_agents[agentIdx].goal + [custom_agent_data[agentIdx][2:4]]
+        #     else:
+        #         x_coords = np.array([int(coord.split('; ')[0]) for coord in custom_agent_data[agentIdx][2:4]])
+        #         y_coords = np.array([int(coord.split('; ')[1]) for coord in custom_agent_data[agentIdx][2:4]])
+        #         self.all_agents[agentIdx].goal = self.all_agents[agentIdx].goal + [x_coords, y_coords]
+        #
+        #     self.all_agents[agentIdx].ref_line = LineString(self.all_agents[agentIdx].goal)
+        # # -----------------end of using fixed OD -----------------
 
         # reset the drone index to 0,1,2, ensure all index reset at starting of a new episode
         # keys = list(self.all_agents.keys())
@@ -239,88 +238,88 @@ class env_simulator:
         #     start_pos_memory = []  # make it here just to test any initial collision condition
         for agentIdx in self.all_agents.keys():
 
-            # # ---------------- using random initialized agent position for traffic flow ---------
-            # random_start_index = random.randint(0, len(self.target_pool) - 1)
-            # numbers_left = list(range(0, random_start_index)) + list(range(random_start_index + 1, len(self.target_pool)))
-            # random_target_index = random.choice(numbers_left)
-            # random_start_pos = random.choice(self.target_pool[random_start_index])
-            # if len(start_pos_memory) > 0:
-            #     while len(start_pos_memory) < len(self.all_agents):  # make sure the starting drone generated do not collide with any existing drone
-            #         # Generate a new point
-            #         random_start_index = random.randint(0, len(self.target_pool) - 1)
-            #         numbers_left = list(range(0, random_start_index)) + list(
-            #             range(random_start_index + 1, len(self.target_pool)))
-            #         random_target_index = random.choice(numbers_left)
-            #         random_start_pos = random.choice(self.target_pool[random_start_index])
-            #         # Check that the distance to all existing points is more than 5
-            #         if all(np.linalg.norm(np.array(random_start_pos)-point) > self.all_agents[agentIdx].protectiveBound*2 for point in start_pos_memory):
-            #             break
-            #
-            # random_end_pos = random.choice(self.target_pool[random_target_index])
-            # dist_between_se = np.linalg.norm(np.array(random_end_pos) - np.array(random_start_pos))
-            #
-            # # while dist_between_se >= 100:  # the distance between start & end point is more than a threshold, we reset SE pairs.
-            # #     random_end_pos = random.choice(self.target_pool[random_target_index])
-            # #     dist_between_se = np.linalg.norm(np.array(random_end_pos) - np.array(random_start_pos))
-            # host_current_circle = Point(np.array(random_start_pos)[0], np.array(random_start_pos)[1]).buffer(self.all_agents[agentIdx].protectiveBound)
-            #
-            # possiblePoly = self.allbuildingSTR.query(host_current_circle)
-            # for element in possiblePoly:
-            #     if self.allbuildingSTR.geometries.take(element).intersection(host_current_circle):
-            #         any_collision = 1
-            #         print("Initial start point {} collision with buildings".format(np.array(random_start_pos)))
-            #         break
-            #
-            # self.all_agents[agentIdx].pos = np.array(random_start_pos)
-            # self.all_agents[agentIdx].ini_pos = np.array(random_start_pos)
-            # start_pos_memory.append(np.array(random_start_pos))
-            # self.all_agents[agentIdx].removed_goal = None
-            #
-            # # large_start = [random_start_pos[0] / self.gridlength, random_start_pos[1] / self.gridlength]
-            # # large_end = [random_end_pos[0] / self.gridlength, random_end_pos[1] / self.gridlength]
-            # # small_area_map_start = [large_start[0] - math.ceil(self.bound[0] / self.gridlength),
-            # #                         large_start[1] - math.ceil(self.bound[2] / self.gridlength)]
-            # # small_area_map_end = [large_end[0] - math.ceil(self.bound[0] / self.gridlength),
-            # #                       large_end[1] - math.ceil(self.bound[2] / self.gridlength)]
-            #
-            # small_area_map_s = self.centroid_to_position_empty[random_start_pos]
-            # small_area_map_e = self.centroid_to_position_empty[random_end_pos]
-            #
-            # width = self.world_map_2D.shape[0]
-            # height = self.world_map_2D.shape[1]
-            #
-            # jps_map = self.world_map_2D_jps
-            #
-            #
-            # outPath = jps_find_path((int(small_area_map_s[0]),int(small_area_map_s[1])), (int(small_area_map_e[0]),int(small_area_map_e[1])), jps_map)
-            #
-            # # outPath = jps.find_path(small_area_map_s, small_area_map_e, width, height, jps_map)[0]
-            #
-            # refinedPath = []
-            # curHeading = math.atan2((outPath[1][1] - outPath[0][1]),
-            #                         (outPath[1][0] - outPath[0][0]))
-            # refinedPath.append(outPath[0])
-            # for id_ in range(2, len(outPath)):
-            #     nextHeading = math.atan2((outPath[id_][1] - outPath[id_ - 1][1]),
-            #                              (outPath[id_][0] - outPath[id_ - 1][0]))
-            #     if curHeading != nextHeading:  # add the "id_-1" th element
-            #         refinedPath.append(outPath[id_ - 1])
-            #         curHeading = nextHeading  # update the current heading
-            # refinedPath.append(outPath[-1])
-            #
-            # # load the to goal, but remove/exclude the 1st point, which is the initial position
-            # self.all_agents[agentIdx].goal = [[(points[0] + math.ceil(self.bound[0] / self.gridlength)) * self.gridlength,
-            #                                    (points[1] + math.ceil(self.bound[2] / self.gridlength)) * self.gridlength]
-            #                                   for points in refinedPath if not np.array_equal(np.array([(points[0] + math.ceil(self.bound[0] / self.gridlength)) * self.gridlength,
-            #                                                                                             (points[1] + math.ceil(self.bound[2] / self.gridlength)) * self.gridlength]),
-            #                                                                                   self.all_agents[agentIdx].ini_pos)]  # if not np.array_equal(np.array(points), self.all_agents[agentIdx].ini_pos)
-            # # load the to goal but we include the initial position
-            # goalPt_withini = [[(points[0] + math.ceil(self.bound[0] / self.gridlength)) * self.gridlength,
-            #                                    (points[1] + math.ceil(self.bound[2] / self.gridlength)) * self.gridlength]
-            #                                   for points in refinedPath]
-            #
-            # self.all_agents[agentIdx].ref_line = LineString(goalPt_withini)
-            # # ---------------- end of using random initialized agent position for traffic flow ---------
+            # ---------------- using random initialized agent position for traffic flow ---------
+            random_start_index = random.randint(0, len(self.target_pool) - 1)
+            numbers_left = list(range(0, random_start_index)) + list(range(random_start_index + 1, len(self.target_pool)))
+            random_target_index = random.choice(numbers_left)
+            random_start_pos = random.choice(self.target_pool[random_start_index])
+            if len(start_pos_memory) > 0:
+                while len(start_pos_memory) < len(self.all_agents):  # make sure the starting drone generated do not collide with any existing drone
+                    # Generate a new point
+                    random_start_index = random.randint(0, len(self.target_pool) - 1)
+                    numbers_left = list(range(0, random_start_index)) + list(
+                        range(random_start_index + 1, len(self.target_pool)))
+                    random_target_index = random.choice(numbers_left)
+                    random_start_pos = random.choice(self.target_pool[random_start_index])
+                    # Check that the distance to all existing points is more than 5
+                    if all(np.linalg.norm(np.array(random_start_pos)-point) > self.all_agents[agentIdx].protectiveBound*2 for point in start_pos_memory):
+                        break
+
+            random_end_pos = random.choice(self.target_pool[random_target_index])
+            dist_between_se = np.linalg.norm(np.array(random_end_pos) - np.array(random_start_pos))
+
+            # while dist_between_se >= 100:  # the distance between start & end point is more than a threshold, we reset SE pairs.
+            #     random_end_pos = random.choice(self.target_pool[random_target_index])
+            #     dist_between_se = np.linalg.norm(np.array(random_end_pos) - np.array(random_start_pos))
+            host_current_circle = Point(np.array(random_start_pos)[0], np.array(random_start_pos)[1]).buffer(self.all_agents[agentIdx].protectiveBound)
+
+            possiblePoly = self.allbuildingSTR.query(host_current_circle)
+            for element in possiblePoly:
+                if self.allbuildingSTR.geometries.take(element).intersection(host_current_circle):
+                    any_collision = 1
+                    print("Initial start point {} collision with buildings".format(np.array(random_start_pos)))
+                    break
+
+            self.all_agents[agentIdx].pos = np.array(random_start_pos)
+            self.all_agents[agentIdx].ini_pos = np.array(random_start_pos)
+            start_pos_memory.append(np.array(random_start_pos))
+            self.all_agents[agentIdx].removed_goal = None
+
+            # large_start = [random_start_pos[0] / self.gridlength, random_start_pos[1] / self.gridlength]
+            # large_end = [random_end_pos[0] / self.gridlength, random_end_pos[1] / self.gridlength]
+            # small_area_map_start = [large_start[0] - math.ceil(self.bound[0] / self.gridlength),
+            #                         large_start[1] - math.ceil(self.bound[2] / self.gridlength)]
+            # small_area_map_end = [large_end[0] - math.ceil(self.bound[0] / self.gridlength),
+            #                       large_end[1] - math.ceil(self.bound[2] / self.gridlength)]
+
+            small_area_map_s = self.centroid_to_position_empty[random_start_pos]
+            small_area_map_e = self.centroid_to_position_empty[random_end_pos]
+
+            width = self.world_map_2D.shape[0]
+            height = self.world_map_2D.shape[1]
+
+            jps_map = self.world_map_2D_jps
+
+
+            outPath = jps_find_path((int(small_area_map_s[0]),int(small_area_map_s[1])), (int(small_area_map_e[0]),int(small_area_map_e[1])), jps_map)
+
+            # outPath = jps.find_path(small_area_map_s, small_area_map_e, width, height, jps_map)[0]
+
+            refinedPath = []
+            curHeading = math.atan2((outPath[1][1] - outPath[0][1]),
+                                    (outPath[1][0] - outPath[0][0]))
+            refinedPath.append(outPath[0])
+            for id_ in range(2, len(outPath)):
+                nextHeading = math.atan2((outPath[id_][1] - outPath[id_ - 1][1]),
+                                         (outPath[id_][0] - outPath[id_ - 1][0]))
+                if curHeading != nextHeading:  # add the "id_-1" th element
+                    refinedPath.append(outPath[id_ - 1])
+                    curHeading = nextHeading  # update the current heading
+            refinedPath.append(outPath[-1])
+
+            # load the to goal, but remove/exclude the 1st point, which is the initial position
+            self.all_agents[agentIdx].goal = [[(points[0] + math.ceil(self.bound[0] / self.gridlength)) * self.gridlength,
+                                               (points[1] + math.ceil(self.bound[2] / self.gridlength)) * self.gridlength]
+                                              for points in refinedPath if not np.array_equal(np.array([(points[0] + math.ceil(self.bound[0] / self.gridlength)) * self.gridlength,
+                                                                                                        (points[1] + math.ceil(self.bound[2] / self.gridlength)) * self.gridlength]),
+                                                                                              self.all_agents[agentIdx].ini_pos)]  # if not np.array_equal(np.array(points), self.all_agents[agentIdx].ini_pos)
+            # load the to goal but we include the initial position
+            goalPt_withini = [[(points[0] + math.ceil(self.bound[0] / self.gridlength)) * self.gridlength,
+                                               (points[1] + math.ceil(self.bound[2] / self.gridlength)) * self.gridlength]
+                                              for points in refinedPath]
+
+            self.all_agents[agentIdx].ref_line = LineString(goalPt_withini)
+            # ---------------- end of using random initialized agent position for traffic flow ---------
 
 
             # heading in rad, must be goal_pos-intruder_pos, and y2-y1, x2-x1
