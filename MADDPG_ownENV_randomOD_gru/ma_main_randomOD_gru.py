@@ -650,7 +650,9 @@ def main(args):
                             plt.close(fig)
                     if True in done_aft_action and step < args.episode_length:
                         collision_count = collision_count + 1
-                    elif True in episode_goal_found:
+                    else:  # no collision -> no True in done_aft_action, and all steps used
+                        all_steps_used = all_steps_used + 1
+                    if True in episode_goal_found:
                         # Count the number of reach cases
                         num_true = sum(episode_goal_found)
                         # Determine the number of True values and print the appropriate response
@@ -663,8 +665,6 @@ def main(args):
                         else:  # all 3 reaches goal
                             all_drone_reach = all_drone_reach + 1
                             # print("There are no True values in the list.")
-                    else:  # no collision -> no True in done_aft_action, and all steps used
-                        all_steps_used = all_steps_used + 1
                     break
 
     if args.mode == "train":  # only save pickle at end of training to save computational time.
@@ -683,9 +683,9 @@ def main(args):
     else:
         print("total collision count is {}".format(collision_count))
         print("all steps used count is {}".format(all_steps_used))
-        print("When all steps are used, one goal reached count is {}".format(one_drone_reach))
-        print("When all steps are used, two goal reached count is {}".format(two_drone_reach))
-        print("When all steps are used, all goal reached count is {}".format(all_drone_reach))
+        print("One goal reached count is {}".format(one_drone_reach))
+        print("Two goal reached count is {}".format(two_drone_reach))
+        print("All goal reached count is {}".format(all_drone_reach))
     print(f'training finishes, time spent: {datetime.timedelta(seconds=int(time.time() - training_start_time))}')
     if use_wanDB:
         wandb.finish()
