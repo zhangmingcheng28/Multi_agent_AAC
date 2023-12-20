@@ -13,9 +13,9 @@ import time
 import matplotlib.animation as animation
 import pickle
 import wandb
-from parameters_randomOD_gru import initialize_parameters
-from maddpg_agent_randomOD_gru import MADDPG
-from utils_randomOD_gru import *
+from parameters_randomOD_yc import initialize_parameters
+from maddpg_agent_randomOD_yc import MADDPG
+from utils_randomOD_yc import *
 from copy import deepcopy
 import torch
 import matplotlib.pyplot as plt
@@ -25,7 +25,7 @@ from shapely.strtree import STRtree
 from matplotlib.markers import MarkerStyle
 import math
 from matplotlib.transforms import Affine2D
-from Utilities_own_randomOD_gru import *
+from Utilities_own_randomOD_yc import *
 from collections import deque
 import csv
 
@@ -230,10 +230,10 @@ def main(args):
     # create world
     # actor_dim = [6+(total_agentNum-1)*2, 10, 6]  # dim host, maximum dim grid, dim other drones
     # critic_dim = [6+(total_agentNum-1)*2, 10, 6]
-    actor_dim = [6, 9, 6]  # dim host, maximum dim grid, dim other drones
+    actor_dim = [4, 9, 4]  # dim host, maximum dim grid, dim other drones
     # actor_dim = [9, 9, 9]  # dim host, maximum dim grid, dim other drones
     # actor_dim = [16, 9, 6]  # dim host, maximum dim grid, dim other drones
-    critic_dim = [6, 9, 6]
+    critic_dim = [4, 9, 4]
     actor_hidden_state = 64
     actor_hidden_state_list = [actor_hidden_state for _ in range(total_agentNum)]
 
@@ -279,11 +279,6 @@ def main(args):
     eps_time_record = []
     # ----------- record each collision checking version running time and decision -------#
     collision_count = 0
-    one_drone_reach = 0
-    two_drone_reach = 0
-    all_drone_reach = 0
-    all_steps_used = 0
-    episode_goal_found = [False] * n_agents
 
     if args.mode == "eval":
         # args.max_episodes = 1  # only evaluate one episode during evaluation mode.
@@ -319,7 +314,7 @@ def main(args):
         trajectory_eachPlay = []
 
         pre_fix = r'D:\MADDPG_2nd_jp\191223_18_44_50\interval_record_eps'
-        episode_to_check = str(9000)
+        episode_to_check = str(7000)
         load_filepath_0 = pre_fix + '\episode_' + episode_to_check + '_agent_0actor_net.pth'
         load_filepath_1 = pre_fix + '\episode_' + episode_to_check + '_agent_1actor_net.pth'
         load_filepath_2 = pre_fix + '\episode_' + episode_to_check + '_agent_2actor_net.pth'
@@ -340,6 +335,7 @@ def main(args):
 
                 step_obtain_action_time_start = time.time()
                 # action, step_noise_val = model.choose_action(norm_cur_state, total_step, episode, step, eps_end, noise_start_level, gru_history, noisy=False) # noisy is false because we are using stochastic policy
+                # action, step_noise_val, cur_actor_hiddens, next_actor_hiddens = model.choose_action(norm_cur_state, total_step, episode, step, eps_end, noise_start_level, cur_actor_hiddens, noisy=True) # noisy is false because we are using stochastic policy
                 action, step_noise_val, cur_actor_hiddens, next_actor_hiddens = model.choose_action(norm_cur_state, total_step, episode, step, eps_end, noise_start_level, cur_actor_hiddens, noisy=True) # noisy is false because we are using stochastic policy
 
                 generate_action_time = (time.time() - step_obtain_action_time_start)*1000
@@ -500,11 +496,6 @@ def main(args):
                 accum_reward = accum_reward + sum(reward_aft_action)
 
                 if args.episode_length < step or (True in done_aft_action):  # when termination condition reached
-                    # check if in this episode there are situation where agents found their goal
-                    for agent_idx, agent in env.all_agents.items():
-                        if agent.reach_target:
-                            episode_goal_found[agent_idx] = agent.reach_target
-                    # episode_goal_found = [for agents in env.all_agents]
                 # if args.episode_length < step:  # when termination condition reached, without counting drone collision to buildings/wall
                     # display current episode out status through status_holder
                     for each_agent_idx, each_agent in enumerate(eps_status_holder):
@@ -650,21 +641,6 @@ def main(args):
                             plt.close(fig)
                     if True in done_aft_action and step < args.episode_length:
                         collision_count = collision_count + 1
-                    elif True in episode_goal_found:
-                        # Count the number of reach cases
-                        num_true = sum(episode_goal_found)
-                        # Determine the number of True values and print the appropriate response
-                        if num_true == 1:
-                            # print("There is one True value in the list.")
-                            one_drone_reach = one_drone_reach + 1
-                        elif num_true == 2:
-                            # print("There are two True values in the list.")
-                            two_drone_reach = two_drone_reach + 1
-                        else:  # all 3 reaches goal
-                            all_drone_reach = all_drone_reach + 1
-                            # print("There are no True values in the list.")
-                    else:  # no collision -> no True in done_aft_action, and all steps used
-                        all_steps_used = all_steps_used + 1
                     break
 
     if args.mode == "train":  # only save pickle at end of training to save computational time.
@@ -682,10 +658,6 @@ def main(args):
             write.writerows([score_history])
     else:
         print("total collision count is {}".format(collision_count))
-        print("all steps used count is {}".format(all_steps_used))
-        print("When all steps are used, one goal reached count is {}".format(one_drone_reach))
-        print("When all steps are used, two goal reached count is {}".format(two_drone_reach))
-        print("When all steps are used, all goal reached count is {}".format(all_drone_reach))
     print(f'training finishes, time spent: {datetime.timedelta(seconds=int(time.time() - training_start_time))}')
     if use_wanDB:
         wandb.finish()
@@ -696,7 +668,7 @@ if __name__ == '__main__':
     parser.add_argument('--scenario', default="simple_spread", type=str)
     parser.add_argument('--max_episodes', default=35000, type=int)  # run for a total of 50000 episodes
     parser.add_argument('--algo', default="maddpg", type=str, help="commnet/bicnet/maddpg")
-    parser.add_argument('--mode', default="eval", type=str, help="train/eval")
+    parser.add_argument('--mode', default="train", type=str, help="train/eval")
     parser.add_argument('--episode_length', default=150, type=int)  # maximum play per episode
     parser.add_argument('--memory_length', default=int(1e5), type=int)
     parser.add_argument('--seed', default=777, type=int)  # may choose to use 3407
