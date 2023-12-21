@@ -38,3 +38,4 @@ basedline_MAAC_ownENV/__pycache__/attention_sac_MAAC.cpython-39.pyc
 *.gif
 /MADDPG_ownENV_randomOD_gru/wandb/
 /MADDPG_ownENV_randomOD_yc/wandb/
+/MADDPG_ownENV_randomOD_tidy_grid/wandb/
