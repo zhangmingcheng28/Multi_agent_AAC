@@ -230,10 +230,10 @@ def main(args):
     # create world
     # actor_dim = [6+(total_agentNum-1)*2, 10, 6]  # dim host, maximum dim grid, dim other drones
     # critic_dim = [6+(total_agentNum-1)*2, 10, 6]
-    actor_dim = [4, 9, 4]  # dim host, maximum dim grid, dim other drones
+    actor_dim = [7, 9, 7]  # dim host, maximum dim grid, dim other drones
     # actor_dim = [9, 9, 9]  # dim host, maximum dim grid, dim other drones
     # actor_dim = [16, 9, 6]  # dim host, maximum dim grid, dim other drones
-    critic_dim = [4, 9, 4]
+    critic_dim = [7, 9, 7]
     actor_hidden_state = 64
     actor_hidden_state_list = [actor_hidden_state for _ in range(total_agentNum)]
 

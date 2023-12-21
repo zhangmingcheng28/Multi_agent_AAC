@@ -319,7 +319,7 @@ def main(args):
         trajectory_eachPlay = []
 
         pre_fix = r'D:\MADDPG_2nd_jp\191223_18_44_50\interval_record_eps'
-        episode_to_check = str(9000)
+        episode_to_check = str(13000)
         load_filepath_0 = pre_fix + '\episode_' + episode_to_check + '_agent_0actor_net.pth'
         load_filepath_1 = pre_fix + '\episode_' + episode_to_check + '_agent_1actor_net.pth'
         load_filepath_2 = pre_fix + '\episode_' + episode_to_check + '_agent_2actor_net.pth'
