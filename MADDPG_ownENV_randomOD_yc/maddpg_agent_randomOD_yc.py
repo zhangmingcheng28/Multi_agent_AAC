@@ -289,9 +289,7 @@ class MADDPG:
             ac[:, agent, :] = action_i.squeeze(0)  # replace the actor from self.actors[agent] into action batch
             whole_action_action_replaced = ac.view(self.batch_size, -1)
 
-            # actor_loss = -self.critics[agent](whole_state, whole_action_action_replaced, whole_hs).mean()
-            # actor_loss = 3-self.critics[agent](whole_state, whole_action_action_replaced, whole_agent_combine_gru).mean()
-            actor_loss = 3-self.critics[agent](whole_obs_state, whole_grid_state, whole_action).mean()
+            actor_loss = -self.critics[agent](whole_obs_state, whole_grid_state, whole_action).mean()
             # actor_loss = -self.critics[agent](stacked_elem_0[:,agent,:], ac[:, agent, :], agents_cur_hidden_state[:, agent, :])[0].mean()
             self.actor_optimizer[agent].zero_grad()
             actor_loss.backward()
