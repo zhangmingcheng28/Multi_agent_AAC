@@ -492,7 +492,15 @@ def main(args):
                 total_step += 1
                 cur_state = next_state
                 norm_cur_state = norm_next_state
-                trajectory_eachPlay.append([[each_agent_traj[0], each_agent_traj[1]] for each_agent_traj in cur_state[0]])
+                # trajectory_eachPlay.append([[each_agent_traj[0], each_agent_traj[1]] for each_agent_traj in cur_state[0]])
+                # trajectory_eachPlay.append([[each_agent_traj[0], each_agent_traj[1]] for each_agent_traj in cur_state[0]])
+                # used when px and py are not inside drone's state space
+                pos = []
+                for ag_idx, ag_list in enumerate(cur_state[0]):
+                    drone_px = env.all_agents[ag_idx].goal[-1][0] - ag_list[-2]
+                    drone_py = env.all_agents[ag_idx].goal[-1][1] - ag_list[-1]
+                    pos.append([drone_px, drone_py])
+                trajectory_eachPlay.append(pos)
                 accum_reward = accum_reward + sum(reward_aft_action)
 
                 if args.episode_length < step or (True in done_aft_action):  # when termination condition reached
