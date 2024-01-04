@@ -198,8 +198,8 @@ def main(args):
         # initialize_excel_file(excel_file_path_time)
         # ------------ end of this portion is to save using excel instead of pickle -----------
 
-    use_wanDB = False
-    # use_wanDB = True
+    # use_wanDB = False
+    use_wanDB = True
     # get_evaluation_status = True  # have figure output
     get_evaluation_status = False  # no figure output, mainly obtain collision rate
     # simply_view_evaluation = True  # don't save gif
@@ -477,7 +477,7 @@ def main(args):
                         # save the models at a predefined interval
                         # save model to my own directory
                         filepath = file_name+'/interval_record_eps'
-                        model.save_model(episode, filepath)  # this is the original save model
+                        model.save_one_ac_model(episode, filepath)  # this is the original save model
                         time_used_for_csv_model_save = (time.time()-save_model)*1000  # *1000 for milliseconds
                         print("current episode used time in save csv and model is {} milliseconds".format(episode, time_used_for_csv_model_save))
                     # save episodes reward for entire system at each of one episode
@@ -732,7 +732,7 @@ if __name__ == '__main__':
     parser.add_argument('--ou_sigma', default=0.2, type=float)
     parser.add_argument('--epsilon_decay', default=10000, type=int)
     parser.add_argument('--tensorboard', default=True, action="store_true")
-    parser.add_argument("--save_interval", default=1000, type=int)  # save model for every 5000 episodes
+    parser.add_argument("--save_interval", default=300, type=int)  # save model for every 5000 episodes
     parser.add_argument("--model_episode", default=60000, type=int)
     parser.add_argument('--gru_history_length', default=10, type=int)  # original 1000
     parser.add_argument('--log_dir', default=datetime.datetime.now().strftime('%Y%m%d_%H%M%S'))

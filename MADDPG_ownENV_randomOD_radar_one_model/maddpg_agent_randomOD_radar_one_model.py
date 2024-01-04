@@ -123,15 +123,15 @@ class MADDPG:
         self.critics_target = deepcopy(self.critics)
 
     def save_model(self, episode, file_path):
-        # if not os.path.exists("./trained_model_myenv/"):
-        #     os.mkdir("./trained_model_myenv/")
-        # if not os.path.exists("./trained_model/" + str(self.args.algo) + "/"):
-        #     # os.mkdir(r"F:\githubClone\MAProj_myversion\algo/trained_model/" + str(self.args.algo))
-        #     os.mkdir(r"D:\Multi_agent_AAC\old_framework_test\algo/trained_model/" + str(self.args.algo))
         if not os.path.exists(file_path):
             os.makedirs(file_path)
         for i in range(self.n_agents):
             torch.save(self.actors[i].state_dict(), file_path + '/' +'episode_'+str(episode)+'_'+'agent_'+ str(i) + 'actor_net.pth')
+
+    def save_one_ac_model(self, episode, file_path):
+        if not os.path.exists(file_path):
+            os.makedirs(file_path)
+        torch.save(self.actors.state_dict(), file_path + '/' +'episode_'+str(episode)+'_' + 'actor_net.pth')
 
 
 
