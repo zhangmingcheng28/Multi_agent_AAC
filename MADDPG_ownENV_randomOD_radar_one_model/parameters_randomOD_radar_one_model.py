@@ -7,8 +7,8 @@
 @Package dependency:
 """
 import numpy as np
-from grid_env_generation_newframe_randomOD_gru_radar import env_generation
-from env_simulator_randomOD_gru_radar import env_simulator
+from grid_env_generation_newframe_randomOD_radar_one_model import env_generation
+from env_simulator_randomOD_radar_one_model import env_simulator
 
 
 def initialize_parameters():

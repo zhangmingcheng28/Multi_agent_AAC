@@ -18,7 +18,7 @@ from scipy.spatial import KDTree
 import random
 import itertools
 from copy import deepcopy
-from agent_randomOD_gru_radar import Agent
+from agent_randomOD_radar_one_model import Agent
 import pandas as pd
 import math
 import numpy as np
@@ -30,7 +30,7 @@ import matplotlib.pyplot as plt
 import matplotlib
 import re
 import time
-from Utilities_own_randomOD_gru_radar import *
+from Utilities_own_randomOD_radar_one_model import *
 import torch as T
 import torch
 import torch.nn.functional as F
@@ -1744,6 +1744,13 @@ class env_simulator:
             near_goal_reward = near_goal_coefficient * ((near_goal_threshold -
                                 np.clip(actual_after_dist_hg, 0, near_goal_threshold)) * 1.0/near_goal_threshold)
 
+            # penalty for any buildings are getting too near to the host agent
+            turningPtConst = drone_obj.detectionRange/2-drone_obj.protectiveBound  # this one should be 12.5
+            min_dist = np.min(drone_obj.observableSpace)
+            # the distance is based on the minimum of the detected distance to surrounding buildings.
+            near_building_penalty_coef = 1
+            near_building_penalty = near_building_penalty_coef*((1-(1/(1+math.exp(turningPtConst-min_dist))))*(1-(min_dist/turningPtConst)**2))  # value from 0 ~ 1.
+
             # -------------end of pre-processed condition for a normal step -----------------
 
             # Always check the boundary as the 1st condition, or else will encounter error where the agent crash into wall but also exceed the bound, but crash into wall did not stop the episode. So, we must put the check boundary condition 1st, so that episode can terminate in time and does not leads to exceed boundary with error in no polygon found.
@@ -1751,29 +1758,31 @@ class env_simulator:
             # must use "host_passed_volume", or else, we unable to confirm whether the host's circle is at left or right of the boundary lines
             if x_left_bound.intersects(host_passed_volume) or x_right_bound.intersects(host_passed_volume) or y_bottom_bound.intersects(host_passed_volume) or y_top_bound.intersects(host_passed_volume):
                 print("drone_{} has crash into boundary at time step {}".format(drone_idx, current_ts))
-                rew = rew - dist_to_ref_line - crash_penalty_wall - dist_to_goal - small_step_penalty + near_goal_reward
+                rew = rew - dist_to_ref_line - crash_penalty_wall - dist_to_goal - small_step_penalty + near_goal_reward - near_building_penalty
                 done.append(True)
                 # done.append(False)
                 reward.append(np.array(rew))
             # # crash into buildings or crash with other neighbors
-            # elif collide_building == 1:
-            #     # done.append(True)
-            #     done.append(True)
-            #     rew = rew - dist_to_ref_line - crash_penalty_wall - dist_to_goal - small_step_penalty + near_goal_reward
-            #     reward.append(np.array(rew))
-            elif drone_obj.collide_wall_count >0:
-                if drone_obj.collide_wall_count == 1:
-                    done.append(False)
-                    rew = rew - dist_to_ref_line - crash_penalty_wall - dist_to_goal - small_step_penalty + near_goal_reward -5
-                    reward.append(np.array(rew))
-                elif drone_obj.collide_wall_count == 2:
-                    done.append(False)
-                    rew = rew - dist_to_ref_line - crash_penalty_wall - dist_to_goal - small_step_penalty + near_goal_reward -15
-                    reward.append(np.array(rew))
-                else:
-                    done.append(True)
-                    rew = rew - dist_to_ref_line - crash_penalty_wall - dist_to_goal - small_step_penalty + near_goal_reward - 20
-                    reward.append(np.array(rew))
+            elif collide_building == 1:
+                # done.append(True)
+                done.append(True)
+                rew = rew - dist_to_ref_line - crash_penalty_wall - dist_to_goal - small_step_penalty + near_goal_reward - near_building_penalty
+                reward.append(np.array(rew))
+            # # ---------- Termination only during collision to wall on the 3rd time -----------------------
+            # elif drone_obj.collide_wall_count >0:
+            #     if drone_obj.collide_wall_count == 1:
+            #         done.append(False)
+            #         rew = rew - dist_to_ref_line - crash_penalty_wall - dist_to_goal - small_step_penalty + near_goal_reward -5
+            #         reward.append(np.array(rew))
+            #     elif drone_obj.collide_wall_count == 2:
+            #         done.append(False)
+            #         rew = rew - dist_to_ref_line - crash_penalty_wall - dist_to_goal - small_step_penalty + near_goal_reward -15
+            #         reward.append(np.array(rew))
+            #     else:
+            #         done.append(True)
+            #         rew = rew - dist_to_ref_line - crash_penalty_wall - dist_to_goal - small_step_penalty + near_goal_reward - 20
+            #         reward.append(np.array(rew))
+            # # ----------End of termination only during collision to wall on the 3rd time -----------------------
             # elif len(collision_drones) > 0:
             #     # done.append(True)
             #     done.append(False)
@@ -1797,7 +1806,7 @@ class env_simulator:
             else:  # a normal step taken
                 # if (not wp_intersect.is_empty) and len(drone_obj.goal) > 1: # check if wp reached, and this is not the end point
                 #     drone_obj.removed_goal = drone_obj.goal.pop(0)  # remove current wp
-                rew = rew - dist_to_ref_line - dist_to_goal - small_step_penalty + near_goal_reward
+                rew = rew - dist_to_ref_line - dist_to_goal - small_step_penalty + near_goal_reward - near_building_penalty
                 # we remove the above termination condition
                 done.append(False)
                 step_reward = np.array(rew)

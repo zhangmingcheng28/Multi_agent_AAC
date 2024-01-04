@@ -369,47 +369,70 @@ def main(args):
                 step += 1  # current play step
                 total_step += 1  # steps taken from 1st episode
                 eps_noise.append(step_noise_val)
-                if len(gru_history) >= gru_history_length:
-                    obs = []
-                    next_obs = []
-                    # ------------- to store norm or non-norm state into experience replay ---------------
-                    for elementIdx, element in enumerate(norm_cur_state):
-                    # for elementIdx, element in enumerate(cur_state):
-                        if elementIdx != len(norm_cur_state)-1:  # meaning is not the last element
-                        # if elementIdx != len(cur_state)-1:  # meaning is not the last element
-                            obs.append(torch.from_numpy(np.stack(element)).data.float().to(device))
-                        else:
-                            sur_agents = []
-                            for each_agent_list in element:
-                                sur_agents.append(torch.from_numpy(np.squeeze(np.array(each_agent_list), axis=1)).float())
-                            obs.append(sur_agents)
+                obs = []
+                obs_rearr = [[] for _ in range(len(env.all_agents))]
+                next_obs = []
+                next_obs_rearr = [[] for _ in range(len(env.all_agents))]
+                # ------------- to store norm or non-norm state into experience replay ---------------
+                for elementIdx, element in enumerate(norm_cur_state):
+                # for elementIdx, element in enumerate(cur_state):
+                    if elementIdx != len(norm_cur_state)-1:  # meaning is not the last element
+                    # if elementIdx != len(cur_state)-1:  # meaning is not the last element
+                        obs.append(torch.from_numpy(np.stack(element)).data.float().to(device))
+                        # for agentNo in range(len(env.all_agents)):
+                        #     obs_rearr[elementIdx].append(torch.from_numpy(element[agentNo]))
+                    else:
+                        sur_agents = []
+                        for each_agent_list in element:
+                            sur_agents.append(torch.from_numpy(np.squeeze(np.array(each_agent_list), axis=1)).float())
+                        obs.append(sur_agents)
 
-                    for elementIdx, element in enumerate(norm_next_state):
-                    # for elementIdx, element in enumerate(cur_state):
-                        if elementIdx != len(norm_next_state)-1:  # meaning is not the last element
-                        # if elementIdx != len(cur_state)-1:  # meaning is not the last element
-                            next_obs.append(torch.from_numpy(np.stack(element)).data.float().to(device))
-                        else:
-                            sur_agents = []
-                            for each_agent_list in element:
-                                sur_agents.append(torch.from_numpy(np.squeeze(np.array(each_agent_list), axis=1)).float())
-                            next_obs.append(sur_agents)
-                    # ------------------ end of store norm or non-norm state into experience replay --------------------
-                    rw_tensor = torch.FloatTensor(np.array(reward_aft_action)).to(device)
-                    ac_tensor = torch.FloatTensor(action).to(device)
-                    done_tensor = torch.FloatTensor(done_aft_action).to(device)
-                    # prepare hidden state information
-                    history_tensor = torch.FloatTensor(np.array(gru_history)).to(device)
+                for elementIdx, element in enumerate(norm_next_state):
+                # for elementIdx, element in enumerate(cur_state):
+                    if elementIdx != len(norm_next_state)-1:  # meaning is not the last element
+                    # if elementIdx != len(cur_state)-1:  # meaning is not the last element
+                        next_obs.append(torch.from_numpy(np.stack(element)).data.float().to(device))
+                    else:
+                        sur_agents = []
+                        for each_agent_list in element:
+                            sur_agents.append(torch.from_numpy(np.squeeze(np.array(each_agent_list), axis=1)).float())
+                        next_obs.append(sur_agents)
 
-                    # padded_tensor = torch.nn.functional.pad(hs_tensor, pad=(0, 0, 0, 0, 0, args.episode_length), mode='constant', value=0)
+                # ------------- preparing to mix all agent's experience into one single experience replay--------
+                for ea_agentIdx, ea_agent in enumerate(obs_rearr):
+                    for each_obs in obs:
+                        ea_agent.append(each_obs[ea_agentIdx])
 
-                    model.memory.push(obs, ac_tensor, next_obs, rw_tensor, done_tensor, history_tensor, cur_actor_hiddens, next_actor_hiddens)
+                for ea_agentIdx, ea_agent in enumerate(next_obs_rearr):
+                    for each_obs in next_obs:
+                        ea_agent.append(each_obs[ea_agentIdx])
+                # --- end of preparation to mix all agent's experience into one single experience replay ---------
+
+                # ------------------ end of store norm or non-norm state into experience replay --------------------
+                rw_tensor = torch.FloatTensor(np.array(reward_aft_action)).to(device)
+                ac_tensor = torch.FloatTensor(action).to(device)
+                done_tensor = torch.FloatTensor(done_aft_action).to(device)
+                # prepare hidden state information
+                history_tensor = torch.FloatTensor(np.array(gru_history)).to(device)
+
+                # padded_tensor = torch.nn.functional.pad(hs_tensor, pad=(0, 0, 0, 0, 0, args.episode_length), mode='constant', value=0)
+
+                # model.memory.push(obs, ac_tensor, next_obs, rw_tensor, done_tensor, history_tensor, cur_actor_hiddens, next_actor_hiddens)
+
+                # Since we are using one AC model, each agent's observation we can store as one single experience
+
+                for agentidx in range(len(env.all_agents)):
+                    model.memory.push(obs_rearr[agentidx], ac_tensor[agentidx,:], next_obs_rearr[agentidx], rw_tensor[agentidx],
+                                      done_tensor[agentidx], history_tensor[:,agentidx,:],cur_actor_hiddens[agentidx,:],
+                                      next_actor_hiddens[agentidx,:])
+
 
                 # accum_reward = accum_reward + reward_aft_action[0]  # we just take the first agent's reward, because we are using a joint reward, so all agents obtain the same reward.
                 accum_reward = accum_reward + sum(reward_aft_action)
 
                 step_update_time_start = time.time()
-                c_loss, a_loss = model.update_myown(episode, total_step, UPDATE_EVERY, wandb)  # last working learning framework
+                # c_loss, a_loss = model.update_myown(episode, total_step, UPDATE_EVERY, wandb)  # last working learning framework
+                c_loss, a_loss = model.one_ac_update_myown(episode, total_step, UPDATE_EVERY, wandb)  # last working learning framework
                 update_time_used = (time.time() - step_update_time_start)*1000
                 print("current step update time used is {} milliseconds".format(update_time_used))
                 cur_state = next_state

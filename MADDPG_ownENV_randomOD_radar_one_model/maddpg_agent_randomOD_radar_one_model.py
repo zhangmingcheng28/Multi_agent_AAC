@@ -1,9 +1,9 @@
 # from Nnetworks_MADDPGv3 import CriticNetwork_0724, ActorNetwork
-from Nnetworks_randomOD_gru_radar import CriticNetwork, ActorNetwork, Stocha_actor, GRU_actor, GRUCELL_actor, CriticNetwork_woGru, CriticNetwork_wGru, critic_single_obs_wGRU, ActorNetwork_TwoPortion, critic_single_TwoPortion
+from single_AC_model_twoPortion import Single_ActorNetwork, Single_CriticNetwork
 import torch
 from copy import deepcopy
 from torch.optim import Adam
-from memory_randomOD_gru_radar import ReplayMemory, Experience
+from memory_randomOD_radar_one_model import ReplayMemory, Experience
 # from random_process_MADDPGv3_randomOD import OrnsteinUhlenbeckProcess
 from torch.autograd import Variable
 import os
@@ -11,7 +11,7 @@ import torch.nn as nn
 import time
 import numpy as np
 import torch as T
-from utils_randomOD_gru_radar import device
+from utils_randomOD_radar_one_model import device
 import csv
 
 
@@ -39,12 +39,14 @@ class MADDPG:
         # self.critics = [Critic(n_agents, dim_obs, dim_act) for _ in range(n_agents)]
 
         # self.actors = [Stocha_actor(actor_dim, dim_act) for _ in range(n_agents)]  # use stochastic policy
-        self.actors = [ActorNetwork_TwoPortion(actor_dim, dim_act) for _ in range(n_agents)]  # use deterministic policy
+        # self.actors = [ActorNetwork_TwoPortion(actor_dim, dim_act) for _ in range(n_agents)]  # use deterministic policy
+        self.actors = Single_ActorNetwork(actor_dim, dim_act)  # just use one centralized actor
         # self.actors = [GRUCELL_actor(actor_dim, dim_act, actor_hidden_state_size) for _ in range(n_agents)]  # use deterministic with GRU module policy
         # self.critics = [CriticNetwork_0724(critic_dim, n_agents, dim_act) for _ in range(n_agents)]
         # self.critics = [CriticNetwork(critic_dim, n_agents, dim_act) for _ in range(n_agents)]
         # self.critics = [CriticNetwork_wGru(critic_dim, n_agents, dim_act, gru_history_length) for _ in range(n_agents)]
-        self.critics = [critic_single_TwoPortion(critic_dim, n_agents, dim_act, gru_history_length, actor_hidden_state_size) for _ in range(n_agents)]
+        # self.critics = [critic_single_TwoPortion(critic_dim, n_agents, dim_act, gru_history_length, actor_hidden_state_size) for _ in range(n_agents)]
+        self.critics = Single_CriticNetwork(critic_dim, n_agents, dim_act)
 
         self.n_agents = n_agents
         self.n_actor_dim = actor_dim
@@ -72,18 +74,25 @@ class MADDPG:
         # self.critic_optimizer = [Adam(x.parameters(), lr=0.001) for x in self.critics]
         # self.actor_optimizer = [Adam(x.parameters(), lr=0.0001) for x in self.actors]
 
-        self.critic_optimizer = [Adam(x.parameters(), lr=cr_lr) for x in self.critics]
-        self.actor_optimizer = [Adam(x.parameters(), lr=ac_lr) for x in self.actors]
+        # self.critic_optimizer = [Adam(x.parameters(), lr=cr_lr) for x in self.critics]
+        self.critic_optimizer = Adam(self.critics.parameters(), lr=cr_lr)
+        # self.actor_optimizer = [Adam(x.parameters(), lr=ac_lr) for x in self.actors]
+        self.actor_optimizer = Adam(self.actors.parameters(), lr=ac_lr)
 
+        # if self.use_cuda:
+        #     for x in self.actors:
+        #         x.cuda()
+        #     for x in self.critics:
+        #         x.cuda()
+        #     for x in self.actors_target:
+        #         x.cuda()
+        #     for x in self.critics_target:
+        #         x.cuda()
         if self.use_cuda:
-            for x in self.actors:
-                x.cuda()
-            for x in self.critics:
-                x.cuda()
-            for x in self.actors_target:
-                x.cuda()
-            for x in self.critics_target:
-                x.cuda()
+            self.actors.cuda()
+            self.critics.cuda()
+            self.actors_target.cuda()
+            self.critics_target.cuda()
 
         self.steps_done = 0
         self.episode_done = 0
@@ -123,7 +132,6 @@ class MADDPG:
             os.makedirs(file_path)
         for i in range(self.n_agents):
             torch.save(self.actors[i].state_dict(), file_path + '/' +'episode_'+str(episode)+'_'+'agent_'+ str(i) + 'actor_net.pth')
-
 
 
 
@@ -320,6 +328,66 @@ class MADDPG:
 
         return c_loss, a_loss
 
+    def one_ac_update_myown(self, i_episode, total_step_count, UPDATE_EVERY, wandb=None):
+        self.train_num = i_episode
+        if len(self.memory) <= self.batch_size:
+            return None, None
+        BoolTensor = torch.cuda.BoolTensor if self.use_cuda else torch.BoolTensor
+        FloatTensor = torch.cuda.FloatTensor if self.use_cuda else torch.FloatTensor
+        c_loss = []
+        a_loss = []
+        for _ in range(5):  # repeat the training 5 times
+            transitions = self.memory.sample(self.batch_size)
+            batch = Experience(*zip(*transitions))
+
+            action_batch = torch.stack(batch.actions).type(FloatTensor)
+            reward_batch = torch.stack(batch.rewards).type(FloatTensor)
+
+            # stack tensors only once
+            stacked_elem_0 = torch.stack([elem[0] for elem in batch.states]).to(device)
+            stacked_elem_1 = torch.stack([elem[1] for elem in batch.states]).to(device)
+            stacked_elem_0_combine = stacked_elem_0.view(self.batch_size, -1)  # own_state only
+
+            # for next state
+            next_stacked_elem_0 = torch.stack([elem[0] for elem in batch.next_states]).to(device)
+            next_stacked_elem_1 = torch.stack([elem[1] for elem in batch.next_states]).to(device)
+            next_stacked_elem_0_combine = next_stacked_elem_0.view(self.batch_size, -1)
+
+            # for done
+            dones_stacked = torch.stack([three_agent_dones for three_agent_dones in batch.dones]).to(device)
+
+            non_final_next_states_actorin = [next_stacked_elem_0, next_stacked_elem_1]  # 2 portion available
+            non_final_next_actions = self.actors_target([non_final_next_states_actorin[0], non_final_next_states_actorin[1]])
+
+            current_Q = self.critics([stacked_elem_0, stacked_elem_1], action_batch)
+
+            with T.no_grad():
+                next_target_critic_value = self.critics_target([next_stacked_elem_0, next_stacked_elem_1],non_final_next_actions).squeeze()
+                target_Q = reward_batch + (self.GAMMA * next_target_critic_value * (1 - dones_stacked))
+                target_Q = target_Q.unsqueeze(1)
+
+            loss_Q = nn.MSELoss()(current_Q, target_Q.detach())
+            self.critic_optimizer.zero_grad()
+            loss_Q.backward(retain_graph=True)
+
+            self.critic_optimizer.step()
+            action_i = self.actors([stacked_elem_0, stacked_elem_1])
+            # we are using one AC model, so no need to replace action for each individual agent's action
+            actor_loss = 3 - self.critics([stacked_elem_0, stacked_elem_1], action_i).mean()
+
+            self.actor_optimizer.zero_grad()
+            actor_loss.backward()
+
+            c_loss.append(loss_Q)
+            a_loss.append(actor_loss)
+
+        if i_episode % UPDATE_EVERY == 0:  # perform a soft update at each step of an episode.
+            soft_update(self.critics_target, self.critics, self.tau)
+            soft_update(self.actors_target, self.actors, self.tau)
+
+        return c_loss, a_loss
+
+
     def has_gradients(self, model, wandb=None):
         for name, param in model.named_parameters():
             if param.grad is None:
@@ -363,7 +431,8 @@ class MADDPG:
             # act = self.actors[i]([sb.unsqueeze(0), sb_surAgent.unsqueeze(0)]).squeeze()
             # act, hn = self.actors[i](sb.unsqueeze(0), gru_history_input[:,:,i,:])
             # act, hn = self.actors[i](sb.unsqueeze(0), gru_history_input[:, i, :])
-            act = self.actors[i]([sb.unsqueeze(0), sb_grid.unsqueeze(0)])
+            # act = self.actors[i]([sb.unsqueeze(0), sb_grid.unsqueeze(0)])
+            act = self.actors([sb.unsqueeze(0), sb_grid.unsqueeze(0)])
             if noisy:
                 noise_value = np.random.randn(2) * self.var[i]
                 act += torch.from_numpy(noise_value).type(FloatTensor)
