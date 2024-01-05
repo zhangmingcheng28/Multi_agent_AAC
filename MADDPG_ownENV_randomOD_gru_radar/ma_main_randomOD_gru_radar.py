@@ -342,7 +342,7 @@ def main(args):
 
                 step_obtain_action_time_start = time.time()
                 # action, step_noise_val = model.choose_action(norm_cur_state, total_step, episode, step, eps_end, noise_start_level, gru_history, noisy=False) # noisy is false because we are using stochastic policy
-                action, step_noise_val, cur_actor_hiddens, next_actor_hiddens = model.choose_action(norm_cur_state, total_step, episode, step, eps_end, noise_start_level, cur_actor_hiddens, noisy=False) # noisy is false because we are using stochastic policy
+                action, step_noise_val, cur_actor_hiddens, next_actor_hiddens = model.choose_action(norm_cur_state, total_step, episode, step, eps_end, noise_start_level, cur_actor_hiddens, noisy=False)  # noisy is false because we are using stochastic policy
 
                 generate_action_time = (time.time() - step_obtain_action_time_start)*1000
                 # print("current step obtain action time used is {} milliseconds".format(generate_action_time))
@@ -444,11 +444,11 @@ def main(args):
 
                     if use_wanDB:
                         wandb.log({'overall_reward': float(accum_reward)})
-                    # if c_loss and a_loss:
-                    #     for idx, val in enumerate(c_loss):
-                    #         print(" agent %s, a_loss %3.2f c_loss %3.2f" % (idx, a_loss[idx].item(), c_loss[idx].item()))
-                            # wandb.log({'agent' + str(idx) + 'actor_loss': float(a_loss[idx].item())})
-                            # wandb.log({'agent' + str(idx) + 'critic_loss': float(c_loss[idx].item())})
+                        if c_loss and a_loss:
+                            for idx, val in enumerate(c_loss):
+                                # print(" agent %s, a_loss %3.2f c_loss %3.2f" % (idx, a_loss[idx].item(), c_loss[idx].item()))
+                                wandb.log({'agent' + str(idx) + 'actor_loss': float(a_loss[idx].item())})
+                                wandb.log({'agent' + str(idx) + 'critic_loss': float(c_loss[idx].item())})
                     if episode % args.save_interval == 0 and args.mode == "train":
                         save_model = time.time()
                         # save the models at a predefined interval

@@ -49,6 +49,8 @@ class env_simulator:
         self.buildingPolygons = building_polygons  # contain all polygon in the world that has building
         self.world_STRtree = None  # contains all polygon in the environment
         self.allbuildingSTR = None
+        self.allbuildingSTR_wBound = None
+        self.list_of_occupied_grid_wBound = None
         self.allbuilding_centre = None
         self.bound = bound
         self.global_time = 0.0  # in sec
@@ -142,8 +144,17 @@ class env_simulator:
         x_right_bound = LineString([(self.bound[1], -9999), (self.bound[1], 9999)])
         y_bottom_bound = LineString([(-9999, self.bound[2]), (9999, self.bound[2])])
         y_top_bound = LineString([(-9999, self.bound[3]), (9999, self.bound[3])])
+        boundary_lines = [x_left_bound, x_right_bound, y_bottom_bound, y_top_bound]
+        list_occupied_grids = copy.deepcopy(self.world_map_2D_polyList[0][0])
+        list_occupied_grids.extend(boundary_lines)  # add boundary line to occupied lines
+        self.allbuildingSTR_wBound = STRtree(list_occupied_grids)
+        self.list_of_occupied_grid_wBound = list_occupied_grids
         for poly in non_occupied_polygon:
             centre_coord = (poly.centroid.x, poly.centroid.y)
+            centre_coord_pt = Point(poly.centroid.x, poly.centroid.y)
+            intersects_any_boundary = any(line.intersects(centre_coord_pt)for line in boundary_lines)
+            if intersects_any_boundary:
+                continue
             if poly.intersects(x_left_bound):
                 self.spawn_area1.append(poly)
                 # left line
@@ -368,7 +379,8 @@ class env_simulator:
 
         # overall_state, norm_overall_state = self.cur_state_norm_state_fully_observable(agentRefer_dict)
         # print('time used is {}'.format(time.time() - start_time))
-        overall_state, norm_overall_state, polygons_list, st_points, ed_points, intersection_point_list, line_collection, mini_intersection_list = self.cur_state_norm_state_v3(agentRefer_dict)
+        overall_state, norm_overall_state, polygons_list, st_points, ed_points, intersection_point_list, \
+        line_collection, mini_intersection_list = self.cur_state_norm_state_v3(agentRefer_dict)
 
         if show:
             os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
@@ -401,7 +413,7 @@ class env_simulator:
             # draw non-occupied_poly
             for zero_poly in self.world_map_2D_polyList[0][1]:
                 zero_poly_mat = shapelypoly_to_matpoly(zero_poly, False, 'y')
-                # ax.add_patch(zero_poly_mat)
+                ax.add_patch(zero_poly_mat)
 
             # show building obstacles
             for poly in self.buildingPolygons:
@@ -414,8 +426,12 @@ class env_simulator:
 
             # for demo purposes
             for poly in polygons_list:
-                matp_poly = shapelypoly_to_matpoly(poly, False, 'red')  # the 3rd parameter is the edge color
-                ax.add_patch(matp_poly)
+                if poly.geom_type == "Polygon":
+                    matp_poly = shapelypoly_to_matpoly(poly, False, 'red')  # the 3rd parameter is the edge color
+                    ax.add_patch(matp_poly)
+                else:
+                    x, y = poly.xy
+                    ax.plot(x, y, color='green', linewidth=2, solid_capstyle='round', zorder=3)
             # Plot each start point
             for point_deg, point_pos in st_points.items():
                 ax.plot(point_pos.x, point_pos.y, 'o', color='blue')
@@ -846,8 +862,9 @@ class env_simulator:
             #     Polygon([(-3, -1), (-3, -3), (-1, -3), (-1, -1)]),
             #     Polygon([(-4, 2), (-4, 4), (-2, 4), (-2, 2)])
             # ]
-            polygons_list = self.world_map_2D_polyList[0][0]
-            polygons_tree = self.allbuildingSTR
+            polygons_list_wBound = self.list_of_occupied_grid_wBound
+            polygons_tree_wBound = self.allbuildingSTR_wBound
+
             distances = []
             intersection_point_list = []
             # mini_intersection_list = {}
@@ -866,28 +883,46 @@ class env_simulator:
                 line = LineString([point_pos, end_point])
                 line_collection.append(line)
                 # Query the STRtree for polygons that intersect with the line segment
-                intersecting_polygons = polygons_tree.query(line)
+                intersecting_polygons = polygons_tree_wBound.query(line)
 
                 # If there are intersecting polygons, find the nearest intersection point
                 if len(intersecting_polygons) != 0:  # check if a list is empty
                     # Initialize the minimum distance to be the length of the line segment
                     min_distance = line.length
                     for polygon_idx in intersecting_polygons:
-                        # Check if the line intersects with the polygon's boundary
-                        if line.intersects(polygons_list[polygon_idx]):
-                            intersection_point = line.intersection(polygons_list[polygon_idx].boundary)
-                            if intersection_point.type == 'MultiPoint':
-                                nearest_point = min(intersection_point.geoms, key=lambda point: drone_ctr.distance(point))
-                            else:
-                                nearest_point = intersection_point
-                            intersection_point_list.append(intersection_point)
-                            distance = drone_ctr.distance(intersection_point)
-                            # min_distance = min(min_distance, distance)
-                            if distance <= min_distance:
-                                min_distance = distance
-                                min_intersection_pt = nearest_point
+                        if polygons_list_wBound[polygon_idx].geom_type == "Polygon":
+                            # Check if the line intersects with the polygon's boundary
+                            if line.intersects(polygons_list_wBound[polygon_idx]):
+                                intersection_point = line.intersection(polygons_list_wBound[polygon_idx].boundary)
+                                if intersection_point.type == 'MultiPoint':
+                                    nearest_point = min(intersection_point.geoms,
+                                                        key=lambda point: drone_ctr.distance(point))
+                                else:
+                                    nearest_point = intersection_point
+                                intersection_point_list.append(intersection_point)
+                                distance = drone_ctr.distance(intersection_point)
+                                # min_distance = min(min_distance, distance)
+                                if distance <= min_distance:
+                                    min_distance = distance
+                                    min_intersection_pt = nearest_point
+                        else:  # possible intersection is not a polygon but a LineString
+                            if line.intersects(polygons_list_wBound[polygon_idx]):
+                                intersection = line.intersection(polygons_list_wBound[polygon_idx])
+                                if intersection.geom_type == 'Point':
+                                    intersection_distance = intersection.distance(end_point)
+                                    if intersection_distance < min_distance:
+                                        min_distance = intersection_distance
+                                        min_intersection_pt = intersection
+                                # If it's a line of intersection, add each end points of the intersection line
+                                elif intersection.geom_type == 'LineString':
+                                    for point in intersection.coords:
+                                        intersection_distance = point.distance(end_point)
+                                        if intersection_distance < min_distance:
+                                            min_distance = intersection_distance
+                                            min_intersection_pt = point
+
+                    # check whether this "min_distance" is shorter compared to intersection to 4 boundary lines.
                     distances.append(min_distance)
-                    # mini_intersection_list[min_distance] = min_intersection_pt
                     mini_intersection_list.append(min_intersection_pt)
                 else:
                     # If no intersections, the distance is the length of the line segment
@@ -969,7 +1004,7 @@ class env_simulator:
         norm_overall.append(norm_overall_state_p2)
         norm_overall.append(norm_overall_state_p3)
         # print("rest compute time is {} milliseconds".format((time.time() - rest_compu_time) * 1000))
-        return overall, norm_overall, polygons_list, st_points, ed_points, intersection_point_list, line_collection, mini_intersection_list
+        return overall, norm_overall, polygons_list_wBound, st_points, ed_points, intersection_point_list, line_collection, mini_intersection_list
 
     def cur_state_norm_state_fully_observable(self, agentRefer_dict):
         overall = []
@@ -1748,7 +1783,7 @@ class env_simulator:
             turningPtConst = drone_obj.detectionRange/2-drone_obj.protectiveBound  # this one should be 12.5
             min_dist = np.min(drone_obj.observableSpace)
             # the distance is based on the minimum of the detected distance to surrounding buildings.
-            near_building_penalty_coef = 1
+            near_building_penalty_coef = 3
             near_building_penalty = near_building_penalty_coef*((1-(1/(1+math.exp(turningPtConst-min_dist))))*(1-(min_dist/turningPtConst)**2))  # value from 0 ~ 1.
 
             # -------------end of pre-processed condition for a normal step -----------------
@@ -1818,7 +1853,7 @@ class env_simulator:
 
 
             # print("current drone {} actual distance to goal is {}, current reward is {}".format(drone_idx, actual_after_dist_hg, reward[-1]))
-            print("current drone {} actual distance to goal is {}, current reward to gaol is {}, current ref line reward is {}, current step reward is {}".format(drone_idx, actual_after_dist_hg, dist_to_goal, dist_to_ref_line, rew))
+            # print("current drone {} actual distance to goal is {}, current reward to gaol is {}, current ref line reward is {}, current step reward is {}".format(drone_idx, actual_after_dist_hg, dist_to_goal, dist_to_ref_line, rew))
 
             # record status of each step.
             eps_status_holder = self.display_one_eps_status(eps_status_holder, drone_idx, actual_after_dist_hg, [dist_to_goal, dist_to_ref_line, rew, small_step_penalty, np.linalg.norm(drone_obj.vel), near_goal_reward])

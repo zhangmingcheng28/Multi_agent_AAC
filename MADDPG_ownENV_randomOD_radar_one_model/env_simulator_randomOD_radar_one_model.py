@@ -1818,7 +1818,7 @@ class env_simulator:
 
 
             # print("current drone {} actual distance to goal is {}, current reward is {}".format(drone_idx, actual_after_dist_hg, reward[-1]))
-            print("current drone {} actual distance to goal is {}, current reward to gaol is {}, current ref line reward is {}, current step reward is {}".format(drone_idx, actual_after_dist_hg, dist_to_goal, dist_to_ref_line, rew))
+            # print("current drone {} actual distance to goal is {}, current reward to gaol is {}, current ref line reward is {}, current step reward is {}".format(drone_idx, actual_after_dist_hg, dist_to_goal, dist_to_ref_line, rew))
 
             # record status of each step.
             eps_status_holder = self.display_one_eps_status(eps_status_holder, drone_idx, actual_after_dist_hg, [dist_to_goal, dist_to_ref_line, rew, small_step_penalty, np.linalg.norm(drone_obj.vel), near_goal_reward])

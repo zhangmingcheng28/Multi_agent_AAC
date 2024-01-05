@@ -336,7 +336,7 @@ class MADDPG:
         FloatTensor = torch.cuda.FloatTensor if self.use_cuda else torch.FloatTensor
         c_loss = []
         a_loss = []
-        for _ in range(5):  # repeat the training 5 times
+        for _ in range(1):  # repeat the training 5 times
             transitions = self.memory.sample(self.batch_size)
             batch = Experience(*zip(*transitions))
 
