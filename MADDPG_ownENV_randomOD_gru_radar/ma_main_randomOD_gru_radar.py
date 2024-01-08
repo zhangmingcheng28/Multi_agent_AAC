@@ -290,6 +290,16 @@ def main(args):
     if args.mode == "eval":
         # args.max_episodes = 1  # only evaluate one episode during evaluation mode.
         args.max_episodes = 100
+        pre_fix = r'D:\MADDPG_2nd_jp\050124_16_53_51\interval_record_eps'
+        episode_to_check = str(23000)
+        load_filepath_0 = pre_fix + '\episode_' + episode_to_check + '_agent_0actor_net.pth'
+        load_filepath_1 = pre_fix + '\episode_' + episode_to_check + '_agent_1actor_net.pth'
+        load_filepath_2 = pre_fix + '\episode_' + episode_to_check + '_agent_2actor_net.pth'
+        # load_filepath_3 = pre_fix + '\episode_' + episode_to_check + '_agent_3actor_net.pth'
+        # load_filepath_4 = pre_fix + '\episode_' + episode_to_check + '_agent_4actor_net.pth'
+
+        # model.load_model([load_filepath_0, load_filepath_1, load_filepath_2, load_filepath_3, load_filepath_4])
+        model.load_model([load_filepath_0, load_filepath_1, load_filepath_2])
 
     # while episode < args.max_episodes:
     while episode < args.max_episodes:  # start of an episode
@@ -319,18 +329,6 @@ def main(args):
         accum_reward = 0
 
         trajectory_eachPlay = []
-
-        pre_fix = r'D:\MADDPG_2nd_jp\020124_06_12_38\interval_record_eps'
-        episode_to_check = str(25000)
-        load_filepath_0 = pre_fix + '\episode_' + episode_to_check + '_agent_0actor_net.pth'
-        load_filepath_1 = pre_fix + '\episode_' + episode_to_check + '_agent_1actor_net.pth'
-        load_filepath_2 = pre_fix + '\episode_' + episode_to_check + '_agent_2actor_net.pth'
-        # load_filepath_3 = pre_fix + '\episode_' + episode_to_check + '_agent_3actor_net.pth'
-        # load_filepath_4 = pre_fix + '\episode_' + episode_to_check + '_agent_4actor_net.pth'
-
-        if args.mode == "eval":
-            # model.load_model([load_filepath_0, load_filepath_1, load_filepath_2, load_filepath_3, load_filepath_4])
-            model.load_model([load_filepath_0, load_filepath_1, load_filepath_2])
 
         while True:  # start of an episode (this episode ends when (agent_added < max_agent_to_add))
             if args.mode == "train":
@@ -698,7 +696,7 @@ if __name__ == '__main__':
     parser.add_argument('--scenario', default="simple_spread", type=str)
     parser.add_argument('--max_episodes', default=35000, type=int)  # run for a total of 50000 episodes
     parser.add_argument('--algo', default="maddpg", type=str, help="commnet/bicnet/maddpg")
-    parser.add_argument('--mode', default="train", type=str, help="train/eval")
+    parser.add_argument('--mode', default="eval", type=str, help="train/eval")
     parser.add_argument('--episode_length', default=150, type=int)  # maximum play per episode
     parser.add_argument('--memory_length', default=int(1e5), type=int)
     parser.add_argument('--seed', default=777, type=int)  # may choose to use 3407

@@ -1784,8 +1784,11 @@ class env_simulator:
             min_dist = np.min(drone_obj.observableSpace)
             # the distance is based on the minimum of the detected distance to surrounding buildings.
             near_building_penalty_coef = 3
-            near_building_penalty = near_building_penalty_coef*((1-(1/(1+math.exp(turningPtConst-min_dist))))*(1-(min_dist/turningPtConst)**2))  # value from 0 ~ 1.
-
+            # near_building_penalty = near_building_penalty_coef*((1-(1/(1+math.exp(turningPtConst-min_dist))))*
+            #                                                     (1-(min_dist/turningPtConst)**2))  # value from 0 ~ 1.
+            # linear building penalty
+            m = (0-1)/(turningPtConst-0)
+            near_building_penalty = near_building_penalty_coef*(m*min_dist+1)
             # -------------end of pre-processed condition for a normal step -----------------
 
             # Always check the boundary as the 1st condition, or else will encounter error where the agent crash into wall but also exceed the bound, but crash into wall did not stop the episode. So, we must put the check boundary condition 1st, so that episode can terminate in time and does not leads to exceed boundary with error in no polygon found.
