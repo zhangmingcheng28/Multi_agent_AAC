@@ -932,6 +932,8 @@ class env_simulator:
                                 # If it's a line of intersection, add each end points of the intersection line
                                 elif intersection.geom_type == 'LineString':
                                     for point in intersection.coords:
+                                        if isinstance(point, tuple):
+                                            print("check")
                                         intersection_distance = point.distance(end_point)
                                         if intersection_distance < min_distance:
                                             min_distance = intersection_distance
