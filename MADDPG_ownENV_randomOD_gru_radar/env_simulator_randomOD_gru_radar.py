@@ -379,8 +379,8 @@ class env_simulator:
 
         # overall_state, norm_overall_state = self.cur_state_norm_state_fully_observable(agentRefer_dict)
         # print('time used is {}'.format(time.time() - start_time))
-        overall_state, norm_overall_state, polygons_list, st_points, ed_points, intersection_point_list, \
-        line_collection, mini_intersection_list = self.cur_state_norm_state_v3(agentRefer_dict)
+        overall_state, norm_overall_state, polygons_list, all_agent_st_pos, all_agent_ed_pos, all_agent_intersection_point_list, \
+        all_agent_line_collection, all_agent_mini_intersection_list = self.cur_state_norm_state_v3(agentRefer_dict)
 
         if show:
             os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
@@ -820,6 +820,13 @@ class env_simulator:
         norm_overall_state_p1 = []
         norm_overall_state_p2 = []
         norm_overall_state_p3 = []
+
+        # record surrounding grids for all drones
+        all_agent_st_pos = []
+        all_agent_ed_pos = [] 
+        all_agent_intersection_point_list = []
+        all_agent_line_collection = []
+        all_agent_mini_intersection_list = []
         # loop over all agent again to obtain each agent's detectable neighbor
         # second loop is required, because 1st loop is used to create the STR-tree of all agents
         # circle centre at their position
@@ -854,7 +861,12 @@ class env_simulator:
             st_points = {degree: Point(drone_ctr.x + math.cos(math.radians(degree)) * agent.protectiveBound,
                                          drone_ctr.y + math.sin(math.radians(degree)) * agent.protectiveBound)
                            for degree in range(0, 360, 20)}
-            radar_dist = (agent.detectionRange / 2) - agent.protectiveBound
+            # use centre point as start point
+            st_points = {degree: drone_ctr for degree in range(0, 360, 20)}
+            all_agent_st_pos.append(st_points)
+
+            # radar_dist = (agent.detectionRange / 2) - agent.protectiveBound
+            radar_dist = (agent.detectionRange / 2)
             # Re-define the polygons and build the STRtree again
             # polygons_list = [
             #     Polygon([(1, 1), (1, 3), (3, 3), (3, 1)]),
@@ -867,14 +879,18 @@ class env_simulator:
 
             distances = []
             intersection_point_list = []
-            # mini_intersection_list = {}
             mini_intersection_list = []
             ed_points = {}
             line_collection = []
             for point_deg, point_pos in st_points.items():
                 # Create a line segment from the circle's center to the point on the perimeter
-                end_x = point_pos.x + radar_dist * math.cos(math.radians(point_deg))
-                end_y = point_pos.y + radar_dist * math.sin(math.radians(point_deg))
+                # end_x = point_pos.x + radar_dist * math.cos(math.radians(point_deg))
+                # end_y = point_pos.y + radar_dist * math.sin(math.radians(point_deg))
+
+                # Create a line segment from the circle's center
+                end_x = drone_ctr.x + radar_dist * math.cos(math.radians(point_deg))
+                end_y = drone_ctr.y + radar_dist * math.sin(math.radians(point_deg))
+
                 end_point = Point(end_x, end_y)
                 ed_points[point_deg] = end_point
                 min_intersection_pt = end_point
@@ -927,6 +943,11 @@ class env_simulator:
                 else:
                     # If no intersections, the distance is the length of the line segment
                     distances.append(line.length)
+            
+            all_agent_ed_pos.append(ed_points)
+            all_agent_intersection_point_list.append(intersection_point_list)
+            all_agent_line_collection.append(line_collection)
+            all_agent_mini_intersection_list.append(mini_intersection_list)
             self.all_agents[agentIdx].observableSpace = np.array(distances)
             # ------------- end of create radar --------------- #
 
@@ -1004,7 +1025,7 @@ class env_simulator:
         norm_overall.append(norm_overall_state_p2)
         norm_overall.append(norm_overall_state_p3)
         # print("rest compute time is {} milliseconds".format((time.time() - rest_compu_time) * 1000))
-        return overall, norm_overall, polygons_list_wBound, st_points, ed_points, intersection_point_list, line_collection, mini_intersection_list
+        return overall, norm_overall, polygons_list_wBound, all_agent_st_pos, all_agent_ed_pos, all_agent_intersection_point_list, all_agent_line_collection, all_agent_mini_intersection_list
 
     def cur_state_norm_state_fully_observable(self, agentRefer_dict):
         overall = []
@@ -1780,15 +1801,23 @@ class env_simulator:
                                 np.clip(actual_after_dist_hg, 0, near_goal_threshold)) * 1.0/near_goal_threshold)
 
             # penalty for any buildings are getting too near to the host agent
-            turningPtConst = drone_obj.detectionRange/2-drone_obj.protectiveBound  # this one should be 12.5
+            # turningPtConst = drone_obj.detectionRange/2-drone_obj.protectiveBound  # this one should be 12.5
             min_dist = np.min(drone_obj.observableSpace)
             # the distance is based on the minimum of the detected distance to surrounding buildings.
             near_building_penalty_coef = 3
             # near_building_penalty = near_building_penalty_coef*((1-(1/(1+math.exp(turningPtConst-min_dist))))*
             #                                                     (1-(min_dist/turningPtConst)**2))  # value from 0 ~ 1.
             # linear building penalty
-            m = (0-1)/(turningPtConst-0)
-            near_building_penalty = near_building_penalty_coef*(m*min_dist+1)
+            # m = (0-1)/(turningPtConst-0)
+            # near_building_penalty = near_building_penalty_coef*(m*min_dist+1)
+            # (linear building penalty) same thing, another way of express
+            turningPtConst = 5
+            if min_dist < 2.5 or min_dist > turningPtConst:  # when min_dist is less than 2.5m, is consider collision, the collision penalty will take care of that
+                near_building_penalty = 0
+            else:
+                near_building_penalty = near_building_penalty_coef * \
+                                        ((min_dist-drone_obj.protectiveBound)/(turningPtConst-drone_obj.protectiveBound))
+
             # -------------end of pre-processed condition for a normal step -----------------
 
             # Always check the boundary as the 1st condition, or else will encounter error where the agent crash into wall but also exceed the bound, but crash into wall did not stop the episode. So, we must put the check boundary condition 1st, so that episode can terminate in time and does not leads to exceed boundary with error in no polygon found.
@@ -1969,7 +1998,7 @@ class env_simulator:
 
         # next_state, next_state_norm = self.cur_state_norm_state_fully_observable(agentRefer_dict)
         # start_acceleration_time = time.time()
-        next_state, next_state_norm, polygons_list, st_points, ed_points, intersection_point_list, line_collection, mini_intersection_list = self.cur_state_norm_state_v3(agentRefer_dict)
+        next_state, next_state_norm, polygons_list, all_agent_st_points, all_agent_ed_points, all_agent_intersection_point_list, all_agent_line_collection, all_agent_mini_intersection_list = self.cur_state_norm_state_v3(agentRefer_dict)
         # print("obtain_current_state, time used {} milliseconds".format(
         #     (time.time() - start_acceleration_time) * 1000))
 
@@ -2065,7 +2094,7 @@ class env_simulator:
         #     fig.canvas.flush_events()
         #     ax.cla()
         
-        return next_state, next_state_norm
+        return next_state, next_state_norm, polygons_list, all_agent_st_points, all_agent_ed_points, all_agent_intersection_point_list, all_agent_line_collection, all_agent_mini_intersection_list
 
     def fill_agents(self, max_agent_train, cur_state, norm_cur_state, remove_agent_keys):
         num_lack = int(max_agent_train-len(self.all_agents))

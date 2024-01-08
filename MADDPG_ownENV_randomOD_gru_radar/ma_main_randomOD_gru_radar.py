@@ -348,7 +348,7 @@ def main(args):
                 # action = model.choose_action(cur_state, episode, noisy=True)
 
                 one_step_transition_start = time.time()
-                next_state, norm_next_state = env.step(action, step)
+                next_state, norm_next_state, polygons_list, all_agent_st_points, all_agent_ed_points, all_agent_intersection_point_list, all_agent_line_collection, all_agent_mini_intersection_list = env.step(action, step)
                 step_transition_time = (time.time() - one_step_transition_start)*1000
                 # print("current step transition time used is {} milliseconds".format(step_transition_time))
 
@@ -424,10 +424,106 @@ def main(args):
                 elif (True in done_aft_action):
                     episode_decision[1] = True
                     print("Some agent triggers termination condition like collision, current episode {} ends at step {}".format(episode, step-1))  # we need to -1 here, because we perform step + 1 after each complete step. Just to be consistent with the step count inside the reward function.
-                # elif (agent_added>50):
-                #     episode_decision[2] = True
-                #     print("More than 50 drones has reaches the destination, current episode {} ends".format(episode))
-                # if ((args.episode_length < step) and (300 not in reward_aft_action)) or (True in done_aft_action) or (agent_added>50):
+
+                    # # show termination condition in picture when termination condition reached.
+                    # os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
+                    # matplotlib.use('TkAgg')
+                    # fig, ax = plt.subplots(1, 1)
+                    # for agentIdx, agent in env.all_agents.items():
+                    #     plt.plot(agent.pos[0], agent.pos[1], marker=MarkerStyle(">", fillstyle="right",
+                    #                                                             transform=Affine2D().rotate_deg(
+                    #                                                                 math.degrees(agent.heading))),
+                    #              color='y')
+                    #     plt.text(agent.pos[0], agent.pos[1], agent.agent_name)
+                    #     # plot self_circle of the drone
+                    #     self_circle = Point(agent.pos[0], agent.pos[1]).buffer(agent.protectiveBound, cap_style='round')
+                    #     grid_mat_Scir = shapelypoly_to_matpoly(self_circle, False, 'k')
+                    #     # ax.add_patch(grid_mat_Scir)
+                    #
+                    #     # plot drone's detection range
+                    #     detec_circle = Point(agent.pos[0], agent.pos[1]).buffer(agent.detectionRange / 2, cap_style='round')
+                    #     detec_circle_mat = shapelypoly_to_matpoly(detec_circle, False, 'r')
+                    #     # ax.add_patch(detec_circle_mat)
+                    #
+                    #     ini = agent.pos
+                    #     for wp in agent.goal:
+                    #         plt.plot([wp[0], ini[0]], [wp[1], ini[1]], '--', color='c')
+                    #         ini = wp
+                    #
+                    #     # for demo purposes
+                    #     for poly in polygons_list:
+                    #         if poly.geom_type == "Polygon":
+                    #             matp_poly = shapelypoly_to_matpoly(poly, False,
+                    #                                                'red')  # the 3rd parameter is the edge color
+                    #             ax.add_patch(matp_poly)
+                    #         else:
+                    #             x, y = poly.xy
+                    #             ax.plot(x, y, color='green', linewidth=2, solid_capstyle='round', zorder=3)
+                    #     # Plot each start point
+                    #     for point_deg, point_pos in all_agent_st_points[agentIdx].items():
+                    #         ax.plot(point_pos.x, point_pos.y, 'o', color='blue')
+                    #
+                    #     # Plot each end point
+                    #     for point_deg, point_pos in all_agent_ed_points[agentIdx].items():
+                    #         ax.plot(point_pos.x, point_pos.y, 'o', color='green')
+                    #
+                    #     # Plot the lines of the LineString
+                    #     for lines in all_agent_line_collection[agentIdx]:
+                    #         x, y = lines.xy
+                    #         ax.plot(x, y, color='blue', linewidth=2, solid_capstyle='round', zorder=2)
+                    #
+                    #     # point_counter = 0
+                    #     # # Plot each intersection point
+                    #     # for point in intersection_point_list:
+                    #     #     for ea_pt in point.geoms:
+                    #     #         point_counter = point_counter + 1
+                    #     #         ax.plot(ea_pt.x, ea_pt.y, 'o', color='red')
+                    #
+                    #     # plot minimum intersection point
+                    #     # for pt_dist, pt_pos in mini_intersection_list.items():
+                    #     for pt_pos in all_agent_mini_intersection_list[agentIdx]:
+                    #         if pt_pos.type == 'MultiPoint':
+                    #             for ea_pt in pt_pos.geoms:
+                    #                 ax.plot(ea_pt.x, ea_pt.y, 'o', color='yellow')
+                    #         else:
+                    #             ax.plot(pt_pos.x, pt_pos.y, 'o', color='red')
+                    #
+                    # # draw occupied_poly
+                    # for one_poly in env.world_map_2D_polyList[0][0]:
+                    #     one_poly_mat = shapelypoly_to_matpoly(one_poly, True, 'y', 'b')
+                    #     # ax.add_patch(one_poly_mat)
+                    # # draw non-occupied_poly
+                    # for zero_poly in env.world_map_2D_polyList[0][1]:
+                    #     zero_poly_mat = shapelypoly_to_matpoly(zero_poly, False, 'y')
+                    #     ax.add_patch(zero_poly_mat)
+                    #
+                    # # show building obstacles
+                    # for poly in env.buildingPolygons:
+                    #     matp_poly = shapelypoly_to_matpoly(poly, False, 'red')  # the 3rd parameter is the edge color
+                    #     # ax.add_patch(matp_poly)
+                    #
+                    # # show the nearest building obstacles
+                    # # nearest_buildingPoly_mat = shapelypoly_to_matpoly(nearest_buildingPoly, True, 'g', 'k')
+                    # # ax.add_patch(nearest_buildingPoly_mat)
+                    #
+                    # # for ele in self.spawn_area1_polymat:
+                    # #     ax.add_patch(ele)
+                    # # for ele2 in self.spawn_area2_polymat:
+                    # #     ax.add_patch(ele2)
+                    # # for ele3 in self.spawn_area3_polymat:
+                    # #     ax.add_patch(ele3)
+                    # # for ele4 in self.spawn_area4_polymat:
+                    # #     ax.add_patch(ele4)
+                    #
+                    # # plt.axvline(x=self.bound[0], c="green")
+                    # # plt.axvline(x=self.bound[1], c="green")
+                    # # plt.axhline(y=self.bound[2], c="green")
+                    # # plt.axhline(y=self.bound[3], c="green")
+                    #
+                    # plt.xlabel("X axis")
+                    # plt.ylabel("Y axis")
+                    # plt.axis('equal')
+                    # plt.show()
 
                 if True in episode_decision:
                     # end of an episode starts here
@@ -696,7 +792,7 @@ if __name__ == '__main__':
     parser.add_argument('--scenario', default="simple_spread", type=str)
     parser.add_argument('--max_episodes', default=35000, type=int)  # run for a total of 50000 episodes
     parser.add_argument('--algo', default="maddpg", type=str, help="commnet/bicnet/maddpg")
-    parser.add_argument('--mode', default="eval", type=str, help="train/eval")
+    parser.add_argument('--mode', default="train", type=str, help="train/eval")
     parser.add_argument('--episode_length', default=150, type=int)  # maximum play per episode
     parser.add_argument('--memory_length', default=int(1e5), type=int)
     parser.add_argument('--seed', default=777, type=int)  # may choose to use 3407
