@@ -314,7 +314,7 @@ class MADDPG:
 
         if i_episode % UPDATE_EVERY == 0:  # perform a soft update at each step of an episode.
             for i in range(self.n_agents):
-                print("all agents NN update at episode {}".format(i_episode))
+                # print("all agents NN update at episode {}".format(i_episode))
                 soft_update(self.critics_target[i], self.critics[i], self.tau)
                 soft_update(self.actors_target[i], self.actors[i], self.tau)
 
