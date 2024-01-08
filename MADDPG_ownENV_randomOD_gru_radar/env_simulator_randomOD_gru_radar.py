@@ -925,7 +925,7 @@ class env_simulator:
                             if line.intersects(polygons_list_wBound[polygon_idx]):
                                 intersection = line.intersection(polygons_list_wBound[polygon_idx])
                                 if intersection.geom_type == 'Point':
-                                    intersection_distance = intersection.distance(end_point)
+                                    intersection_distance = intersection.distance(drone_ctr)
                                     if intersection_distance < min_distance:
                                         min_distance = intersection_distance
                                         min_intersection_pt = intersection
@@ -933,7 +933,7 @@ class env_simulator:
                                 elif intersection.geom_type == 'LineString':
                                     for point in intersection.coords:
                                         one_end_of_intersection_line = Point(point)
-                                        intersection_distance = one_end_of_intersection_line.distance(end_point)
+                                        intersection_distance = one_end_of_intersection_line.distance(drone_ctr)
                                         if intersection_distance < min_distance:
                                             min_distance = intersection_distance
                                             min_intersection_pt = one_end_of_intersection_line
@@ -1782,7 +1782,8 @@ class env_simulator:
             # after_dist_hg = np.linalg.norm(drone_obj.pos - drone_obj.goal[-1])  # distance to goal after action
             x_norm, y_norm = self.normalizer.nmlz_pos(drone_obj.pos)
             tx_norm, ty_norm = self.normalizer.nmlz_pos(drone_obj.goal[-1])
-            dist_to_goal = math.sqrt(((x_norm-tx_norm)**2 + (y_norm-ty_norm)**2))  # 0~2.828
+            # dist_to_goal = math.sqrt(((x_norm-tx_norm)**2 + (y_norm-ty_norm)**2))  # 0~2.828
+            dist_to_goal = 0
             coef_ref_line = 0
             cross_err_distance, x_error, y_error = self.cross_track_error(host_current_point, drone_obj.ref_line)  # deviation from the reference line, cross track error
             norm_cross_track_deviation_x = x_error * self.normalizer.x_scale
@@ -1797,7 +1798,8 @@ class env_simulator:
             actual_after_dist_hg = math.sqrt(((drone_obj.pos[0] - drone_obj.goal[-1][0]) ** 2 +
                                               (drone_obj.pos[1] - drone_obj.goal[-1][1]) ** 2))
 
-            near_goal_coefficient = 3  # so that near_goal_reward will become 0-3 instead of 0-1
+            # near_goal_coefficient = 3  # so that near_goal_reward will become 0-3 instead of 0-1
+            near_goal_coefficient = 0  # so that near_goal_reward will become 0-3 instead of 0-1
             near_goal_reward = near_goal_coefficient * ((near_goal_threshold -
                                 np.clip(actual_after_dist_hg, 0, near_goal_threshold)) * 1.0/near_goal_threshold)
 
@@ -1807,10 +1809,12 @@ class env_simulator:
             # the distance is based on the minimum of the detected distance to surrounding buildings.
             near_building_penalty_coef = 3
             # near_building_penalty = near_building_penalty_coef*((1-(1/(1+math.exp(turningPtConst-min_dist))))*
+            #
             #                                                     (1-(min_dist/turningPtConst)**2))  # value from 0 ~ 1.
-            # linear building penalty
+            # # linear building penalty
             # m = (0-1)/(turningPtConst-0)
             # near_building_penalty = near_building_penalty_coef*(m*min_dist+1)
+
             # (linear building penalty) same thing, another way of express
             turningPtConst = 5
             if min_dist < 2.5 or min_dist > turningPtConst:  # when min_dist is less than 2.5m, is consider collision, the collision penalty will take care of that
@@ -1834,8 +1838,8 @@ class env_simulator:
             elif collide_building == 1:
                 # done.append(True)
                 done.append(True)
-                # rew = rew - dist_to_ref_line - crash_penalty_wall - dist_to_goal - small_step_penalty + near_goal_reward - near_building_penalty
-                rew = rew - big_crash_penalty_wall
+                rew = rew - dist_to_ref_line - crash_penalty_wall - dist_to_goal - small_step_penalty + near_goal_reward - near_building_penalty
+                # rew = rew - big_crash_penalty_wall
                 reward.append(np.array(rew))
             # # ---------- Termination only during collision to wall on the 3rd time -----------------------
             # elif drone_obj.collide_wall_count >0:
