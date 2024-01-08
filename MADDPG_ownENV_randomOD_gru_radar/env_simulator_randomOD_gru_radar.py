@@ -932,12 +932,11 @@ class env_simulator:
                                 # If it's a line of intersection, add each end points of the intersection line
                                 elif intersection.geom_type == 'LineString':
                                     for point in intersection.coords:
-                                        if isinstance(point, tuple):
-                                            print("check")
-                                        intersection_distance = point.distance(end_point)
+                                        one_end_of_intersection_line = Point(point)
+                                        intersection_distance = one_end_of_intersection_line.distance(end_point)
                                         if intersection_distance < min_distance:
                                             min_distance = intersection_distance
-                                            min_intersection_pt = point
+                                            min_intersection_pt = one_end_of_intersection_line
 
                     # check whether this "min_distance" is shorter compared to intersection to 4 boundary lines.
                     distances.append(min_distance)
@@ -1645,8 +1644,8 @@ class env_simulator:
         one_step_reward = []
         check_goal = [False] * len(self.all_agents)
         reward_record_idx = 0  # this is used as a list index, increase with for loop. No need go with agent index, this index is also shared by done checking
-        # crash_penalty = -200
         crash_penalty_wall = 5
+        big_crash_penalty_wall = 200
         crash_penalty_drone = 1
         reach_target = 1
 
@@ -1835,7 +1834,8 @@ class env_simulator:
             elif collide_building == 1:
                 # done.append(True)
                 done.append(True)
-                rew = rew - dist_to_ref_line - crash_penalty_wall - dist_to_goal - small_step_penalty + near_goal_reward - near_building_penalty
+                # rew = rew - dist_to_ref_line - crash_penalty_wall - dist_to_goal - small_step_penalty + near_goal_reward - near_building_penalty
+                rew = rew - big_crash_penalty_wall
                 reward.append(np.array(rew))
             # # ---------- Termination only during collision to wall on the 3rd time -----------------------
             # elif drone_obj.collide_wall_count >0:
@@ -1884,7 +1884,6 @@ class env_simulator:
                 # one_step_reward = [crossCoefficient*cross_track_error, delta_hg, alive_penalty, dominoCoefficient*dominoTerm_sum]
 
             step_reward_record[drone_idx] = [dist_to_ref_line, dist_to_goal]
-
 
             # print("current drone {} actual distance to goal is {}, current reward is {}".format(drone_idx, actual_after_dist_hg, reward[-1]))
             # print("current drone {} actual distance to goal is {}, current reward to gaol is {}, current ref line reward is {}, current step reward is {}".format(drone_idx, actual_after_dist_hg, dist_to_goal, dist_to_ref_line, rew))
