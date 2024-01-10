@@ -1805,7 +1805,7 @@ class env_simulator:
                                 np.clip(actual_after_dist_hg, 0, near_goal_threshold)) * 1.0/near_goal_threshold)
 
             # penalty for any buildings are getting too near to the host agent
-            # turningPtConst = drone_obj.detectionRange/2-drone_obj.protectiveBound  # this one should be 12.5
+            turningPtConst = drone_obj.detectionRange/2-drone_obj.protectiveBound  # this one should be 12.5
             min_dist = np.min(drone_obj.observableSpace)
             # the distance is based on the minimum of the detected distance to surrounding buildings.
             near_building_penalty_coef = 3
@@ -1818,7 +1818,7 @@ class env_simulator:
             # near_building_penalty = near_building_penalty_coef*(m*min_dist+1)
 
             # (linear building penalty) same thing, another way of express
-            turningPtConst = 5
+            # turningPtConst = 5
             if min_dist < 2.5 or min_dist > turningPtConst:  # when min_dist is less than 2.5m, is consider collision, the collision penalty will take care of that
                 near_building_penalty = 0
             else:
@@ -1925,8 +1925,8 @@ class env_simulator:
         # we use 4 here, because the time-step for the simulation is 0.5 sec.
         # hence, 4 here is equivalent to the acceleration of 2m/s^2
 
-        coe_a = 4  # coe_a is the coefficient of action is 4 because our time step is 0.5 sec
-        # coe_a = 8  # coe_a is the coefficient of action is 4 because our time step is 0.5 sec
+        # coe_a = 4  # coe_a is the coefficient of action is 4 because our time step is 0.5 sec
+        coe_a = 8  # coe_a is the coefficient of action is 4 because our time step is 0.5 sec
         # based on the input stack of actions we propagate all agents forward
         # for drone_idx, drone_act in actions.items():  # this is for evaluation with default action
         count = 1

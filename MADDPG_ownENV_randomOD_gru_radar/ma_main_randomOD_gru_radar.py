@@ -155,7 +155,8 @@ def animate(frame_num, ax, env, trajectory_eachPlay):
         x, y = agent[0], agent[1]
         plt.plot(x, y, 'o', color='r')
 
-        plt.text(x-1, y-1, 'agent_'+str(a_idx)+'_'+str(round(float(frame_num), 2)))
+        # plt.text(x-1, y-1, 'agent_'+str(a_idx)+'_'+str(round(float(frame_num), 2)))
+        plt.text(x-1, y-1, 'agent_'+str(a_idx)+'_'+str(agent[2]))
 
         self_circle = Point(x, y).buffer(env.all_agents[0].protectiveBound, cap_style='round')
         grid_mat_Scir = shapelypoly_to_matpoly(self_circle, False, 'k')
@@ -198,10 +199,10 @@ def main(args):
         # initialize_excel_file(excel_file_path_time)
         # ------------ end of this portion is to save using excel instead of pickle -----------
 
-    use_wanDB = False
-    # use_wanDB = True
-    # get_evaluation_status = True  # have figure output
-    get_evaluation_status = False  # no figure output, mainly obtain collision rate
+    # use_wanDB = False
+    use_wanDB = True
+    get_evaluation_status = True  # have figure output
+    # get_evaluation_status = False  # no figure output, mainly obtain collision rate
     # simply_view_evaluation = True  # don't save gif
     simply_view_evaluation = False  # save gif
 
@@ -255,8 +256,8 @@ def main(args):
     smallest_Nsigma = 0.15
     ini_Nsigma = largest_Nsigma
 
-    max_spd = 15
-    # max_spd = 10
+    # max_spd = 15
+    max_spd = 10
     env.create_world(total_agentNum, n_actions, GAMMA, TAU, UPDATE_EVERY, largest_Nsigma, smallest_Nsigma, ini_Nsigma, max_xy, max_spd, acc_range)
 
     # --------- my own -----------
@@ -291,10 +292,10 @@ def main(args):
     episode_goal_found = [False] * n_agents
 
     if args.mode == "eval":
-        # args.max_episodes = 10  # only evaluate one episode during evaluation mode.
-        args.max_episodes = 100
-        pre_fix = r'D:\MADDPG_2nd_jp\090124_12_49_01\interval_record_eps'
-        episode_to_check = str(14000)
+        args.max_episodes = 10  # only evaluate one episode during evaluation mode.
+        # args.max_episodes = 100
+        pre_fix = r'D:\MADDPG_2nd_jp\090124_17_37_47\interval_record_eps'
+        episode_to_check = str(9000)
         load_filepath_0 = pre_fix + '\episode_' + episode_to_check + '_agent_0actor_net.pth'
         load_filepath_1 = pre_fix + '\episode_' + episode_to_check + '_agent_1actor_net.pth'
         load_filepath_2 = pre_fix + '\episode_' + episode_to_check + '_agent_2actor_net.pth'
@@ -595,7 +596,7 @@ def main(args):
                 total_step += 1
                 cur_state = next_state
                 norm_cur_state = norm_next_state
-                trajectory_eachPlay.append([[each_agent_traj[0], each_agent_traj[1]] for each_agent_traj in cur_state[0]])
+                trajectory_eachPlay.append([[each_agent_traj[0], each_agent_traj[1], reward_aft_action[each_agent_idx]] for each_agent_idx, each_agent_traj in enumerate(cur_state[0])])
                 accum_reward = accum_reward + sum(reward_aft_action)
 
                 if args.episode_length < step or (True in done_aft_action):  # when termination condition reached
@@ -804,7 +805,7 @@ if __name__ == '__main__':
     parser.add_argument('--scenario', default="simple_spread", type=str)
     parser.add_argument('--max_episodes', default=35000, type=int)  # run for a total of 50000 episodes
     parser.add_argument('--algo', default="maddpg", type=str, help="commnet/bicnet/maddpg")
-    parser.add_argument('--mode', default="eval", type=str, help="train/eval")
+    parser.add_argument('--mode', default="train", type=str, help="train/eval")
     parser.add_argument('--episode_length', default=150, type=int)  # maximum play per episode
     parser.add_argument('--memory_length', default=int(1e5), type=int)
     parser.add_argument('--seed', default=777, type=int)  # may choose to use 3407
