@@ -198,8 +198,8 @@ def main(args):
         # initialize_excel_file(excel_file_path_time)
         # ------------ end of this portion is to save using excel instead of pickle -----------
 
-    # use_wanDB = False
-    use_wanDB = True
+    use_wanDB = False
+    # use_wanDB = True
     # get_evaluation_status = True  # have figure output
     get_evaluation_status = False  # no figure output, mainly obtain collision rate
     # simply_view_evaluation = True  # don't save gif
@@ -256,6 +256,7 @@ def main(args):
     ini_Nsigma = largest_Nsigma
 
     max_spd = 15
+    # max_spd = 10
     env.create_world(total_agentNum, n_actions, GAMMA, TAU, UPDATE_EVERY, largest_Nsigma, smallest_Nsigma, ini_Nsigma, max_xy, max_spd, acc_range)
 
     # --------- my own -----------
@@ -285,13 +286,15 @@ def main(args):
     two_drone_reach = 0
     all_drone_reach = 0
     all_steps_used = 0
+    crash_to_bound = 0
+    crash_to_building = 0
     episode_goal_found = [False] * n_agents
 
     if args.mode == "eval":
-        # args.max_episodes = 1  # only evaluate one episode during evaluation mode.
+        # args.max_episodes = 10  # only evaluate one episode during evaluation mode.
         args.max_episodes = 100
-        pre_fix = r'D:\MADDPG_2nd_jp\080124_15_57_23\interval_record_eps'
-        episode_to_check = str(3000)
+        pre_fix = r'D:\MADDPG_2nd_jp\090124_12_49_01\interval_record_eps'
+        episode_to_check = str(14000)
         load_filepath_0 = pre_fix + '\episode_' + episode_to_check + '_agent_0actor_net.pth'
         load_filepath_1 = pre_fix + '\episode_' + episode_to_check + '_agent_1actor_net.pth'
         load_filepath_2 = pre_fix + '\episode_' + episode_to_check + '_agent_2actor_net.pth'
@@ -356,7 +359,7 @@ def main(args):
                 # reward_aft_action, done_aft_action, check_goal, step_reward_record = env.get_step_reward_5_v3(step, step_reward_record)   # remove reached agent here
 
                 one_step_reward_start = time.time()
-                reward_aft_action, done_aft_action, check_goal, step_reward_record, status_holder, step_collision_record = env.ss_reward(step, step_reward_record, eps_status_holder, step_collision_record)   # remove reached agent here
+                reward_aft_action, done_aft_action, check_goal, step_reward_record, status_holder, step_collision_record, bound_building_check = env.ss_reward(step, step_reward_record, eps_status_holder, step_collision_record)   # remove reached agent here
                 reward_generation_time = (time.time() - one_step_reward_start)*1000
                 # print("current step reward time used is {} milliseconds".format(reward_generation_time))
 
@@ -425,7 +428,7 @@ def main(args):
                     episode_decision[1] = True
                     print("Some agent triggers termination condition like collision, current episode {} ends at step {}".format(episode, step-1))  # we need to -1 here, because we perform step + 1 after each complete step. Just to be consistent with the step count inside the reward function.
 
-                    # # show termination condition in picture when termination condition reached.
+                    # show termination condition in picture when termination condition reached.
                     # os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
                     # matplotlib.use('TkAgg')
                     # fig, ax = plt.subplots(1, 1)
@@ -585,7 +588,7 @@ def main(args):
                 # for a_idx, action_ele in enumerate(action):
                 #     action[a_idx] = [-0.3535, 0.3535]
                 next_state, norm_next_state, polygons_list, all_agent_st_points, all_agent_ed_points, all_agent_intersection_point_list, all_agent_line_collection, all_agent_mini_intersection_list = env.step(action, step)  # no heading update here
-                reward_aft_action, done_aft_action, check_goal, step_reward_record, eps_status_holder, step_collision_record = env.ss_reward(step, step_reward_record, eps_status_holder, step_collision_record)
+                reward_aft_action, done_aft_action, check_goal, step_reward_record, eps_status_holder, step_collision_record, bound_building_check = env.ss_reward(step, step_reward_record, eps_status_holder, step_collision_record)
                 # reward_aft_action, done_aft_action, check_goal, step_reward_record = env.get_step_reward_5_v3(step, step_reward_record)
 
                 step += 1
@@ -746,6 +749,13 @@ def main(args):
                             plt.close(fig)
                     if True in done_aft_action and step < args.episode_length:
                         collision_count = collision_count + 1
+                        if bound_building_check[0] == True:  # collide due to boundary
+                            crash_to_bound = crash_to_bound + 1
+                        elif bound_building_check[1] == True:  # collide due to building
+                            crash_to_building = crash_to_building + 1
+                        else:
+                            pass
+
                     else:  # no collision -> no True in done_aft_action, and all steps used
                         all_steps_used = all_steps_used + 1
                     if True in episode_goal_found:
@@ -778,6 +788,8 @@ def main(args):
             write.writerows([score_history])
     else:
         print("total collision count is {}".format(collision_count))
+        print("Collision due to bound is {}".format(crash_to_bound))
+        print("Collision due to building is {}".format(crash_to_building))
         print("all steps used count is {}".format(all_steps_used))
         print("One goal reached count is {}".format(one_drone_reach))
         print("Two goal reached count is {}".format(two_drone_reach))
@@ -792,7 +804,7 @@ if __name__ == '__main__':
     parser.add_argument('--scenario', default="simple_spread", type=str)
     parser.add_argument('--max_episodes', default=35000, type=int)  # run for a total of 50000 episodes
     parser.add_argument('--algo', default="maddpg", type=str, help="commnet/bicnet/maddpg")
-    parser.add_argument('--mode', default="train", type=str, help="train/eval")
+    parser.add_argument('--mode', default="eval", type=str, help="train/eval")
     parser.add_argument('--episode_length', default=150, type=int)  # maximum play per episode
     parser.add_argument('--memory_length', default=int(1e5), type=int)
     parser.add_argument('--seed', default=777, type=int)  # may choose to use 3407

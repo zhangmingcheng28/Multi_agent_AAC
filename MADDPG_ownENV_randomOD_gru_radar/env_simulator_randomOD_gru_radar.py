@@ -1639,6 +1639,7 @@ class env_simulator:
         return reward, done, check_goal, step_reward_record
 
     def ss_reward(self, current_ts, step_reward_record, eps_status_holder, step_collision_record):
+        bound_building_check = [False] * 2
         reward, done = [], []
         agent_to_remove = []
         one_step_reward = []
@@ -1790,10 +1791,10 @@ class env_simulator:
             norm_cross_track_deviation_y = y_error * self.normalizer.y_scale
             dist_to_ref_line = coef_ref_line*math.sqrt(norm_cross_track_deviation_x ** 2 + norm_cross_track_deviation_y ** 2)
             spd_penalty_threshold = 2*drone_obj.protectiveBound
-            small_step_penalty = (spd_penalty_threshold -
-                                  np.clip(np.linalg.norm(drone_obj.vel), 0, spd_penalty_threshold))*\
-                                 (1.0 / spd_penalty_threshold)
-
+            # small_step_penalty = (spd_penalty_threshold -
+            #                       np.clip(np.linalg.norm(drone_obj.vel), 0, spd_penalty_threshold))*\
+            #                      (1.0 / spd_penalty_threshold)
+            small_step_penalty = 0
             near_goal_threshold = drone_obj.detectionRange
             actual_after_dist_hg = math.sqrt(((drone_obj.pos[0] - drone_obj.goal[-1][0]) ** 2 +
                                               (drone_obj.pos[1] - drone_obj.goal[-1][1]) ** 2))
@@ -1808,6 +1809,7 @@ class env_simulator:
             min_dist = np.min(drone_obj.observableSpace)
             # the distance is based on the minimum of the detected distance to surrounding buildings.
             near_building_penalty_coef = 3
+            # near_building_penalty_coef = 0
             # near_building_penalty = near_building_penalty_coef*((1-(1/(1+math.exp(turningPtConst-min_dist))))*
             #
             #                                                     (1-(min_dist/turningPtConst)**2))  # value from 0 ~ 1.
@@ -1832,12 +1834,14 @@ class env_simulator:
                 print("drone_{} has crash into boundary at time step {}".format(drone_idx, current_ts))
                 rew = rew - dist_to_ref_line - crash_penalty_wall - dist_to_goal - small_step_penalty + near_goal_reward - near_building_penalty
                 done.append(True)
+                bound_building_check[0] = True
                 # done.append(False)
                 reward.append(np.array(rew))
             # # crash into buildings or crash with other neighbors
             elif collide_building == 1:
                 # done.append(True)
                 done.append(True)
+                bound_building_check[1] = True
                 rew = rew - dist_to_ref_line - crash_penalty_wall - dist_to_goal - small_step_penalty + near_goal_reward - near_building_penalty
                 # rew = rew - big_crash_penalty_wall
                 reward.append(np.array(rew))
@@ -1905,7 +1909,7 @@ class env_simulator:
         #     # we cannot just assign a single True to "done", as it must be a list to output from the function.
         #     done = [True, True, True]
 
-        return reward, done, check_goal, step_reward_record, eps_status_holder, step_collision_record
+        return reward, done, check_goal, step_reward_record, eps_status_holder, step_collision_record, bound_building_check
 
     def display_one_eps_status(self, status_holder, drone_idx, cur_step_dist, cur_step_reward):
         if status_holder[drone_idx] == None:
@@ -1920,7 +1924,9 @@ class env_simulator:
         agentRefer_dict = {}  # A dictionary to use agent's current pos as key, their agent name (idx) as value
         # we use 4 here, because the time-step for the simulation is 0.5 sec.
         # hence, 4 here is equivalent to the acceleration of 2m/s^2
+
         coe_a = 4  # coe_a is the coefficient of action is 4 because our time step is 0.5 sec
+        # coe_a = 8  # coe_a is the coefficient of action is 4 because our time step is 0.5 sec
         # based on the input stack of actions we propagate all agents forward
         # for drone_idx, drone_act in actions.items():  # this is for evaluation with default action
         count = 1
