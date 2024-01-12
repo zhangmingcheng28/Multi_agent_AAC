@@ -13,9 +13,9 @@ import time
 import matplotlib.animation as animation
 import pickle
 import wandb
-from parameters_randomOD_gru_radar import initialize_parameters
-from maddpg_agent_randomOD_gru_radar import MADDPG
-from utils_randomOD_gru_radar import *
+from parameters_randomOD_radar_multipleMap import initialize_parameters
+from maddpg_agent_randomOD_radar_multipleMap import MADDPG
+from utils_randomOD_radar_multipleMap import *
 from copy import deepcopy
 import torch
 import matplotlib.pyplot as plt
@@ -25,7 +25,7 @@ from shapely.strtree import STRtree
 from matplotlib.markers import MarkerStyle
 import math
 from matplotlib.transforms import Affine2D
-from Utilities_own_randomOD_gru_radar import *
+from Utilities_own_randomOD_radar_multipleMap import *
 from collections import deque
 import csv
 
@@ -201,8 +201,8 @@ def main(args):
 
     use_wanDB = False
     # use_wanDB = True
-    # get_evaluation_status = True  # have figure output
-    get_evaluation_status = False  # no figure output, mainly obtain collision rate
+    get_evaluation_status = True  # have figure output
+    # get_evaluation_status = False  # no figure output, mainly obtain collision rate
     # simply_view_evaluation = True  # don't save gif
     simply_view_evaluation = False  # save gif
 
@@ -233,12 +233,10 @@ def main(args):
     # critic_dim = [6+(total_agentNum-1)*2, 10, 6]
     # actor_dim = [6, 9, 6]  # dim host, maximum dim grid, dim other drones
     actor_dim = [6, 18, 6]  # dim host, maximum dim grid, dim other drones
-    # actor_dim = [4, 18, 4]  # dim host, maximum dim grid, dim other drones
     # actor_dim = [9, 9, 9]  # dim host, maximum dim grid, dim other drones
     # actor_dim = [16, 9, 6]  # dim host, maximum dim grid, dim other drones
     # critic_dim = [6, 9, 6]
     critic_dim = [6, 18, 6]
-    # critic_dim = [4, 18, 4]
     actor_hidden_state = 64
     actor_hidden_state_list = [actor_hidden_state for _ in range(total_agentNum)]
 
@@ -248,7 +246,7 @@ def main(args):
     # critic_dim = [9, 9, 9]
     # critic_dim = [16, 9, 6]
     n_actions = 2
-    acc_range = [-4, 4]  # NOTE this we need to change
+    acc_range = [-4, 4]
 
     actorNet_lr = 0.001
     criticNet_lr = 0.001
@@ -277,7 +275,7 @@ def main(args):
     eps_reward_record = []
     eps_check_collision = []
     eps_noise_record = []
-    eps_end = 3000  # at eps = eps_end, the eps value drops to lowest value which is 0.03 (this value is fixed)
+    eps_end = 5000  # at eps = eps_end, the eps value drops to lowest value which is 0.03 (this value is fixed)
     noise_start_level = 1
     training_start_time = time.time()
 
@@ -294,10 +292,10 @@ def main(args):
     episode_goal_found = [False] * n_agents
 
     if args.mode == "eval":
-        # args.max_episodes = 10  # only evaluate one episode during evaluation mode.
-        args.max_episodes = 100
-        pre_fix = r'D:\MADDPG_2nd_jp\110124_15_43_04\interval_record_eps'
-        episode_to_check = str(7000)
+        args.max_episodes = 10  # only evaluate one episode during evaluation mode.
+        # args.max_episodes = 100
+        pre_fix = r'D:\MADDPG_2nd_jp\090124_17_37_47\interval_record_eps'
+        episode_to_check = str(9000)
         load_filepath_0 = pre_fix + '\episode_' + episode_to_check + '_agent_0actor_net.pth'
         load_filepath_1 = pre_fix + '\episode_' + episode_to_check + '_agent_1actor_net.pth'
         load_filepath_2 = pre_fix + '\episode_' + episode_to_check + '_agent_2actor_net.pth'
@@ -314,7 +312,7 @@ def main(args):
         episode_start_time = time.time()
         episode += 1
         eps_reset_start_time = time.time()
-        cur_state, norm_cur_state = env.reset_world(total_agentNum, show=0)
+        cur_state, norm_cur_state = env.reset_world(total_agentNum, show=1)
         eps_reset_time_used = (time.time()-eps_reset_start_time)*1000
         print("current episode {} reset time used is {} milliseconds".format(episode, eps_reset_time_used))  # need to + 1 here, or else will misrecord as the previous episode
         step_collision_record = [[], [], []]  # reset at each episode, so that we can record down collision at each step for each agent.
@@ -340,14 +338,13 @@ def main(args):
             if args.mode == "train":
                 step_start_time = time.time()
                 step_reward_record = [None] * n_agents
-                # noise_flag = True
-                noise_flag = False
+
                 # populate gru history
                 gru_history.append(np.array(norm_cur_state[0]))
 
                 step_obtain_action_time_start = time.time()
                 # action, step_noise_val = model.choose_action(norm_cur_state, total_step, episode, step, eps_end, noise_start_level, gru_history, noisy=False) # noisy is false because we are using stochastic policy
-                action, step_noise_val, cur_actor_hiddens, next_actor_hiddens = model.choose_action(norm_cur_state, total_step, episode, step, eps_end, noise_start_level, cur_actor_hiddens, noisy=noise_flag)  # noisy is false because we are using stochastic policy
+                action, step_noise_val, cur_actor_hiddens, next_actor_hiddens = model.choose_action(norm_cur_state, total_step, episode, step, eps_end, noise_start_level, cur_actor_hiddens, noisy=False)  # noisy is false because we are using stochastic policy
 
                 generate_action_time = (time.time() - step_obtain_action_time_start)*1000
                 # print("current step obtain action time used is {} milliseconds".format(generate_action_time))
@@ -580,12 +577,11 @@ def main(args):
                     break  # this is to break out from "while True:", which is one play
             elif args.mode == "eval":
                 step_reward_record = [None] * n_agents
-                noise_flag = False
                 # populate gru history
                 gru_history.append(np.array(norm_cur_state[0]))
 
                 # action, step_noise_val = model.choose_action(norm_cur_state, total_step, episode, step, eps_end, noise_start_level, gru_history, noisy=False) # noisy is false because we are using stochastic policy
-                action, step_noise_val, cur_actor_hiddens, next_actor_hiddens = model.choose_action(norm_cur_state, total_step, episode, step, eps_end, noise_start_level, cur_actor_hiddens, noisy=noise_flag)  # noisy is false because we are using stochastic policy
+                action, step_noise_val, cur_actor_hiddens, next_actor_hiddens = model.choose_action(norm_cur_state, total_step, episode, step, eps_end, noise_start_level, cur_actor_hiddens, noisy=True) # noisy is false because we are using stochastic policy
 
 
                 # action = model.choose_action(cur_state, episode, noisy=False)
@@ -809,7 +805,7 @@ if __name__ == '__main__':
     parser.add_argument('--scenario', default="simple_spread", type=str)
     parser.add_argument('--max_episodes', default=35000, type=int)  # run for a total of 50000 episodes
     parser.add_argument('--algo', default="maddpg", type=str, help="commnet/bicnet/maddpg")
-    parser.add_argument('--mode', default="eval", type=str, help="train/eval")
+    parser.add_argument('--mode', default="train", type=str, help="train/eval")
     parser.add_argument('--episode_length', default=150, type=int)  # maximum play per episode
     parser.add_argument('--memory_length', default=int(1e5), type=int)
     parser.add_argument('--seed', default=777, type=int)  # may choose to use 3407

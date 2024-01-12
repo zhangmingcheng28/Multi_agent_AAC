@@ -18,7 +18,7 @@ from scipy.spatial import KDTree
 import random
 import itertools
 from copy import deepcopy
-from agent_randomOD_gru_radar import Agent
+from agent_randomOD_radar_multipleMap import Agent
 import pandas as pd
 import math
 import numpy as np
@@ -30,7 +30,7 @@ import matplotlib.pyplot as plt
 import matplotlib
 import re
 import time
-from Utilities_own_randomOD_gru_radar import *
+from Utilities_own_randomOD_radar_multipleMap import *
 import torch as T
 import torch
 import torch.nn.functional as F
@@ -118,6 +118,7 @@ class env_simulator:
         start_y = int(min(scatterY))
         end_x = int(max(scatterX))
         end_y = int(max(scatterY))
+        # fill 0 and 1 for changing world_2D map from True/False, so that can be used as an input map for JPS module
         world_2D = np.zeros((len(range(int(start_x), int(end_x+1), self.gridlength)), len(range(int(start_y), int(end_y+1), self.gridlength))))
         for j_idx, j_val in enumerate(range(start_y, end_y+1, self.gridlength)):
             for i_idx, i_val in enumerate(range(start_x, end_x+1, self.gridlength)):
@@ -195,6 +196,27 @@ class env_simulator:
                 self.target_area4.append(centre_coord)
                 # top left
                 # plt.plot(centre_coord[0], centre_coord[1], marker='.', color='g', markersize=2)
+
+        os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
+        matplotlib.use('TkAgg')
+        fig, ax = plt.subplots(1, 1)
+        # draw occupied_poly
+        for one_poly in self.world_map_2D_polyList[0][0]:
+            one_poly_mat = shapelypoly_to_matpoly(one_poly, True, 'y', 'b')
+            ax.add_patch(one_poly_mat)
+        # draw non-occupied_poly
+        for zero_poly in self.world_map_2D_polyList[0][1]:
+            zero_poly_mat = shapelypoly_to_matpoly(zero_poly, False, 'y')
+            ax.add_patch(zero_poly_mat)
+
+        # show building obstacles
+        for poly in self.buildingPolygons:
+            matp_poly = shapelypoly_to_matpoly(poly, False, 'red')  # the 3rd parameter is the edge color
+            ax.add_patch(matp_poly)
+        plt.xlabel("X axis")
+        plt.ylabel("Y axis")
+        plt.axis('equal')
+        plt.show()
 
     def reset_world(self, total_agentNum, show):  # set initialize position and observation for all agents
         self.global_time = 0.0
@@ -957,7 +979,6 @@ class env_simulator:
             norm_pos = self.normalizer.scale_pos([agent.pos[0], agent.pos[1]])
 
             norm_vel = self.normalizer.scale_vel([agent.vel[0], agent.vel[1]])
-            # norm_vel = self.normalizer.nmlz_vel([agent.vel[0], agent.vel[1]])
 
             norm_G = self.normalizer.nmlz_pos([agent.goal[-1][0], agent.goal[-1][1]])
 
@@ -965,11 +986,8 @@ class env_simulator:
 
             agent_own = np.array([agent.pos[0], agent.pos[1], agent.vel[0], agent.vel[1],
                                   agent.goal[-1][0]-agent.pos[0], agent.goal[-1][1]-agent.pos[1]])
-            # agent_own = np.array([agent.vel[0], agent.vel[1],
-            #                       agent.goal[-1][0]-agent.pos[0], agent.goal[-1][1]-agent.pos[1]])
 
             norm_agent_own = np.concatenate([norm_pos, norm_vel, norm_deltaG], axis=0)
-            # norm_agent_own = np.concatenate([norm_vel, norm_deltaG], axis=0)
 
             # ---------- based on 1 Dec 2023, add obs for ref line -----------
             # host_current_point = Point(agent.pos[0], agent.pos[1])
@@ -1003,8 +1021,7 @@ class env_simulator:
                         norm_G_diff = self.normalizer.nmlz_pos_diff(
                             [other_agent[-2] - other_agent[0], other_agent[-1] - other_agent[1]])
 
-                        norm_vel = tuple(self.normalizer.nmlz_vel([other_agent[2], other_agent[3]]))
-                        # norm_vel = self.normalizer.nmlz_vel([other_agent[2], other_agent[3]])
+                        norm_vel = self.normalizer.nmlz_vel([other_agent[2], other_agent[3]])
                         norm_surround_agent = np.array([list(norm_pos_diff + norm_G_diff + norm_vel)])
 
                         other_agents.append(surround_agent)
