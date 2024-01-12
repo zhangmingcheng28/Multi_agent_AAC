@@ -367,7 +367,8 @@ class env_simulator:
 
             # random_spd = random.randint(1, self.all_agents[agentIdx].maxSpeed)  # initial speed is randomly picked from 1 to max speed
             # random_spd = random.randint(1, 3)  # initial speed is randomly picked from 1 to max speed
-            random_spd = 1  # we fixed a initialized spd
+            # random_spd = 1  # we fixed a initialized spd
+            random_spd = 0  # we fixed a initialized spd
             self.all_agents[agentIdx].vel = np.array([random_spd*math.cos(self.all_agents[agentIdx].heading),
                                              random_spd*math.sin(self.all_agents[agentIdx].heading)])
 
