@@ -199,12 +199,12 @@ def main(args):
         # initialize_excel_file(excel_file_path_time)
         # ------------ end of this portion is to save using excel instead of pickle -----------
 
-    # use_wanDB = False
-    use_wanDB = True
-    # get_evaluation_status = True  # have figure output
-    get_evaluation_status = False  # no figure output, mainly obtain collision rate
-    # simply_view_evaluation = True  # don't save gif
-    simply_view_evaluation = False  # save gif
+    use_wanDB = False
+    # use_wanDB = True
+    get_evaluation_status = True  # have figure output
+    # get_evaluation_status = False  # no figure output, mainly obtain collision rate
+    simply_view_evaluation = True  # don't save gif
+    # simply_view_evaluation = False  # save gif
 
 
     if use_wanDB:
@@ -295,9 +295,10 @@ def main(args):
 
     if args.mode == "eval":
         # args.max_episodes = 10  # only evaluate one episode during evaluation mode.
-        args.max_episodes = 100
-        pre_fix = r'D:\MADDPG_2nd_jp\110124_15_43_04\interval_record_eps'
-        episode_to_check = str(7000)
+        args.max_episodes = 5  # only evaluate one episode during evaluation mode.
+        # args.max_episodes = 100
+        pre_fix = r'D:\MADDPG_2nd_jp\140124_11_47_18\interval_record_eps'
+        episode_to_check = str(5000)
         load_filepath_0 = pre_fix + '\episode_' + episode_to_check + '_agent_0actor_net.pth'
         load_filepath_1 = pre_fix + '\episode_' + episode_to_check + '_agent_1actor_net.pth'
         load_filepath_2 = pre_fix + '\episode_' + episode_to_check + '_agent_2actor_net.pth'
@@ -317,7 +318,7 @@ def main(args):
         cur_state, norm_cur_state = env.reset_world(total_agentNum, show=0)
         eps_reset_time_used = (time.time()-eps_reset_start_time)*1000
         print("current episode {} reset time used is {} milliseconds".format(episode, eps_reset_time_used))  # need to + 1 here, or else will misrecord as the previous episode
-        step_collision_record = [[], [], []]  # reset at each episode, so that we can record down collision at each step for each agent.
+        step_collision_record = [[] for _ in range(total_agentNum)]  # reset at each episode, so that we can record down collision at each step for each agent.
         eps_status_holder = [None] * n_agents
         episode_decision = [False] * 2
         agents_added = []
@@ -576,7 +577,6 @@ def main(args):
                     # total_time_one_episode = (end_of_storage_time)/1000 + epsTime
                     # print("episode {} used time in total {} seconds".format(episode, total_time_one_episode))
                     #
-
                     break  # this is to break out from "while True:", which is one play
             elif args.mode == "eval":
                 step_reward_record = [None] * n_agents
@@ -627,6 +627,8 @@ def main(args):
                             # display initial condition
                             # global_state = env.reset_world(show=0)  # just a dummy to reset all condition so that initial condition can be added to the output graph
                             for agentIdx, agent in env.all_agents.items():
+                                if agentIdx != 0:
+                                    continue
                                 plt.plot(agent.ini_pos[0], agent.ini_pos[1],
                                          marker=MarkerStyle(">",
                                                             fillstyle="right",
@@ -657,11 +659,14 @@ def main(args):
                             # draw trajectory in current episode
                             for trajectory_idx, trajectory_val in enumerate(trajectory_eachPlay):  # each time step
                                 for agentIDX, each_agent_traj in enumerate(trajectory_val):  # for each agent's motion in a time step
+                                    if agentIDX != 0:
+                                        continue
                                     x, y = each_agent_traj[0], each_agent_traj[1]
                                     plt.plot(x, y, 'o', color='r')
 
                                     # plt.text(x-1, y-1, str(round(float(reward_each_agent[trajectory_idx][agentIDX]),2)))
-
+                                    plt.text(x - 1, y - 1, 'agent_' + str(agentIDX) + '_' + str(each_agent_traj[2].round(3)))
+                                    # plt.text(x - 1, y - 1, 'agent_' + str(agentIDX) + '_' + str(each_agent_traj[2]))
                                     self_circle = Point(x, y).buffer(env.all_agents[0].protectiveBound, cap_style='round')
                                     grid_mat_Scir = shapelypoly_to_matpoly(self_circle, False, 'k')
                                     ax.add_patch(grid_mat_Scir)
@@ -809,7 +814,7 @@ if __name__ == '__main__':
     parser.add_argument('--scenario', default="simple_spread", type=str)
     parser.add_argument('--max_episodes', default=35000, type=int)  # run for a total of 50000 episodes
     parser.add_argument('--algo', default="maddpg", type=str, help="commnet/bicnet/maddpg")
-    parser.add_argument('--mode', default="train", type=str, help="train/eval")
+    parser.add_argument('--mode', default="eval", type=str, help="train/eval")
     parser.add_argument('--episode_length', default=150, type=int)  # maximum play per episode
     parser.add_argument('--memory_length', default=int(1e5), type=int)
     parser.add_argument('--seed', default=777, type=int)  # may choose to use 3407
