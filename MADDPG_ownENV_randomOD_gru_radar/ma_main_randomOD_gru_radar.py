@@ -199,12 +199,12 @@ def main(args):
         # initialize_excel_file(excel_file_path_time)
         # ------------ end of this portion is to save using excel instead of pickle -----------
 
-    use_wanDB = False
-    # use_wanDB = True
+    # use_wanDB = False
+    use_wanDB = True
     get_evaluation_status = True  # have figure output
     # get_evaluation_status = False  # no figure output, mainly obtain collision rate
-    simply_view_evaluation = True  # don't save gif
-    # simply_view_evaluation = False  # save gif
+    # simply_view_evaluation = True  # don't save gif
+    simply_view_evaluation = False  # save gif
 
 
     if use_wanDB:
@@ -297,8 +297,8 @@ def main(args):
         # args.max_episodes = 10  # only evaluate one episode during evaluation mode.
         args.max_episodes = 5  # only evaluate one episode during evaluation mode.
         # args.max_episodes = 100
-        pre_fix = r'D:\MADDPG_2nd_jp\140124_11_47_18\interval_record_eps'
-        episode_to_check = str(5000)
+        pre_fix = r'D:\MADDPG_2nd_jp\150124_09_19_09\interval_record_eps'
+        episode_to_check = str(2000)
         load_filepath_0 = pre_fix + '\episode_' + episode_to_check + '_agent_0actor_net.pth'
         load_filepath_1 = pre_fix + '\episode_' + episode_to_check + '_agent_1actor_net.pth'
         load_filepath_2 = pre_fix + '\episode_' + episode_to_check + '_agent_2actor_net.pth'
@@ -627,8 +627,8 @@ def main(args):
                             # display initial condition
                             # global_state = env.reset_world(show=0)  # just a dummy to reset all condition so that initial condition can be added to the output graph
                             for agentIdx, agent in env.all_agents.items():
-                                if agentIdx != 0:
-                                    continue
+                                # if agentIdx != 0:
+                                #     continue
                                 plt.plot(agent.ini_pos[0], agent.ini_pos[1],
                                          marker=MarkerStyle(">",
                                                             fillstyle="right",
@@ -659,8 +659,8 @@ def main(args):
                             # draw trajectory in current episode
                             for trajectory_idx, trajectory_val in enumerate(trajectory_eachPlay):  # each time step
                                 for agentIDX, each_agent_traj in enumerate(trajectory_val):  # for each agent's motion in a time step
-                                    if agentIDX != 0:
-                                        continue
+                                    # if agentIDX != 0:
+                                    #     continue
                                     x, y = each_agent_traj[0], each_agent_traj[1]
                                     plt.plot(x, y, 'o', color='r')
 
@@ -814,7 +814,7 @@ if __name__ == '__main__':
     parser.add_argument('--scenario', default="simple_spread", type=str)
     parser.add_argument('--max_episodes', default=35000, type=int)  # run for a total of 50000 episodes
     parser.add_argument('--algo', default="maddpg", type=str, help="commnet/bicnet/maddpg")
-    parser.add_argument('--mode', default="eval", type=str, help="train/eval")
+    parser.add_argument('--mode', default="train", type=str, help="train/eval")
     parser.add_argument('--episode_length', default=150, type=int)  # maximum play per episode
     parser.add_argument('--memory_length', default=int(1e5), type=int)
     parser.add_argument('--seed', default=777, type=int)  # may choose to use 3407
