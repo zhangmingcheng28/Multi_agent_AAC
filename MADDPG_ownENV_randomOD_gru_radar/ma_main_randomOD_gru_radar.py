@@ -199,12 +199,12 @@ def main(args):
         # initialize_excel_file(excel_file_path_time)
         # ------------ end of this portion is to save using excel instead of pickle -----------
 
-    # use_wanDB = False
-    use_wanDB = True
-    # get_evaluation_status = True  # have figure output
-    get_evaluation_status = False  # no figure output, mainly obtain collision rate
-    # simply_view_evaluation = True  # don't save gif
-    simply_view_evaluation = False  # save gif
+    use_wanDB = False
+    # use_wanDB = True
+    get_evaluation_status = True  # have figure output
+    # get_evaluation_status = False  # no figure output, mainly obtain collision rate
+    simply_view_evaluation = True  # don't save gif
+    # simply_view_evaluation = False  # save gif
 
 
     if use_wanDB:
@@ -296,9 +296,9 @@ def main(args):
     episode_goal_found = [False] * n_agents
     dummy_xy = (None, None)  # this is a dummy tuple of xy, is not useful during normal training, it is only useful when generating reward map
     if args.mode == "eval":
-        # args.max_episodes = 10  # only evaluate one episode during evaluation mode.
+        args.max_episodes = 10  # only evaluate one episode during evaluation mode.
         # args.max_episodes = 5  # only evaluate one episode during evaluation mode.
-        args.max_episodes = 100
+        # args.max_episodes = 100
         pre_fix = r'D:\MADDPG_2nd_jp\150124_20_53_23\interval_record_eps'
         episode_to_check = str(5000)
         load_filepath_0 = pre_fix + '\episode_' + episode_to_check + '_agent_0actor_net.pth'
@@ -322,7 +322,7 @@ def main(args):
         print("current episode {} reset time used is {} milliseconds".format(episode, eps_reset_time_used))  # need to + 1 here, or else will misrecord as the previous episode
         step_collision_record = [[] for _ in range(total_agentNum)]  # reset at each episode, so that we can record down collision at each step for each agent.
         eps_status_holder = [None] * n_agents
-        episode_decision = [False] * 2
+        episode_decision = [False] * 3
         agents_added = []
         eps_reward = []
         eps_noise = []
@@ -490,13 +490,15 @@ def main(args):
                 print("current episode, one whole step time used is {} milliseconds".format(whole_step_time))
                 step_time_breakdown.append([generate_action_time, step_transition_time, reward_generation_time,
                                             update_time_used, whole_step_time])
-                if ((args.episode_length < step) and (300 not in reward_aft_action)):
+                if args.episode_length < step:
                     episode_decision[0] = True
                     print("Agents stuck in some places, maximum step in one episode reached, current episode {} ends, all {} steps used".format(episode, args.episode_length))
                 elif (True in done_aft_action):
                     episode_decision[1] = True
                     print("Some agent triggers termination condition like collision, current episode {} ends at step {}".format(episode, step-1))  # we need to -1 here, because we perform step + 1 after each complete step. Just to be consistent with the step count inside the reward function.
-
+                elif True in [agent.reach_target for agent_idx, agent in env.all_agents.items()]:
+                    episode_decision[2] = True
+                    print("All agents have reached their destinations, episode terminated.")
                     # show termination condition in picture when termination condition reached.
                     # os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
                     # matplotlib.use('TkAgg')
@@ -667,7 +669,7 @@ def main(args):
                 trajectory_eachPlay.append([[each_agent_traj[0], each_agent_traj[1], reward_aft_action[each_agent_idx]] for each_agent_idx, each_agent_traj in enumerate(cur_state[0])])
                 accum_reward = accum_reward + sum(reward_aft_action)
 
-                if args.episode_length < step or (True in done_aft_action):  # when termination condition reached
+                if args.episode_length < step or (True in done_aft_action) or True in [agent.reach_target for agent_idx, agent in env.all_agents.items()]:  # when termination condition reached
                     # check if in this episode there are situation where agents found their goal
                     for agent_idx, agent in env.all_agents.items():
                         episode_goal_found[agent_idx] = agent.reach_target
@@ -821,6 +823,7 @@ def main(args):
 
                             # Close figure
                             plt.close(fig)
+
                     if True in done_aft_action and step < args.episode_length:
                         collision_count = collision_count + 1
                         if bound_building_check[0] == True:  # collide due to boundary
@@ -832,6 +835,7 @@ def main(args):
 
                     else:  # no collision -> no True in done_aft_action, and all steps used
                         all_steps_used = all_steps_used + 1
+
                     if True in episode_goal_found:
                         # Count the number of reach cases
                         num_true = sum(episode_goal_found)
@@ -878,7 +882,7 @@ if __name__ == '__main__':
     parser.add_argument('--scenario', default="simple_spread", type=str)
     parser.add_argument('--max_episodes', default=35000, type=int)  # run for a total of 50000 episodes
     parser.add_argument('--algo', default="maddpg", type=str, help="commnet/bicnet/maddpg")
-    parser.add_argument('--mode', default="train", type=str, help="train/eval")
+    parser.add_argument('--mode', default="eval", type=str, help="train/eval")
     parser.add_argument('--episode_length', default=150, type=int)  # maximum play per episode
     parser.add_argument('--memory_length', default=int(1e5), type=int)
     parser.add_argument('--seed', default=777, type=int)  # may choose to use 3407

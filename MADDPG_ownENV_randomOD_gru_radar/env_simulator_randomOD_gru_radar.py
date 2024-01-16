@@ -1950,8 +1950,6 @@ class env_simulator:
                 if xy[0] is None and xy[1] is None:  # we only alter drone's goal during actual training
                     if (not wp_intersect.is_empty) and len(drone_obj.goal) > 1: # check if wp reached, and this is not the end point
                         drone_obj.removed_goal = drone_obj.goal.pop(0)  # remove current wp
-
-
                 rew = rew - dist_to_ref_line - dist_to_goal - \
                       small_step_penalty + near_goal_reward - near_building_penalty - seg_reward
                 # we remove the above termination condition
