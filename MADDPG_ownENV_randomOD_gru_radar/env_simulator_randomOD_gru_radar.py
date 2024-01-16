@@ -1819,15 +1819,23 @@ class env_simulator:
 
             # ------- small segment reward ------------
             # dist_to_seg_coeff = 10
-            dist_to_seg_coeff = 5
+            dist_to_seg_coeff = 1
             # dist_to_seg_coeff = 0
+            if drone_obj.removed_goal == None:
+                total_delta_seg_vector = np.linalg.norm((drone_obj.ini_pos - np.array(drone_obj.goal[0])))
+            else:
+                total_delta_seg_vector = np.linalg.norm((np.array(drone_obj.removed_goal) - np.array(drone_obj.goal[0])))
+            delta_seg_vector = drone_obj.pos - drone_obj.goal[0]
+            dist_seg_vector = np.linalg.norm(delta_seg_vector)
+            if dist_seg_vector / total_delta_seg_vector <= 1:  # we reward the agent
+                seg_reward = dist_to_seg_coeff * (dist_seg_vector / total_delta_seg_vector)
+            else:
+                seg_reward = dist_to_seg_coeff * (-1)*(dist_seg_vector / total_delta_seg_vector)
 
-            # delta_seg_vector = drone_obj.pos - drone_obj.goal[0]
-            # dist_seg_vector = np.linalg.norm(delta_seg_vector)
-            # seg_reward = dist_to_seg_coeff * dist_seg_vector
 
-            s_tx_norm, s_ty_norm = self.normalizer.nmlz_pos(drone_obj.goal[0])
-            seg_reward = dist_to_seg_coeff * math.sqrt(((x_norm-s_tx_norm)**2 + (y_norm-s_ty_norm)**2))  # 0~2.828 at each step
+
+            # s_tx_norm, s_ty_norm = self.normalizer.nmlz_pos(drone_obj.goal[0])
+            # seg_reward = dist_to_seg_coeff * math.sqrt(((x_norm-s_tx_norm)**2 + (y_norm-s_ty_norm)**2))  # 0~2.828 at each step
             # -------- end of small segment reward ----------
 
 
@@ -1951,7 +1959,7 @@ class env_simulator:
                     if (not wp_intersect.is_empty) and len(drone_obj.goal) > 1: # check if wp reached, and this is not the end point
                         drone_obj.removed_goal = drone_obj.goal.pop(0)  # remove current wp
                 rew = rew - dist_to_ref_line - dist_to_goal - \
-                      small_step_penalty + near_goal_reward - near_building_penalty - seg_reward
+                      small_step_penalty + near_goal_reward - near_building_penalty + seg_reward
                 # we remove the above termination condition
                 done.append(False)
                 step_reward = np.array(rew)

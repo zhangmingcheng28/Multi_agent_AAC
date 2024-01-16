@@ -199,12 +199,12 @@ def main(args):
         # initialize_excel_file(excel_file_path_time)
         # ------------ end of this portion is to save using excel instead of pickle -----------
 
-    use_wanDB = False
-    # use_wanDB = True
+    # use_wanDB = False
+    use_wanDB = True
     get_evaluation_status = True  # have figure output
     # get_evaluation_status = False  # no figure output, mainly obtain collision rate
-    simply_view_evaluation = True  # don't save gif
-    # simply_view_evaluation = False  # save gif
+    # simply_view_evaluation = True  # don't save gif
+    simply_view_evaluation = False  # save gif
 
 
     if use_wanDB:
@@ -299,7 +299,7 @@ def main(args):
         args.max_episodes = 10  # only evaluate one episode during evaluation mode.
         # args.max_episodes = 5  # only evaluate one episode during evaluation mode.
         # args.max_episodes = 100
-        pre_fix = r'D:\MADDPG_2nd_jp\150124_20_53_23\interval_record_eps'
+        pre_fix = r'D:\MADDPG_2nd_jp\160124_14_50_36\interval_record_eps'
         episode_to_check = str(5000)
         load_filepath_0 = pre_fix + '\episode_' + episode_to_check + '_agent_0actor_net.pth'
         load_filepath_1 = pre_fix + '\episode_' + episode_to_check + '_agent_1actor_net.pth'
@@ -343,8 +343,10 @@ def main(args):
             if args.mode == "train":
                 step_start_time = time.time()
                 step_reward_record = [None] * n_agents
-                # noise_flag = True
-                noise_flag = False
+                noise_flag = True
+                # noise_flag = False
+                # generate_reward_map = True
+                generate_reward_map = False
                 # populate gru history
                 gru_history.append(np.array(norm_cur_state[0]))
 
@@ -371,65 +373,66 @@ def main(args):
                 # print("current step reward time used is {} milliseconds".format(reward_generation_time))
 
                 # # ---------- start of generate reward map ----------
-                # os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
-                # matplotlib.use('TkAgg')
-                # fig, ax = plt.subplots(1, 1)
-                # bound_x = np.linspace(env.bound[0], env.bound[1], 50)
-                # bound_y = np.linspace(env.bound[2], env.bound[3], 50)
-                # X, Y = np.meshgrid(bound_x, bound_y)
-                # Z = np.zeros((X.shape[0], X.shape[1]))
-                # for i in range(X.shape[0]):  # Loop over rows
-                #     print(i)
-                #     for j in range(X.shape[1]):  # Loop over columns
-                #         x_val = X[i, j]  # X-coordinate at (i, j)
-                #         y_val = Y[i, j]  # Y-coordinate at (i, j)
-                #         pos_to_test = (x_val, y_val)
-                #         reward_aft_action, done_aft_action, check_goal, step_reward_record, eps_status_holder, step_collision_record, bound_building_check = env.ss_reward(
-                #             step, step_reward_record, eps_status_holder, step_collision_record, pos_to_test)
-                #         Z[i, j] = reward_aft_action[0]
-                #
-                # for agentIdx, agent in env.all_agents.items():
-                #     if agentIdx != 0:
-                #         continue
-                #     plt.plot(agent.ini_pos[0], agent.ini_pos[1],
-                #              marker=MarkerStyle(">",
-                #                                 fillstyle="right",
-                #                                 transform=Affine2D().rotate_deg(math.degrees(agent.heading))),
-                #              color='y')
-                #     plt.text(agent.ini_pos[0], agent.ini_pos[1], agent.agent_name)
-                #
-                #     # link individual drone's starting position with its goal
-                #     ini = agent.ini_pos
-                #     for wp in agent.goal:
-                #         plt.plot(wp[0], wp[1], marker='*', color='y', markersize=10)
-                #         plt.plot([wp[0], ini[0]], [wp[1], ini[1]], '--', color='c')
-                #         ini = wp
-                #     plt.plot(agent.goal[-1][0], agent.goal[-1][1], marker='*', color='y', markersize=10)
-                #     plt.text(agent.goal[-1][0], agent.goal[-1][1], agent.agent_name)
-                #
-                # # Plotting the heatmap
-                # plt.pcolormesh(X, Y, Z, cmap='viridis')
-                #
-                # # draw occupied_poly
-                # for one_poly in env.world_map_2D_polyList[0][0]:
-                #     one_poly_mat = shapelypoly_to_matpoly(one_poly, True, 'y', 'b')
-                #     ax.add_patch(one_poly_mat)
-                # # draw non-occupied_poly
-                # for zero_poly in env.world_map_2D_polyList[0][1]:
-                #     zero_poly_mat = shapelypoly_to_matpoly(zero_poly, False, 'y')
-                #     # ax.add_patch(zero_poly_mat)
-                #
-                # # show building obstacles
-                # for poly in env.buildingPolygons:
-                #     matp_poly = shapelypoly_to_matpoly(poly, False, 'red')  # the 3rd parameter is the edge color
-                #     ax.add_patch(matp_poly)
-                #
-                # plt.colorbar(label='Reward')
-                # plt.title('Reward Heatmap for a Continuous Simulated Area')
-                # plt.xlabel("X axis")
-                # plt.ylabel("Y axis")
-                # plt.axis('equal')
-                # plt.show()
+                if generate_reward_map == True:
+                    os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
+                    matplotlib.use('TkAgg')
+                    fig, ax = plt.subplots(1, 1)
+                    bound_x = np.linspace(env.bound[0], env.bound[1], 50)
+                    bound_y = np.linspace(env.bound[2], env.bound[3], 50)
+                    X, Y = np.meshgrid(bound_x, bound_y)
+                    Z = np.zeros((X.shape[0], X.shape[1]))
+                    for i in range(X.shape[0]):  # Loop over rows
+                        print(i)
+                        for j in range(X.shape[1]):  # Loop over columns
+                            x_val = X[i, j]  # X-coordinate at (i, j)
+                            y_val = Y[i, j]  # Y-coordinate at (i, j)
+                            pos_to_test = (x_val, y_val)
+                            reward_aft_action, done_aft_action, check_goal, step_reward_record, eps_status_holder, step_collision_record, bound_building_check = env.ss_reward(
+                                step, step_reward_record, eps_status_holder, step_collision_record, pos_to_test)
+                            Z[i, j] = reward_aft_action[0]
+
+                    for agentIdx, agent in env.all_agents.items():
+                        if agentIdx != 0:
+                            continue
+                        plt.plot(agent.ini_pos[0], agent.ini_pos[1],
+                                 marker=MarkerStyle(">",
+                                                    fillstyle="right",
+                                                    transform=Affine2D().rotate_deg(math.degrees(agent.heading))),
+                                 color='y')
+                        plt.text(agent.ini_pos[0], agent.ini_pos[1], agent.agent_name)
+
+                        # link individual drone's starting position with its goal
+                        ini = agent.ini_pos
+                        for wp in agent.goal:
+                            plt.plot(wp[0], wp[1], marker='*', color='y', markersize=10)
+                            plt.plot([wp[0], ini[0]], [wp[1], ini[1]], '--', color='c')
+                            ini = wp
+                        plt.plot(agent.goal[-1][0], agent.goal[-1][1], marker='*', color='y', markersize=10)
+                        plt.text(agent.goal[-1][0], agent.goal[-1][1], agent.agent_name)
+
+                    # Plotting the heatmap
+                    plt.pcolormesh(X, Y, Z, cmap='viridis')
+
+                    # draw occupied_poly
+                    for one_poly in env.world_map_2D_polyList[0][0]:
+                        one_poly_mat = shapelypoly_to_matpoly(one_poly, True, 'y', 'b')
+                        ax.add_patch(one_poly_mat)
+                    # draw non-occupied_poly
+                    for zero_poly in env.world_map_2D_polyList[0][1]:
+                        zero_poly_mat = shapelypoly_to_matpoly(zero_poly, False, 'y')
+                        # ax.add_patch(zero_poly_mat)
+
+                    # show building obstacles
+                    for poly in env.buildingPolygons:
+                        matp_poly = shapelypoly_to_matpoly(poly, False, 'red')  # the 3rd parameter is the edge color
+                        ax.add_patch(matp_poly)
+
+                    plt.colorbar(label='Reward')
+                    plt.title('Reward Heatmap for a Continuous Simulated Area')
+                    plt.xlabel("X axis")
+                    plt.ylabel("Y axis")
+                    plt.axis('equal')
+                    plt.show()
                 # # ---------- end of generate reward map ----------
 
                 # reward_aft_action = [eachRWD / 300 for eachRWD in reward_aft_action]  # scale the reward down
@@ -496,7 +499,7 @@ def main(args):
                 elif (True in done_aft_action):
                     episode_decision[1] = True
                     print("Some agent triggers termination condition like collision, current episode {} ends at step {}".format(episode, step-1))  # we need to -1 here, because we perform step + 1 after each complete step. Just to be consistent with the step count inside the reward function.
-                elif True in [agent.reach_target for agent_idx, agent in env.all_agents.items()]:
+                elif all([agent.reach_target for agent_idx, agent in env.all_agents.items()]):
                     episode_decision[2] = True
                     print("All agents have reached their destinations, episode terminated.")
                     # show termination condition in picture when termination condition reached.
@@ -651,7 +654,8 @@ def main(args):
                 gru_history.append(np.array(norm_cur_state[0]))
 
                 # action, step_noise_val = model.choose_action(norm_cur_state, total_step, episode, step, eps_end, noise_start_level, gru_history, noisy=False) # noisy is false because we are using stochastic policy
-                action, step_noise_val, cur_actor_hiddens, next_actor_hiddens = model.choose_action(norm_cur_state, total_step, episode, step, eps_end, noise_start_level, cur_actor_hiddens, noisy=noise_flag)  # noisy is false because we are using stochastic policy
+                action, step_noise_val, cur_actor_hiddens, \
+                next_actor_hiddens = model.choose_action(norm_cur_state, total_step, episode, step, eps_end, noise_start_level, cur_actor_hiddens, noisy=noise_flag)  # noisy is false because we are using stochastic policy
 
 
                 # action = model.choose_action(cur_state, episode, noisy=False)
@@ -669,7 +673,7 @@ def main(args):
                 trajectory_eachPlay.append([[each_agent_traj[0], each_agent_traj[1], reward_aft_action[each_agent_idx]] for each_agent_idx, each_agent_traj in enumerate(cur_state[0])])
                 accum_reward = accum_reward + sum(reward_aft_action)
 
-                if args.episode_length < step or (True in done_aft_action) or True in [agent.reach_target for agent_idx, agent in env.all_agents.items()]:  # when termination condition reached
+                if args.episode_length < step or (True in done_aft_action) or all([agent.reach_target for agent_idx, agent in env.all_agents.items()]):  # when termination condition reached
                     # check if in this episode there are situation where agents found their goal
                     for agent_idx, agent in env.all_agents.items():
                         episode_goal_found[agent_idx] = agent.reach_target
@@ -882,7 +886,7 @@ if __name__ == '__main__':
     parser.add_argument('--scenario', default="simple_spread", type=str)
     parser.add_argument('--max_episodes', default=35000, type=int)  # run for a total of 50000 episodes
     parser.add_argument('--algo', default="maddpg", type=str, help="commnet/bicnet/maddpg")
-    parser.add_argument('--mode', default="eval", type=str, help="train/eval")
+    parser.add_argument('--mode', default="train", type=str, help="train/eval")
     parser.add_argument('--episode_length', default=150, type=int)  # maximum play per episode
     parser.add_argument('--memory_length', default=int(1e5), type=int)
     parser.add_argument('--seed', default=777, type=int)  # may choose to use 3407
