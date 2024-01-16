@@ -199,10 +199,10 @@ def main(args):
         # initialize_excel_file(excel_file_path_time)
         # ------------ end of this portion is to save using excel instead of pickle -----------
 
-    use_wanDB = False
-    # use_wanDB = True
-    get_evaluation_status = True  # have figure output
-    # get_evaluation_status = False  # no figure output, mainly obtain collision rate
+    # use_wanDB = False
+    use_wanDB = True
+    # get_evaluation_status = True  # have figure output
+    get_evaluation_status = False  # no figure output, mainly obtain collision rate
     # simply_view_evaluation = True  # don't save gif
     simply_view_evaluation = False  # save gif
 
@@ -233,11 +233,13 @@ def main(args):
     # critic_dim = [6+(total_agentNum-1)*2, 10, 6]
     # actor_dim = [6, 9, 6]  # dim host, maximum dim grid, dim other drones
     actor_dim = [6, 18, 6]  # dim host, maximum dim grid, dim other drones
+    # actor_dim = [8, 18, 6]  # dim host, maximum dim grid, dim other drones
     # actor_dim = [4, 18, 4]  # dim host, maximum dim grid, dim other drones
     # actor_dim = [9, 9, 9]  # dim host, maximum dim grid, dim other drones
     # actor_dim = [16, 9, 6]  # dim host, maximum dim grid, dim other drones
     # critic_dim = [6, 9, 6]
     critic_dim = [6, 18, 6]
+    # critic_dim = [8, 18, 6]
     # critic_dim = [4, 18, 4]
     actor_hidden_state = 64
     actor_hidden_state_list = [actor_hidden_state for _ in range(total_agentNum)]
@@ -292,13 +294,13 @@ def main(args):
     crash_to_bound = 0
     crash_to_building = 0
     episode_goal_found = [False] * n_agents
-
+    dummy_xy = (None, None)  # this is a dummy tuple of xy, is not useful during normal training, it is only useful when generating reward map
     if args.mode == "eval":
         # args.max_episodes = 10  # only evaluate one episode during evaluation mode.
-        args.max_episodes = 5  # only evaluate one episode during evaluation mode.
-        # args.max_episodes = 100
-        pre_fix = r'D:\MADDPG_2nd_jp\150124_09_19_09\interval_record_eps'
-        episode_to_check = str(2000)
+        # args.max_episodes = 5  # only evaluate one episode during evaluation mode.
+        args.max_episodes = 100
+        pre_fix = r'D:\MADDPG_2nd_jp\150124_20_53_23\interval_record_eps'
+        episode_to_check = str(5000)
         load_filepath_0 = pre_fix + '\episode_' + episode_to_check + '_agent_0actor_net.pth'
         load_filepath_1 = pre_fix + '\episode_' + episode_to_check + '_agent_1actor_net.pth'
         load_filepath_2 = pre_fix + '\episode_' + episode_to_check + '_agent_2actor_net.pth'
@@ -364,9 +366,71 @@ def main(args):
                 # reward_aft_action, done_aft_action, check_goal, step_reward_record = env.get_step_reward_5_v3(step, step_reward_record)   # remove reached agent here
 
                 one_step_reward_start = time.time()
-                reward_aft_action, done_aft_action, check_goal, step_reward_record, status_holder, step_collision_record, bound_building_check = env.ss_reward(step, step_reward_record, eps_status_holder, step_collision_record)   # remove reached agent here
+                reward_aft_action, done_aft_action, check_goal, step_reward_record, status_holder, step_collision_record, bound_building_check = env.ss_reward(step, step_reward_record, eps_status_holder, step_collision_record, dummy_xy)   # remove reached agent here
                 reward_generation_time = (time.time() - one_step_reward_start)*1000
                 # print("current step reward time used is {} milliseconds".format(reward_generation_time))
+
+                # # ---------- start of generate reward map ----------
+                # os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
+                # matplotlib.use('TkAgg')
+                # fig, ax = plt.subplots(1, 1)
+                # bound_x = np.linspace(env.bound[0], env.bound[1], 50)
+                # bound_y = np.linspace(env.bound[2], env.bound[3], 50)
+                # X, Y = np.meshgrid(bound_x, bound_y)
+                # Z = np.zeros((X.shape[0], X.shape[1]))
+                # for i in range(X.shape[0]):  # Loop over rows
+                #     print(i)
+                #     for j in range(X.shape[1]):  # Loop over columns
+                #         x_val = X[i, j]  # X-coordinate at (i, j)
+                #         y_val = Y[i, j]  # Y-coordinate at (i, j)
+                #         pos_to_test = (x_val, y_val)
+                #         reward_aft_action, done_aft_action, check_goal, step_reward_record, eps_status_holder, step_collision_record, bound_building_check = env.ss_reward(
+                #             step, step_reward_record, eps_status_holder, step_collision_record, pos_to_test)
+                #         Z[i, j] = reward_aft_action[0]
+                #
+                # for agentIdx, agent in env.all_agents.items():
+                #     if agentIdx != 0:
+                #         continue
+                #     plt.plot(agent.ini_pos[0], agent.ini_pos[1],
+                #              marker=MarkerStyle(">",
+                #                                 fillstyle="right",
+                #                                 transform=Affine2D().rotate_deg(math.degrees(agent.heading))),
+                #              color='y')
+                #     plt.text(agent.ini_pos[0], agent.ini_pos[1], agent.agent_name)
+                #
+                #     # link individual drone's starting position with its goal
+                #     ini = agent.ini_pos
+                #     for wp in agent.goal:
+                #         plt.plot(wp[0], wp[1], marker='*', color='y', markersize=10)
+                #         plt.plot([wp[0], ini[0]], [wp[1], ini[1]], '--', color='c')
+                #         ini = wp
+                #     plt.plot(agent.goal[-1][0], agent.goal[-1][1], marker='*', color='y', markersize=10)
+                #     plt.text(agent.goal[-1][0], agent.goal[-1][1], agent.agent_name)
+                #
+                # # Plotting the heatmap
+                # plt.pcolormesh(X, Y, Z, cmap='viridis')
+                #
+                # # draw occupied_poly
+                # for one_poly in env.world_map_2D_polyList[0][0]:
+                #     one_poly_mat = shapelypoly_to_matpoly(one_poly, True, 'y', 'b')
+                #     ax.add_patch(one_poly_mat)
+                # # draw non-occupied_poly
+                # for zero_poly in env.world_map_2D_polyList[0][1]:
+                #     zero_poly_mat = shapelypoly_to_matpoly(zero_poly, False, 'y')
+                #     # ax.add_patch(zero_poly_mat)
+                #
+                # # show building obstacles
+                # for poly in env.buildingPolygons:
+                #     matp_poly = shapelypoly_to_matpoly(poly, False, 'red')  # the 3rd parameter is the edge color
+                #     ax.add_patch(matp_poly)
+                #
+                # plt.colorbar(label='Reward')
+                # plt.title('Reward Heatmap for a Continuous Simulated Area')
+                # plt.xlabel("X axis")
+                # plt.ylabel("Y axis")
+                # plt.axis('equal')
+                # plt.show()
+                # # ---------- end of generate reward map ----------
 
                 # reward_aft_action = [eachRWD / 300 for eachRWD in reward_aft_action]  # scale the reward down
                 # new_length = len(agents_added)  # check if length of agnet_to_remove increased during each step
@@ -593,7 +657,7 @@ def main(args):
                 # for a_idx, action_ele in enumerate(action):
                 #     action[a_idx] = [-0.3535, 0.3535]
                 next_state, norm_next_state, polygons_list, all_agent_st_points, all_agent_ed_points, all_agent_intersection_point_list, all_agent_line_collection, all_agent_mini_intersection_list = env.step(action, step)  # no heading update here
-                reward_aft_action, done_aft_action, check_goal, step_reward_record, eps_status_holder, step_collision_record, bound_building_check = env.ss_reward(step, step_reward_record, eps_status_holder, step_collision_record)
+                reward_aft_action, done_aft_action, check_goal, step_reward_record, eps_status_holder, step_collision_record, bound_building_check = env.ss_reward(step, step_reward_record, eps_status_holder, step_collision_record, dummy_xy)
                 # reward_aft_action, done_aft_action, check_goal, step_reward_record = env.get_step_reward_5_v3(step, step_reward_record)
 
                 step += 1
