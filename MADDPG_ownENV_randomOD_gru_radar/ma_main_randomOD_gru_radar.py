@@ -199,10 +199,10 @@ def main(args):
         # initialize_excel_file(excel_file_path_time)
         # ------------ end of this portion is to save using excel instead of pickle -----------
 
-    # use_wanDB = False
-    use_wanDB = True
-    get_evaluation_status = True  # have figure output
-    # get_evaluation_status = False  # no figure output, mainly obtain collision rate
+    use_wanDB = False
+    # use_wanDB = True
+    # get_evaluation_status = True  # have figure output
+    get_evaluation_status = False  # no figure output, mainly obtain collision rate
     # simply_view_evaluation = True  # don't save gif
     simply_view_evaluation = False  # save gif
 
@@ -296,11 +296,11 @@ def main(args):
     episode_goal_found = [False] * n_agents
     dummy_xy = (None, None)  # this is a dummy tuple of xy, is not useful during normal training, it is only useful when generating reward map
     if args.mode == "eval":
-        args.max_episodes = 10  # only evaluate one episode during evaluation mode.
+        # args.max_episodes = 10  # only evaluate one episode during evaluation mode.
         # args.max_episodes = 5  # only evaluate one episode during evaluation mode.
-        # args.max_episodes = 100
-        pre_fix = r'D:\MADDPG_2nd_jp\160124_14_50_36\interval_record_eps'
-        episode_to_check = str(5000)
+        args.max_episodes = 100
+        pre_fix = r'D:\MADDPG_2nd_jp\170124_10_27_45\interval_record_eps'
+        episode_to_check = str(1000)
         load_filepath_0 = pre_fix + '\episode_' + episode_to_check + '_agent_0actor_net.pth'
         load_filepath_1 = pre_fix + '\episode_' + episode_to_check + '_agent_1actor_net.pth'
         load_filepath_2 = pre_fix + '\episode_' + episode_to_check + '_agent_2actor_net.pth'
@@ -343,10 +343,10 @@ def main(args):
             if args.mode == "train":
                 step_start_time = time.time()
                 step_reward_record = [None] * n_agents
-                noise_flag = True
-                # noise_flag = False
-                # generate_reward_map = True
-                generate_reward_map = False
+                # noise_flag = True
+                noise_flag = False
+                generate_reward_map = True
+                # generate_reward_map = False
                 # populate gru history
                 gru_history.append(np.array(norm_cur_state[0]))
 
@@ -390,6 +390,8 @@ def main(args):
                             reward_aft_action, done_aft_action, check_goal, step_reward_record, eps_status_holder, step_collision_record, bound_building_check = env.ss_reward(
                                 step, step_reward_record, eps_status_holder, step_collision_record, pos_to_test)
                             Z[i, j] = reward_aft_action[0]
+                            text = plt.text(x_val, y_val, round(Z[i, j], 1),
+                                           ha="center", va="center", color="r")
 
                     for agentIdx, agent in env.all_agents.items():
                         if agentIdx != 0:
@@ -411,7 +413,7 @@ def main(args):
                         plt.text(agent.goal[-1][0], agent.goal[-1][1], agent.agent_name)
 
                     # Plotting the heatmap
-                    plt.pcolormesh(X, Y, Z, cmap='viridis')
+                    # plt.pcolormesh(X, Y, Z, cmap='viridis')
 
                     # draw occupied_poly
                     for one_poly in env.world_map_2D_polyList[0][0]:
@@ -426,8 +428,17 @@ def main(args):
                     for poly in env.buildingPolygons:
                         matp_poly = shapelypoly_to_matpoly(poly, False, 'red')  # the 3rd parameter is the edge color
                         ax.add_patch(matp_poly)
+                    # Now create a new figure for the 3D plot
+                    fig_3d = plt.figure()
+                    ax_3d = fig_3d.add_subplot(111, projection='3d')
 
-                    plt.colorbar(label='Reward')
+                    # Plot the surface
+                    surf = ax_3d.plot_surface(X, Y, Z, cmap='viridis')
+
+                    # Add color bar
+                    fig_3d.colorbar(surf, shrink=0.5, aspect=5)
+
+                    # plt.colorbar(label='Reward')
                     plt.title('Reward Heatmap for a Continuous Simulated Area')
                     plt.xlabel("X axis")
                     plt.ylabel("Y axis")
