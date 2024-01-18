@@ -1815,11 +1815,11 @@ class env_simulator:
             
             x_norm, y_norm = self.normalizer.nmlz_pos(drone_obj.pos)
             tx_norm, ty_norm = self.normalizer.nmlz_pos(drone_obj.goal[-1])
-            # dist_to_goal = dist_to_goal_coeff * math.sqrt(((x_norm-tx_norm)**2 + (y_norm-ty_norm)**2))  # 0~2.828 at each step
+            dist_to_goal = dist_to_goal_coeff * math.sqrt(((x_norm-tx_norm)**2 + (y_norm-ty_norm)**2))  # 0~2.828 at each step
 
             before_dist_hg = np.linalg.norm(drone_obj.pre_pos - drone_obj.goal[-1])  # distance to goal before action
             after_dist_hg = np.linalg.norm(drone_obj.pos - drone_obj.goal[-1])  # distance to goal after action
-            dist_to_goal = dist_to_goal_coeff * (before_dist_hg - after_dist_hg)  # (before_dist_hg - after_dist_hg) -max_vel - max_vel
+            # dist_to_goal = dist_to_goal_coeff * (before_dist_hg - after_dist_hg)  # (before_dist_hg - after_dist_hg) -max_vel - max_vel
             # ------- small segment reward ------------
             # dist_to_seg_coeff = 10
             # dist_to_seg_coeff = 1
@@ -1844,21 +1844,20 @@ class env_simulator:
             # dist_to_goal = 0
             # coef_ref_line = 0.5
             # coef_ref_line = -10
-            coef_ref_line = 1
+            coef_ref_line = 3
             # coef_ref_line = 0
             cross_err_distance, x_error, y_error = self.cross_track_error(host_current_point, drone_obj.ref_line)  # deviation from the reference line, cross track error
-            # norm_cross_track_deviation_x = x_error * self.normalizer.x_scale
-            # norm_cross_track_deviation_y = y_error * self.normalizer.y_scale
+            norm_cross_track_deviation_x = x_error * self.normalizer.x_scale
+            norm_cross_track_deviation_y = y_error * self.normalizer.y_scale
             # dist_to_ref_line = coef_ref_line*math.sqrt(norm_cross_track_deviation_x ** 2 +
             #                                            norm_cross_track_deviation_y ** 2)
-            # dist_to_ref_line = coef_ref_line*cross_err_distance
-            # dist_to_ref_line = 0
+
             if cross_err_distance <= drone_obj.protectiveBound:
                 # linear increase in reward
                 m = (0 - 1) / (drone_obj.protectiveBound - 0)
                 dist_to_ref_line = coef_ref_line*(m * cross_err_distance + 1)  # 0~1*coef_ref_line
             else:
-                dist_to_ref_line = -1
+                dist_to_ref_line = -dist_to_goal
 
             spd_penalty_threshold = 2*drone_obj.protectiveBound
             # small_step_penalty = (spd_penalty_threshold -

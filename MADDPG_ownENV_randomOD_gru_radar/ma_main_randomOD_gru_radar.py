@@ -177,6 +177,67 @@ def get_history_tensor(history, sequence_length, input_size):
     return history_tensor.unsqueeze(0)
 
 
+def save_gif(env, trajectory_eachPlay, pre_fix, episode_to_check, episode):
+    os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
+    matplotlib.use('TkAgg')
+    fig, ax = plt.subplots(1, 1)
+
+    plt.axis('equal')
+    plt.xlim(env.bound[0], env.bound[1])
+    plt.ylim(env.bound[2], env.bound[3])
+    plt.axvline(x=env.bound[0], c="green")
+    plt.axvline(x=env.bound[1], c="green")
+    plt.axhline(y=env.bound[2], c="green")
+    plt.axhline(y=env.bound[3], c="green")
+    plt.xlabel("X axis")
+    plt.ylabel("Y axis")
+
+    # draw occupied_poly
+    for one_poly in env.world_map_2D_polyList[0][0]:
+        one_poly_mat = shapelypoly_to_matpoly(one_poly, True, 'y', 'b')
+        ax.add_patch(one_poly_mat)
+    # draw non-occupied_poly
+    for zero_poly in env.world_map_2D_polyList[0][1]:
+        zero_poly_mat = shapelypoly_to_matpoly(zero_poly, False, 'y')
+        # ax.add_patch(zero_poly_mat)
+
+    # show building obstacles
+    for poly in env.buildingPolygons:
+        matp_poly = shapelypoly_to_matpoly(poly, False, 'red')  # the 3rd parameter is the edge color
+        ax.add_patch(matp_poly)
+
+    for agentIdx, agent in env.all_agents.items():
+        plt.plot(agent.ini_pos[0], agent.ini_pos[1],
+                 marker=MarkerStyle(">",
+                                    fillstyle="right",
+                                    transform=Affine2D().rotate_deg(math.degrees(agent.heading))),
+                 color='y')
+        plt.text(agent.ini_pos[0], agent.ini_pos[1], agent.agent_name)
+        # plot self_circle of the drone
+        self_circle = Point(agent.ini_pos[0],
+                            agent.ini_pos[1]).buffer(agent.protectiveBound, cap_style='round')
+        grid_mat_Scir = shapelypoly_to_matpoly(self_circle, inFill=False, Edgecolor='k')
+        ax.add_patch(grid_mat_Scir)
+
+        # plot drone's detection range
+        detec_circle = Point(agent.ini_pos[0],
+                             agent.ini_pos[1]).buffer(agent.detectionRange / 2, cap_style='round')
+        detec_circle_mat = shapelypoly_to_matpoly(detec_circle, inFill=False, Edgecolor='g')
+        ax.add_patch(detec_circle_mat)
+
+        plt.plot(agent.goal[-1][0], agent.goal[-1][1], marker='*', color='y', markersize=10)
+        plt.text(agent.goal[-1][0], agent.goal[-1][1], agent.agent_name)
+
+    # Create animation
+    ani = animation.FuncAnimation(fig, animate, fargs=(ax, env, trajectory_eachPlay), frames=len(trajectory_eachPlay),
+                                  interval=300, blit=False)
+    # Save as GIF
+    gif_path = pre_fix + '\episode_' + episode_to_check + 'simulation_num_' + str(episode) + '.gif'
+    ani.save(gif_path, writer='pillow')
+
+    # Close figure
+    plt.close(fig)
+
 def main(args):
 
     if args.mode == "train":
@@ -199,8 +260,8 @@ def main(args):
         # initialize_excel_file(excel_file_path_time)
         # ------------ end of this portion is to save using excel instead of pickle -----------
 
-    use_wanDB = False
-    # use_wanDB = True
+    # use_wanDB = False
+    use_wanDB = True
     # get_evaluation_status = True  # have figure output
     get_evaluation_status = False  # no figure output, mainly obtain collision rate
     # simply_view_evaluation = True  # don't save gif
@@ -300,7 +361,7 @@ def main(args):
         # args.max_episodes = 5  # only evaluate one episode during evaluation mode.
         args.max_episodes = 100
         pre_fix = r'D:\MADDPG_2nd_jp\170124_10_27_45\interval_record_eps'
-        episode_to_check = str(1000)
+        episode_to_check = str(9000)
         load_filepath_0 = pre_fix + '\episode_' + episode_to_check + '_agent_0actor_net.pth'
         load_filepath_1 = pre_fix + '\episode_' + episode_to_check + '_agent_1actor_net.pth'
         load_filepath_2 = pre_fix + '\episode_' + episode_to_check + '_agent_2actor_net.pth'
@@ -343,10 +404,11 @@ def main(args):
             if args.mode == "train":
                 step_start_time = time.time()
                 step_reward_record = [None] * n_agents
-                # noise_flag = True
-                noise_flag = False
-                generate_reward_map = True
-                # generate_reward_map = False
+
+                noise_flag = True
+                # noise_flag = False
+                # generate_reward_map = True
+                generate_reward_map = False
                 # populate gru history
                 gru_history.append(np.array(norm_cur_state[0]))
 
@@ -660,6 +722,8 @@ def main(args):
                     break  # this is to break out from "while True:", which is one play
             elif args.mode == "eval":
                 step_reward_record = [None] * n_agents
+                saved_gif = True  # Don't save gif while doing mass run
+                # saved_gif = False
                 noise_flag = False
                 # populate gru history
                 gru_history.append(np.array(norm_cur_state[0]))
@@ -780,66 +844,12 @@ def main(args):
 
                         # ---------- new save as gif ----------------------- #
                         else:
-                            os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
-                            matplotlib.use('TkAgg')
-                            fig, ax = plt.subplots(1, 1)
-
-                            plt.axis('equal')
-                            plt.xlim(env.bound[0], env.bound[1])
-                            plt.ylim(env.bound[2], env.bound[3])
-                            plt.axvline(x=env.bound[0], c="green")
-                            plt.axvline(x=env.bound[1], c="green")
-                            plt.axhline(y=env.bound[2], c="green")
-                            plt.axhline(y=env.bound[3], c="green")
-                            plt.xlabel("X axis")
-                            plt.ylabel("Y axis")
-
-                            # draw occupied_poly
-                            for one_poly in env.world_map_2D_polyList[0][0]:
-                                one_poly_mat = shapelypoly_to_matpoly(one_poly, True, 'y', 'b')
-                                ax.add_patch(one_poly_mat)
-                            # draw non-occupied_poly
-                            for zero_poly in env.world_map_2D_polyList[0][1]:
-                                zero_poly_mat = shapelypoly_to_matpoly(zero_poly, False, 'y')
-                                # ax.add_patch(zero_poly_mat)
-
-                            # show building obstacles
-                            for poly in env.buildingPolygons:
-                                matp_poly = shapelypoly_to_matpoly(poly, False, 'red')  # the 3rd parameter is the edge color
-                                ax.add_patch(matp_poly)
-
-                            for agentIdx, agent in env.all_agents.items():
-                                plt.plot(agent.ini_pos[0], agent.ini_pos[1],
-                                         marker=MarkerStyle(">",
-                                                            fillstyle="right",
-                                                            transform=Affine2D().rotate_deg(math.degrees(agent.heading))),
-                                         color='y')
-                                plt.text(agent.ini_pos[0], agent.ini_pos[1], agent.agent_name)
-                                # plot self_circle of the drone
-                                self_circle = Point(agent.ini_pos[0],
-                                                    agent.ini_pos[1]).buffer(agent.protectiveBound, cap_style='round')
-                                grid_mat_Scir = shapelypoly_to_matpoly(self_circle, inFill=False, Edgecolor='k')
-                                ax.add_patch(grid_mat_Scir)
-
-                                # plot drone's detection range
-                                detec_circle = Point(agent.ini_pos[0],
-                                                     agent.ini_pos[1]).buffer(agent.detectionRange / 2, cap_style='round')
-                                detec_circle_mat = shapelypoly_to_matpoly(detec_circle, inFill=False, Edgecolor='g')
-                                ax.add_patch(detec_circle_mat)
-
-                                plt.plot(agent.goal[-1][0], agent.goal[-1][1], marker='*', color='y', markersize=10)
-                                plt.text(agent.goal[-1][0], agent.goal[-1][1], agent.agent_name)
-
-                            # Create animation
-                            ani = animation.FuncAnimation(fig, animate, fargs=(ax, env, trajectory_eachPlay), frames=len(trajectory_eachPlay), interval=300, blit=False)
-                            # Save as GIF
-                            gif_path = pre_fix + '\episode_' + episode_to_check + 'simulation_num_'+str(episode)+'.gif'
-                            ani.save(gif_path, writer='pillow')
-
-                            # Close figure
-                            plt.close(fig)
+                            save_gif(env, trajectory_eachPlay, pre_fix, episode_to_check, episode)
 
                     if True in done_aft_action and step < args.episode_length:
+                        if saved_gif == False:
+                            save_gif(env, trajectory_eachPlay, pre_fix, episode_to_check, episode)
+                            saved_gif = True  # once current episode saved, no need to save one more time.
                         collision_count = collision_count + 1
                         if bound_building_check[0] == True:  # collide due to boundary
                             crash_to_bound = crash_to_bound + 1
@@ -856,9 +866,15 @@ def main(args):
                         num_true = sum(episode_goal_found)
                         # Determine the number of True values and print the appropriate response
                         if num_true == 1:
+                            if saved_gif == False:
+                                save_gif(env, trajectory_eachPlay, pre_fix, episode_to_check, episode)
+                                saved_gif = True  # once current episode saved, no need to save one more time.
                             # print("There is one True value in the list.")
                             one_drone_reach = one_drone_reach + 1
                         elif num_true == 2:
+                            if saved_gif == False:
+                                save_gif(env, trajectory_eachPlay, pre_fix, episode_to_check, episode)
+                                saved_gif = True  # once current episode saved, no need to save one more time.
                             # print("There are two True values in the list.")
                             two_drone_reach = two_drone_reach + 1
                         else:  # all 3 reaches goal
