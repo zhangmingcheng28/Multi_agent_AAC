@@ -1716,7 +1716,7 @@ class env_simulator:
             else:
                 host_refline = LineString([self.all_agents[drone_idx].ini_pos, self.all_agents[drone_idx].goal[0]])
 
-            # cross_track_deviation = curPoint.distance(host_refline)  #
+            cross_track_deviation = curPoint.distance(host_refline)
             # cross_track_deviation_x = abs(cross_track_deviation*math.cos(drone_obj.heading))
             # cross_track_deviation_y = abs(cross_track_deviation*math.sin(drone_obj.heading))
             # norm_cross_track_deviation_x = cross_track_deviation_x * self.normalizer.x_scale
@@ -1805,21 +1805,24 @@ class env_simulator:
             goal_cur_intru_intersect = host_current_circle.intersection(tar_circle)
 
             wp_circle = Point(self.all_agents[drone_idx].goal[0]).buffer(1, cap_style='round')
+            # wp_circle = Point(self.all_agents[drone_idx].goal[0]).buffer(3, cap_style='round')
             wp_intersect = host_current_circle.intersection(wp_circle)
 
             # ------------- pre-processed condition for a normal step -----------------
-            rew = 3
-            # rew = 0
+            # rew = 3
+            rew = 0
             # dist_to_goal_coeff = 1
-            dist_to_goal_coeff = 2
+            dist_to_goal_coeff = 1
             
             x_norm, y_norm = self.normalizer.nmlz_pos(drone_obj.pos)
             tx_norm, ty_norm = self.normalizer.nmlz_pos(drone_obj.goal[-1])
-            dist_to_goal = dist_to_goal_coeff * math.sqrt(((x_norm-tx_norm)**2 + (y_norm-ty_norm)**2))  # 0~2.828 at each step
+            # dist_to_goal = dist_to_goal_coeff * math.sqrt(((x_norm-tx_norm)**2 + (y_norm-ty_norm)**2))  # 0~2.828 at each step
 
-            before_dist_hg = np.linalg.norm(drone_obj.pre_pos - drone_obj.goal[-1])  # distance to goal before action
-            after_dist_hg = np.linalg.norm(drone_obj.pos - drone_obj.goal[-1])  # distance to goal after action
-            # dist_to_goal = dist_to_goal_coeff * (before_dist_hg - after_dist_hg)  # (before_dist_hg - after_dist_hg) -max_vel - max_vel
+            # before_dist_hg = np.linalg.norm(drone_obj.pre_pos - drone_obj.goal[-1])  # distance to goal before action
+            before_dist_hg = np.linalg.norm(drone_obj.pre_pos - drone_obj.goal[0])  # distance to goal before action
+            # after_dist_hg = np.linalg.norm(drone_obj.pos - drone_obj.goal[-1])  # distance to goal after action
+            after_dist_hg = np.linalg.norm(drone_obj.pos - drone_obj.goal[0])  # distance to goal after action
+            dist_to_goal = dist_to_goal_coeff * (before_dist_hg - after_dist_hg)  # (before_dist_hg - after_dist_hg) -max_vel - max_vel
             # ------- small segment reward ------------
             # dist_to_seg_coeff = 10
             # dist_to_seg_coeff = 1
@@ -1857,19 +1860,21 @@ class env_simulator:
                 m = (0 - 1) / (drone_obj.protectiveBound - 0)
                 dist_to_ref_line = coef_ref_line*(m * cross_err_distance + 1)  # 0~1*coef_ref_line
             else:
-                dist_to_ref_line = -dist_to_goal
+                dist_to_ref_line = -coef_ref_line*1
 
+            small_step_penalty_coef = 3
+            # small_step_penalty_coef = 0
             spd_penalty_threshold = 2*drone_obj.protectiveBound
-            # small_step_penalty = (spd_penalty_threshold -
-            #                       np.clip(np.linalg.norm(drone_obj.vel), 0, spd_penalty_threshold))*\
-            #                      (1.0 / spd_penalty_threshold)
-            small_step_penalty = 0
+            small_step_penalty_val = (spd_penalty_threshold -
+                                  np.clip(np.linalg.norm(drone_obj.vel), 0, spd_penalty_threshold))*\
+                                 (1.0 / spd_penalty_threshold)  # between 0-1.
+            small_step_penalty = small_step_penalty_coef * small_step_penalty_val
+
+            # near_goal_coefficient = 3  # so that near_goal_reward will become 0-3 instead of 0-1
+            near_goal_coefficient = 0
             near_goal_threshold = drone_obj.detectionRange
             actual_after_dist_hg = math.sqrt(((drone_obj.pos[0] - drone_obj.goal[-1][0]) ** 2 +
                                               (drone_obj.pos[1] - drone_obj.goal[-1][1]) ** 2))
-
-            # near_goal_coefficient = 3  # so that near_goal_reward will become 0-3 instead of 0-1
-            near_goal_coefficient = 0  # so that near_goal_reward will become 0-3 instead of 0-1
             near_goal_reward = near_goal_coefficient * ((near_goal_threshold -
                                 np.clip(actual_after_dist_hg, 0, near_goal_threshold)) * 1.0/near_goal_threshold)
 
@@ -1912,8 +1917,8 @@ class env_simulator:
             # exceed bound condition, don't use current point, use current circle or else will have condition that
             # must use "host_passed_volume", or else, we unable to confirm whether the host's circle is at left or right of the boundary lines
             if x_left_bound.intersects(host_passed_volume) or x_right_bound.intersects(host_passed_volume) or y_bottom_bound.intersects(host_passed_volume) or y_top_bound.intersects(host_passed_volume):
-                # print("drone_{} has crash into boundary at time step {}".format(drone_idx, current_ts))
-                rew = rew + dist_to_ref_line - crash_penalty_wall - dist_to_goal - \
+                print("drone_{} has crash into boundary at time step {}".format(drone_idx, current_ts))
+                rew = rew + dist_to_ref_line - crash_penalty_wall + dist_to_goal - \
                       small_step_penalty + near_goal_reward - near_building_penalty
                 done.append(True)
                 bound_building_check[0] = True
@@ -1924,7 +1929,7 @@ class env_simulator:
                 # done.append(True)
                 done.append(True)
                 bound_building_check[1] = True
-                rew = rew + dist_to_ref_line - crash_penalty_wall - dist_to_goal - \
+                rew = rew + dist_to_ref_line - crash_penalty_wall + dist_to_goal - \
                       small_step_penalty + near_goal_reward - near_building_penalty
                 # rew = rew - big_crash_penalty_wall
                 reward.append(np.array(rew))
@@ -1964,10 +1969,10 @@ class env_simulator:
                 # print("final goal has reached")
                 # done.append(False)
             else:  # a normal step taken
-                # if xy[0] is None and xy[1] is None:  # we only alter drone's goal during actual training
-                #     if (not wp_intersect.is_empty) and len(drone_obj.goal) > 1: # check if wp reached, and this is not the end point
-                #         drone_obj.removed_goal = drone_obj.goal.pop(0)  # remove current wp
-                rew = rew + dist_to_ref_line - dist_to_goal - \
+                if xy[0] is None and xy[1] is None:  # we only alter drone's goal during actual training
+                    if (not wp_intersect.is_empty) and len(drone_obj.goal) > 1: # check if wp reached, and this is not the end point
+                        drone_obj.removed_goal = drone_obj.goal.pop(0)  # remove current wp
+                rew = rew + dist_to_ref_line + dist_to_goal - \
                       small_step_penalty + near_goal_reward - near_building_penalty + seg_reward
                 # we remove the above termination condition
                 done.append(False)
@@ -1976,6 +1981,8 @@ class env_simulator:
                 # for debug, record the reward
                 # one_step_reward = [crossCoefficient*cross_track_error, delta_hg, alive_penalty, dominoCoefficient*dominoTerm_sum]
 
+                # if rew < 1:
+                #     print("check")
             # if rew < 0.1 and rew >= 0:
             #     print("check")
             step_reward_record[drone_idx] = [dist_to_ref_line, dist_to_goal]
