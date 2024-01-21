@@ -1,9 +1,9 @@
 # from Nnetworks_MADDPGv3 import CriticNetwork_0724, ActorNetwork
-from Nnetworks_randomOD_gru import CriticNetwork, ActorNetwork, Stocha_actor, GRU_actor, GRUCELL_actor, CriticNetwork_woGru, CriticNetwork_wGru, critic_single_obs_wGRU
+from Nnetworks_randomOD_Wgru_radar import CriticNetwork, ActorNetwork, Stocha_actor, GRU_actor, GRUCELL_actor, CriticNetwork_woGru, CriticNetwork_wGru, critic_single_obs_wGRU, ActorNetwork_TwoPortion, critic_single_TwoPortion
 import torch
 from copy import deepcopy
 from torch.optim import Adam
-from memory_randomOD_gru import ReplayMemory, Experience
+from memory_randomOD_Wgru_radar import ReplayMemory, Experience
 # from random_process_MADDPGv3_randomOD import OrnsteinUhlenbeckProcess
 from torch.autograd import Variable
 import os
@@ -11,9 +11,8 @@ import torch.nn as nn
 import time
 import numpy as np
 import torch as T
-from utils_randomOD_gru import device
+from utils_randomOD_Wgru_radar import device
 import csv
-scale_reward = 0.01
 
 
 def soft_update(target, source, t):
@@ -40,12 +39,12 @@ class MADDPG:
         # self.critics = [Critic(n_agents, dim_obs, dim_act) for _ in range(n_agents)]
 
         # self.actors = [Stocha_actor(actor_dim, dim_act) for _ in range(n_agents)]  # use stochastic policy
-        # self.actors = [ActorNetwork(actor_dim, dim_act) for _ in range(n_agents)]  # use deterministic policy
-        self.actors = [GRUCELL_actor(actor_dim, dim_act, actor_hidden_state_size) for _ in range(n_agents)]  # use deterministic with GRU module policy
+        self.actors = [ActorNetwork_TwoPortion(actor_dim, dim_act) for _ in range(n_agents)]  # use deterministic policy
+        # self.actors = [GRUCELL_actor(actor_dim, dim_act, actor_hidden_state_size) for _ in range(n_agents)]  # use deterministic with GRU module policy
         # self.critics = [CriticNetwork_0724(critic_dim, n_agents, dim_act) for _ in range(n_agents)]
         # self.critics = [CriticNetwork(critic_dim, n_agents, dim_act) for _ in range(n_agents)]
         # self.critics = [CriticNetwork_wGru(critic_dim, n_agents, dim_act, gru_history_length) for _ in range(n_agents)]
-        self.critics = [critic_single_obs_wGRU(critic_dim, n_agents, dim_act, gru_history_length, actor_hidden_state_size) for _ in range(n_agents)]
+        self.critics = [critic_single_TwoPortion(critic_dim, n_agents, dim_act, gru_history_length, actor_hidden_state_size) for _ in range(n_agents)]
 
         self.n_agents = n_agents
         self.n_actor_dim = actor_dim
@@ -170,7 +169,6 @@ class MADDPG:
                 non_final_next_states.view(-1, self.n_agents * self.n_states), # .view(-1, self.n_agents * self.n_states)
                 non_final_next_actions.view(-1, self.n_agents * self.n_actions)).squeeze() # .view(-1, self.n_agents * self.n_actions)
 
-            # scale_reward: to scale reward in Q functions
             reward_sum = sum([reward_batch[:,agent_idx] for agent_idx in range(self.n_agents)])
             target_Q = (target_Q.unsqueeze(1) * self.GAMMA) + (reward_batch[:, agent].unsqueeze(1))
             loss_Q = nn.MSELoss()(current_Q, target_Q.detach())
@@ -228,21 +226,22 @@ class MADDPG:
         reward_batch = torch.stack(batch.rewards).type(FloatTensor)
         # history_batch = torch.stack(batch.history_info).type(FloatTensor)
         # whole_agent_combine_history = history_batch.view(self.batch_size, -1)
-        agents_next_hidden_state = torch.stack(batch.next_hidden).type(FloatTensor)
-        agents_cur_hidden_state = torch.stack(batch.cur_hidden).type(FloatTensor)
+        # agents_next_hidden_state = torch.stack(batch.next_hidden).type(FloatTensor)
+        # agents_cur_hidden_state = torch.stack(batch.cur_hidden).type(FloatTensor)
         # whole_agent_combine_gru = history_batch.view(history_batch.shape[0], history_batch.shape[1], -1)
 
         # stack tensors only once
         stacked_elem_0 = torch.stack([elem[0] for elem in batch.states]).to(device)
-
+        stacked_elem_1 = torch.stack([elem[1] for elem in batch.states]).to(device)
         stacked_elem_0_combine = stacked_elem_0.view(self.batch_size, -1)  # own_state only
 
         # use the stacked tensors
         # current_state in the form of list of length of agents in the environments, then, batchNo X individual Feature length
-        cur_state_list1 = [stacked_elem_0[:, i, :] for i in range(self.n_agents)]
+        # cur_state_list1 = [stacked_elem_0[:, i, :] for i in range(self.n_agents)]
 
         # for next state
         next_stacked_elem_0 = torch.stack([elem[0] for elem in batch.next_states]).to(device)
+        next_stacked_elem_1 = torch.stack([elem[1] for elem in batch.next_states]).to(device)
         next_stacked_elem_0_combine = next_stacked_elem_0.view(self.batch_size, -1)
 
         # for done
@@ -251,21 +250,23 @@ class MADDPG:
         for agent in range(self.n_agents):
             whole_state = stacked_elem_0_combine  # own_state only
 
-            non_final_next_states_actorin = [next_stacked_elem_0]  # 2 portion avilable
+            # non_final_next_states_actorin = [next_stacked_elem_0]  # 2 portion avilable
+            non_final_next_states_actorin = [next_stacked_elem_0, next_stacked_elem_1]  # 2 portion avilable
 
             # configured for target Q
 
             whole_action = action_batch.view(self.batch_size, -1)
 
             # non_final_next_actions = [self.actors_target[i](non_final_next_states_actorin[0][:,i,:], history_batch[:,:,i,:])[0] for i in range(self.n_agents)]
-            non_final_next_actions = [self.actors_target[i](non_final_next_states_actorin[0][:,i,:], agents_next_hidden_state[:,i,:])[0] for i in range(self.n_agents)]
+            # non_final_next_actions = [self.actors_target[i](non_final_next_states_actorin[0][:,i,:], agents_next_hidden_state[:,i,:])[0] for i in range(self.n_agents)]
+            non_final_next_actions = [self.actors_target[i]([non_final_next_states_actorin[0][:,i,:], non_final_next_states_actorin[1][:,i,:]]) for i in range(self.n_agents)]
 
             # non_final_next_actions = torch.stack(non_final_next_actions).view(self.batch_size, -1)
 
             # get current Q-estimate, using agent's critic network
             # current_Q = self.critics[agent](whole_state, whole_action, whole_agent_combine_gru)
             # current_Q = self.critics[agent](whole_state, whole_action, history_batch[:, :, agent, :])
-            current_Q = self.critics[agent](stacked_elem_0[:,agent,:], action_batch[:,agent,:], agents_cur_hidden_state[:, agent, :])[0]
+            current_Q = self.critics[agent]([stacked_elem_0[:,agent,:], stacked_elem_1[:,agent,:]], action_batch[:,agent,:])
 
             # has_positive_values = (current_Q > 0).any()
             # if has_positive_values:
@@ -273,7 +274,7 @@ class MADDPG:
             with T.no_grad():
                 # next_target_critic_value = self.critics_target[agent](next_stacked_elem_0_combine, non_final_next_actions.view(-1,self.n_agents * self.n_actions), whole_agent_combine_gru).squeeze()
                 # next_target_critic_value = self.critics_target[agent](next_stacked_elem_0_combine, non_final_next_actions.view(-1,self.n_agents * self.n_actions), history_batch[:, :, agent, :]).squeeze()
-                next_target_critic_value = self.critics_target[agent](next_stacked_elem_0[:,agent,:], non_final_next_actions[agent], agents_next_hidden_state[:, agent, :])[0].squeeze()
+                next_target_critic_value = self.critics_target[agent]([next_stacked_elem_0[:,agent,:], next_stacked_elem_1[:,agent,:]], non_final_next_actions[agent]).squeeze()
                 target_Q = (reward_batch[:, agent]) + (self.GAMMA * next_target_critic_value * (1-dones_stacked[:, agent]))
                 target_Q = target_Q.unsqueeze(1)
 
@@ -285,7 +286,7 @@ class MADDPG:
             # self.has_gradients(self.critics[agent], wandb)  # Replace with your actor network variable
             self.critic_optimizer[agent].step()
 
-            action_i = self.actors[agent](cur_state_list1[agent], agents_cur_hidden_state[:,agent,:])[0]
+            action_i = self.actors[agent]([stacked_elem_0[:,agent,:], stacked_elem_1[:,agent,:]])
             ac = action_batch.clone()
 
             ac[:, agent, :] = action_i.squeeze(0)  # replace the actor from self.actors[agent] into action batch
@@ -293,7 +294,7 @@ class MADDPG:
 
             # actor_loss = -self.critics[agent](whole_state, whole_action_action_replaced, whole_hs).mean()
             # actor_loss = 3-self.critics[agent](whole_state, whole_action_action_replaced, whole_agent_combine_gru).mean()
-            actor_loss = 3-self.critics[agent](stacked_elem_0[:,agent,:], ac[:, agent, :], agents_cur_hidden_state[:, agent, :])[0].mean()
+            actor_loss = 3-self.critics[agent]([stacked_elem_0[:,agent,:], stacked_elem_1[:,agent,:]], ac[:, agent, :]).mean()
             # actor_loss = -self.critics[agent](stacked_elem_0[:,agent,:], ac[:, agent, :], agents_cur_hidden_state[:, agent, :])[0].mean()
             self.actor_optimizer[agent].zero_grad()
             actor_loss.backward()
@@ -313,7 +314,7 @@ class MADDPG:
 
         if i_episode % UPDATE_EVERY == 0:  # perform a soft update at each step of an episode.
             for i in range(self.n_agents):
-                print("all agents NN update at episode {}".format(i_episode))
+                # print("all agents NN update at episode {}".format(i_episode))
                 soft_update(self.critics_target[i], self.critics[i], self.tau)
                 soft_update(self.actors_target[i], self.actors[i], self.tau)
 
@@ -330,7 +331,7 @@ class MADDPG:
     def choose_action(self, state, cur_total_step, cur_episode, step, total_training_steps, noise_start_level, actor_hiddens, noisy=True):
         # ------------- MADDPG_test_181123_10_10_54 version noise -------------------
         obs = torch.from_numpy(np.stack(state[0])).float().to(device)
-        # obs_grid = torch.from_numpy(np.stack(state[1])).float().to(device)
+        obs_grid = torch.from_numpy(np.stack(state[1])).float().to(device)
         noise_value = np.zeros(2)
 
         # if len(gru_history) < self.args.gru_history_length:
@@ -342,7 +343,7 @@ class MADDPG:
         # gru_history_input = np.expand_dims(gru_history_input, axis=0)
 
         actions = torch.zeros(self.n_agents, self.n_actions)
-        act_hn = torch.zeros(self.n_agents, self.actors[0].rnn_hidden_dim)
+        act_hn = torch.zeros(self.n_agents, self.n_actions)
         FloatTensor = torch.cuda.FloatTensor if self.use_cuda else torch.FloatTensor
         # this for loop used to decrease noise level for all agents before taking any action
         # gru_history_input = torch.FloatTensor(gru_history_input).to(device)  # batch x seq_length x no_agent x feature_length
@@ -356,12 +357,13 @@ class MADDPG:
             # sb_grid = obs_grid[i].detach()
             # sb_surAgent = all_obs_surAgent[i].detach()
             sb = obs[i]
-            # sb_grid = obs_grid[i]
+            sb_grid = obs_grid[i]
             # sb_surAgent = all_obs_surAgent[i]
             # act = self.actors[i]([sb.unsqueeze(0), sb_grid.unsqueeze(0), sb_surAgent.unsqueeze(0)]).squeeze()
             # act = self.actors[i]([sb.unsqueeze(0), sb_surAgent.unsqueeze(0)]).squeeze()
             # act, hn = self.actors[i](sb.unsqueeze(0), gru_history_input[:,:,i,:])
-            act, hn = self.actors[i](sb.unsqueeze(0), gru_history_input[:, i, :])
+            # act, hn = self.actors[i](sb.unsqueeze(0), gru_history_input[:, i, :])
+            act = self.actors[i]([sb.unsqueeze(0), sb_grid.unsqueeze(0)])
             if noisy:
                 noise_value = np.random.randn(2) * self.var[i]
                 act += torch.from_numpy(noise_value).type(FloatTensor)
@@ -369,7 +371,8 @@ class MADDPG:
                 act = torch.clamp(act, -1.0, 1.0)  # when using stochastic policy, we are not require to clamp again.
 
             actions[i, :] = act
-            act_hn[i, :] = hn
+            # act_hn[i, :] = hn
+            act_hn[i, :] = torch.zeros(1, self.n_actions)
         self.steps_done += 1
         # ------------- end of MADDPG_test_181123_10_10_54 version noise -------------------
 
@@ -416,6 +419,7 @@ class MADDPG:
         # self.steps_done += 1
 
         return actions.data.cpu().numpy(), noise_value, gru_history_input.squeeze(0).data.cpu(), act_hn.data.cpu()  # NOTE: tensor.data.cpu() is to make the tensor's "is_leaf" = True, this also prevent the error message on line "retain_graph=True"
+        # return actions.data.cpu().numpy(), noise_value, gru_history_input.squeeze(0).data.cpu()  # NOTE: tensor.data.cpu() is to make the tensor's "is_leaf" = True, this also prevent the error message on line "retain_graph=True"
         # return actions.data.cpu().numpy(), noise_value
 
     def get_custom_linear_scaling_factor(self, episode, eps_end, start_scale=1, end_scale=0.03):
