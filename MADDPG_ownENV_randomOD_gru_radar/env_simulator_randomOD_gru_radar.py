@@ -1716,7 +1716,7 @@ class env_simulator:
             else:
                 host_refline = LineString([self.all_agents[drone_idx].ini_pos, self.all_agents[drone_idx].goal[0]])
 
-            cross_track_deviation = curPoint.distance(host_refline)
+            cross_track_deviation = curPoint.distance(host_refline)  # THIS IS WRONG
             # cross_track_deviation_x = abs(cross_track_deviation*math.cos(drone_obj.heading))
             # cross_track_deviation_y = abs(cross_track_deviation*math.sin(drone_obj.heading))
             # norm_cross_track_deviation_x = cross_track_deviation_x * self.normalizer.x_scale
@@ -1823,6 +1823,10 @@ class env_simulator:
             # after_dist_hg = np.linalg.norm(drone_obj.pos - drone_obj.goal[-1])  # distance to goal after action
             after_dist_hg = np.linalg.norm(drone_obj.pos - drone_obj.goal[0])  # distance to goal after action
             dist_to_goal = dist_to_goal_coeff * (before_dist_hg - after_dist_hg)  # (before_dist_hg - after_dist_hg) -max_vel - max_vel
+
+            if dist_to_goal >= drone_obj.maxSpeed:
+                print("dist_to_goal reward out of range")
+
             # ------- small segment reward ------------
             # dist_to_seg_coeff = 10
             # dist_to_seg_coeff = 1
@@ -1858,7 +1862,8 @@ class env_simulator:
             if cross_err_distance <= drone_obj.protectiveBound:
                 # linear increase in reward
                 m = (0 - 1) / (drone_obj.protectiveBound - 0)
-                dist_to_ref_line = coef_ref_line*(m * cross_err_distance + 1)  # 0~1*coef_ref_line
+                # dist_to_ref_line = coef_ref_line*(m * cross_err_distance + 1)  # 0~1*coef_ref_line
+                dist_to_ref_line = (coef_ref_line*(m * cross_err_distance + 1)) + coef_ref_line  # 0~1*coef_ref_line, with a fixed reward
             else:
                 dist_to_ref_line = -coef_ref_line*1
 
@@ -1972,6 +1977,8 @@ class env_simulator:
                 if xy[0] is None and xy[1] is None:  # we only alter drone's goal during actual training
                     if (not wp_intersect.is_empty) and len(drone_obj.goal) > 1: # check if wp reached, and this is not the end point
                         drone_obj.removed_goal = drone_obj.goal.pop(0)  # remove current wp
+                        # we add a wp reached reward, this reward is equals to the maximum of the path deviation reward
+                        rew = rew + coef_ref_line
                 rew = rew + dist_to_ref_line + dist_to_goal - \
                       small_step_penalty + near_goal_reward - near_building_penalty + seg_reward
                 # we remove the above termination condition
@@ -1991,7 +1998,7 @@ class env_simulator:
             # print("current drone {} actual distance to goal is {}, current reward to gaol is {}, current ref line reward is {}, current step reward is {}".format(drone_idx, actual_after_dist_hg, dist_to_goal, dist_to_ref_line, rew))
 
             # record status of each step.
-            eps_status_holder = self.display_one_eps_status(eps_status_holder, drone_idx, actual_after_dist_hg, [dist_to_goal, dist_to_ref_line, rew, small_step_penalty, np.linalg.norm(drone_obj.vel), near_goal_reward])
+            eps_status_holder = self.display_one_eps_status(eps_status_holder, drone_idx, actual_after_dist_hg, [dist_to_goal, dist_to_ref_line, near_building_penalty, small_step_penalty, np.linalg.norm(drone_obj.vel), near_goal_reward, seg_reward])
             # overall_status_record[2].append()  # 3rd is accumulated reward till that step for each agent
 
         # all_reach_target = all(agent.reach_target == True for agent in self.all_agents.values())
@@ -2113,7 +2120,6 @@ class env_simulator:
         # # populate overall state
         # # next_combine_state.append(np.array([agent_own, agent.observableSpace, agent.surroundingNeighbor], dtype=object))
         # next_combine_state.append(np.concatenate((agent_own, np.array(other_pos).flatten())))
-
 
 
         # matplotlib.use('TkAgg')

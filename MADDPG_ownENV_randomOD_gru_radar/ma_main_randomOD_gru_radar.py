@@ -146,7 +146,8 @@ def animate(frame_num, ax, env, trajectory_eachPlay):
 
         # link individual drone's starting position with its goal
         ini = agent.ini_pos
-        for wp in agent.goal:
+        # for wp in agent.goal:
+        for wp in agent.ref_line.coords:
             # plt.plot(wp[0], wp[1], marker='*', color='y', markersize=10)
             plt.plot([wp[0], ini[0]], [wp[1], ini[1]], '--', color='c')
             ini = wp
@@ -340,10 +341,10 @@ def main(args):
 
     # use_wanDB = False
     use_wanDB = True
-    get_evaluation_status = True  # have figure output
-    # get_evaluation_status = False  # no figure output, mainly obtain collision rate
-    simply_view_evaluation = True  # don't save gif
-    # simply_view_evaluation = False  # save gif
+    # get_evaluation_status = True  # have figure output
+    get_evaluation_status = False  # no figure output, mainly obtain collision rate
+    # simply_view_evaluation = True  # don't save gif
+    simply_view_evaluation = False  # save gif
 
 
     if use_wanDB:
@@ -435,11 +436,11 @@ def main(args):
     episode_goal_found = [False] * n_agents
     dummy_xy = (None, None)  # this is a dummy tuple of xy, is not useful during normal training, it is only useful when generating reward map
     if args.mode == "eval":
-        args.max_episodes = 10  # only evaluate one episode during evaluation mode.
+        # args.max_episodes = 10  # only evaluate one episode during evaluation mode.
         # args.max_episodes = 5  # only evaluate one episode during evaluation mode.
-        # args.max_episodes = 100
-        pre_fix = r'D:\MADDPG_2nd_jp\190124_10_59_43\interval_record_eps'
-        episode_to_check = str(2000)
+        args.max_episodes = 100
+        pre_fix = r'D:\MADDPG_2nd_jp\190124_21_17_00\interval_record_eps'
+        episode_to_check = str(18000)
         load_filepath_0 = pre_fix + '\episode_' + episode_to_check + '_agent_0actor_net.pth'
         load_filepath_1 = pre_fix + '\episode_' + episode_to_check + '_agent_1actor_net.pth'
         load_filepath_2 = pre_fix + '\episode_' + episode_to_check + '_agent_2actor_net.pth'
@@ -800,6 +801,8 @@ def main(args):
                     break  # this is to break out from "while True:", which is one play
             elif args.mode == "eval":
                 step_reward_record = [None] * n_agents
+                # show_step_by_step = True
+                show_step_by_step = False
                 saved_gif = True  # Don't save gif while doing mass run
                 # saved_gif = False
                 noise_flag = False
@@ -825,6 +828,68 @@ def main(args):
                 norm_cur_state = norm_next_state
                 trajectory_eachPlay.append([[each_agent_traj[0], each_agent_traj[1], reward_aft_action[each_agent_idx]] for each_agent_idx, each_agent_traj in enumerate(cur_state[0])])
                 accum_reward = accum_reward + sum(reward_aft_action)
+
+                if show_step_by_step:
+                    os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
+                    matplotlib.use('TkAgg')
+                    fig, ax = plt.subplots(1, 1)
+                    for agentIdx, agent in env.all_agents.items():
+                        plt.plot(agent.pos[0], agent.pos[1], marker=MarkerStyle(">", fillstyle="right",
+                                                                                transform=Affine2D().rotate_deg(
+                                                                                    math.degrees(agent.heading))),
+                                 color='y')
+                        plt.text(agent.pos[0], agent.pos[1], agent.agent_name)
+                        # plot self_circle of the drone
+                        self_circle = Point(agent.pos[0], agent.pos[1]).buffer(agent.protectiveBound, cap_style='round')
+                        grid_mat_Scir = shapelypoly_to_matpoly(self_circle, False, 'k')
+                        ax.add_patch(grid_mat_Scir)
+
+                        # plot drone's detection range
+                        detec_circle = Point(agent.pos[0], agent.pos[1]).buffer(agent.detectionRange / 2, cap_style='round')
+                        detec_circle_mat = shapelypoly_to_matpoly(detec_circle, False, 'r')
+                        # ax.add_patch(detec_circle_mat)
+
+                        ini = agent.pos
+                        for wp in agent.ref_line.coords:
+                            plt.plot([wp[0], ini[0]], [wp[1], ini[1]], '--', color='c')
+                            ini = wp
+
+                    # draw occupied_poly
+                    for one_poly in env.world_map_2D_polyList[0][0]:
+                        one_poly_mat = shapelypoly_to_matpoly(one_poly, True, 'y', 'b')
+                        # ax.add_patch(one_poly_mat)
+                    # draw non-occupied_poly
+                    for zero_poly in env.world_map_2D_polyList[0][1]:
+                        zero_poly_mat = shapelypoly_to_matpoly(zero_poly, False, 'y')
+                        ax.add_patch(zero_poly_mat)
+
+                    # show building obstacles
+                    for poly in env.buildingPolygons:
+                        matp_poly = shapelypoly_to_matpoly(poly, False, 'red')  # the 3rd parameter is the edge color
+                        # ax.add_patch(matp_poly)
+
+                    # show the nearest building obstacles
+                    # nearest_buildingPoly_mat = shapelypoly_to_matpoly(nearest_buildingPoly, True, 'g', 'k')
+                    # ax.add_patch(nearest_buildingPoly_mat)
+
+                    # for ele in self.spawn_area1_polymat:
+                    #     ax.add_patch(ele)
+                    # for ele2 in self.spawn_area2_polymat:
+                    #     ax.add_patch(ele2)
+                    # for ele3 in self.spawn_area3_polymat:
+                    #     ax.add_patch(ele3)
+                    # for ele4 in self.spawn_area4_polymat:
+                    #     ax.add_patch(ele4)
+
+                    # plt.axvline(x=self.bound[0], c="green")
+                    # plt.axvline(x=self.bound[1], c="green")
+                    # plt.axhline(y=self.bound[2], c="green")
+                    # plt.axhline(y=self.bound[3], c="green")
+
+                    plt.xlabel("X axis")
+                    plt.ylabel("Y axis")
+                    plt.axis('equal')
+                    plt.show()
 
                 if args.episode_length < step or (True in done_aft_action) or all([agent.reach_target for agent_idx, agent in env.all_agents.items()]):  # when termination condition reached
                     # check if in this episode there are situation where agents found their goal
