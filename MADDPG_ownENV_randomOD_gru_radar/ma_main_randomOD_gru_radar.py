@@ -273,7 +273,12 @@ def view_static_traj(env, trajectory_eachPlay):
         for wp in agent.ref_line.coords:
             plt.plot(wp[0], wp[1], marker='*', color='y', markersize=10)
             plt.plot([wp[0], ini[0]], [wp[1], ini[1]], '--', color='c')
+            # plot drone's detection range
+            wp_circle = Point(wp[0], wp[1]).buffer(agent.protectiveBound, cap_style='round')
+            wp_circle_mat = shapelypoly_to_matpoly(wp_circle, inFill=False, Edgecolor='g')
+            ax.add_patch(wp_circle_mat)
             ini = wp
+
         plt.plot(agent.goal[-1][0], agent.goal[-1][1], marker='*', color='y', markersize=10)
         plt.text(agent.goal[-1][0], agent.goal[-1][1], agent.agent_name)
 
@@ -339,10 +344,10 @@ def main(args):
         # initialize_excel_file(excel_file_path_time)
         # ------------ end of this portion is to save using excel instead of pickle -----------
 
-    # use_wanDB = False
-    use_wanDB = True
-    # get_evaluation_status = True  # have figure output
-    get_evaluation_status = False  # no figure output, mainly obtain collision rate
+    use_wanDB = False
+    # use_wanDB = True
+    get_evaluation_status = True  # have figure output
+    # get_evaluation_status = False  # no figure output, mainly obtain collision rate
     # simply_view_evaluation = True  # don't save gif
     simply_view_evaluation = False  # save gif
 
@@ -436,11 +441,11 @@ def main(args):
     episode_goal_found = [False] * n_agents
     dummy_xy = (None, None)  # this is a dummy tuple of xy, is not useful during normal training, it is only useful when generating reward map
     if args.mode == "eval":
-        # args.max_episodes = 10  # only evaluate one episode during evaluation mode.
+        args.max_episodes = 10  # only evaluate one episode during evaluation mode.
         # args.max_episodes = 5  # only evaluate one episode during evaluation mode.
-        args.max_episodes = 100
-        pre_fix = r'D:\MADDPG_2nd_jp\190124_21_17_00\interval_record_eps'
-        episode_to_check = str(18000)
+        # args.max_episodes = 100
+        pre_fix = r'D:\MADDPG_2nd_jp\210124_17_20_59\interval_record_eps'
+        episode_to_check = str(2000)
         load_filepath_0 = pre_fix + '\episode_' + episode_to_check + '_agent_0actor_net.pth'
         load_filepath_1 = pre_fix + '\episode_' + episode_to_check + '_agent_1actor_net.pth'
         load_filepath_2 = pre_fix + '\episode_' + episode_to_check + '_agent_2actor_net.pth'
@@ -828,6 +833,14 @@ def main(args):
                 norm_cur_state = norm_next_state
                 trajectory_eachPlay.append([[each_agent_traj[0], each_agent_traj[1], reward_aft_action[each_agent_idx]] for each_agent_idx, each_agent_traj in enumerate(cur_state[0])])
                 accum_reward = accum_reward + sum(reward_aft_action)
+                # show states in text
+                for agentIdx, agent in env.all_agents.items():
+                    print("drone {}, next WP is {}, deviation from ref line is {}, ref_line_reward is {}, "
+                          "dist to next goal is {}, dist_goal_reward is {}, velocity is {}, step {} reward is {}"
+                          .format(agentIdx, agent.goal[0], eps_status_holder[agentIdx][-1][2],
+                                  eps_status_holder[agentIdx][-1][3], eps_status_holder[agentIdx][-1][0],
+                                  eps_status_holder[agentIdx][-1][1], eps_status_holder[agentIdx][-1][6], step,
+                                  reward_aft_action[agentIdx]))
 
                 if show_step_by_step:
                     os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
@@ -839,6 +852,9 @@ def main(args):
                                                                                     math.degrees(agent.heading))),
                                  color='y')
                         plt.text(agent.pos[0], agent.pos[1], agent.agent_name)
+                        plt.text(agent.pos[0]+5, agent.pos[1], str(reward_aft_action[agentIdx]))
+                        plt.text(agent.pos[0]+5, agent.pos[1]-1, str(eps_status_holder[agentIdx][-1][1]))
+                        plt.text(agent.pos[0]+5, agent.pos[1]-2, str(eps_status_holder[agentIdx][-1][2]))
                         # plot self_circle of the drone
                         self_circle = Point(agent.pos[0], agent.pos[1]).buffer(agent.protectiveBound, cap_style='round')
                         grid_mat_Scir = shapelypoly_to_matpoly(self_circle, False, 'k')
@@ -849,6 +865,54 @@ def main(args):
                         detec_circle_mat = shapelypoly_to_matpoly(detec_circle, False, 'r')
                         # ax.add_patch(detec_circle_mat)
 
+                        # Plot each start point
+                        for point_deg, point_pos in all_agent_st_points[agentIdx].items():
+                            ax.plot(point_pos.x, point_pos.y, 'o', color='blue')
+
+                        # Plot each end point
+                        for point_deg, point_pos in all_agent_ed_points[agentIdx].items():
+                            ax.plot(point_pos.x, point_pos.y, 'o', color='green')
+
+                        # Plot the lines of the LineString
+                        for lines in all_agent_line_collection[agentIdx]:
+                            x, y = lines.xy
+                            ax.plot(x, y, color='k', linewidth=2, solid_capstyle='round', zorder=2)
+
+                        # point_counter = 0
+                        # # Plot each intersection point
+                        # for point in intersection_point_list:
+                        #     for ea_pt in point.geoms:
+                        #         point_counter = point_counter + 1
+                        #         ax.plot(ea_pt.x, ea_pt.y, 'o', color='red')
+
+                        # plot minimum intersection point
+                        # for pt_dist, pt_pos in mini_intersection_list.items():
+                        for pt_pos in all_agent_mini_intersection_list[agentIdx]:
+                            if pt_pos.type == 'MultiPoint':
+                                for ea_pt in pt_pos.geoms:
+                                    ax.plot(ea_pt.x, ea_pt.y, 'o', color='yellow')
+                            else:
+                                ax.plot(pt_pos.x, pt_pos.y, 'o', color='red')
+
+                                # min_dist = np.min(agent.observableSpace)
+                                # near_building_penalty_coef = 3
+                                # # turningPtConst = 12.5
+                                # turningPtConst = 5
+                                # if turningPtConst == 12.5:
+                                #     c = 1.25
+                                # elif turningPtConst == 5:
+                                #     c = 2
+                                # m = (0 - 1) / (
+                                #             turningPtConst - agent.protectiveBound)  # we must consider drone's circle, because when min_distance is less than drone's radius, it is consider collision.
+                                # if min_dist >= agent.protectiveBound and min_dist <= turningPtConst:
+                                #     near_building_penalty = near_building_penalty_coef * (
+                                #                 m * min_dist + c)  # at each step, penalty from 3 to 0.
+                                # else:
+                                #     near_building_penalty = 0  # if min_dist is outside of the bound, other parts of the reward will be taking care.
+                                # if min_dist < agent.protectiveBound:
+                                #     print("check for collision")
+                                plt.text(pt_pos.x, pt_pos.y, eps_status_holder[agentIdx][-1][3], fontsize=12)
+
                         ini = agent.pos
                         for wp in agent.ref_line.coords:
                             plt.plot([wp[0], ini[0]], [wp[1], ini[1]], '--', color='c')
@@ -857,7 +921,7 @@ def main(args):
                     # draw occupied_poly
                     for one_poly in env.world_map_2D_polyList[0][0]:
                         one_poly_mat = shapelypoly_to_matpoly(one_poly, True, 'y', 'b')
-                        # ax.add_patch(one_poly_mat)
+                        ax.add_patch(one_poly_mat)
                     # draw non-occupied_poly
                     for zero_poly in env.world_map_2D_polyList[0][1]:
                         zero_poly_mat = shapelypoly_to_matpoly(zero_poly, False, 'y')
@@ -868,23 +932,16 @@ def main(args):
                         matp_poly = shapelypoly_to_matpoly(poly, False, 'red')  # the 3rd parameter is the edge color
                         # ax.add_patch(matp_poly)
 
-                    # show the nearest building obstacles
+                    # # show the nearest building obstacles
                     # nearest_buildingPoly_mat = shapelypoly_to_matpoly(nearest_buildingPoly, True, 'g', 'k')
                     # ax.add_patch(nearest_buildingPoly_mat)
 
-                    # for ele in self.spawn_area1_polymat:
-                    #     ax.add_patch(ele)
-                    # for ele2 in self.spawn_area2_polymat:
-                    #     ax.add_patch(ele2)
-                    # for ele3 in self.spawn_area3_polymat:
-                    #     ax.add_patch(ele3)
-                    # for ele4 in self.spawn_area4_polymat:
-                    #     ax.add_patch(ele4)
 
                     # plt.axvline(x=self.bound[0], c="green")
                     # plt.axvline(x=self.bound[1], c="green")
                     # plt.axhline(y=self.bound[2], c="green")
                     # plt.axhline(y=self.bound[3], c="green")
+
 
                     plt.xlabel("X axis")
                     plt.ylabel("Y axis")
@@ -983,7 +1040,7 @@ if __name__ == '__main__':
     parser.add_argument('--scenario', default="simple_spread", type=str)
     parser.add_argument('--max_episodes', default=35000, type=int)  # run for a total of 50000 episodes
     parser.add_argument('--algo', default="maddpg", type=str, help="commnet/bicnet/maddpg")
-    parser.add_argument('--mode', default="train", type=str, help="train/eval")
+    parser.add_argument('--mode', default="eval", type=str, help="train/eval")
     parser.add_argument('--episode_length', default=150, type=int)  # maximum play per episode
     parser.add_argument('--memory_length', default=int(1e5), type=int)
     parser.add_argument('--seed', default=777, type=int)  # may choose to use 3407

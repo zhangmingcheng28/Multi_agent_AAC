@@ -1673,7 +1673,8 @@ class env_simulator:
         crash_penalty_wall = 5
         big_crash_penalty_wall = 200
         crash_penalty_drone = 1
-        reach_target = 1
+        # reach_target = 1
+        reach_target = 5
 
         potential_conflict_count = 0
         final_goal_toadd = 0
@@ -1804,7 +1805,9 @@ class env_simulator:
             # RuntimeWarning is, "invalid value encountered in intersection"
             goal_cur_intru_intersect = host_current_circle.intersection(tar_circle)
 
-            wp_circle = Point(self.all_agents[drone_idx].goal[0]).buffer(1, cap_style='round')
+            # wp_circle = Point(self.all_agents[drone_idx].goal[0]).buffer(1, cap_style='round')
+            wp_circle = Point(self.all_agents[drone_idx].goal[0]).buffer(drone_obj.protectiveBound,
+                                                                         cap_style='round')
             # wp_circle = Point(self.all_agents[drone_idx].goal[0]).buffer(3, cap_style='round')
             wp_intersect = host_current_circle.intersection(wp_circle)
 
@@ -1862,8 +1865,8 @@ class env_simulator:
             if cross_err_distance <= drone_obj.protectiveBound:
                 # linear increase in reward
                 m = (0 - 1) / (drone_obj.protectiveBound - 0)
-                # dist_to_ref_line = coef_ref_line*(m * cross_err_distance + 1)  # 0~1*coef_ref_line
-                dist_to_ref_line = (coef_ref_line*(m * cross_err_distance + 1)) + coef_ref_line  # 0~1*coef_ref_line, with a fixed reward
+                dist_to_ref_line = coef_ref_line*(m * cross_err_distance + 1)  # 0~1*coef_ref_line
+                # dist_to_ref_line = (coef_ref_line*(m * cross_err_distance + 1)) + coef_ref_line  # 0~1*coef_ref_line, with a fixed reward
             else:
                 dist_to_ref_line = -coef_ref_line*1
 
@@ -1907,8 +1910,8 @@ class env_simulator:
                 near_building_penalty = near_building_penalty_coef*(m*min_dist+c)  # at each step, penalty from 3 to 0.
             else:
                 near_building_penalty = 0  # if min_dist is outside of the bound, other parts of the reward will be taking care.
-            if min_dist < drone_obj.protectiveBound:
-                print("check for collision")
+            # if min_dist < drone_obj.protectiveBound:
+            #     print("check for collision")
             # # (linear building penalty) same thing, another way of express
             # if min_dist < 2.5 or min_dist > turningPtConst:  # when min_dist is less than 2.5m, is consider collision, the collision penalty will take care of that
             #     near_building_penalty = 0
@@ -1979,6 +1982,8 @@ class env_simulator:
                         drone_obj.removed_goal = drone_obj.goal.pop(0)  # remove current wp
                         # we add a wp reached reward, this reward is equals to the maximum of the path deviation reward
                         rew = rew + coef_ref_line
+                        print("drone {} has reached a WP on step {}, claim additional {} points of reward"
+                              .format(drone_idx, current_ts, coef_ref_line))
                 rew = rew + dist_to_ref_line + dist_to_goal - \
                       small_step_penalty + near_goal_reward - near_building_penalty + seg_reward
                 # we remove the above termination condition
@@ -1998,7 +2003,7 @@ class env_simulator:
             # print("current drone {} actual distance to goal is {}, current reward to gaol is {}, current ref line reward is {}, current step reward is {}".format(drone_idx, actual_after_dist_hg, dist_to_goal, dist_to_ref_line, rew))
 
             # record status of each step.
-            eps_status_holder = self.display_one_eps_status(eps_status_holder, drone_idx, actual_after_dist_hg, [dist_to_goal, dist_to_ref_line, near_building_penalty, small_step_penalty, np.linalg.norm(drone_obj.vel), near_goal_reward, seg_reward])
+            eps_status_holder = self.display_one_eps_status(eps_status_holder, drone_idx, after_dist_hg, [dist_to_goal, cross_err_distance, dist_to_ref_line, near_building_penalty, small_step_penalty, np.linalg.norm(drone_obj.vel), near_goal_reward, seg_reward])
             # overall_status_record[2].append()  # 3rd is accumulated reward till that step for each agent
 
         # all_reach_target = all(agent.reach_target == True for agent in self.all_agents.values())
@@ -2008,11 +2013,11 @@ class env_simulator:
 
         return reward, done, check_goal, step_reward_record, eps_status_holder, step_collision_record, bound_building_check
 
-    def display_one_eps_status(self, status_holder, drone_idx, cur_step_dist, cur_step_reward):
+    def display_one_eps_status(self, status_holder, drone_idx, cur_dist_to_goal, cur_step_reward):
         if status_holder[drone_idx] == None:
-            status_holder[drone_idx] = [[cur_step_dist] + cur_step_reward]
+            status_holder[drone_idx] = [[cur_dist_to_goal] + cur_step_reward]
         else:
-            status_holder[drone_idx].append([cur_step_dist] + cur_step_reward)
+            status_holder[drone_idx].append([cur_dist_to_goal] + cur_step_reward)
         return status_holder
 
     def step(self, actions, current_ts):
