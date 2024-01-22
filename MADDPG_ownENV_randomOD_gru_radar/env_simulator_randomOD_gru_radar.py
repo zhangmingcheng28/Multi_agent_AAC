@@ -1815,13 +1815,13 @@ class env_simulator:
             smallest_dist = math.inf
             wp_reach_threshold_dist = 5
             wp_intersect_flag = False
-            for wp in self.all_agents[drone_idx].goal:
+            for wpidx, wp in enumerate(self.all_agents[drone_idx].goal):
                 cur_dist_to_wp = curPoint.distance(Point(wp))
                 if cur_dist_to_wp < smallest_dist:
                     smallest_dist = cur_dist_to_wp
                     if smallest_dist < wp_reach_threshold_dist:
                         wp_intersect_flag = True
-                        drone_obj.removed_goal = drone_obj.goal.pop(0)  # remove current wp
+                        drone_obj.removed_goal = drone_obj.goal.pop(wpidx)  # remove current wp
                         break  # once the nearest wp is found we break out of the loop
 
 
