@@ -346,8 +346,8 @@ def main(args):
 
     use_wanDB = False
     # use_wanDB = True
-    get_evaluation_status = True  # have figure output
-    # get_evaluation_status = False  # no figure output, mainly obtain collision rate
+    # get_evaluation_status = True  # have figure output
+    get_evaluation_status = False  # no figure output, mainly obtain collision rate
     # simply_view_evaluation = True  # don't save gif
     simply_view_evaluation = False  # save gif
 
@@ -441,11 +441,11 @@ def main(args):
     episode_goal_found = [False] * n_agents
     dummy_xy = (None, None)  # this is a dummy tuple of xy, is not useful during normal training, it is only useful when generating reward map
     if args.mode == "eval":
-        args.max_episodes = 10  # only evaluate one episode during evaluation mode.
+        # args.max_episodes = 10  # only evaluate one episode during evaluation mode.
         # args.max_episodes = 5  # only evaluate one episode during evaluation mode.
-        # args.max_episodes = 100
-        pre_fix = r'D:\MADDPG_2nd_jp\210124_17_20_59\interval_record_eps'
-        episode_to_check = str(2000)
+        args.max_episodes = 100
+        pre_fix = r'D:\MADDPG_2nd_jp\220124_09_05_20\interval_record_eps'
+        episode_to_check = str(9000)
         load_filepath_0 = pre_fix + '\episode_' + episode_to_check + '_agent_0actor_net.pth'
         load_filepath_1 = pre_fix + '\episode_' + episode_to_check + '_agent_1actor_net.pth'
         load_filepath_2 = pre_fix + '\episode_' + episode_to_check + '_agent_2actor_net.pth'

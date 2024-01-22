@@ -346,8 +346,8 @@ def main(args):
 
     use_wanDB = False
     # use_wanDB = True
-    get_evaluation_status = True  # have figure output
-    # get_evaluation_status = False  # no figure output, mainly obtain collision rate
+    # get_evaluation_status = True  # have figure output
+    get_evaluation_status = False  # no figure output, mainly obtain collision rate
     # simply_view_evaluation = True  # don't save gif
     simply_view_evaluation = False  # save gif
 
@@ -441,11 +441,11 @@ def main(args):
     episode_goal_found = [False] * n_agents
     dummy_xy = (None, None)  # this is a dummy tuple of xy, is not useful during normal training, it is only useful when generating reward map
     if args.mode == "eval":
-        args.max_episodes = 10  # only evaluate one episode during evaluation mode.
+        # args.max_episodes = 10  # only evaluate one episode during evaluation mode.
         # args.max_episodes = 5  # only evaluate one episode during evaluation mode.
-        # args.max_episodes = 100
-        pre_fix = r'D:\MADDPG_2nd_jp\210124_17_20_59\interval_record_eps'
-        episode_to_check = str(2000)
+        args.max_episodes = 100
+        pre_fix = r'D:\MADDPG_2nd_jp\220124_10_49_49\interval_record_eps'
+        episode_to_check = str(7000)
         load_filepath_0 = pre_fix + '\episode_' + episode_to_check + '_agent_0actor_net.pth'
         load_filepath_1 = pre_fix + '\episode_' + episode_to_check + '_agent_1actor_net.pth'
         load_filepath_2 = pre_fix + '\episode_' + episode_to_check + '_agent_2actor_net.pth'
@@ -833,14 +833,15 @@ def main(args):
                 norm_cur_state = norm_next_state
                 trajectory_eachPlay.append([[each_agent_traj[0], each_agent_traj[1], reward_aft_action[each_agent_idx]] for each_agent_idx, each_agent_traj in enumerate(cur_state[0])])
                 accum_reward = accum_reward + sum(reward_aft_action)
-                # show states in text
-                for agentIdx, agent in env.all_agents.items():
-                    print("drone {}, next WP is {}, deviation from ref line is {}, ref_line_reward is {}, "
-                          "dist to next goal is {}, dist_goal_reward is {}, velocity is {}, step {} reward is {}"
-                          .format(agentIdx, agent.goal[0], eps_status_holder[agentIdx][-1][2],
-                                  eps_status_holder[agentIdx][-1][3], eps_status_holder[agentIdx][-1][0],
-                                  eps_status_holder[agentIdx][-1][1], eps_status_holder[agentIdx][-1][6], step,
-                                  reward_aft_action[agentIdx]))
+
+                # # show states in text
+                # for agentIdx, agent in env.all_agents.items():
+                #     print("drone {}, next WP is {}, deviation from ref line is {}, ref_line_reward is {}, "
+                #           "dist to next goal is {}, dist_goal_reward is {}, velocity is {}, step {} reward is {}"
+                #           .format(agentIdx, agent.goal[0], eps_status_holder[agentIdx][-1][2],
+                #                   eps_status_holder[agentIdx][-1][3], eps_status_holder[agentIdx][-1][0],
+                #                   eps_status_holder[agentIdx][-1][1], eps_status_holder[agentIdx][-1][6], step,
+                #                   reward_aft_action[agentIdx]))
 
                 if show_step_by_step:
                     os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
