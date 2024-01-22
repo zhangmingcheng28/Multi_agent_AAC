@@ -1806,9 +1806,9 @@ class env_simulator:
             goal_cur_intru_intersect = host_current_circle.intersection(tar_circle)
 
             # wp_circle = Point(self.all_agents[drone_idx].goal[0]).buffer(1, cap_style='round')
-            wp_circle = Point(self.all_agents[drone_idx].goal[0]).buffer(drone_obj.protectiveBound,
-                                                                         cap_style='round')
-            # wp_circle = Point(self.all_agents[drone_idx].goal[0]).buffer(3, cap_style='round')
+            # wp_circle = Point(self.all_agents[drone_idx].goal[0]).buffer(drone_obj.protectiveBound,
+            #                                                              cap_style='round')
+            wp_circle = Point(self.all_agents[drone_idx].goal[0]).buffer(3.5, cap_style='round')
             wp_intersect = host_current_circle.intersection(wp_circle)
 
             # a new way to check for the next coordinates

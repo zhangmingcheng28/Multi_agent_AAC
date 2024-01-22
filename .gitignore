@@ -41,3 +41,4 @@ basedline_MAAC_ownENV/__pycache__/attention_sac_MAAC.cpython-39.pyc
 /MADDPG_ownENV_randomOD_tidy_grid/wandb/
 /MADDPG_ownENV_randomOD_gru_radar/wandb/
 /MADDPG_ownENV_randomOD_radar_one_model/wandb/
+/MADDPG_ownENV_randomOD_Wgru_radar/wandb/
