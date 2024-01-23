@@ -1811,18 +1811,18 @@ class env_simulator:
             wp_circle = Point(self.all_agents[drone_idx].goal[0]).buffer(3.5, cap_style='round')
             wp_intersect = host_current_circle.intersection(wp_circle)
 
-            # a new way to check for the next coordinates
-            smallest_dist = math.inf
-            wp_reach_threshold_dist = 5
-            wp_intersect_flag = False
-            for wpidx, wp in enumerate(self.all_agents[drone_idx].goal):
-                cur_dist_to_wp = curPoint.distance(Point(wp))
-                if cur_dist_to_wp < smallest_dist:
-                    smallest_dist = cur_dist_to_wp
-                    if smallest_dist < wp_reach_threshold_dist:
-                        wp_intersect_flag = True
-                        drone_obj.removed_goal = drone_obj.goal.pop(wpidx)  # remove current wp
-                        break  # once the nearest wp is found we break out of the loop
+            # # a new way to check for the next coordinates
+            # smallest_dist = math.inf
+            # wp_reach_threshold_dist = 5
+            # wp_intersect_flag = False
+            # for wpidx, wp in enumerate(self.all_agents[drone_idx].goal):
+            #     cur_dist_to_wp = curPoint.distance(Point(wp))
+            #     if cur_dist_to_wp < smallest_dist:
+            #         smallest_dist = cur_dist_to_wp
+            #         if smallest_dist < wp_reach_threshold_dist:
+            #             wp_intersect_flag = True
+            #             drone_obj.removed_goal = drone_obj.goal.pop(wpidx)  # remove current wp
+            #             break  # once the nearest wp is found we break out of the loop
 
 
             # ------------- pre-processed condition for a normal step -----------------
@@ -1992,9 +1992,9 @@ class env_simulator:
                 # done.append(False)
             else:  # a normal step taken
                 if xy[0] is None and xy[1] is None:  # we only alter drone's goal during actual training
-                    # if (not wp_intersect.is_empty) and len(drone_obj.goal) > 1: # check if wp reached, and this is not the end point
-                    if wp_intersect_flag and len(drone_obj.goal) > 1: # check if wp reached, and this is not the end point
-                        # drone_obj.removed_goal = drone_obj.goal.pop(0)  # remove current wp
+                    if (not wp_intersect.is_empty) and len(drone_obj.goal) > 1: # check if wp reached, and this is not the end point
+                    # if wp_intersect_flag and len(drone_obj.goal) > 1: # check if wp reached, and this is not the end point
+                        drone_obj.removed_goal = drone_obj.goal.pop(0)  # remove current wp
                         # we add a wp reached reward, this reward is equals to the maximum of the path deviation reward
                         rew = rew + coef_ref_line
                         print("drone {} has reached a WP on step {}, claim additional {} points of reward"

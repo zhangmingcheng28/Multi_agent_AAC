@@ -445,7 +445,7 @@ def main(args):
         # args.max_episodes = 5  # only evaluate one episode during evaluation mode.
         args.max_episodes = 100
         pre_fix = r'D:\MADDPG_2nd_jp\220124_10_49_49\interval_record_eps'
-        episode_to_check = str(8000)
+        episode_to_check = str(27000)
         load_filepath_0 = pre_fix + '\episode_' + episode_to_check + '_agent_0actor_net.pth'
         load_filepath_1 = pre_fix + '\episode_' + episode_to_check + '_agent_1actor_net.pth'
         load_filepath_2 = pre_fix + '\episode_' + episode_to_check + '_agent_2actor_net.pth'
@@ -808,8 +808,8 @@ def main(args):
                 step_reward_record = [None] * n_agents
                 # show_step_by_step = True
                 show_step_by_step = False
-                saved_gif = True  # Don't save gif while doing mass run
-                # saved_gif = False
+                # saved_gif = True  # Don't save gif while doing mass run
+                saved_gif = False
                 noise_flag = False
                 # populate gru history
                 gru_history.append(np.array(norm_cur_state[0]))
