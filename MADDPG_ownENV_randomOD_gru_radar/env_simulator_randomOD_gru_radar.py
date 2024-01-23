@@ -1934,7 +1934,7 @@ class env_simulator:
             #                             ((min_dist-drone_obj.protectiveBound)/(turningPtConst-drone_obj.protectiveBound))
 
             # -------------end of pre-processed condition for a normal step -----------------
-
+            #
             # Always check the boundary as the 1st condition, or else will encounter error where the agent crash into wall but also exceed the bound, but crash into wall did not stop the episode. So, we must put the check boundary condition 1st, so that episode can terminate in time and does not leads to exceed boundary with error in no polygon found.
             # exceed bound condition, don't use current point, use current circle or else will have condition that
             # must use "host_passed_volume", or else, we unable to confirm whether the host's circle is at left or right of the boundary lines
