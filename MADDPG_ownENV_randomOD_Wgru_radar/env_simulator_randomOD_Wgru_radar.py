@@ -1811,6 +1811,26 @@ class env_simulator:
             wp_circle = Point(self.all_agents[drone_idx].goal[0]).buffer(3.5, cap_style='round')
             wp_intersect = host_current_circle.intersection(wp_circle)
 
+            # ---------- a new way to check for the next wp------------- #
+            smallest_dist = math.inf
+            wp_reach_threshold_dist = 5
+            wp_intersect_flag = False
+            for wpidx, wp in enumerate(self.all_agents[drone_idx].goal):
+                cur_dist_to_wp = curPoint.distance(Point(wp))
+                if cur_dist_to_wp < smallest_dist:
+                    smallest_dist = cur_dist_to_wp
+                    next_wp = np.array(wp)
+                    if smallest_dist < wp_reach_threshold_dist:
+                        wp_intersect_flag = True
+                        # after remove the wp, we find the next wp, as long as it is not the last wp
+                        if len(self.all_agents[drone_idx].goal)>1:
+                            drone_obj.removed_goal = drone_obj.goal.pop(wpidx)  # remove current wp
+                            points_list = [Point(coord) for coord in self.all_agents[drone_idx].goal]
+                            next_wPoint = min(points_list, key=lambda point: point.distance(curPoint))
+                            next_wp = np.array([next_wPoint.x, next_wPoint.y])
+                        break  # once the nearest wp is found we break out of the loop
+            # ------ end of a new way to check for the next wp -------------- #
+
             # ------------- pre-processed condition for a normal step -----------------
             # rew = 3
             rew = 0
@@ -1822,9 +1842,11 @@ class env_simulator:
             # dist_to_goal = dist_to_goal_coeff * math.sqrt(((x_norm-tx_norm)**2 + (y_norm-ty_norm)**2))  # 0~2.828 at each step
 
             # before_dist_hg = np.linalg.norm(drone_obj.pre_pos - drone_obj.goal[-1])  # distance to goal before action
-            before_dist_hg = np.linalg.norm(drone_obj.pre_pos - drone_obj.goal[0])  # distance to goal before action
+            # before_dist_hg = np.linalg.norm(drone_obj.pre_pos - drone_obj.goal[0])  # distance to goal before action
+            before_dist_hg = np.linalg.norm(drone_obj.pre_pos - next_wp)  # distance to goal before action
             # after_dist_hg = np.linalg.norm(drone_obj.pos - drone_obj.goal[-1])  # distance to goal after action
-            after_dist_hg = np.linalg.norm(drone_obj.pos - drone_obj.goal[0])  # distance to goal after action
+            # after_dist_hg = np.linalg.norm(drone_obj.pos - drone_obj.goal[0])  # distance to goal after action
+            after_dist_hg = np.linalg.norm(drone_obj.pos - next_wp)  # distance to goal after action
             dist_to_goal = dist_to_goal_coeff * (before_dist_hg - after_dist_hg)  # (before_dist_hg - after_dist_hg) -max_vel - max_vel
 
             if dist_to_goal >= drone_obj.maxSpeed:
@@ -1846,8 +1868,9 @@ class env_simulator:
             # else:
             #     seg_reward = dist_to_seg_coeff * (-1)*(dist_seg_vector / total_delta_seg_vector)
 
-            s_tx_norm, s_ty_norm = self.normalizer.nmlz_pos(drone_obj.goal[0])
-            seg_reward = dist_to_seg_coeff * math.sqrt(((x_norm-s_tx_norm)**2 + (y_norm-s_ty_norm)**2))  # 0~2.828 at each step
+            # s_tx_norm, s_ty_norm = self.normalizer.nmlz_pos(drone_obj.goal[0])
+            # seg_reward = dist_to_seg_coeff * math.sqrt(((x_norm-s_tx_norm)**2 + (y_norm-s_ty_norm)**2))  # 0~2.828 at each step
+            seg_reward = dist_to_seg_coeff * 0
             # -------- end of small segment reward ----------
 
 
@@ -1880,11 +1903,12 @@ class env_simulator:
 
             # near_goal_coefficient = 3  # so that near_goal_reward will become 0-3 instead of 0-1
             near_goal_coefficient = 0
-            near_goal_threshold = drone_obj.detectionRange
-            actual_after_dist_hg = math.sqrt(((drone_obj.pos[0] - drone_obj.goal[-1][0]) ** 2 +
-                                              (drone_obj.pos[1] - drone_obj.goal[-1][1]) ** 2))
-            near_goal_reward = near_goal_coefficient * ((near_goal_threshold -
-                                np.clip(actual_after_dist_hg, 0, near_goal_threshold)) * 1.0/near_goal_threshold)
+            # near_goal_threshold = drone_obj.detectionRange
+            # actual_after_dist_hg = math.sqrt(((drone_obj.pos[0] - drone_obj.goal[-1][0]) ** 2 +
+            #                                   (drone_obj.pos[1] - drone_obj.goal[-1][1]) ** 2))
+            # near_goal_reward = near_goal_coefficient * ((near_goal_threshold -
+            #                     np.clip(actual_after_dist_hg, 0, near_goal_threshold)) * 1.0/near_goal_threshold)
+            near_goal_reward = near_goal_coefficient * 0
 
             # penalty for any buildings are getting too near to the host agent
             # turningPtConst = drone_obj.detectionRange/2-drone_obj.protectiveBound  # this one should be 12.5
@@ -1978,8 +2002,9 @@ class env_simulator:
                 # done.append(False)
             else:  # a normal step taken
                 if xy[0] is None and xy[1] is None:  # we only alter drone's goal during actual training
-                    if (not wp_intersect.is_empty) and len(drone_obj.goal) > 1: # check if wp reached, and this is not the end point
-                        drone_obj.removed_goal = drone_obj.goal.pop(0)  # remove current wp
+                    # if (not wp_intersect.is_empty) and len(drone_obj.goal) > 1: # check if wp reached, and this is not the end point
+                    if wp_intersect_flag and len(drone_obj.goal) > 1:  # check if wp reached, and this is not the end point
+                        # drone_obj.removed_goal = drone_obj.goal.pop(0)  # remove current wp
                         # we add a wp reached reward, this reward is equals to the maximum of the path deviation reward
                         rew = rew + coef_ref_line
                         print("drone {} has reached a WP on step {}, claim additional {} points of reward"
