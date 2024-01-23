@@ -197,6 +197,23 @@ class GRUCELL_actor_TwoPortion(nn.Module):
         return action_out, h
 
 
+class GRUCELL_actor_OnePortion(nn.Module):
+    def __init__(self, actor_dim, n_actions, actor_hidden_state_size):
+        super(GRUCELL_actor_OnePortion, self).__init__()
+        self.own_fcWgrid = nn.Sequential(nn.Linear(actor_dim[0]+actor_dim[1], 64), nn.ReLU())
+        self.rnn_hidden_dim = actor_hidden_state_size
+        self.gru_cell = nn.GRUCell(64, actor_hidden_state_size)
+        self.outlay = nn.Sequential(nn.Linear(64, n_actions), nn.Tanh())
+
+    def forward(self, cur_state, history_hidden_state):
+        obsWgrid = torch.cat((cur_state[0], cur_state[1]), dim=1)
+        obsWgrid_feat = self.own_fcWgrid(obsWgrid)
+        h_in = history_hidden_state.reshape(-1, self.rnn_hidden_dim)
+        h = self.gru_cell(obsWgrid_feat, h_in)
+        action_out = self.outlay(h)
+        return action_out, h
+
+
 class Stocha_actor(nn.Module):
     def __init__(self, actor_dim, n_actions):  # actor_obs consists of three parts 0 = own, 1 = own grid, 2 = surrounding drones
         super(Stocha_actor, self).__init__()
@@ -424,6 +441,25 @@ class critic_single_obs_wGRU_TwoPortion(nn.Module):
         merge_obs_grid = torch.cat((own_obsWaction, own_grid), dim=1)
         h_in = history_hidden_state.reshape(-1, self.rnn_hidden_dim)
         h = self.gru_cell(merge_obs_grid, h_in)
+        q = self.own_fc_outlay(h)
+        return q, h
+
+
+class critic_single_obs_wGRU_OnePortion(nn.Module):
+    def __init__(self, critic_obs, n_agents, n_actions, single_history, hidden_state_size):
+        super(critic_single_obs_wGRU_OnePortion, self).__init__()
+        self.SA_fcWgrid = nn.Sequential(nn.Linear(critic_obs[0]+n_actions+critic_obs[1], 64), nn.ReLU())
+
+        self.rnn_hidden_dim = hidden_state_size
+        self.gru_cell = nn.GRUCell(64, hidden_state_size)
+        self.own_fc_outlay = nn.Linear(64, 1)
+
+    def forward(self, single_state, single_action, history_hidden_state):
+        obsWactionWgrid = torch.cat((single_state[0], single_action, single_state[1]), dim=1)
+        obsWactionWgrid_feat = self.SA_fcWgrid(obsWactionWgrid)
+
+        h_in = history_hidden_state.reshape(-1, self.rnn_hidden_dim)
+        h = self.gru_cell(obsWactionWgrid_feat, h_in)
         q = self.own_fc_outlay(h)
         return q, h
 

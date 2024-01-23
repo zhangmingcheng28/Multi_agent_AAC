@@ -1,5 +1,5 @@
 # from Nnetworks_MADDPGv3 import CriticNetwork_0724, ActorNetwork
-from Nnetworks_randomOD_Wgru_radar import CriticNetwork, ActorNetwork, Stocha_actor, GRU_actor, GRUCELL_actor_TwoPortion, CriticNetwork_woGru, CriticNetwork_wGru, critic_single_obs_wGRU_TwoPortion, ActorNetwork_TwoPortion, critic_single_TwoPortion
+from Nnetworks_randomOD_Wgru_radar import CriticNetwork, ActorNetwork, Stocha_actor, GRU_actor, GRUCELL_actor_TwoPortion,critic_single_obs_wGRU_OnePortion, GRUCELL_actor_OnePortion, CriticNetwork_woGru, CriticNetwork_wGru, critic_single_obs_wGRU_TwoPortion, ActorNetwork_TwoPortion, critic_single_TwoPortion
 import torch
 from copy import deepcopy
 from torch.optim import Adam
@@ -40,13 +40,13 @@ class MADDPG:
 
         # self.actors = [Stocha_actor(actor_dim, dim_act) for _ in range(n_agents)]  # use stochastic policy
         # self.actors = [ActorNetwork_TwoPortion(actor_dim, dim_act) for _ in range(n_agents)]  # use deterministic policy
-        self.actors = [GRUCELL_actor_TwoPortion(actor_dim, dim_act, actor_hidden_state_size) for _ in range(n_agents)]  # use deterministic policy
+        self.actors = [GRUCELL_actor_OnePortion(actor_dim, dim_act, actor_hidden_state_size) for _ in range(n_agents)]  # use deterministic policy
         # self.actors = [GRUCELL_actor(actor_dim, dim_act, actor_hidden_state_size) for _ in range(n_agents)]  # use deterministic with GRU module policy
         # self.critics = [CriticNetwork_0724(critic_dim, n_agents, dim_act) for _ in range(n_agents)]
         # self.critics = [CriticNetwork(critic_dim, n_agents, dim_act) for _ in range(n_agents)]
         # self.critics = [CriticNetwork_wGru(critic_dim, n_agents, dim_act, gru_history_length) for _ in range(n_agents)]
         # self.critics = [critic_single_TwoPortion(critic_dim, n_agents, dim_act, gru_history_length, actor_hidden_state_size) for _ in range(n_agents)]
-        self.critics = [critic_single_obs_wGRU_TwoPortion(critic_dim, n_agents, dim_act, gru_history_length, actor_hidden_state_size) for _ in range(n_agents)]
+        self.critics = [critic_single_obs_wGRU_OnePortion(critic_dim, n_agents, dim_act, gru_history_length, actor_hidden_state_size) for _ in range(n_agents)]
 
         self.n_agents = n_agents
         self.n_actor_dim = actor_dim

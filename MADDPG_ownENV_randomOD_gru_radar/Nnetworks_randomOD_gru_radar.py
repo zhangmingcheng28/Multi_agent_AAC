@@ -161,6 +161,22 @@ class ActorNetwork_TwoPortion(nn.Module):
         return out_action
 
 
+class ActorNetwork_OnePortion(nn.Module):
+    def __init__(self, actor_dim, n_actions):  # actor_obs consists of three parts 0 = own, 1 = own grid, 2 = surrounding drones
+        super(ActorNetwork_OnePortion, self).__init__()
+
+        self.own_fcWgrid = nn.Sequential(nn.Linear(actor_dim[0]+actor_dim[1], 64), nn.ReLU())
+        self.merge_feature = nn.Sequential(nn.Linear(64, 64), nn.ReLU())
+        self.act_out = nn.Sequential(nn.Linear(64, n_actions), nn.Tanh())
+
+    def forward(self, cur_state):
+        own_obsWgrid = torch.cat((cur_state[0], cur_state[1]), dim=1)
+        obsWgrid_feat = self.own_fcWgrid(own_obsWgrid)
+        merge_feature = self.merge_feature(obsWgrid_feat)
+        out_action = self.act_out(merge_feature)
+        return out_action
+
+
 class GRU_actor(nn.Module):
     def __init__(self, actor_dim, n_actions, actor_hidden_state_size):
         super(GRU_actor, self).__init__()
@@ -436,6 +452,21 @@ class critic_single_TwoPortion(nn.Module):
         own_grid = self.SA_grid(single_state[1])
         merge_obs_grid = torch.cat((own_obsWaction, own_grid), dim=1)
         merge_feature = self.merge_fc_grid(merge_obs_grid)
+        q = self.out_feature_q(merge_feature)
+        return q
+
+
+class critic_single_OnePortion(nn.Module):
+    def __init__(self, critic_obs, n_agents, n_actions, single_history, hidden_state_size):
+        super(critic_single_OnePortion, self).__init__()
+        self.SA_fcWgrid = nn.Sequential(nn.Linear(critic_obs[0]+n_actions+critic_obs[1], 64), nn.ReLU())
+        self.merge_fc_grid = nn.Sequential(nn.Linear(64, 256), nn.ReLU())
+        self.out_feature_q = nn.Sequential(nn.Linear(256, 1))
+
+    def forward(self, single_state, single_action):
+        obsWactionWgrid = torch.cat((single_state[0], single_action, single_state[1]), dim=1)
+        own_obsWactionWgrid = self.SA_fcWgrid(obsWactionWgrid)
+        merge_feature = self.merge_fc_grid(own_obsWactionWgrid)
         q = self.out_feature_q(merge_feature)
         return q
 
