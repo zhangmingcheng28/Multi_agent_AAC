@@ -46,7 +46,7 @@ class MADDPG:
         # self.critics = [CriticNetwork_0724(critic_dim, n_agents, dim_act) for _ in range(n_agents)]
         # self.critics = [CriticNetwork(critic_dim, n_agents, dim_act) for _ in range(n_agents)]
         # self.critics = [CriticNetwork_wGru(critic_dim, n_agents, dim_act, gru_history_length) for _ in range(n_agents)]
-        self.critics = [critic_single_TwoPortion(critic_dim, n_agents, dim_act, gru_history_length, actor_hidden_state_size) for _ in range(n_agents)]
+        self.critics = [critic_single_obs_wGRU_TwoPortion(critic_dim, n_agents, dim_act, gru_history_length, actor_hidden_state_size) for _ in range(n_agents)]
         # self.critics = [critic_single_obs_wGRU_OnePortion(critic_dim, n_agents, dim_act, gru_history_length, actor_hidden_state_size) for _ in range(n_agents)]
 
         self.n_agents = n_agents
@@ -349,7 +349,7 @@ class MADDPG:
 
         actions = torch.zeros(self.n_agents, self.n_actions)
         # act_hn = torch.zeros(self.n_agents, self.n_actions)
-        act_hn = act_hn = torch.zeros(self.n_agents, self.actors[0].rnn_hidden_dim)
+        act_hn = torch.zeros(self.n_agents, self.actors[0].rnn_hidden_dim)
         FloatTensor = torch.cuda.FloatTensor if self.use_cuda else torch.FloatTensor
         # this for loop used to decrease noise level for all agents before taking any action
         # gru_history_input = torch.FloatTensor(gru_history_input).to(device)  # batch x seq_length x no_agent x feature_length

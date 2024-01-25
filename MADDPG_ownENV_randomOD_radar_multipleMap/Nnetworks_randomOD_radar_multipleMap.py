@@ -192,6 +192,42 @@ class GRUCELL_actor(nn.Module):
         return action_out, h
 
 
+class GRUCELL_actor_TwoPortion(nn.Module):
+    def __init__(self, actor_dim, n_actions, actor_hidden_state_size):
+        super(GRUCELL_actor_TwoPortion, self).__init__()
+        self.own_fc = nn.Sequential(nn.Linear(actor_dim[0], 64), nn.ReLU())
+        self.own_grid = nn.Sequential(nn.Linear(actor_dim[1], 64), nn.ReLU())
+        self.rnn_hidden_dim = actor_hidden_state_size
+        self.gru_cell = nn.GRUCell(64+64, actor_hidden_state_size)
+        self.outlay = nn.Sequential(nn.Linear(64, n_actions), nn.Tanh())
+
+    def forward(self, cur_state, history_hidden_state):
+        own_obs = self.own_fc(cur_state[0])
+        own_grid = self.own_grid(cur_state[1])
+        merge_obs_grid = torch.cat((own_obs, own_grid), dim=1)
+        h_in = history_hidden_state.reshape(-1, self.rnn_hidden_dim)
+        h = self.gru_cell(merge_obs_grid, h_in)
+        action_out = self.outlay(h)
+        return action_out, h
+
+
+class GRUCELL_actor_OnePortion(nn.Module):
+    def __init__(self, actor_dim, n_actions, actor_hidden_state_size):
+        super(GRUCELL_actor_OnePortion, self).__init__()
+        self.own_fcWgrid = nn.Sequential(nn.Linear(actor_dim[0]+actor_dim[1], 64), nn.ReLU())
+        self.rnn_hidden_dim = actor_hidden_state_size
+        self.gru_cell = nn.GRUCell(64, actor_hidden_state_size)
+        self.outlay = nn.Sequential(nn.Linear(64, n_actions), nn.Tanh())
+
+    def forward(self, cur_state, history_hidden_state):
+        obsWgrid = torch.cat((cur_state[0], cur_state[1]), dim=1)
+        obsWgrid_feat = self.own_fcWgrid(obsWgrid)
+        h_in = history_hidden_state.reshape(-1, self.rnn_hidden_dim)
+        h = self.gru_cell(obsWgrid_feat, h_in)
+        action_out = self.outlay(h)
+        return action_out, h
+
+
 class Stocha_actor(nn.Module):
     def __init__(self, actor_dim, n_actions):  # actor_obs consists of three parts 0 = own, 1 = own grid, 2 = surrounding drones
         super(Stocha_actor, self).__init__()
@@ -403,19 +439,41 @@ class CriticNetwork_wGru(nn.Module):  #
         return q
 
 
-class critic_single_obs_wGRU(nn.Module):
+class critic_single_obs_wGRU_TwoPortion(nn.Module):
     def __init__(self, critic_obs, n_agents, n_actions, single_history, hidden_state_size):
-        super(critic_single_obs_wGRU, self).__init__()
-        self.rnn_hidden_dim = hidden_state_size
+        super(critic_single_obs_wGRU_TwoPortion, self).__init__()
         self.SA_fc = nn.Sequential(nn.Linear(critic_obs[0]+n_actions, 64), nn.ReLU())
+        self.SA_grid = nn.Sequential(nn.Linear(critic_obs[1], 64), nn.ReLU())
+        self.rnn_hidden_dim = hidden_state_size
+        self.gru_cell = nn.GRUCell(64+64, hidden_state_size)
+        self.own_fc_outlay = nn.Linear(64, 1)
+
+    def forward(self, single_state, single_action, history_hidden_state):
+        obsWaction = torch.cat((single_state[0], single_action), dim=1)
+        own_obsWaction = self.SA_fc(obsWaction)
+        own_grid = self.SA_grid(single_state[1])
+        merge_obs_grid = torch.cat((own_obsWaction, own_grid), dim=1)
+        h_in = history_hidden_state.reshape(-1, self.rnn_hidden_dim)
+        h = self.gru_cell(merge_obs_grid, h_in)
+        q = self.own_fc_outlay(h)
+        return q, h
+
+
+class critic_single_obs_wGRU_OnePortion(nn.Module):
+    def __init__(self, critic_obs, n_agents, n_actions, single_history, hidden_state_size):
+        super(critic_single_obs_wGRU_OnePortion, self).__init__()
+        self.SA_fcWgrid = nn.Sequential(nn.Linear(critic_obs[0]+n_actions+critic_obs[1], 64), nn.ReLU())
+
+        self.rnn_hidden_dim = hidden_state_size
         self.gru_cell = nn.GRUCell(64, hidden_state_size)
         self.own_fc_outlay = nn.Linear(64, 1)
 
     def forward(self, single_state, single_action, history_hidden_state):
-        SA_combine = torch.cat((single_state, single_action), dim=1)
-        SA_feature = self.SA_fc(SA_combine)
+        obsWactionWgrid = torch.cat((single_state[0], single_action, single_state[1]), dim=1)
+        obsWactionWgrid_feat = self.SA_fcWgrid(obsWactionWgrid)
+
         h_in = history_hidden_state.reshape(-1, self.rnn_hidden_dim)
-        h = self.gru_cell(SA_feature, h_in)
+        h = self.gru_cell(obsWactionWgrid_feat, h_in)
         q = self.own_fc_outlay(h)
         return q, h
 
@@ -438,116 +496,3 @@ class critic_single_TwoPortion(nn.Module):
         return q
 
 
-
-class CriticNetwork_0724(nn.Module):
-    def __init__(self, critic_obs, n_agents, n_actions):
-        super(CriticNetwork_0724, self).__init__()
-
-        # in critic network we should use multi-head attention mechanism to help to capture more complex relationship
-        # between different inputs, in the context of this paper, the input consists of many drone's states as well as
-        # their actions. This is two group of inputs, therefore my hypothesis is that using multi-head attention is
-        # better here.
-
-        # critic_obs[0] is sum of all agent's own observed states
-        # critic_obs[1] is sum of all agent's observed grid maps
-        # critic_obs[3] is sum of all agent's action taken
-
-        # self.sum_own_fc = nn.Sequential(nn.Linear(critic_obs*n_agents, 1024), nn.ReLU())  # may be here can be replaced with another attention mechanism
-        self.sum_own_fc = nn.Sequential(nn.Linear(critic_obs[0]*n_agents, 256), nn.ReLU())  # may be here can be replaced with another attention mechanism
-        self.sum_grid_fc = nn.Sequential(nn.Linear(critic_obs[1]*n_agents, 128), nn.ReLU())
-
-        # self.single_own_fc = nn.Sequential(nn.Linear(critic_obs[0], 128), nn.ReLU())  # may be here can be replaced with another attention mechanism
-        self.single_own_fc = nn.Sequential(nn.Linear(critic_obs[0], 256), nn.ReLU())  # may be here can be replaced with another attention mechanism
-        # self.single_grid_fc = nn.Sequential(nn.Linear(critic_obs[1], 128), nn.ReLU())
-        self.single_grid_fc = nn.Sequential(nn.Linear(critic_obs[1], 256), nn.ReLU())
-        self.single_surr = nn.Sequential(nn.Linear(critic_obs[2], 128), nn.ReLU())
-
-        # for surrounding agents' encoding, for each agent, we there are n-neighbours, each neighbour is represented by
-        # a vector of length = 6. Before we put into an experience replay, we pad it up to max_num_neigh * 6 array.
-        # so, one agent will have an array of max_num_neigh * 6, after flatten, then for one batch, there are a total of
-        # n_agents exist in the airspace, therefore, the final dimension will be max_num_neigh * 6 * max_num_neigh.
-        # self.sum_sur_fc = nn.Sequential(nn.Linear(critic_obs[2]*n_agents*n_agents, 256), nn.ReLU())
-
-        # critic attention for overall sur_neighbours with overall own_state
-        self.single_k = nn.Linear(128, 128, bias=False)
-        self.single_q = nn.Linear(128, 128, bias=False)
-        self.single_v = nn.Linear(128, 128, bias=False)
-        #
-        # self.n_heads = 3
-        # self.single_head_dim = int((256+256+256) / self.n_heads)
-        # self.com_k = nn.Linear(self.single_head_dim, self.single_head_dim, bias=False)
-        # self.com_q = nn.Linear(self.single_head_dim, self.single_head_dim, bias=False)
-        # self.com_v = nn.Linear(self.single_head_dim, self.single_head_dim, bias=False)
-        # self.multi_att_out = nn.Sequential(nn.Linear(self.n_heads * self.single_head_dim + n_agents * n_actions, 128),
-        #                                    nn.ReLU())
-        #
-        # self.combine_env_fc = nn.Sequential(nn.Linear(256+256+256, 256), nn.ReLU(), nn.Linear(256, 128), nn.ReLU(),
-        #                                     nn.Linear(128, 64), nn.ReLU())
-        # self.combine_env_fc = nn.Sequential(nn.Linear(256+128, 128), nn.ReLU())
-        # self.combine_env_fc = nn.Sequential(nn.Linear((n_agents*128)+(n_agents*128), 64), nn.ReLU())
-        self.combine_env_fc = nn.Sequential(nn.Linear((n_agents*256)+(n_agents*256), 1028), nn.ReLU(), nn.Linear(1028, 64), nn.ReLU())
-
-        self.combine_all = nn.Sequential(nn.Linear(64+n_agents * n_actions, 64), nn.ReLU(), nn.Linear(64, 1))
-
-        # self.sum_agents_action_fc = nn.Sequential(nn.Linear(critic_obs[2]*n_agents, 256), nn.ReLU())
-        #
-        # self.multi_attention = nn.MultiheadAttention(embed_dim=256+256, num_heads=2)  # 1st input is the sum of neurons from actions and combined states encoding
-        #
-        # # the input of this judgement layer is 256+256 because this is right after the multi-head attention layer
-        # # the output dimension of the multi-head attention is default to be the dimension of the "embed_dim"
-        # self.judgement_fc = nn.Sequential(nn.Linear(128, 64), nn.ReLU(), nn.Linear(64, 1))
-
-        # self.name = name
-
-        # self.optimizer = optim.Adam(self.parameters(), lr=critic_lr)
-        # self.device = T.device('cuda:0' if T.cuda.is_available() else 'cpu')
-        #
-        # self.to(self.device)
-
-    def forward(self, state, actor_actions):  # state[0] is sum of all agent's own observed states, state[1] is is sum of all agent's observed grid maps
-        # pre-process, compute attention for every agent based on their surrounding agents
-        attention_all_agent = []
-        grid_all_agent = []
-        own_all_agent = []
-        for one_agent_batch_own, one_agent_batch_grid, one_agent_batch_surr in zip(*state):  # automatically loop over 5 times
-            single_grid_out = self.single_grid_fc(one_agent_batch_grid)
-            single_own_out = self.single_own_fc(one_agent_batch_own)
-
-            # single_surr_out = self.single_surr(one_agent_batch_surr)
-            # single_q = self.single_q(single_own_out)
-            # single_k = self.single_k(single_surr_out)
-            # single_v = self.single_v(single_surr_out)
-            # mask = one_agent_batch_surr.mean(axis=2, keepdim=True).bool()
-            # score = torch.bmm(single_k, single_q.unsqueeze(axis=2))
-            # score_mask = score.clone()  # clone操作很必要
-            # score_mask[~mask] = float('-inf')  # 不然赋值操作后会无法计算梯度
-            # alpha = F.softmax(score_mask / np.sqrt(single_k.size(-1)), dim=1)  # we use dim=1 here because we need to get attention of each sequence in K towards all hidden vector of q in each batch.
-            # alpha_mask = alpha.clone()
-            # alpha_mask[~mask] = 0
-            # v_att = torch.sum(single_v * alpha_mask, axis=1)
-            # attention_all_agent.append(v_att)
-
-            grid_all_agent.append(single_grid_out)
-            own_all_agent.append(single_own_out)
-
-
-        # sum_att = torch.stack(attention_all_agent).transpose(0, 1)
-        # sum_att = sum_att.reshape(sum_att.shape[0], -1)
-
-        sum_grid = torch.stack(grid_all_agent).transpose(0, 1)
-        sum_grid = sum_grid.reshape(sum_grid.shape[0], -1)
-
-        sum_own = torch.stack(own_all_agent).transpose(0, 1)
-        sum_own = sum_own.reshape(sum_own.shape[0], -1)
-
-        # sum_own = self.sum_own_fc(state[0])
-        # sum_grid = self.sum_grid_fc(state[1])
-
-        # env_concat = torch.cat((sum_att, sum_grid), dim=1)
-        env_concat = torch.cat((sum_own, sum_grid), dim=1)
-
-        env_encode = self.combine_env_fc(env_concat)
-        entire_comb = torch.cat((env_encode, actor_actions), dim=1)
-        # entire_comb = torch.cat((sum_own_e, actor_actions), dim=1)
-        q = self.combine_all(entire_comb)
-        return q
