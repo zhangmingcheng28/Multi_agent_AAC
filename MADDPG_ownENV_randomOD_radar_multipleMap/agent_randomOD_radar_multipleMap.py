@@ -12,7 +12,7 @@ from Utilities_own_randomOD_radar_multipleMap import padding_list
 
 
 class Agent:
-    def __init__(self, n_actions, agent_idx, gamma, tau, max_nei_num, maxSPD):
+    def __init__(self, n_actions, agent_idx, gamma, tau, max_nei_num, maxSPD, acc_range):
         self.gamma = gamma
         self.tau = tau
         self.n_actions = n_actions  # this n_actions is the dimension of the action space
@@ -31,6 +31,7 @@ class Agent:
         self.acc = np.zeros(2)
         self.pre_acc = np.zeros(2)
         self.maxSpeed = maxSPD
+        self.acceleration_range = acc_range
         self.goal = None
         self.ref_line = None
         self.heading = None

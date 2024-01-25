@@ -8,8 +8,11 @@
 """
 import pandas as pd
 import numpy as np
+import os
+from collections import deque
 import matplotlib
 import matplotlib.pyplot as plt
+from Utilities_own_randomOD_radar_multipleMap import shapelypoly_to_matpoly
 from matplotlib.patches import Polygon as matPolygon
 import math
 from shapely.strtree import STRtree
@@ -43,12 +46,6 @@ def generate_circle(cx,cy):
     p_ = Point(cx, cy)
     circle_ = p_.buffer(2.5)  # this buffer is radius
     return circle_
-
-
-def shapelypoly_to_matpoly(shapelyPolgon, inFill=False, inEdgecolor='black'):
-    xcoo, ycoo = shapelyPolgon.exterior.coords.xy
-    matPolyConverted = matPolygon(xy=list(zip(xcoo, ycoo)), fill=inFill, edgecolor=inEdgecolor)
-    return matPolyConverted
 
 
 def initialize_3d_array_environment(girdLength, maxX, maxY, maxZ):  # grid is a cube
@@ -106,6 +103,9 @@ def square_grid_intersection(strTreePolyset, gridToTest, buildingPolygonDict):
 
 
 def env_generation(shapeFilePath, bound):  # input: string of file path, output: STRtree object of polygons
+    # os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
+    # matplotlib.use('TkAgg')
+    # fig, ax = plt.subplots(1, 1)
     shape = gpd.read_file(shapeFilePath)
     # check for duplicates and remove it
     ps = pd.DataFrame(shape)
@@ -131,6 +131,8 @@ def env_generation(shapeFilePath, bound):  # input: string of file path, output:
         ps.at[index, 'geometry'] = poly_transformed
         polyDict[id(poly_transformed)] = row[2]  # shapely.Polygon itself is not hashable, but id(Polygon) is hashable
         polySet_buildings.append(poly_transformed)  # this is the polygon in terms of meters
+        # one_poly_mat = shapelypoly_to_matpoly(poly_transformed, False, Edgecolor='red', FcColor='blue')
+        # ax.add_patch(one_poly_mat)
     # populate STRtree
     tree_of_polySet_buildings = STRtree(polySet_buildings)
 
@@ -143,12 +145,18 @@ def env_generation(shapeFilePath, bound):  # input: string of file path, output:
     x_higher = math.ceil(bound[1] / gridLength)
     y_lower = math.ceil(bound[2] / gridLength)
     y_higher = math.ceil(bound[3] / gridLength)
+    # x_lower = 0
+    # x_higher = 1800
+    # y_lower = 0
+    # y_higher = 1300
 
     gridPoly_beforeFill = []
+    all_gridPoly_beforeFill_centroid = {}  # contain ALL grid polygons
     for xi in range(envMatrix.shape[0]):
         for yj in range(envMatrix.shape[1]):
             gridPoint = Point(xi*gridLength, yj*gridLength)
             gridPointPoly = gridPoint.buffer(gridLength / 2, cap_style=3)  # cap_style=3 for grid size bound
+            all_gridPoly_beforeFill_centroid[(xi, yj)] = [gridPointPoly.centroid.x, gridPointPoly.centroid.y, gridPointPoly]
             # if gridPointPoly.equals(Polygon(([25, 805], [25, 795], [15, 795], [15, 805], [25, 805]))):
             #     print('debug')
             occpied_avgHeigh = square_grid_intersection(tree_of_polySet_buildings, gridPointPoly, polyDict)
@@ -156,33 +164,85 @@ def env_generation(shapeFilePath, bound):  # input: string of file path, output:
                 matrixHeight = math.ceil(occpied_avgHeigh[1]/gridLength)  # NOTE: for env matrix, height is also scaled accroding to grid length
                 envMatrix[xi, yj, 0:matrixHeight] = 1
                 gridPoly_beforeFill.append(gridPointPoly)
+                # gridPoly_beforeFill_centroid[(xi, yj)] = [gridPointPoly.centroid.x, gridPointPoly.centroid.y]
                 # for display occupied grids
-                #ax.add_patch(PolygonPatch(gridPointPoly))
+                # one_poly_mat = shapelypoly_to_matpoly(gridPointPoly, False, Edgecolor='black', FcColor='blue')
+                # ax.add_patch(one_poly_mat)
 
 
     # After the prelimary world map has been build, we need to cover-up the holes that is surrounded by the occupied grids
-    env_map = ndimage.binary_fill_holes(envMatrix[:, :, 0])  # env_layer fill holes
-    env_map_bounded = env_map[x_lower:x_higher, y_lower:y_higher]
+    env_map = ndimage.binary_fill_holes(envMatrix[:, :, 0])  # env_layer fill holes, first layer of flood-fill
+    env_map_bounded_nofill = env_map[x_lower:x_higher, y_lower:y_higher]  # pick out an area
+    # after giving a bound, we need to perform custom flood-fill.
+    env_map_bounded = flood_fill_custom(env_map_bounded_nofill)
+
     gridPoly_ones = []
     gridPoly_zero = []
     outPoly = []
-    for ix in range(env_map.shape[0]):
-        for iy in range(env_map.shape[1]):
-            if (ix * gridLength <= bound[1]) and (ix * gridLength >= bound[0]) and (iy * gridLength <= bound[3]) and (
-                    iy * gridLength >= bound[2]):
-                grid_point_toTest = Point(ix * gridLength, iy * gridLength)
-                grid_poly_toTest = grid_point_toTest.buffer(gridLength / 2, cap_style=3)
-                if env_map[ix][iy] == 1:  # get the grid index that is occupied, meaning yield 1 in the index position
+    cropped_coord_match_actual_coord = {}
+    for ix in range(x_higher-x_lower):  # we use x_higher-x_lower, is to ensure the cropped area's 2D array can match the actual polygon in map
+        for iy in range(y_higher-y_lower):
+            if ((x_lower+ix) * gridLength <= bound[1]) and ((x_lower+ix) * gridLength >= bound[0]) and \
+                    ((y_lower+iy) * gridLength <= bound[3]) and ((y_lower+iy) * gridLength >= bound[2]):
+                search_key = (x_lower+ix, y_lower+iy)  # we can use x_lower+ix, y_lower+iy, as search key, because x/y_lower already scaled down
+                cropped_coord_match_actual_coord[(ix, iy)] = [all_gridPoly_beforeFill_centroid[search_key][0],
+                                                              all_gridPoly_beforeFill_centroid[search_key][1]]
+                if env_map_bounded[ix][iy] == 1:  # get the grid index that is occupied, meaning yield 1 in the index position
                     # transform these grid index information to the actual size map
-                    gridPoly_ones.append(grid_poly_toTest)
+                    occupied_poly_after_fill = all_gridPoly_beforeFill_centroid[search_key][-1]
+                    gridPoly_ones.append(occupied_poly_after_fill)
+
+                    # one_poly_mat = shapelypoly_to_matpoly(occupied_poly_after_fill, False, Edgecolor='blue')
+                    # ax.add_patch(one_poly_mat)
                 else:
-                    gridPoly_zero.append(grid_poly_toTest)
+                    free_poly_after_fill = all_gridPoly_beforeFill_centroid[search_key][-1]
+                    gridPoly_zero.append(free_poly_after_fill)
+
     outPoly.append([gridPoly_ones, gridPoly_zero])
 
-        # display all building polygon
-    # for poly in polySet:
-    #     ax.add_patch(PolygonPatch(poly))
-    return env_map_bounded, polySet_buildings, gridLength, outPoly, (maxX, maxY)  # return an occupied 3D array
+    # plt.axvline(x=bound[0], c="green")
+    # plt.axvline(x=bound[1], c="green")
+    # plt.axhline(y=bound[2], c="green")
+    # plt.axhline(y=bound[3], c="green")
+    # plt.xlabel("X axis")
+    # plt.ylabel("Y axis")
+    # plt.axis('equal')
+    # plt.show()
+
+    return env_map_bounded, polySet_buildings, gridLength, outPoly, (maxX, maxY) ,cropped_coord_match_actual_coord# return an occupied 3D array
+
+
+def flood_fill_custom(input_2D_array):
+    # Specify the padding width for each dimension (top, bottom, left, right)
+    padding_width = (
+    (0, 1), (1, 0))  # This means no padding on top, 1 row padding at the bottom, and no padding on sides
+    # Perform the padding operation on left and bottom
+    padded_bottom_left_array = np.pad(input_2D_array, padding_width, mode='constant', constant_values=True)
+    filled_padded_bottom_left = ndimage.binary_fill_holes(padded_bottom_left_array)
+    remove_filled_padded_bottom_left = filled_padded_bottom_left[:-1, 1:]
+
+    padding_width = (
+    (1, 0), (0, 1))  # pad on top and right and do flood-fill
+    padded_top_right_updated_array = np.pad(remove_filled_padded_bottom_left, padding_width, mode='constant', constant_values=True)
+    filled_padded_top_right_updated_array = ndimage.binary_fill_holes(padded_top_right_updated_array)
+    remove_filled_padded_top_right = filled_padded_top_right_updated_array[1:, :-1]
+
+    padding_width = (
+    (1, 0), (1, 0))  # pad on top and left
+    padded_top_left_updated_array = np.pad(remove_filled_padded_top_right, padding_width, mode='constant', constant_values=True)
+    filled_padded_top_left_updated_array = ndimage.binary_fill_holes(padded_top_left_updated_array)
+    remove_filled_padded_top_left = filled_padded_top_left_updated_array[1:, 1:]
+
+    padding_width = (
+    (0, 1), (0, 1))  # pad on bottom and right
+    padded_bottom_right_updated_array = np.pad(remove_filled_padded_top_left, padding_width, mode='constant', constant_values=True)
+    filled_padded_bottom_right_updated_array = ndimage.binary_fill_holes(padded_bottom_right_updated_array)
+    remove_filled_padded_bottom_right = filled_padded_bottom_right_updated_array[:-1, :-1]
+
+    return remove_filled_padded_bottom_right
+
+
+
 
 def pointgen(p1, p2, p3, totalnum):
     xySet = []

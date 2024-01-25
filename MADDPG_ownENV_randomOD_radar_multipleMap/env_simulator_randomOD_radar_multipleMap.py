@@ -14,6 +14,7 @@ import rtree
 from shapely.strtree import STRtree
 from scipy.interpolate import interp1d
 from shapely.geometry import LineString, Point, Polygon
+from scipy import ndimage
 from scipy.spatial import KDTree
 import random
 import itertools
@@ -38,21 +39,22 @@ import torch.nn as nn
 
 
 class env_simulator:
-    def __init__(self, world_map, building_polygons, grid_length, bound, allGridPoly, agentConfig):  # allGridPoly[0][0] is all grid=1
-        self.world_map_2D = world_map  # 2D binary matrix, in ndarray form.
-        self.world_map_2D_jps = None
-        self.centroid_to_position_empty = {}
-        self.centroid_to_position_occupied = {}
-        self.world_map_2D_polyList = allGridPoly  # [0][0] is all occupied polygon, [0][1] is all non-occupied polygon
+    def __init__(self, world_map_collection, building_polygons, grid_length, bound_collection, allGridPoly_collection, agentConfig, cropped_coord_match_actual_coord):  # allGridPoly[0][0] is all grid=1
+        self.world_map_2D = None  # 2D binary matrix, in ndarray form.
+        self.world_map_2D_collection = world_map_collection  # 2D binary matrix, in ndarray form.
+        self.world_map_2D_jps_collection = {}
+        self.cropped_coord_match_actual_coord = cropped_coord_match_actual_coord
+        self.world_map_2D_polyList = None  # [0][0] is all occupied polygon, [0][1] is all non-occupied polygon
+        self.world_map_2D_polyList_collection = allGridPoly_collection  # [0][0] is all occupied polygon, [0][1] is all non-occupied polygon
         self.agentConfig = agentConfig
         self.gridlength = grid_length
         self.buildingPolygons = building_polygons  # contain all polygon in the world that has building
-        self.world_STRtree = None  # contains all polygon in the environment
-        self.allbuildingSTR = None
-        self.allbuildingSTR_wBound = None
-        self.list_of_occupied_grid_wBound = None
-        self.allbuilding_centre = None
-        self.bound = bound
+        self.world_STRtree_collection = {}  # contains all polygon in the environment
+        self.allbuildingSTR_collection = {}
+        self.allbuildingSTR_wBound_collection = {}
+        self.list_of_occupied_grid_wBound_collection = {}
+        self.allbuilding_centre_collection = {}
+        self.bound_collection = bound_collection
         self.global_time = 0.0  # in sec
         self.time_step = 0.5  # in second as well
         self.all_agents = None
@@ -62,163 +64,155 @@ class env_simulator:
         self.dummy_agent = None  # template for create a new agent
         self.max_agent_num = None
 
-        self.spawn_area1 = []
-        self.spawn_area1_polymat = []
-        self.spawn_area2 = []
-        self.spawn_area2_polymat = []
-        self.spawn_area3 = []
-        self.spawn_area3_polymat = []
-        self.spawn_area4 = []
-        self.spawn_area4_polymat = []
-        self.spawn_pool = None
-        self.target_area1 = []
-        self.target_area1_polymat = None
-        self.target_area2 = []
-        self.target_area2_polymat = None
-        self.target_area3 = []
-        self.target_area3_polymat = None
-        self.target_area4 = []
-        self.target_area4_polymat = None
-        self.target_pool = None
+        # self.spawn_area1 = []
+        # self.spawn_area1_polymat = []
+        # self.spawn_area2 = []
+        # self.spawn_area2_polymat = []
+        # self.spawn_area3 = []
+        # self.spawn_area3_polymat = []
+        # self.spawn_area4 = []
+        # self.spawn_area4_polymat = []
+        # self.spawn_pool_collection = None
+
+        # self.target_area1 = []
+        # self.target_area1_polymat = None
+        # self.target_area2 = []
+        # self.target_area2_polymat = None
+        # self.target_area3 = []
+        # self.target_area3_polymat = None
+        # self.target_area4 = []
+        # self.target_area4_polymat = None
+        # self.target_pool = None
+        self.target_pool_collection = {}
 
     def create_world(self, total_agentNum, n_actions, gamma, tau, target_update, largest_Nsigma, smallest_Nsigma, ini_Nsigma, max_xy, max_spd, acc_range):
         # config OU_noise
         self.OU_noise = OUNoise(n_actions, largest_Nsigma, smallest_Nsigma, ini_Nsigma)
-        self.normalizer = NormalizeData([self.bound[0], self.bound[1]], [self.bound[2], self.bound[3]], max_spd, acc_range)
         self.all_agents = {}
-        self.allbuildingSTR = STRtree(self.world_map_2D_polyList[0][0])
-        building_centroid = [poly.centroid.coords[0] for poly in self.world_map_2D_polyList[0][0]]
-        self.allbuilding_centre = np.array(building_centroid)
-            
-        # self.allbuilding_centre =
-        worldGrid_polyCombine = []
-        worldGrid_polyCombine.append(self.world_map_2D_polyList[0][0] + self.world_map_2D_polyList[0][1])
-        self.world_STRtree = STRtree(worldGrid_polyCombine[0])
+        # os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
+        # matplotlib.use('TkAgg')
+        # plt.ion()
+        for map_idx in self.world_map_2D_polyList_collection.keys():
+            # fig, ax = plt.subplots(1, 1)
+            self.allbuildingSTR_collection[map_idx] = STRtree(self.world_map_2D_polyList_collection[map_idx][0][0]) # [0][0] -> occupied grid poly, [0][1] -> non occupied grid poly
+            worldGrid_polyCombine = []
+            worldGrid_polyCombine.append(self.world_map_2D_polyList_collection[map_idx][0][0] +
+                                         self.world_map_2D_polyList_collection[map_idx][0][1])
+            self.world_STRtree_collection[map_idx] = STRtree(worldGrid_polyCombine[0])
+
+            # adjustment to each world_map_2D for use as input to JPS function
+            binary_ver_world2D = self.world_map_2D_collection[map_idx].astype(int)
+
+            self.world_map_2D_collection[map_idx] = binary_ver_world2D
+            self.world_map_2D_jps_collection[map_idx] = binary_ver_world2D.tolist()
+
+            # segment them using two lines
+            # self.spawn_pool = [self.spawn_area1, self.spawn_area2, self.spawn_area3, self.spawn_area4]
+            target_area1, target_area2, target_area3, target_area4 = [], [], [], []
+            target_pool = [target_area1, target_area2, target_area3, target_area4]
+            # target_pool_idx = [i for i in range(len(target_pool))]
+            # get centroid of all square polygon
+            non_occupied_polygon = self.world_map_2D_polyList_collection[map_idx][0][1]
+
+            x_segment = (self.bound_collection[map_idx][1] - self.bound_collection[map_idx][0])/2 + self.bound_collection[map_idx][0]
+
+            y_segment = (self.bound_collection[map_idx][3] - self.bound_collection[map_idx][2])/2 + self.bound_collection[map_idx][2]
+
+            x_left_bound = LineString([(self.bound_collection[map_idx][0], -9999), (self.bound_collection[map_idx][0], 9999)])
+            x_right_bound = LineString([(self.bound_collection[map_idx][1], -9999), (self.bound_collection[map_idx][1], 9999)])
+            y_bottom_bound = LineString([(-9999, self.bound_collection[map_idx][2]), (9999, self.bound_collection[map_idx][2])])
+            y_top_bound = LineString([(-9999, self.bound_collection[map_idx][3]), (9999, self.bound_collection[map_idx][3])])
+            boundary_lines = [x_left_bound, x_right_bound, y_bottom_bound, y_top_bound]
+
+            list_occupied_grids = copy.deepcopy(self.world_map_2D_polyList_collection[map_idx][0][0])
+            list_occupied_grids.extend(boundary_lines)  # add boundary line to occupied lines
+            self.allbuildingSTR_wBound_collection[map_idx] = STRtree(list_occupied_grids)
+            self.list_of_occupied_grid_wBound_collection[map_idx] = list_occupied_grids
+
+            for poly in non_occupied_polygon:
+                centre_coord = (poly.centroid.x, poly.centroid.y)
+                centre_coord_pt = Point(poly.centroid.x, poly.centroid.y)
+                intersects_any_boundary = any(line.intersects(centre_coord_pt) for line in boundary_lines)
+
+                if intersects_any_boundary:  # make sure the centroid does not intercept any boundary lines
+                    continue
+                # if poly.intersects(x_left_bound):
+                #     self.spawn_area1.append(poly)
+                #     # left line
+                #     poly_mat = shapelypoly_to_matpoly(poly, inFill=True, Edgecolor='black', FcColor='y')
+                #     self.spawn_area1_polymat.append(poly_mat)
+                #     # ax.add_patch(poly_mat)
+                # elif poly.intersects(y_bottom_bound):
+                #     # bottom line
+                #     self.spawn_area2.append(poly)
+                #     poly_mat = shapelypoly_to_matpoly(poly, inFill=True, Edgecolor='black', FcColor='m')
+                #     self.spawn_area2_polymat.append(poly_mat)
+                #     # ax.add_patch(poly_mat)
+                # elif poly.intersects(x_right_bound):
+                #     # right line
+                #     self.spawn_area3.append(poly)
+                #     poly_mat = shapelypoly_to_matpoly(poly, inFill=True, Edgecolor='black', FcColor='b')
+                #     self.spawn_area3_polymat.append(poly_mat)
+                #     # ax.add_patch(poly_mat)
+                # elif poly.intersects(y_top_bound):
+                #     # top line
+                #     self.spawn_area4.append(poly)
+                #     poly_mat = shapelypoly_to_matpoly(poly, inFill=True, Edgecolor='black', FcColor='g')
+                #     self.spawn_area4_polymat.append(poly_mat)
+                #     # ax.add_patch(poly_mat)
+                #
+                if centre_coord[0] < x_segment and centre_coord[1] < y_segment:
+                    target_area1.append(centre_coord)
+                    # bottom left
+                    # plt.plot(centre_coord[0], centre_coord[1], marker='.', color='y', markersize=2)
+                elif centre_coord[0] > x_segment and centre_coord[1] < y_segment:
+                    target_area2.append(centre_coord)
+                    # bottom right
+                    # plt.plot(centre_coord[0], centre_coord[1], marker='.', color='m', markersize=2)
+                elif centre_coord[0] > x_segment and centre_coord[1] > y_segment:
+                    target_area3.append(centre_coord)
+                    # top right
+                    # plt.plot(centre_coord[0], centre_coord[1], marker='.', color='b', markersize=2)
+                else:
+                    target_area4.append(centre_coord)
+                    # top left
+                    # plt.plot(centre_coord[0], centre_coord[1], marker='.', color='g', markersize=2)
+
+            self.target_pool_collection[map_idx] = target_pool
+
+            # draw occupied_poly
+            for one_poly in self.world_map_2D_polyList_collection[map_idx][0][0]:
+                one_poly_mat = shapelypoly_to_matpoly(one_poly, True, 'y', 'b')
+                # ax.add_patch(one_poly_mat)
+            # draw non-occupied_poly
+            for zero_poly in self.world_map_2D_polyList_collection[map_idx][0][1]:
+                zero_poly_mat = shapelypoly_to_matpoly(zero_poly, False, 'y')
+                # ax.add_patch(zero_poly_mat)
+
+            # show building obstacles
+            for poly in self.buildingPolygons:
+                matp_poly = shapelypoly_to_matpoly(poly, False, 'red')  # the 3rd parameter is the edge color
+                # ax.add_patch(matp_poly)
+
+            # ax.set_xlim(self.bound_collection[map_idx][0:2])
+            # ax.set_ylim(self.bound_collection[map_idx][2:4])
+            # plt.xlabel("X axis")
+            # plt.ylabel("Y axis")
+            # # plt.axis('equal') # when we use set_x/ylim, we cannot use this line, or else, will always show the entire map
+            # plt.draw()
+            # plt.pause(0.001)
+            # plt.savefig(f'figure_{map_idx}.png')
+
+        # plt.ioff()  # Turn off interactive mode
+        # plt.show()
+
         for agent_i in range(total_agentNum):
-            agent = Agent(n_actions, agent_i, gamma, tau, total_agentNum, max_spd)
+            agent = Agent(n_actions, agent_i, gamma, tau, total_agentNum, max_spd, acc_range)
             agent.target_update_step = target_update
             self.all_agents[agent_i] = agent
         self.dummy_agent = self.all_agents[0]
 
-        # adjustment to world_map_2D
-        # draw world_map_scatter
-        scatterX = []
-        scatterY = []
-        centroid_pair_empty = []
-        centroid_pair_occupied = []
-        for poly in self.world_map_2D_polyList[0][1]:  # [0] is occupied, [1] is non occupied centroid
-            scatterX.append(poly.centroid.x)
-            scatterY.append(poly.centroid.y)
-            centroid_pair_empty.append((poly.centroid.x, poly.centroid.y))
-        for poly in self.world_map_2D_polyList[0][0]:  # [0] is occupied, [1] is non occupied centroid
-            # scatterX.append(poly.centroid.x)
-            # scatterY.append(poly.centroid.y)
-            centroid_pair_occupied.append((poly.centroid.x, poly.centroid.y))
-        start_x = int(min(scatterX))
-        start_y = int(min(scatterY))
-        end_x = int(max(scatterX))
-        end_y = int(max(scatterY))
-        # fill 0 and 1 for changing world_2D map from True/False, so that can be used as an input map for JPS module
-        world_2D = np.zeros((len(range(int(start_x), int(end_x+1), self.gridlength)), len(range(int(start_y), int(end_y+1), self.gridlength))))
-        for j_idx, j_val in enumerate(range(start_y, end_y+1, self.gridlength)):
-            for i_idx, i_val in enumerate(range(start_x, end_x+1, self.gridlength)):
-                if (i_val, j_val) in centroid_pair_empty:
-                    world_2D[i_idx][j_idx] = 0
-                    self.centroid_to_position_empty[(i_val, j_val)] = [float(i_idx), float(j_idx)]
-                elif (i_val, j_val) in centroid_pair_occupied:
-                    world_2D[i_idx][j_idx] = 1
-                    self.centroid_to_position_occupied[(i_val, j_val)] = [float(i_idx), float(j_idx)]
-                else:
-                    print("no corresponding coordinate found in side world 2D grid centroids, please debug!")
-        self.world_map_2D = world_2D
-        self.world_map_2D_jps = world_2D.astype(int).tolist()
-
-        # segment them using two lines
-        self.spawn_pool = [self.spawn_area1, self.spawn_area2, self.spawn_area3, self.spawn_area4]
-        self.target_pool = [self.target_area1, self.target_area2, self.target_area3, self.target_area4]
-        # target_pool_idx = [i for i in range(len(target_pool))]
-        # get centroid of all square polygon
-        non_occupied_polygon = self.world_map_2D_polyList[0][1]
-        x_segment = (self.bound[1] - self.bound[0]) / 2 + self.bound[0]
-        y_segment = (self.bound[3] - self.bound[2]) / 2 + self.bound[2]
-        x_left_bound = LineString([(self.bound[0], -9999), (self.bound[0], 9999)])
-        x_right_bound = LineString([(self.bound[1], -9999), (self.bound[1], 9999)])
-        y_bottom_bound = LineString([(-9999, self.bound[2]), (9999, self.bound[2])])
-        y_top_bound = LineString([(-9999, self.bound[3]), (9999, self.bound[3])])
-        boundary_lines = [x_left_bound, x_right_bound, y_bottom_bound, y_top_bound]
-        list_occupied_grids = copy.deepcopy(self.world_map_2D_polyList[0][0])
-        list_occupied_grids.extend(boundary_lines)  # add boundary line to occupied lines
-        self.allbuildingSTR_wBound = STRtree(list_occupied_grids)
-        self.list_of_occupied_grid_wBound = list_occupied_grids
-        for poly in non_occupied_polygon:
-            centre_coord = (poly.centroid.x, poly.centroid.y)
-            centre_coord_pt = Point(poly.centroid.x, poly.centroid.y)
-            intersects_any_boundary = any(line.intersects(centre_coord_pt)for line in boundary_lines)
-            if intersects_any_boundary:
-                continue
-            if poly.intersects(x_left_bound):
-                self.spawn_area1.append(poly)
-                # left line
-                self.spawn_area1_polymat.append(shapelypoly_to_matpoly(poly, inFill=True, Edgecolor='black', FcColor='y'))
-                # ax.add_patch(poly_mat)
-            elif poly.intersects(y_bottom_bound):
-                # bottom line
-                self.spawn_area2.append(poly)
-                self.spawn_area2_polymat.append(
-                    shapelypoly_to_matpoly(poly, inFill=True, Edgecolor='black', FcColor='m'))
-                # ax.add_patch(poly_mat)
-            elif poly.intersects(x_right_bound):
-                # right line
-                self.spawn_area3.append(poly)
-                self.spawn_area3_polymat.append(
-                    shapelypoly_to_matpoly(poly, inFill=True, Edgecolor='black', FcColor='b'))
-                # ax.add_patch(poly_mat)
-            elif poly.intersects(y_top_bound):
-                # top line
-                self.spawn_area4.append(poly)
-                self.spawn_area4_polymat.append(
-                    shapelypoly_to_matpoly(poly, inFill=True, Edgecolor='black', FcColor='g'))
-                # ax.add_patch(poly_mat)
-
-            if centre_coord[0] < x_segment and centre_coord[1] < y_segment:
-                self.target_area1.append(centre_coord)
-                # bottom left
-                # plt.plot(centre_coord[0], centre_coord[1], marker='.', color='y', markersize=2)
-            elif centre_coord[0] > x_segment and centre_coord[1] < y_segment:
-                self.target_area2.append(centre_coord)
-                # bottom right
-                # plt.plot(centre_coord[0], centre_coord[1], marker='.', color='m', markersize=2)
-            elif centre_coord[0] > x_segment and centre_coord[1] > y_segment:
-                self.target_area3.append(centre_coord)
-                # top right
-                # plt.plot(centre_coord[0], centre_coord[1], marker='.', color='b', markersize=2)
-            else:
-                self.target_area4.append(centre_coord)
-                # top left
-                # plt.plot(centre_coord[0], centre_coord[1], marker='.', color='g', markersize=2)
-
-        os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
-        matplotlib.use('TkAgg')
-        fig, ax = plt.subplots(1, 1)
-        # draw occupied_poly
-        for one_poly in self.world_map_2D_polyList[0][0]:
-            one_poly_mat = shapelypoly_to_matpoly(one_poly, True, 'y', 'b')
-            ax.add_patch(one_poly_mat)
-        # draw non-occupied_poly
-        for zero_poly in self.world_map_2D_polyList[0][1]:
-            zero_poly_mat = shapelypoly_to_matpoly(zero_poly, False, 'y')
-            ax.add_patch(zero_poly_mat)
-
-        # show building obstacles
-        for poly in self.buildingPolygons:
-            matp_poly = shapelypoly_to_matpoly(poly, False, 'red')  # the 3rd parameter is the edge color
-            ax.add_patch(matp_poly)
-        plt.xlabel("X axis")
-        plt.ylabel("Y axis")
-        plt.axis('equal')
-        plt.show()
-
-    def reset_world(self, total_agentNum, show):  # set initialize position and observation for all agents
+    def reset_world(self, total_agentNum, random_map_idx, show):  # set initialize position and observation for all agents
         self.global_time = 0.0
         self.time_step = 0.5
         # reset OU_noise as well
@@ -260,6 +254,12 @@ class env_simulator:
         #     self.all_agents[new_Idx].surroundingNeighbor = {}
         #     self.all_agents[new_Idx].reach_target = False
 
+        self.normalizer = NormalizeData([self.bound_collection[random_map_idx][0],
+                                         self.bound_collection[random_map_idx][1]],
+                                        [self.bound_collection[random_map_idx][2],
+                                         self.bound_collection[random_map_idx][3]],
+                                        self.all_agents[0].maxSpeed, self.all_agents[0].acceleration_range)
+
         # start_time = time.time()
         agentsCoor_list = []  # for store all agents as circle polygon
         agentRefer_dict = {}  # A dictionary to use agent's current pos as key, their agent name (idx) as value
@@ -273,23 +273,24 @@ class env_simulator:
         for agentIdx in self.all_agents.keys():
 
             # ---------------- using random initialized agent position for traffic flow ---------
-            random_start_index = random.randint(0, len(self.target_pool) - 1)
-            numbers_left = list(range(0, random_start_index)) + list(range(random_start_index + 1, len(self.target_pool)))
+            random_start_index = random.randint(0, len(self.target_pool_collection[random_map_idx]) - 1)
+            numbers_left = list(range(0, random_start_index)) + \
+                           list(range(random_start_index + 1, len(self.target_pool_collection[random_map_idx])))
             random_target_index = random.choice(numbers_left)
-            random_start_pos = random.choice(self.target_pool[random_start_index])
+            random_start_pos = random.choice(self.target_pool_collection[random_map_idx][random_start_index])
             if len(start_pos_memory) > 0:
                 while len(start_pos_memory) < len(self.all_agents):  # make sure the starting drone generated do not collide with any existing drone
                     # Generate a new point
-                    random_start_index = random.randint(0, len(self.target_pool) - 1)
+                    random_start_index = random.randint(0, len(self.target_pool_collection[random_map_idx]) - 1)
                     numbers_left = list(range(0, random_start_index)) + list(
-                        range(random_start_index + 1, len(self.target_pool)))
+                        range(random_start_index + 1, len(self.target_pool_collection[random_map_idx])))
                     random_target_index = random.choice(numbers_left)
-                    random_start_pos = random.choice(self.target_pool[random_start_index])
+                    random_start_pos = random.choice(self.target_pool_collection[random_map_idx][random_start_index])
                     # Check that the distance to all existing points is more than 5
                     if all(np.linalg.norm(np.array(random_start_pos)-point) > self.all_agents[agentIdx].protectiveBound*2 for point in start_pos_memory):
                         break
 
-            random_end_pos = random.choice(self.target_pool[random_target_index])
+            random_end_pos = random.choice(self.target_pool_collection[random_map_idx][random_target_index])
             dist_between_se = np.linalg.norm(np.array(random_end_pos) - np.array(random_start_pos))
 
             # while dist_between_se >= 100:  # the distance between start & end point is more than a threshold, we reset SE pairs.
@@ -297,9 +298,9 @@ class env_simulator:
             #     dist_between_se = np.linalg.norm(np.array(random_end_pos) - np.array(random_start_pos))
             host_current_circle = Point(np.array(random_start_pos)[0], np.array(random_start_pos)[1]).buffer(self.all_agents[agentIdx].protectiveBound)
 
-            possiblePoly = self.allbuildingSTR.query(host_current_circle)
+            possiblePoly = self.allbuildingSTR_collection[random_map_idx].query(host_current_circle)
             for element in possiblePoly:
-                if self.allbuildingSTR.geometries.take(element).intersection(host_current_circle):
+                if self.allbuildingSTR_collection[random_map_idx].geometries.take(element).intersection(host_current_circle):
                     any_collision = 1
                     print("Initial start point {} collision with buildings".format(np.array(random_start_pos)))
                     break
@@ -319,13 +320,19 @@ class env_simulator:
             # small_area_map_end = [large_end[0] - math.ceil(self.bound[0] / self.gridlength),
             #                       large_end[1] - math.ceil(self.bound[2] / self.gridlength)]
 
-            small_area_map_s = self.centroid_to_position_empty[random_start_pos]
-            small_area_map_e = self.centroid_to_position_empty[random_end_pos]
+            # the relationship between the cropped 2D array's centroid and the actual map's centroid is link by:
+            # lower bound of actual x and y, meaning, (actual map_x - lower_x_bound)/grid_length = crop_x
 
-            width = self.world_map_2D.shape[0]
-            height = self.world_map_2D.shape[1]
+            cropped_coord_s = next((key for key, value in self.cropped_coord_match_actual_coord[random_map_idx].items() if value == list(random_start_pos)), None)
+            cropped_coord_e = next((key for key, value in self.cropped_coord_match_actual_coord[random_map_idx].items() if value == list(random_end_pos)), None)
 
-            jps_map = self.world_map_2D_jps
+            small_area_map_s = cropped_coord_s
+            small_area_map_e = cropped_coord_e
+
+            # width = self.world_map_2D.shape[0]
+            # height = self.world_map_2D.shape[1]
+
+            jps_map = self.world_map_2D_jps_collection[random_map_idx]
 
 
             outPath = jps_find_path((int(small_area_map_s[0]),int(small_area_map_s[1])), (int(small_area_map_e[0]),int(small_area_map_e[1])), jps_map)
@@ -345,19 +352,13 @@ class env_simulator:
             refinedPath.append(outPath[-1])
 
             # load the to goal, but remove/exclude the 1st point, which is the initial position
-            self.all_agents[agentIdx].goal = [[(points[0] + math.ceil(self.bound[0] / self.gridlength)) * self.gridlength,
-                                               (points[1] + math.ceil(self.bound[2] / self.gridlength)) * self.gridlength]
-                                              for points in refinedPath if not np.array_equal(np.array([(points[0] + math.ceil(self.bound[0] / self.gridlength)) * self.gridlength,
-                                                                                                        (points[1] + math.ceil(self.bound[2] / self.gridlength)) * self.gridlength]),
-                                                                                              self.all_agents[agentIdx].ini_pos)]  # if not np.array_equal(np.array(points), self.all_agents[agentIdx].ini_pos)
+            self.all_agents[agentIdx].goal = [self.cropped_coord_match_actual_coord[random_map_idx][points]
+                                              for points in refinedPath if not np.array_equal(np.array(self.cropped_coord_match_actual_coord[random_map_idx][points]),self.all_agents[agentIdx].ini_pos)]  # if not np.array_equal(np.array(points), self.all_agents[agentIdx].ini_pos)
             # load the to goal but we include the initial position
-            goalPt_withini = [[(points[0] + math.ceil(self.bound[0] / self.gridlength)) * self.gridlength,
-                                               (points[1] + math.ceil(self.bound[2] / self.gridlength)) * self.gridlength]
-                                              for points in refinedPath]
+            goalPt_withini = [self.cropped_coord_match_actual_coord[random_map_idx][points] for points in refinedPath]
 
             self.all_agents[agentIdx].ref_line = LineString(goalPt_withini)
             # ---------------- end of using random initialized agent position for traffic flow ---------
-
 
             # heading in rad, must be goal_pos-intruder_pos, and y2-y1, x2-x1
             self.all_agents[agentIdx].heading = math.atan2(self.all_agents[agentIdx].goal[0][1] -
@@ -383,8 +384,6 @@ class env_simulator:
 
             # ----------------end of initialize normalized velocity, but based on normalized map. map pos_x & pos_y are normalized to [-1, 1]---------------
 
-            self.all_agents[agentIdx].observableSpace = self.current_observable_space(self.all_agents[agentIdx])
-
             cur_circle = Point(self.all_agents[agentIdx].pos[0],
                                self.all_agents[agentIdx].pos[1]).buffer(self.all_agents[agentIdx].protectiveBound,
                                                                         cap_style='round')
@@ -403,7 +402,7 @@ class env_simulator:
         # overall_state, norm_overall_state = self.cur_state_norm_state_fully_observable(agentRefer_dict)
         # print('time used is {}'.format(time.time() - start_time))
         overall_state, norm_overall_state, polygons_list, all_agent_st_pos, all_agent_ed_pos, all_agent_intersection_point_list, \
-        all_agent_line_collection, all_agent_mini_intersection_list = self.cur_state_norm_state_v3(agentRefer_dict)
+        all_agent_line_collection, all_agent_mini_intersection_list = self.cur_state_norm_state_v3(agentRefer_dict, random_map_idx)
 
         if show:
             os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
@@ -430,11 +429,11 @@ class env_simulator:
                     ini = wp
 
             # draw occupied_poly
-            for one_poly in self.world_map_2D_polyList[0][0]:
+            for one_poly in self.world_map_2D_polyList_collection[random_map_idx][0][0]:
                 one_poly_mat = shapelypoly_to_matpoly(one_poly, True, 'y', 'b')
                 # ax.add_patch(one_poly_mat)
             # draw non-occupied_poly
-            for zero_poly in self.world_map_2D_polyList[0][1]:
+            for zero_poly in self.world_map_2D_polyList_collection[random_map_idx][0][1]:
                 zero_poly_mat = shapelypoly_to_matpoly(zero_poly, False, 'y')
                 ax.add_patch(zero_poly_mat)
 
@@ -455,18 +454,18 @@ class env_simulator:
                 else:
                     x, y = poly.xy
                     ax.plot(x, y, color='green', linewidth=2, solid_capstyle='round', zorder=3)
-            # Plot each start point
-            for point_deg, point_pos in st_points.items():
-                ax.plot(point_pos.x, point_pos.y, 'o', color='blue')
-
-            # Plot each end point
-            for point_deg, point_pos in ed_points.items():
-                ax.plot(point_pos.x, point_pos.y, 'o', color='green')
-
-            # Plot the lines of the LineString
-            for lines in line_collection:
-                x, y = lines.xy
-                ax.plot(x, y, color='blue', linewidth=2, solid_capstyle='round', zorder=2)
+            # # Plot each start point
+            # for point_deg, point_pos in st_points.items():
+            #     ax.plot(point_pos.x, point_pos.y, 'o', color='blue')
+            #
+            # # Plot each end point
+            # for point_deg, point_pos in ed_points.items():
+            #     ax.plot(point_pos.x, point_pos.y, 'o', color='green')
+            #
+            # # Plot the lines of the LineString
+            # for lines in line_collection:
+            #     x, y = lines.xy
+            #     ax.plot(x, y, color='blue', linewidth=2, solid_capstyle='round', zorder=2)
 
             # point_counter = 0
             # # Plot each intersection point
@@ -477,12 +476,12 @@ class env_simulator:
 
             # plot minimum intersection point
             # for pt_dist, pt_pos in mini_intersection_list.items():
-            for pt_pos in mini_intersection_list:
-                if pt_pos.type == 'MultiPoint':
-                    for ea_pt in pt_pos.geoms:
-                        ax.plot(ea_pt.x, ea_pt.y, 'o', color='yellow')
-                else:
-                    ax.plot(pt_pos.x, pt_pos.y, 'o', color='red')
+            # for pt_pos in mini_intersection_list:
+            #     if pt_pos.type == 'MultiPoint':
+            #         for ea_pt in pt_pos.geoms:
+            #             ax.plot(ea_pt.x, ea_pt.y, 'o', color='yellow')
+            #     else:
+            #         ax.plot(pt_pos.x, pt_pos.y, 'o', color='red')
 
 
 
@@ -832,7 +831,7 @@ class env_simulator:
         norm_overall.append(norm_overall_state_p2)
         return overall, norm_overall
 
-    def cur_state_norm_state_v3(self, agentRefer_dict):
+    def cur_state_norm_state_v3(self, agentRefer_dict, random_map_idx):
         overall = []
         norm_overall = []
         # prepare for output states
@@ -876,9 +875,6 @@ class env_simulator:
 
             # ------------ start of create radar ------------- #
             drone_ctr = Point(agent.pos)
-            nearest_buildingPoly_idx = self.allbuildingSTR.nearest(drone_ctr)
-            nearest_buildingPoly = self.world_map_2D_polyList[0][0][nearest_buildingPoly_idx]
-            dist_nearest = drone_ctr.distance(nearest_buildingPoly)
 
             # Re-calculate the 20 equally spaced points around the circle
             st_points = {degree: Point(drone_ctr.x + math.cos(math.radians(degree)) * agent.protectiveBound,
@@ -897,8 +893,8 @@ class env_simulator:
             #     Polygon([(-3, -1), (-3, -3), (-1, -3), (-1, -1)]),
             #     Polygon([(-4, 2), (-4, 4), (-2, 4), (-2, 2)])
             # ]
-            polygons_list_wBound = self.list_of_occupied_grid_wBound
-            polygons_tree_wBound = self.allbuildingSTR_wBound
+            polygons_list_wBound = self.list_of_occupied_grid_wBound_collection[random_map_idx]
+            polygons_tree_wBound = self.allbuildingSTR_wBound_collection[random_map_idx]
 
             distances = []
             intersection_point_list = []
@@ -1661,7 +1657,7 @@ class env_simulator:
         # return reward, done, check_goal, step_reward_record, agent_filled
         return reward, done, check_goal, step_reward_record
 
-    def ss_reward(self, current_ts, step_reward_record, eps_status_holder, step_collision_record):
+    def ss_reward(self, current_ts, step_reward_record, eps_status_holder, step_collision_record, random_map_idx):
         bound_building_check = [False] * 2
         reward, done = [], []
         agent_to_remove = []
@@ -1676,10 +1672,10 @@ class env_simulator:
         potential_conflict_count = 0
         final_goal_toadd = 0
         fixed_domino_reward = 1
-        x_left_bound = LineString([(self.bound[0], -9999), (self.bound[0], 9999)])
-        x_right_bound = LineString([(self.bound[1], -9999), (self.bound[1], 9999)])
-        y_bottom_bound = LineString([(-9999, self.bound[2]), (9999, self.bound[2])])
-        y_top_bound = LineString([(-9999, self.bound[3]), (9999, self.bound[3])])
+        x_left_bound = LineString([(self.bound_collection[random_map_idx][0], -9999), (self.bound_collection[random_map_idx][0], 9999)])
+        x_right_bound = LineString([(self.bound_collection[random_map_idx][1], -9999), (self.bound_collection[random_map_idx][1], 9999)])
+        y_bottom_bound = LineString([(-9999, self.bound_collection[random_map_idx][2]), (9999, self.bound_collection[random_map_idx][2])])
+        y_top_bound = LineString([(-9999, self.bound_collection[random_map_idx][3]), (9999, self.bound_collection[random_map_idx][3])])
 
         for drone_idx, drone_obj in self.all_agents.items():
 
@@ -1733,9 +1729,9 @@ class env_simulator:
             # -------- check collision with building V1-------------
             start_of_v1_time = time.time()
             v1_decision = 0
-            possiblePoly = self.allbuildingSTR.query(host_current_circle)
+            possiblePoly = self.allbuildingSTR_collection[random_map_idx].query(host_current_circle)
             for element in possiblePoly:
-                if self.allbuildingSTR.geometries.take(element).intersection(host_current_circle):
+                if self.allbuildingSTR_collection[random_map_idx].geometries.take(element).intersection(host_current_circle):
                     collide_building = 1
                     v1_decision = collide_building
                     drone_obj.collide_wall_count = drone_obj.collide_wall_count + 1
@@ -1745,42 +1741,6 @@ class env_simulator:
             # print("check building collision V1 time used is {} micro".format(end_v1_time))
             # -----------end of check collision with building v1 ---------
 
-
-            # # -------- check collision with building V2-------------
-            # start_of_v2_time = time.time()
-            # v2_decision = 0
-            # drone_r = drone_obj.protectiveBound
-            # building_square_diagonal = math.sqrt(self.gridlength ** 2 + self.gridlength ** 2)
-            # distances = np.sqrt(np.sum((self.allbuilding_centre - np.array(drone_obj.pos)) ** 2, axis=1))
-            # collisions = distances < (building_square_diagonal + drone_r)
-            # if np.any(collisions):
-            #     collide_building = 1
-            #     v2_decision = collide_building
-            # print("drone {} crash into building at time step {}".format(drone_idx, current_ts))
-            # end_v2_time = (time.time() - start_of_v2_time)*1000*1000
-            # print("check building collision V2 time used is {} micro".format(end_v2_time))
-            # # -------- end check collision with building V2-------------
-            
-            # # -------- check collision with building V3-------------
-            # start_of_v3_time = time.time()
-            # v3_decision = 0
-            # drone_r = drone_obj.protectiveBound
-            # vectors = self.allbuilding_centre - np.array(drone_obj.pos)
-            # abs_vectors = np.abs(vectors)
-            # half_square_size = self.gridlength / 2
-            # # potential_collisions = abs_vectors < (half_square_size + drone_r)  # check for intersection
-            # # Check for collision along x-direction
-            # collision_x = (abs_vectors[:, 0] <= half_square_size) & (abs_vectors[:, 1] <= drone_r)
-            # # Check for collision along y-direction
-            # collision_y = (abs_vectors[:, 1] <= half_square_size) & (abs_vectors[:, 0] <= drone_r)
-            # collisions = collision_x | collision_y
-            # if np.any(collisions):
-            #     collide_building = 1
-            #     v3_decision = collide_building
-            # print("drone {} crash into building at time step {}".format(drone_idx, current_ts))
-            # end_v3_time = (time.time() - start_of_v3_time)*1000*1000
-            # print("check building collision V3 time used is {} micro".format(end_v3_time))
-            # # -------- end check collision with building V3-------------
             end_v2_time, end_v3_time, v2_decision, v3_decision = 0,0,0,0,
             step_collision_record[drone_idx].append([end_v1_time, end_v2_time, end_v3_time,
                                                      v1_decision, v2_decision, v3_decision])
@@ -1941,7 +1901,7 @@ class env_simulator:
             status_holder[drone_idx].append([cur_step_dist] + cur_step_reward)
         return status_holder
 
-    def step(self, actions, current_ts):
+    def step(self, actions, current_ts, random_map_idx):
         next_combine_state = []
         agentCoorKD_list_update = []
         agentRefer_dict = {}  # A dictionary to use agent's current pos as key, their agent name (idx) as value
@@ -2011,7 +1971,7 @@ class env_simulator:
             self.all_agents[drone_idx].acc = np.array([ax, ay])
 
             counterCheck_heading = math.atan2(delta_y, delta_x)
-            if abs(next_heading - counterCheck_heading) > 1e-3 :
+            if abs(next_heading - counterCheck_heading) > 1e-3:
                 print("debug, heading different")
             # ------------- end of acceleration in x and acceleration in y state transition control ---------------#
 
@@ -2032,7 +1992,7 @@ class env_simulator:
 
         # next_state, next_state_norm = self.cur_state_norm_state_fully_observable(agentRefer_dict)
         # start_acceleration_time = time.time()
-        next_state, next_state_norm, polygons_list, all_agent_st_points, all_agent_ed_points, all_agent_intersection_point_list, all_agent_line_collection, all_agent_mini_intersection_list = self.cur_state_norm_state_v3(agentRefer_dict)
+        next_state, next_state_norm, polygons_list, all_agent_st_points, all_agent_ed_points, all_agent_intersection_point_list, all_agent_line_collection, all_agent_mini_intersection_list = self.cur_state_norm_state_v3(agentRefer_dict, random_map_idx)
         # print("obtain_current_state, time used {} milliseconds".format(
         #     (time.time() - start_acceleration_time) * 1000))
 

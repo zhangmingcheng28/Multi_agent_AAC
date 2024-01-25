@@ -7,6 +7,7 @@ import argparse
 import datetime
 import pandas as pd
 import numpy as np
+import random
 import torch
 import os
 import time
@@ -258,7 +259,8 @@ def main(args):
 
     # max_spd = 15
     max_spd = 10
-    env.create_world(total_agentNum, n_actions, GAMMA, TAU, UPDATE_EVERY, largest_Nsigma, smallest_Nsigma, ini_Nsigma, max_xy, max_spd, acc_range)
+    env.create_world(total_agentNum, n_actions, GAMMA, TAU, UPDATE_EVERY, largest_Nsigma,
+                     smallest_Nsigma, ini_Nsigma, max_xy, max_spd, acc_range)  # mainly for creating agents
 
     # --------- my own -----------
     n_agents = len(env.all_agents)
@@ -312,7 +314,8 @@ def main(args):
         episode_start_time = time.time()
         episode += 1
         eps_reset_start_time = time.time()
-        cur_state, norm_cur_state = env.reset_world(total_agentNum, show=1)
+        random_map_idx = random.randrange(len(env.world_map_2D_collection))
+        cur_state, norm_cur_state = env.reset_world(total_agentNum, random_map_idx, show=0)  # random map choose here
         eps_reset_time_used = (time.time()-eps_reset_start_time)*1000
         print("current episode {} reset time used is {} milliseconds".format(episode, eps_reset_time_used))  # need to + 1 here, or else will misrecord as the previous episode
         step_collision_record = [[], [], []]  # reset at each episode, so that we can record down collision at each step for each agent.
@@ -352,7 +355,7 @@ def main(args):
                 # action = model.choose_action(cur_state, episode, noisy=True)
 
                 one_step_transition_start = time.time()
-                next_state, norm_next_state, polygons_list, all_agent_st_points, all_agent_ed_points, all_agent_intersection_point_list, all_agent_line_collection, all_agent_mini_intersection_list = env.step(action, step)
+                next_state, norm_next_state, polygons_list, all_agent_st_points, all_agent_ed_points, all_agent_intersection_point_list, all_agent_line_collection, all_agent_mini_intersection_list = env.step(action, step, random_map_idx)
                 step_transition_time = (time.time() - one_step_transition_start)*1000
                 # print("current step transition time used is {} milliseconds".format(step_transition_time))
 
@@ -360,7 +363,7 @@ def main(args):
                 # reward_aft_action, done_aft_action, check_goal, step_reward_record = env.get_step_reward_5_v3(step, step_reward_record)   # remove reached agent here
 
                 one_step_reward_start = time.time()
-                reward_aft_action, done_aft_action, check_goal, step_reward_record, status_holder, step_collision_record, bound_building_check = env.ss_reward(step, step_reward_record, eps_status_holder, step_collision_record)   # remove reached agent here
+                reward_aft_action, done_aft_action, check_goal, step_reward_record, status_holder, step_collision_record, bound_building_check = env.ss_reward(step, step_reward_record, eps_status_holder, step_collision_record, random_map_idx)   # remove reached agent here
                 reward_generation_time = (time.time() - one_step_reward_start)*1000
                 # print("current step reward time used is {} milliseconds".format(reward_generation_time))
 

@@ -42,3 +42,9 @@ basedline_MAAC_ownENV/__pycache__/attention_sac_MAAC.cpython-39.pyc
 /MADDPG_ownENV_randomOD_gru_radar/wandb/
 /MADDPG_ownENV_randomOD_radar_one_model/wandb/
 /MADDPG_ownENV_randomOD_Wgru_radar/wandb/
+/MADDPG_ownENV_randomOD_radar_multipleMap/selected_map_zoom_in/
+/MADDPG_ownENV_randomOD_radar_multipleMap/selected_map_zoom_custom_flood_fill/
+/MADDPG_ownENV_randomOD_radar_multipleMap/selected_map/
+/MADDPG_ownENV_randomOD_radar_multipleMap/whole_map_polygon.pickle
+/MADDPG_ownENV_randomOD_radar_multipleMap/bound_world_map.pickle
+/MADDPG_ownENV_randomOD_radar_multipleMap/bound_allGridPoly.pickle
