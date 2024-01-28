@@ -50,3 +50,4 @@ basedline_MAAC_ownENV/__pycache__/attention_sac_MAAC.cpython-39.pyc
 /MADDPG_ownENV_randomOD_radar_multipleMap/bound_allGridPoly.pickle
 /MADDPG_ownENV_randomOD_radar_multipleMap/wandb/
 /MADDPG_ownENV_randomOD_radar_multipleMap/selected_map_v2/
+/MADDPG_ownENV_randomOD_radar_sur_drones/wandb/
