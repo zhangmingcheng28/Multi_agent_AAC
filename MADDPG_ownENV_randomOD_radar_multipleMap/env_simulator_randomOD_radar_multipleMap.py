@@ -194,15 +194,15 @@ class env_simulator:
                 matp_poly = shapelypoly_to_matpoly(poly, False, 'red')  # the 3rd parameter is the edge color
                 # ax.add_patch(matp_poly)
 
-            # ax.set_xlim(self.bound_collection[map_idx][0:2])
-            # ax.set_ylim(self.bound_collection[map_idx][2:4])
-            # plt.xlabel("X axis")
-            # plt.ylabel("Y axis")
-            # # plt.axis('equal') # when we use set_x/ylim, we cannot use this line, or else, will always show the entire map
-            # plt.draw()
-            # plt.pause(0.001)
-            # plt.savefig(f'figure_{map_idx}.png')
-
+        #     ax.set_xlim(self.bound_collection[map_idx][0:2])
+        #     ax.set_ylim(self.bound_collection[map_idx][2:4])
+        #     plt.xlabel("X axis")
+        #     plt.ylabel("Y axis")
+        #     # plt.axis('equal') # when we use set_x/ylim, we cannot use this line, or else, will always show the entire map
+        #     plt.draw()
+        #     plt.pause(0.001)
+        #     plt.savefig(f'figure_{map_idx}.png')
+        #
         # plt.ioff()  # Turn off interactive mode
         # plt.show()
 
@@ -1886,11 +1886,14 @@ class env_simulator:
             #
             #                                                     (1-(min_dist/turningPtConst)**2))  # value from 0 ~ 1.
             # turningPtConst = 12.5
-            turningPtConst = 5
+            # turningPtConst = 5
+            turningPtConst = 10
             if turningPtConst == 12.5:
                 c = 1.25
             elif turningPtConst == 5:
                 c = 2
+            elif turningPtConst == 10:
+                c = 10/7.5
 
             # # linear building penalty
             # makesure only when min_dist is >=0 and <= turningPtConst, then we activate this penalty
@@ -2018,7 +2021,8 @@ class env_simulator:
         # hence, 4 here is equivalent to the acceleration of 2m/s^2
 
         # coe_a = 4  # coe_a is the coefficient of action is 4 because our time step is 0.5 sec
-        coe_a = 8  # coe_a is the coefficient of action is 4 because our time step is 0.5 sec
+        # coe_a = 8  # coe_a is the coefficient of action is 4 because our time step is 0.5 sec
+        coe_a = 20  #  our time step is 0.5 sec, meaning acceleration is 10m/s^2
         # based on the input stack of actions we propagate all agents forward
         # for drone_idx, drone_act in actions.items():  # this is for evaluation with default action
         count = 1

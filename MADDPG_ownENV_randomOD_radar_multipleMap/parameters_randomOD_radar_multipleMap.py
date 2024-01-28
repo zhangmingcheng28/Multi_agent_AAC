@@ -44,10 +44,15 @@ def initialize_parameters():
     # ylow = 0
     # yhigh = 1300
     # bound = [xlow, xhigh, ylow, yhigh]
-    bound = {0: [230, 530, 1000, 1200], 1: [870, 1170, 830, 1030], 2: [100, 400, 500, 700], 3: [455, 680, 255, 385],
-             4: [300, 600, 500, 700], 5: [530, 860, 650, 850], 6: [350, 650, 150, 350], 7: [550, 850, 300, 500],
-             8: [640, 940, 580, 780], 9: [750, 1050, 150, 350], 10: [880, 1180, 400, 600], 11: [900, 1200, 500, 700],
-             12: [930, 1230, 80, 280], 13: [1500, 1800, 300, 500], 14: [280, 580, 0, 200]}
+    # bound = {0: [230, 530, 1000, 1200], 1: [870, 1170, 830, 1030], 2: [100, 400, 500, 700], 3: [455, 680, 255, 385],
+    #          4: [300, 600, 500, 700], 5: [530, 860, 650, 850], 6: [350, 650, 150, 350], 7: [550, 850, 300, 500],
+    #          8: [640, 940, 580, 780], 9: [750, 1050, 150, 350], 10: [880, 1180, 400, 600], 11: [900, 1200, 500, 700],
+    #          12: [930, 1230, 80, 280], 13: [1500, 1800, 300, 500], 14: [280, 580, 0, 200]}
+
+    bound = {0: [0, 250, 550, 700], 1: [230, 530, 1000, 1200], 2: [815, 1015, 270, 385], 3: [455, 680, 255, 385],
+             4: [250, 450, 260, 385], 5: [585, 695, 165, 300], 6: [1395, 1535, 615, 715], 7: [815, 1000, 950, 1055],
+             8: [1005, 1155, 535, 620], 9: [1535, 1675, 225, 345], 10: [905, 1085, 105, 205], 11: [1105, 1195, 385, 515],
+             12: [715, 845, 255, 355], 13: [685, 825, 595, 705]}
 
     bound_world_map = {}
     bound_allGridPoly = {}
@@ -63,13 +68,13 @@ def initialize_parameters():
     #     bound_allGridPoly[bound_idx] = staticEnv[3]
     #     cropped_coord_match_actual_coord[bound_idx] = staticEnv[-1]
     # #
-    # with open(r'D:\selected_map\bound_allGridPoly.pickle', 'wb') as handle:
+    # with open(r'D:\selected_map_v2\bound_allGridPoly.pickle', 'wb') as handle:
     #     pickle.dump(bound_allGridPoly, handle, protocol=pickle.HIGHEST_PROTOCOL)
-    # with open(r'D:\selected_map\bound_world_map.pickle', 'wb') as handle:
+    # with open(r'D:\selected_map_v2\bound_world_map.pickle', 'wb') as handle:
     #     pickle.dump(bound_world_map, handle, protocol=pickle.HIGHEST_PROTOCOL)
-    # with open(r'D:\selected_map\whole_map_polygon.pickle', 'wb') as handle:
+    # with open(r'D:\selected_map_v2\whole_map_polygon.pickle', 'wb') as handle:
     #     pickle.dump(staticEnv[1], handle, protocol=pickle.HIGHEST_PROTOCOL)
-    # with open(r'D:\selected_map\cropped_coord_match_actual_coord.pickle', 'wb') as handle:
+    # with open(r'D:\selected_map_v2\cropped_coord_match_actual_coord.pickle', 'wb') as handle:
     #     pickle.dump(cropped_coord_match_actual_coord, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
     seed = 3407  # this seed is only used for torch manuel.seed
@@ -78,13 +83,13 @@ def initialize_parameters():
     max_xy = (maxX, maxY)
     # whole_map_polygon = staticEnv[1]
     gridLength = 10
-    with open(r'D:\selected_map\bound_allGridPoly.pickle', 'rb') as handle:
+    with open(r'D:\selected_map_v2\bound_allGridPoly.pickle', 'rb') as handle:
         bound_allGridPoly = pickle.load(handle)
-    with open(r'D:\selected_map\bound_world_map.pickle', 'rb') as handle:
+    with open(r'D:\selected_map_v2\bound_world_map.pickle', 'rb') as handle:
         bound_world_map = pickle.load(handle)
-    with open(r'D:\selected_map\whole_map_polygon.pickle', 'rb') as handle:
+    with open(r'D:\selected_map_v2\whole_map_polygon.pickle', 'rb') as handle:
         whole_map_polygon = pickle.load(handle)
-    with open(r'D:\selected_map\cropped_coord_match_actual_coord.pickle', 'rb') as handle:
+    with open(r'D:\selected_map_v2\cropped_coord_match_actual_coord.pickle', 'rb') as handle:
         cropped_coord_match_actual_coord = pickle.load(handle)
 
     # agent config address

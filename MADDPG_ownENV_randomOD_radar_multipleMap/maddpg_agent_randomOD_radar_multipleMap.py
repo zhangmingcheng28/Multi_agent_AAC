@@ -230,8 +230,9 @@ class MADDPG:
         reward_batch = torch.stack(batch.rewards).type(FloatTensor)
         # history_batch = torch.stack(batch.history_info).type(FloatTensor)
         # whole_agent_combine_history = history_batch.view(self.batch_size, -1)
-        agents_next_hidden_state = torch.stack(batch.next_hidden).type(FloatTensor)
-        agents_cur_hidden_state = torch.stack(batch.cur_hidden).type(FloatTensor)
+        if use_GRU_flag:
+            agents_next_hidden_state = torch.stack(batch.next_hidden).type(FloatTensor)
+            agents_cur_hidden_state = torch.stack(batch.cur_hidden).type(FloatTensor)
         # whole_agent_combine_gru = history_batch.view(history_batch.shape[0], history_batch.shape[1], -1)
 
         # stack tensors only once

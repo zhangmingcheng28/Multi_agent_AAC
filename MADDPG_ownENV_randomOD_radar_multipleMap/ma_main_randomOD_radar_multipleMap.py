@@ -109,24 +109,24 @@ def append_to_excel(file_path, data):
     wb.save(file_path)
 
 
-def animate(frame_num, ax, env, trajectory_eachPlay):
+def animate(frame_num, ax, env, trajectory_eachPlay, random_map_idx):
     ax.clear()
     plt.axis('equal')
-    plt.xlim(env.bound[0], env.bound[1])
-    plt.ylim(env.bound[2], env.bound[3])
-    plt.axvline(x=env.bound[0], c="green")
-    plt.axvline(x=env.bound[1], c="green")
-    plt.axhline(y=env.bound[2], c="green")
-    plt.axhline(y=env.bound[3], c="green")
+    plt.xlim(env.bound_collection[random_map_idx][0], env.bound_collection[random_map_idx][1])
+    plt.ylim(env.bound_collection[random_map_idx][2], env.bound_collection[random_map_idx][3])
+    plt.axvline(x=env.bound_collection[random_map_idx][0], c="green")
+    plt.axvline(x=env.bound_collection[random_map_idx][1], c="green")
+    plt.axhline(y=env.bound_collection[random_map_idx][2], c="green")
+    plt.axhline(y=env.bound_collection[random_map_idx][3], c="green")
     plt.xlabel("X axis")
     plt.ylabel("Y axis")
 
     # draw occupied_poly
-    for one_poly in env.world_map_2D_polyList[0][0]:
+    for one_poly in env.world_map_2D_polyList_collection[random_map_idx][0][0]:
         one_poly_mat = shapelypoly_to_matpoly(one_poly, True, 'y', 'b')
         ax.add_patch(one_poly_mat)
     # draw non-occupied_poly
-    for zero_poly in env.world_map_2D_polyList[0][1]:
+    for zero_poly in env.world_map_2D_polyList_collection[random_map_idx][0][1]:
         zero_poly_mat = shapelypoly_to_matpoly(zero_poly, False, 'y')
         # ax.add_patch(zero_poly_mat)
 
@@ -179,27 +179,27 @@ def get_history_tensor(history, sequence_length, input_size):
     return history_tensor.unsqueeze(0)
 
 
-def save_gif(env, trajectory_eachPlay, pre_fix, episode_to_check, episode):
+def save_gif(env, trajectory_eachPlay, pre_fix, episode_to_check, episode, random_map_idx):
     os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
     matplotlib.use('TkAgg')
     fig, ax = plt.subplots(1, 1)
 
     plt.axis('equal')
-    plt.xlim(env.bound[0], env.bound[1])
-    plt.ylim(env.bound[2], env.bound[3])
-    plt.axvline(x=env.bound[0], c="green")
-    plt.axvline(x=env.bound[1], c="green")
-    plt.axhline(y=env.bound[2], c="green")
-    plt.axhline(y=env.bound[3], c="green")
+    plt.xlim(env.bound_collection[random_map_idx][0], env.bound_collection[random_map_idx][1])
+    plt.ylim(env.bound_collection[random_map_idx][2], env.bound_collection[random_map_idx][3])
+    plt.axvline(x=env.bound_collection[random_map_idx][0], c="green")
+    plt.axvline(x=env.bound_collection[random_map_idx][1], c="green")
+    plt.axhline(y=env.bound_collection[random_map_idx][2], c="green")
+    plt.axhline(y=env.bound_collection[random_map_idx][3], c="green")
     plt.xlabel("X axis")
     plt.ylabel("Y axis")
 
     # draw occupied_poly
-    for one_poly in env.world_map_2D_polyList[0][0]:
+    for one_poly in env.world_map_2D_polyList_collection[random_map_idx][0][0]:
         one_poly_mat = shapelypoly_to_matpoly(one_poly, True, 'y', 'b')
         ax.add_patch(one_poly_mat)
     # draw non-occupied_poly
-    for zero_poly in env.world_map_2D_polyList[0][1]:
+    for zero_poly in env.world_map_2D_polyList_collection[random_map_idx][0][1]:
         zero_poly_mat = shapelypoly_to_matpoly(zero_poly, False, 'y')
         # ax.add_patch(zero_poly_mat)
 
@@ -231,7 +231,7 @@ def save_gif(env, trajectory_eachPlay, pre_fix, episode_to_check, episode):
         plt.text(agent.goal[-1][0], agent.goal[-1][1], agent.agent_name)
 
     # Create animation
-    ani = animation.FuncAnimation(fig, animate, fargs=(ax, env, trajectory_eachPlay), frames=len(trajectory_eachPlay),
+    ani = animation.FuncAnimation(fig, animate, fargs=(ax, env, trajectory_eachPlay, random_map_idx), frames=len(trajectory_eachPlay),
                                   interval=300, blit=False)
     # Save as GIF
     gif_path = pre_fix + '\episode_' + episode_to_check + 'simulation_num_' + str(episode) + '.gif'
@@ -347,13 +347,12 @@ def main(args):
 
     use_wanDB = False
     # use_wanDB = True
-    use_GRU_flag = True
-    # use_GRU_flag = False
+    # use_GRU_flag = True
+    use_GRU_flag = False
     get_evaluation_status = True  # have figure output
     # get_evaluation_status = False  # no figure output, mainly obtain collision rate
     # simply_view_evaluation = True  # don't save gif
     simply_view_evaluation = False  # save gif
-
 
     if use_wanDB:
         wandb.login(key="efb76db851374f93228250eda60639c70a93d1ec")
@@ -405,7 +404,8 @@ def main(args):
     ini_Nsigma = largest_Nsigma
 
     # max_spd = 15
-    max_spd = 10
+    # max_spd = 10
+    max_spd = 5
     env.create_world(total_agentNum, n_actions, GAMMA, TAU, UPDATE_EVERY, largest_Nsigma,
                      smallest_Nsigma, ini_Nsigma, max_xy, max_spd, acc_range)  # mainly for creating agents
 
@@ -443,8 +443,8 @@ def main(args):
     if args.mode == "eval":
         args.max_episodes = 10  # only evaluate one episode during evaluation mode.
         # args.max_episodes = 100
-        pre_fix = r'D:\MADDPG_2nd_jp\090124_17_37_47\interval_record_eps'
-        episode_to_check = str(9000)
+        pre_fix = r'D:\MADDPG_2nd_jp\260124_21_22_35\interval_record_eps'
+        episode_to_check = str(11000)
         load_filepath_0 = pre_fix + '\episode_' + episode_to_check + '_agent_0actor_net.pth'
         load_filepath_1 = pre_fix + '\episode_' + episode_to_check + '_agent_1actor_net.pth'
         load_filepath_2 = pre_fix + '\episode_' + episode_to_check + '_agent_2actor_net.pth'
@@ -735,8 +735,8 @@ def main(args):
                 step_reward_record = [None] * n_agents
                 # show_step_by_step = True
                 show_step_by_step = False
-                # saved_gif = True  # Don't save gif while doing mass run
-                saved_gif = False
+                saved_gif = True  # Don't save gif while doing mass run
+                # saved_gif = False
                 noise_flag = False
                 # populate gru history
                 gru_history.append(np.array(norm_cur_state[0]))
@@ -750,7 +750,7 @@ def main(args):
                 # for a_idx, action_ele in enumerate(action):
                 #     action[a_idx] = [-0.3535, 0.3535]
                 next_state, norm_next_state, polygons_list, all_agent_st_points, all_agent_ed_points, all_agent_intersection_point_list, all_agent_line_collection, all_agent_mini_intersection_list = env.step(action, step, random_map_idx)  # no heading update here
-                reward_aft_action, done_aft_action, check_goal, step_reward_record, eps_status_holder, step_collision_record, bound_building_check = env.ss_reward(step, step_reward_record, eps_status_holder, step_collision_record)
+                reward_aft_action, done_aft_action, check_goal, step_reward_record, eps_status_holder, step_collision_record, bound_building_check = env.ss_reward(step, step_reward_record, eps_status_holder, step_collision_record, random_map_idx)
                 # reward_aft_action, done_aft_action, check_goal, step_reward_record = env.get_step_reward_5_v3(step, step_reward_record)
 
                 step += 1
@@ -897,7 +897,7 @@ def main(args):
 
                         # ---------- new save as gif ----------------------- #
                         else:
-                            save_gif(env, trajectory_eachPlay, pre_fix, episode_to_check, episode)
+                            save_gif(env, trajectory_eachPlay, pre_fix, episode_to_check, episode, random_map_idx)
 
                     if True in done_aft_action and step < args.episode_length:
                         if saved_gif == False:
@@ -966,7 +966,7 @@ if __name__ == '__main__':
     parser.add_argument('--scenario', default="simple_spread", type=str)
     parser.add_argument('--max_episodes', default=35000, type=int)  # run for a total of 50000 episodes
     parser.add_argument('--algo', default="maddpg", type=str, help="commnet/bicnet/maddpg")
-    parser.add_argument('--mode', default="train", type=str, help="train/eval")
+    parser.add_argument('--mode', default="eval", type=str, help="train/eval")
     parser.add_argument('--episode_length', default=150, type=int)  # maximum play per episode
     parser.add_argument('--memory_length', default=int(1e5), type=int)
     parser.add_argument('--seed', default=777, type=int)  # may choose to use 3407
