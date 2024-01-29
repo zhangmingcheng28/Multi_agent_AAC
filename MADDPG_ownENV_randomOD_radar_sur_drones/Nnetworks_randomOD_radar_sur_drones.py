@@ -471,6 +471,23 @@ class critic_single_OnePortion(nn.Module):
         return q
 
 
+class critic_combine_TwoPortion(nn.Module):
+    def __init__(self, critic_obs, n_agents, n_actions, single_history, hidden_state_size):
+        super(critic_combine_TwoPortion, self).__init__()
+        self.SA_fc = nn.Sequential(nn.Linear(critic_obs[0]+(n_actions*n_agents), 128), nn.ReLU())
+        self.SA_grid = nn.Sequential(nn.Linear(critic_obs[1], 128), nn.ReLU())
+        self.merge_fc_grid = nn.Sequential(nn.Linear(128+128, 256), nn.ReLU())
+        self.out_feature_q = nn.Sequential(nn.Linear(256, 1))
+
+    def forward(self, combine_state, combine_action):
+        obsWaction = torch.cat((combine_state[0], combine_action), dim=1)  # obs + action
+        own_obsWaction = self.SA_fc(obsWaction)
+        own_grid = self.SA_grid(combine_state[1])  # grid
+        merge_obs_grid = torch.cat((own_obsWaction, own_grid), dim=1)
+        merge_feature = self.merge_fc_grid(merge_obs_grid)
+        q = self.out_feature_q(merge_feature)
+        return q
+
 
 class CriticNetwork_0724(nn.Module):
     def __init__(self, critic_obs, n_agents, n_actions):
