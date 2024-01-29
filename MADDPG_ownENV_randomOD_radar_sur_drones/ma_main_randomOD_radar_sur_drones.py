@@ -41,6 +41,7 @@ else:
     device = torch.device('cpu')
     print('Using CPU')
 
+# device = torch.device('cpu')
 
 def initialize_excel_file(file_path):
     # Create a new workbook and add three empty sheets

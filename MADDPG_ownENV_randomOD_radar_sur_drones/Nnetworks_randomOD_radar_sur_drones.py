@@ -148,7 +148,6 @@ class ActorNetwork_TwoPortion(nn.Module):
         self.own_fc = nn.Sequential(nn.Linear(actor_dim[0], 64), nn.ReLU())
         self.own_grid = nn.Sequential(nn.Linear(actor_dim[1], 64), nn.ReLU())
         self.merge_feature = nn.Sequential(nn.Linear(64+64, 128), nn.ReLU())
-        self.merge_feature_l2 = nn.Sequential(nn.Linear(128, 128), nn.ReLU())
         self.act_out = nn.Sequential(nn.Linear(128, n_actions), nn.Tanh())
 
     def forward(self, cur_state):
@@ -156,7 +155,6 @@ class ActorNetwork_TwoPortion(nn.Module):
         own_grid = self.own_grid(cur_state[1])
         merge_obs_grid = torch.cat((own_obs, own_grid), dim=1)
         merge_feature = self.merge_feature(merge_obs_grid)
-        # merge_feature = self.merge_feature_l2(merge_obs_grid)
         out_action = self.act_out(merge_feature)
         return out_action
 

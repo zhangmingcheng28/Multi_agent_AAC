@@ -296,6 +296,11 @@ class MADDPG:
             self.critic_optimizer[agent].zero_grad()
             # loss_Q.backward(retain_graph=True)
             loss_Q.backward()
+            self.has_gradients(self.critics[agent], agent, wandb)
+            # for name, param in self.critics[agent].named_parameters():
+            #     if param.grad is not None:
+            #         wandb.log({f"actor/{agent}_/{name}_gradients_histogram": wandb.Histogram(param.grad.cpu().detach().numpy())})
+
             self.critic_optimizer[agent].step()
 
             action_i = self.actors[agent]([stacked_elem_0[:,agent,:], stacked_elem_1[:,agent,:]])
@@ -316,9 +321,11 @@ class MADDPG:
             # actor_loss = -self.critics[agent](stacked_elem_0[:,agent,:], ac[:, agent, :], agents_cur_hidden_state[:, agent, :])[0].mean()
             self.actor_optimizer[agent].zero_grad()
             actor_loss.backward()
-
+            # for name, param in self.actors[agent].named_parameters():
+            #     if param.grad is not None:
+            #         wandb.log({f"actor/{agent}_/{name}_gradients_histogram": wandb.Histogram(param.grad.cpu().detach().numpy())})
             # torch.nn.utils.clip_grad_norm_(self.actors[agent].parameters(), 1)
-            # self.has_gradients(self.actors[agent], wandb)  # Replace with your actor network variable
+            self.has_gradients(self.actors[agent], agent, wandb)  # Replace with your actor network variable
             self.actor_optimizer[agent].step()
 
             c_loss.append(loss_Q)
@@ -338,13 +345,16 @@ class MADDPG:
 
         return c_loss, a_loss
 
-    def has_gradients(self, model, wandb=None):
+    def has_gradients(self, model, agent, wandb=None):
         for name, param in model.named_parameters():
             if param.grad is None:
                 print(f"No gradient for {name}")
             else:
                 # print(f"Gradient for {name} is {param.grad.norm()}")
+                # wandb.log(
+                #     {f"actor/{agent}_/{name}_gradients_histogram": wandb.Histogram(param.grad.cpu().detach().numpy())})
                 wandb.log({name: float(param.grad.norm())})
+                # wandb.log({'agent' + str(idx): wandb.Histogram(param.grad.cpu().detach().numpy())})
 
     def choose_action(self, state, cur_total_step, cur_episode, step, total_training_steps, noise_start_level, actor_hiddens, noisy=True):
         # ------------- MADDPG_test_181123_10_10_54 version noise -------------------
