@@ -294,10 +294,8 @@ class MADDPG:
 
             loss_Q = nn.MSELoss()(current_Q, target_Q.detach())
             self.critic_optimizer[agent].zero_grad()
-            loss_Q.backward(retain_graph=True)
-
-            # torch.nn.utils.clip_grad_norm_(self.critics[agent].parameters(), 1)
-            # self.has_gradients(self.critics[agent], wandb)  # Replace with your actor network variable
+            # loss_Q.backward(retain_graph=True)
+            loss_Q.backward()
             self.critic_optimizer[agent].step()
 
             action_i = self.actors[agent]([stacked_elem_0[:,agent,:], stacked_elem_1[:,agent,:]])
