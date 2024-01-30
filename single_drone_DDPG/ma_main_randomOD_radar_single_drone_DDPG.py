@@ -13,9 +13,9 @@ import time
 import matplotlib.animation as animation
 import pickle
 import wandb
-from parameters_randomOD_radar_sur_drones import initialize_parameters
-from maddpg_agent_randomOD_radar_sur_drones import MADDPG
-from utils_randomOD_radar_sur_drones import *
+from parameters_randomOD_radar_single_drone_DDPG import initialize_parameters
+from maddpg_agent_randomOD_radar_single_drone_DDPG import MADDPG
+from utils_randomOD_radar_single_drone_DDPG import *
 from copy import deepcopy
 import torch
 import matplotlib.pyplot as plt
@@ -25,7 +25,7 @@ from shapely.strtree import STRtree
 from matplotlib.markers import MarkerStyle
 import math
 from matplotlib.transforms import Affine2D
-from Utilities_own_randomOD_radar_sur_drones import *
+from Utilities_own_randomOD_radar_single_drone_DDPG import *
 from collections import deque
 import csv
 

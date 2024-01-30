@@ -473,35 +473,34 @@ class critic_combine_TwoPortion(nn.Module):
     def __init__(self, critic_obs, n_agents, n_actions, single_history, hidden_state_size):
         super(critic_combine_TwoPortion, self).__init__()
         # v1 #
-        self.SA_fc = nn.Sequential(nn.Linear(critic_obs[0]+(n_actions*n_agents), 128), nn.ReLU())
-        self.SA_grid = nn.Sequential(nn.Linear(critic_obs[1], 128), nn.ReLU())
-        self.merge_fc_grid = nn.Sequential(nn.Linear(128+128, 256), nn.ReLU())
-        self.out_feature_q = nn.Sequential(nn.Linear(256, 1))
+        # self.SA_fc = nn.Sequential(nn.Linear(critic_obs[0]+(n_actions*n_agents), 128), nn.ReLU())
+        # self.SA_grid = nn.Sequential(nn.Linear(critic_obs[1], 128), nn.ReLU())
+        # self.merge_fc_grid = nn.Sequential(nn.Linear(128+128, 256), nn.ReLU())
+        # self.out_feature_q = nn.Sequential(nn.Linear(256, 1))
         # end of v1 #
 
-        #  # v2 #
-        # self.S_fc = nn.Sequential(nn.Linear(critic_obs[0], 128), nn.ReLU())
-        # self.grid_fc = nn.Sequential(nn.Linear(critic_obs[1], 128), nn.ReLU())
-        # self.combine_inputWact = nn.Sequential(nn.Linear(128+128+(n_actions*n_agents), 256), nn.ReLU())
-        # self.out_feature_q = nn.Sequential(nn.Linear(256, 1))
-        # # end of v2 #
+        # v2 #
+        self.S_fc = nn.Sequential(nn.Linear(critic_obs[0], 128), nn.ReLU())
+        self.grid_fc = nn.Sequential(nn.Linear(critic_obs[1], 128), nn.ReLU())
+        self.combine_inputWact = nn.Sequential(nn.Linear(128+128+(n_actions*n_agents), 256), nn.ReLU())
+        self.out_feature_q = nn.Sequential(nn.Linear(256, 1))
 
     def forward(self, combine_state, combine_action):
         # ---- v1 -----
-        obsWaction = torch.cat((combine_state[0], combine_action), dim=1)  # obs + action
-        own_obsWaction = self.SA_fc(obsWaction)
-        own_grid = self.SA_grid(combine_state[1])  # grid
-        merge_obs_grid = torch.cat((own_obsWaction, own_grid), dim=1)
-        merge_feature = self.merge_fc_grid(merge_obs_grid)
-        q = self.out_feature_q(merge_feature)
+        # obsWaction = torch.cat((combine_state[0], combine_action), dim=1)  # obs + action
+        # own_obsWaction = self.SA_fc(obsWaction)
+        # own_grid = self.SA_grid(combine_state[1])  # grid
+        # merge_obs_grid = torch.cat((own_obsWaction, own_grid), dim=1)
+        # merge_feature = self.merge_fc_grid(merge_obs_grid)
+        # q = self.out_feature_q(merge_feature)
         # --- end of v1 ---
 
         # --- v2 ---
-        # own_obs = self.S_fc(combine_state[0])
-        # own_grid = self.grid_fc(combine_state[1])
-        # combine_obs = torch.cat((own_obs, own_grid, combine_action), dim=1)
-        # combine_obs_feature = self.combine_inputWact(combine_obs)
-        # q = self.out_feature_q(combine_obs_feature)
+        own_obs = self.S_fc(combine_state[0])
+        own_grid = self.grid_fc(combine_state[1])
+        combine_obs = torch.cat((own_obs, own_grid, combine_action), dim=1)
+        combine_obs_feature = self.combine_inputWact(combine_obs)
+        q = self.out_feature_q(combine_obs_feature)
         # --- end of v2 ---
         return q
 
