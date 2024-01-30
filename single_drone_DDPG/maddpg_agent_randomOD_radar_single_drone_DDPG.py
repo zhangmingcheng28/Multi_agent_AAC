@@ -3,7 +3,7 @@ from Nnetworks_randomOD_radar_single_drone_DDPG import critic_combine_TwoPortion
 import torch
 from copy import deepcopy
 from torch.optim import Adam
-from memory_randomOD_radar_single_drone_DDPGs import ReplayMemory, Experience
+from memory_randomOD_radar_single_drone_DDPG import ReplayMemory, Experience
 # from random_process_MADDPGv3_randomOD import OrnsteinUhlenbeckProcess
 from torch.autograd import Variable
 import os

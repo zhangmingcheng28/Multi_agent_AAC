@@ -345,8 +345,8 @@ def main(args):
         # initialize_excel_file(excel_file_path_time)
         # ------------ end of this portion is to save using excel instead of pickle -----------
 
-    # use_wanDB = False
-    use_wanDB = True
+    use_wanDB = False
+    # use_wanDB = True
 
     # get_evaluation_status = True  # have figure output
     get_evaluation_status = False  # no figure output, mainly obtain collision rate
@@ -354,8 +354,8 @@ def main(args):
     # simply_view_evaluation = True  # don't save gif
     simply_view_evaluation = False  # save gif
 
-    full_observable_critic_flag = True
-    # full_observable_critic_flag = False
+    # full_observable_critic_flag = True
+    full_observable_critic_flag = False
 
 
     if use_wanDB:
@@ -375,7 +375,7 @@ def main(args):
     n_episodes, max_t, eps_start, eps_end, eps_period, eps, env, \
     agent_grid_obs, BUFFER_SIZE, BATCH_SIZE, GAMMA, TAU, learning_rate, UPDATE_EVERY, seed_used, max_xy = initialize_parameters()
     # total_agentNum = len(pd.read_excel(env.agentConfig))
-    total_agentNum = 3
+    total_agentNum = 1
     # UPDATE_EVERY = 30
     UPDATE_EVERY = 1
     # max_nei_num = 5
