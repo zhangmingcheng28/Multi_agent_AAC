@@ -1033,8 +1033,8 @@ class env_simulator:
 
             norm_pos = self.normalizer.scale_pos([agent.pos[0], agent.pos[1]])
 
-            norm_vel = self.normalizer.scale_vel([agent.vel[0], agent.vel[1]])
-            # norm_vel = self.normalizer.nmlz_vel([agent.vel[0], agent.vel[1]])
+            # norm_vel = self.normalizer.scale_vel([agent.vel[0], agent.vel[1]])
+            norm_vel = self.normalizer.nmlz_vel([agent.vel[0], agent.vel[1]])
 
             norm_G = self.normalizer.nmlz_pos([agent.goal[-1][0], agent.goal[-1][1]])
             norm_deltaG = norm_G - norm_pos
