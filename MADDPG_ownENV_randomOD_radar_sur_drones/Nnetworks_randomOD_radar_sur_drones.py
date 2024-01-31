@@ -473,9 +473,12 @@ class critic_combine_TwoPortion(nn.Module):
     def __init__(self, critic_obs, n_agents, n_actions, single_history, hidden_state_size):
         super(critic_combine_TwoPortion, self).__init__()
         # v1 #
-        self.SA_fc = nn.Sequential(nn.Linear(critic_obs[0]+(n_actions*n_agents), 128), nn.ReLU())
-        self.SA_grid = nn.Sequential(nn.Linear(critic_obs[1], 128), nn.ReLU())
-        self.merge_fc_grid = nn.Sequential(nn.Linear(128+128, 256), nn.ReLU())
+        # self.SA_fc = nn.Sequential(nn.Linear(critic_obs[0]+(n_actions*n_agents), 128), nn.ReLU())
+        self.SA_fc = nn.Sequential(nn.Linear(critic_obs[0]+(n_actions*n_agents), 256), nn.ReLU())
+        # self.SA_grid = nn.Sequential(nn.Linear(critic_obs[1], 128), nn.ReLU())
+        self.SA_grid = nn.Sequential(nn.Linear(critic_obs[1], 256), nn.ReLU())
+        # self.merge_fc_grid = nn.Sequential(nn.Linear(128+128, 256), nn.ReLU())
+        self.merge_fc_grid = nn.Sequential(nn.Linear(256+256, 256), nn.ReLU())
         self.out_feature_q = nn.Sequential(nn.Linear(256, 1))
         # end of v1 #
 

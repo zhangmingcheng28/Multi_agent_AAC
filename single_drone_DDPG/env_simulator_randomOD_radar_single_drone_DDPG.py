@@ -47,6 +47,7 @@ class env_simulator:
         self.agentConfig = agentConfig
         self.gridlength = grid_length
         self.buildingPolygons = building_polygons  # contain all polygon in the world that has building
+        self.geo_fence_area = []
         self.world_STRtree = None  # contains all polygon in the environment
         self.allbuildingSTR = None
         self.allbuildingSTR_wBound = None
@@ -390,6 +391,42 @@ class env_simulator:
         overall_state, norm_overall_state, polygons_list, all_agent_st_pos, all_agent_ed_pos, all_agent_intersection_point_list, \
         all_agent_line_collection, all_agent_mini_intersection_list = self.cur_state_norm_state_v3(agentRefer_dict)
 
+        # we set up geo-fence area here
+        for _ in range(3):  # we create 3 centre points for generate temporary geo-fence
+            # get the nearest point from the host drone's pos to its ref line
+            nearest_points = self.all_agents[0].ref_line.interpolate(self.all_agents[0].ref_line.project(Point(self.all_agents[0].pos)))
+
+            # Fixed distance within which the point should be generated
+            fixed_distance = 2.5  # don't deviate from ref line too far
+
+            # Distance from the start of the line to point P
+            dist_linestart_Tonearest_points = self.all_agents[0].ref_line.project(nearest_points)
+
+            # Distance from nearest_points to the new geo-fence centre
+            spawn_threshold = 20  # will only spawn at least 20 meters from the host's current point
+            end_of_line = self.all_agents[0].ref_line.length - dist_linestart_Tonearest_points - spawn_threshold
+            if end_of_line < spawn_threshold:  # meaning the total length of the distance is quite short
+                spawn_threshold = 5  # we still generate geo-fence, but nearer to the drone
+                end_of_line = self.all_agents[0].ref_line.length - dist_linestart_Tonearest_points
+            distance_from_nearest_points = random.randint(spawn_threshold, end_of_line)
+
+            # Total distance from the start of the line to the new geo-fence centre
+            total_distance = dist_linestart_Tonearest_points + distance_from_nearest_points
+
+            # Get a point on the LineString at the random distance
+            point_on_line = self.all_agents[0].ref_line.interpolate(total_distance)
+
+            # Generate a random bearing and distance
+            random_bearing = random.uniform(0, 2 * math.pi)  # Angle in radians
+            random_distance_from_point = random.uniform(0, fixed_distance)
+
+            # Calculate the random point's coordinates
+            random_point_x = point_on_line.x + random_distance_from_point * math.cos(random_bearing)
+            random_point_y = point_on_line.y + random_distance_from_point * math.sin(random_bearing)
+            circle_centre = Point(random_point_x, random_point_y)
+            geo_fence = circle_centre.buffer(5)
+            self.geo_fence_area.append(geo_fence)
+
         if show:
             os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
             matplotlib.use('TkAgg')
@@ -431,6 +468,11 @@ class env_simulator:
             for poly in self.buildingPolygons:
                 matp_poly = shapelypoly_to_matpoly(poly, False, 'red')  # the 3rd parameter is the edge color
                 # ax.add_patch(matp_poly)
+
+            # show geo-fence
+            for fence in self.geo_fence_area:
+                geo_fence_circle = shapelypoly_to_matpoly(fence, False, 'r')
+                ax.add_patch(geo_fence_circle)
 
             # show the nearest building obstacles
             # nearest_buildingPoly_mat = shapelypoly_to_matpoly(nearest_buildingPoly, True, 'g', 'k')
@@ -918,16 +960,13 @@ class env_simulator:
                 drone_min_dist = line.length
                 min_distance = line.length
 
-                # Build other drone's position circle, and decide the minimum intersection distance from cur host drone to other drone
-                for other_agents_idx, others in self.all_agents.items():
-                    if other_agents_idx == agentIdx:
-                        continue
-                    other_circle = Point(others.pos).buffer(agent.protectiveBound)
+                # get radar distance from host drone to geo-fence circle, and decide the minimum intersection distance from cur host drone to other drone
+                for geo_fence in self.geo_fence_area:
                     # Check if the LineString intersects with the circle
-                    if line.intersects(other_circle):
+                    if line.intersects(geo_fence):
                         drone_nearest_flag = 0
                         # Find the intersection point(s)
-                        intersection = line.intersection(other_circle)
+                        intersection = line.intersection(geo_fence)
                         # The intersection could be a Point or a MultiPoint
                         # If it's a MultiPoint, we'll calculate the distance to the first intersection
                         if intersection.geom_type == 'MultiPoint':
@@ -963,7 +1002,7 @@ class env_simulator:
                         if drone_distance < drone_min_dist:
                             drone_min_dist = drone_distance
                             drone_nearest_pt = drone_perimeter_point
-                # ------------ end of radar check surrounding drone's position -------------------------
+                # ------------ end of radar check surrounding geo-fence collision -------------------------
 
                 # If there are intersecting polygons, find the nearest intersection point
                 if len(intersecting_polygons) != 0:  # check if a list is empty
@@ -1843,13 +1882,25 @@ class env_simulator:
 
             # --------------- a new way to check for the next wp --------------------
             smallest_dist = math.inf
-            wp_reach_threshold_dist = 5
             wp_intersect_flag = False
+            wp_reach_threshold_dist = 5
+
             for wpidx, wp in enumerate(self.all_agents[drone_idx].goal):
                 cur_dist_to_wp = curPoint.distance(Point(wp))
                 if cur_dist_to_wp < smallest_dist:
                     smallest_dist = cur_dist_to_wp
                     next_wp = np.array(wp)
+                    for geo_fence in self.geo_fence_area:
+                        if Point(next_wp).within(geo_fence):
+                            centroid = geo_fence.centroid
+                            # Choose any point on the boundary of the circle polygon
+                            boundary_point = geo_fence.boundary.coords[0]
+                            # Calculate the radius as the distance from the centroid to the boundary point
+                            geo_fence_radius = centroid.distance(Point(boundary_point))
+                            wp_furthest_distance_to_perimeter = geo_fence_radius + centroid.distance(Point(next_wp))
+                            if wp_furthest_distance_to_perimeter > wp_reach_threshold_dist:
+                                wp_reach_threshold_dist = wp_furthest_distance_to_perimeter+1
+
                     if smallest_dist < wp_reach_threshold_dist:
                         wp_intersect_flag = True
                         # we find the next wp, as long as it is not the last wp
