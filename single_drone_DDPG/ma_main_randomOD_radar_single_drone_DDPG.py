@@ -135,6 +135,11 @@ def animate(frame_num, ax, env, trajectory_eachPlay):
         matp_poly = shapelypoly_to_matpoly(poly, False, 'red')  # the 3rd parameter is the edge color
         ax.add_patch(matp_poly)
 
+    # show geo-fence
+    for geo_fence in env.geo_fence_area:
+        fence_poly = shapelypoly_to_matpoly(geo_fence, False, 'red')  # the 3rd parameter is the edge color
+        ax.add_patch(fence_poly)
+
     for agentIdx, agent in env.all_agents.items():
         plt.plot(agent.ini_pos[0], agent.ini_pos[1],
                  marker=MarkerStyle(">",
@@ -298,6 +303,11 @@ def view_static_traj(env, trajectory_eachPlay):
             grid_mat_Scir = shapelypoly_to_matpoly(self_circle, False, 'k')
             ax.add_patch(grid_mat_Scir)
 
+    # show geo-fence
+    for geo_fence in env.geo_fence_area:
+        fence_poly = shapelypoly_to_matpoly(geo_fence, False, 'red')  # the 3rd parameter is the edge color
+        ax.add_patch(fence_poly)
+
     # draw occupied_poly
     for one_poly in env.world_map_2D_polyList[0][0]:
         one_poly_mat = shapelypoly_to_matpoly(one_poly, True, 'y', 'b')
@@ -345,21 +355,20 @@ def main(args):
         # initialize_excel_file(excel_file_path_time)
         # ------------ end of this portion is to save using excel instead of pickle -----------
 
-    use_wanDB = False
-    # use_wanDB = True
+    # use_wanDB = False
+    use_wanDB = True
 
-    # get_evaluation_status = True  # have figure output
-    get_evaluation_status = False  # no figure output, mainly obtain collision rate
+    get_evaluation_status = True  # have figure output
+    # get_evaluation_status = False  # no figure output, mainly obtain collision rate
 
-    # simply_view_evaluation = True  # don't save gif
-    simply_view_evaluation = False  # save gif
+    simply_view_evaluation = True  # don't save gif
+    # simply_view_evaluation = False  # save gif
 
     # full_observable_critic_flag = True
     full_observable_critic_flag = False
 
     use_GRU_flag = True
     # use_GRU_flag = False
-
 
     if use_wanDB:
         wandb.login(key="efb76db851374f93228250eda60639c70a93d1ec")
@@ -459,8 +468,8 @@ def main(args):
         args.max_episodes = 10  # only evaluate one episode during evaluation mode.
         # args.max_episodes = 5  # only evaluate one episode during evaluation mode.
         # args.max_episodes = 100
-        pre_fix = r'D:\MADDPG_2nd_jp\260124_13_39_24\interval_record_eps'
-        episode_to_check = str(23000)
+        pre_fix = r'D:\MADDPG_2nd_jp\010224_10_13_25\interval_record_eps'
+        episode_to_check = str(15000)
         load_filepath_0 = pre_fix + '\episode_' + episode_to_check + '_agent_0actor_net.pth'
         load_filepath_1 = pre_fix + '\episode_' + episode_to_check + '_agent_1actor_net.pth'
         load_filepath_2 = pre_fix + '\episode_' + episode_to_check + '_agent_2actor_net.pth'
@@ -468,7 +477,8 @@ def main(args):
         # load_filepath_4 = pre_fix + '\episode_' + episode_to_check + '_agent_4actor_net.pth'
 
         # model.load_model([load_filepath_0, load_filepath_1, load_filepath_2, load_filepath_3, load_filepath_4])
-        model.load_model([load_filepath_0, load_filepath_1, load_filepath_2])
+        # model.load_model([load_filepath_0, load_filepath_1, load_filepath_2])
+        model.load_model([load_filepath_0])
 
     # while episode < args.max_episodes:
     while episode < args.max_episodes:  # start of an episode
@@ -837,13 +847,12 @@ def main(args):
                 action, step_noise_val, cur_actor_hiddens, \
                 next_actor_hiddens = model.choose_action(norm_cur_state, total_step, episode, step, eps_end, noise_start_level, cur_actor_hiddens, noisy=noise_flag, use_GRU_flag=use_GRU_flag)  # noisy is false because we are using stochastic policy
 
-
                 # action = model.choose_action(cur_state, episode, noisy=False)
                 # action = env.get_actions_noCR()  # only update heading, don't update any other attribute
                 # for a_idx, action_ele in enumerate(action):
                 #     action[a_idx] = [-0.3535, 0.3535]
                 next_state, norm_next_state, polygons_list, all_agent_st_points, all_agent_ed_points, all_agent_intersection_point_list, all_agent_line_collection, all_agent_mini_intersection_list = env.step(action, step)  # no heading update here
-                reward_aft_action, done_aft_action, check_goal, step_reward_record, eps_status_holder, step_collision_record, bound_building_check = env.ss_reward(step, step_reward_record, eps_status_holder, step_collision_record, dummy_xy)
+                reward_aft_action, done_aft_action, check_goal, step_reward_record, eps_status_holder, step_collision_record, bound_building_check = env.ss_reward(step, step_reward_record, eps_status_holder, step_collision_record, dummy_xy, full_observable_critic_flag)
                 # reward_aft_action, done_aft_action, check_goal, step_reward_record = env.get_step_reward_5_v3(step, step_reward_record)
 
                 step += 1

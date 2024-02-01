@@ -203,6 +203,9 @@ class env_simulator:
         # reset OU_noise as well
         self.OU_noise.reset()
 
+        # make sure we clear the previous geo-fence at each episode
+        self.geo_fence_area = []
+
         # # ----------------- using fixed OD -----------------
         # # read the Excel file into a pandas dataframe
         # # df = pd.read_excel(r"D:\Multi_agent_AAC\MA_ver1\fixedDrone_3drones.xlsx")
@@ -1808,6 +1811,7 @@ class env_simulator:
             # condition is reset for each agent at every time step
             collision_drones = []
             collide_building = 0
+            collide_geo_fence = 0
             pc_before, pc_after = [], []
             dist_toHost = []
             # we assume the maximum potential conflict the current drone could have at each time step is equals
@@ -1841,8 +1845,15 @@ class env_simulator:
                     print("drone_{} collide with drone_{} at time step {}".format(drone_idx, neigh_keys, current_ts))
                     collision_drones.append(neigh_keys)
 
-            # check whether current actions leads to a collision with any buildings in the airspace
+            # check collision with geo-fence
+            for geo_fence in self.geo_fence_area:
+                dist_difference = np.linalg.norm(drone_obj.pos - np.array(geo_fence.centroid.coords[0]))
+                if dist_difference >= 5 + drone_obj.protectiveBound:  # 5 is the radius of the geo-fence circle
+                    collide_geo_fence = 1
+                    break
 
+
+            # check whether current actions leads to a collision with any buildings in the airspace
             # -------- check collision with building V1-------------
             start_of_v1_time = time.time()
             v1_decision = 0
@@ -1964,9 +1975,11 @@ class env_simulator:
             # dist_to_ref_line = coef_ref_line*math.sqrt(norm_cross_track_deviation_x ** 2 +
             #                                            norm_cross_track_deviation_y ** 2)
 
-            if cross_err_distance <= drone_obj.protectiveBound:
+            cross_track_threshold = 5
+            # cross_track_threshold = drone_obj.protectiveBound
+            if cross_err_distance <= cross_track_threshold:
                 # linear increase in reward
-                m = (0 - 1) / (drone_obj.protectiveBound - 0)
+                m = (0 - 1) / (cross_track_threshold - 0)
                 dist_to_ref_line = coef_ref_line*(m * cross_err_distance + 1)  # 0~1*coef_ref_line
                 # dist_to_ref_line = (coef_ref_line*(m * cross_err_distance + 1)) + coef_ref_line  # 0~1*coef_ref_line, with a fixed reward
             else:
@@ -2063,6 +2076,11 @@ class env_simulator:
             #         rew = rew - dist_to_ref_line - crash_penalty_wall - dist_to_goal - small_step_penalty + near_goal_reward - 20
             #         reward.append(np.array(rew))
             # # ----------End of termination only during collision to wall on the 3rd time -----------------------
+            elif collide_geo_fence == 1:
+                done.append(True)
+                bound_building_check[1] = True
+                rew = rew - crash_penalty_wall - small_step_penalty - near_building_penalty
+                reward.append(np.array(rew))
             elif len(collision_drones) > 0:
                 done.append(True)
                 # done.append(False)
