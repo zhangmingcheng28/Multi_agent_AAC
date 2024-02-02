@@ -123,7 +123,11 @@ def preprocess_batch_for_critic_net_v2(input_state, batch_size):
         for agent_cur in input_state:
             critic_own_cur_state.append(agent_cur[batch_idx, :])
 
+
+
+
         critic_own_batched_cur_state.append(np.array(critic_own_cur_state).reshape((1, -1)))
+
 
     cur_state_pre_processed = T.tensor(np.array(critic_own_batched_cur_state))  # batch X (1 x no_agent x feature size)
 
@@ -180,8 +184,8 @@ class NormalizeData:
         y_normalized = self.normalize_min + (pos_c[1] - self.dis_min_y) * self.y_scale
         return np.array([x_normalized, y_normalized])
 
-    def scale_vel(self, change_in_pos):
-        return np.array([(1/self.spd_max) * change_in_pos[0], (1/self.spd_max) * change_in_pos[1]])
+    def norm_scale(self, change_in_pos):
+        return np.array([self.x_scale * change_in_pos[0], self.y_scale * change_in_pos[1]])
 
     def nmlz_pos_diff(self, diff):
         dx, dy = diff[0], diff[1]
@@ -195,11 +199,11 @@ class NormalizeData:
 
     def nmlz_vel(self, cur_vel):
         vx, vy = cur_vel[0], cur_vel[1]
-        # vx_normalized = vx / self.spd_max
-        # vy_normalized = vy / self.spd_max
-        vx_normalized = (vx / self.spd_max) * 2 - 1
-        vy_normalized = (vy / self.spd_max) * 2 - 1
-        return vx_normalized, vy_normalized
+        vx_normalized = vx / self.spd_max
+        vy_normalized = vy / self.spd_max
+        # vx_normalized = (vx / self.spd_max) * 2 - 1
+        # vy_normalized = (vy / self.spd_max) * 2 - 1
+        return np.array([vx_normalized, vy_normalized])
 
     def nmlz_acc(self, cur_acc):
         ax, ay = cur_acc[0], cur_acc[1]

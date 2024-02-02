@@ -1930,6 +1930,7 @@ class env_simulator:
             # ---------------end of a new way to check for the next wp --------------------
 
             #  ------  using sequence wp reaching method ----------
+
             cur_dist_to_wp = curPoint.distance(Point(self.all_agents[drone_idx].waypoints[0]))
             next_wp = np.array(self.all_agents[drone_idx].waypoints[0])
             for geo_fence in self.geo_fence_area:  # set new way point reach threshold distance
@@ -2142,12 +2143,12 @@ class env_simulator:
             else:  # a normal step taken
                 if xy[0] is None and xy[1] is None:  # we only alter drone's goal during actual training
                     # if (not wp_intersect.is_empty) and len(drone_obj.goal) > 1: # check if wp reached, and this is not the end point
-                    if wp_intersect_flag and len(drone_obj.goal) > 1: # check if wp reached, and this is not the end point
+                    if wp_intersect_flag and len(drone_obj.waypoints) > 1: # check if wp reached and don't remove last element
                         drone_obj.removed_goal = drone_obj.waypoints.pop(0)  # remove current wp
                         # we add a wp reached reward, this reward is equals to the maximum of the path deviation reward
-                        rew = rew + coef_ref_line
-                        print("drone {} has reached a WP on step {}, claim additional {} points of reward"
-                              .format(drone_idx, current_ts, coef_ref_line))
+                        # rew = rew + coef_ref_line
+                        # print("drone {} has reached a WP on step {}, claim additional {} points of reward"
+                        #       .format(drone_idx, current_ts, coef_ref_line))
                 rew = rew + dist_to_ref_line + dist_to_goal - \
                       small_step_penalty + near_goal_reward - near_building_penalty + seg_reward
                 # we remove the above termination condition

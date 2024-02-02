@@ -184,7 +184,7 @@ class NormalizeData:
         y_normalized = self.normalize_min + (pos_c[1] - self.dis_min_y) * self.y_scale
         return np.array([x_normalized, y_normalized])
 
-    def scale_vel(self, change_in_pos):
+    def norm_scale(self, change_in_pos):
         return np.array([self.x_scale * change_in_pos[0], self.y_scale * change_in_pos[1]])
 
     def nmlz_pos_diff(self, diff):

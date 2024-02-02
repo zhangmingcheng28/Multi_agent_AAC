@@ -360,11 +360,11 @@ class env_simulator:
             # NOTE: UAV's max speed don't change with time, so when we find it normalized bound, we use max speed
             # the below is the maximum normalized velocity range for map range -1 to 1, and maxSPD = 15m/s
             norm_vel_x_range = [
-                -self.normalizer.scale_vel([self.all_agents[agentIdx].maxSpeed, self.all_agents[agentIdx].maxSpeed])[0],
-                self.normalizer.scale_vel([self.all_agents[agentIdx].maxSpeed, self.all_agents[agentIdx].maxSpeed])[0]]
+                -self.normalizer.norm_scale([self.all_agents[agentIdx].maxSpeed, self.all_agents[agentIdx].maxSpeed])[0],
+                self.normalizer.norm_scale([self.all_agents[agentIdx].maxSpeed, self.all_agents[agentIdx].maxSpeed])[0]]
             norm_vel_y_range = [
-                -self.normalizer.scale_vel([self.all_agents[agentIdx].maxSpeed, self.all_agents[agentIdx].maxSpeed])[1],
-                self.normalizer.scale_vel([self.all_agents[agentIdx].maxSpeed, self.all_agents[agentIdx].maxSpeed])[1]]
+                -self.normalizer.norm_scale([self.all_agents[agentIdx].maxSpeed, self.all_agents[agentIdx].maxSpeed])[1],
+                self.normalizer.norm_scale([self.all_agents[agentIdx].maxSpeed, self.all_agents[agentIdx].maxSpeed])[1]]
 
             # ----------------end of initialize normalized velocity, but based on normalized map. map pos_x & pos_y are normalized to [-1, 1]---------------
 
@@ -443,7 +443,7 @@ class env_simulator:
                     ax.add_patch(matp_poly)
                 else:
                     x, y = poly.xy
-                    ax.plot(x, y, color='green', linewidth=2, solid_capstyle='round', zorder=3)
+                    # ax.plot(x, y, color='green', linewidth=2, solid_capstyle='round', zorder=3)
             # # Plot each start point
             # for point_deg, point_pos in st_points.items():
             #     ax.plot(point_pos.x, point_pos.y, 'o', color='blue')
@@ -965,13 +965,14 @@ class env_simulator:
                             drone_nearest_pt = drone_perimeter_point
                 # ------------ end of radar check surrounding drone's position -------------------------
 
-                # If there are intersecting polygons, find the nearest intersection point
+                # # If there are intersecting polygons, find the nearest intersection point
                 if len(intersecting_polygons) != 0:  # check if a list is empty
                     building_nearest_flag = 1
                     # Initialize the minimum distance to be the length of the line segment
                     for polygon_idx in intersecting_polygons:
                         # Check if the line intersects with the building polygon's boundary
-                        if polygons_list_wBound[polygon_idx].geom_type == "Polygon":
+                        if polygons_list_wBound[polygon_idx].geom_type == "Polygon":  # intersection with buildings
+                            # pass
                             if line.intersects(polygons_list_wBound[polygon_idx]):
                                 intersection_point = line.intersection(polygons_list_wBound[polygon_idx].boundary)
                                 if intersection_point.type == 'MultiPoint':
@@ -985,7 +986,7 @@ class env_simulator:
                                 if distance < min_distance:
                                     min_distance = distance
                                     min_intersection_pt = nearest_point
-                        else:  # possible intersection is not a polygon but a LineString
+                        else:  # possible intersection is not a polygon but a LineString, intersection with boundaries
                             if line.intersects(polygons_list_wBound[polygon_idx]):
                                 intersection = line.intersection(polygons_list_wBound[polygon_idx])
                                 if intersection.geom_type == 'Point':
@@ -1013,10 +1014,14 @@ class env_simulator:
 
                 # Now we compare the minimum distance of intersection for both polygons and drones
                 # whichever is short, we will load into the last list.
+                # distances.append([line.length, building_nearest_flag])  # use this for we don't consider obstacles
 
                 if drone_min_dist < min_distance:   # one of the other drone is nearer to cur drone
                     # replace the minimum distance and minimum intersection point
-                    distances[-1] = [drone_min_dist, drone_nearest_flag]
+                    if len(distances) == 0:
+                        distances.append([drone_min_dist, drone_nearest_flag])
+                    else:
+                        distances[-1] = [drone_min_dist, drone_nearest_flag]
                     if len(mini_intersection_list) == 0:  # if no building polygon surrounding the host drone, mini_intersection_list will not be populated
                         mini_intersection_list.append(drone_nearest_pt)
                     else:
@@ -1033,8 +1038,10 @@ class env_simulator:
 
             norm_pos = self.normalizer.scale_pos([agent.pos[0], agent.pos[1]])
 
-            # norm_vel = self.normalizer.scale_vel([agent.vel[0], agent.vel[1]])
-            norm_vel = self.normalizer.nmlz_vel([agent.vel[0], agent.vel[1]])
+            # norm_vel = self.normalizer.norm_scale([agent.vel[0], agent.vel[1]])  # normalization using scale
+            norm_vel = self.normalizer.nmlz_vel([agent.vel[0], agent.vel[1]])  # normalization using min_max
+
+            norm_acc = self.normalizer.norm_scale([agent.acc[0], agent.acc[1]])
 
             norm_G = self.normalizer.nmlz_pos([agent.goal[-1][0], agent.goal[-1][1]])
             norm_deltaG = norm_G - norm_pos
@@ -1042,8 +1049,13 @@ class env_simulator:
             norm_seg = self.normalizer.nmlz_pos([agent.goal[0][0], agent.goal[0][1]])
             norm_delta_segG = norm_seg - norm_pos
 
-            agent_own = np.array([agent.pos[0], agent.pos[1], agent.vel[0], agent.vel[1],
+            agent_own = np.array([agent.vel[0], agent.vel[1], agent.acc[0], agent.acc[1],
                                   agent.goal[-1][0]-agent.pos[0], agent.goal[-1][1]-agent.pos[1]])
+            # agent_own = np.array([agent.pos[0], agent.pos[1], agent.vel[0], agent.vel[1], agent.acc[0], agent.acc[1],
+            #                       agent.goal[-1][0]-agent.pos[0], agent.goal[-1][1]-agent.pos[1]])
+
+            # agent_own = np.array([agent.pos[0], agent.pos[1], agent.vel[0], agent.vel[1],
+            #                       agent.goal[-1][0]-agent.pos[0], agent.goal[-1][1]-agent.pos[1]])
 
             # agent_own = np.array([agent.pos[0], agent.pos[1], agent.vel[0], agent.vel[1],
             #                       agent.goal[-1][0]-agent.pos[0], agent.goal[-1][1]-agent.pos[1],
@@ -1052,7 +1064,10 @@ class env_simulator:
             # agent_own = np.array([agent.vel[0], agent.vel[1],
             #                       agent.goal[-1][0]-agent.pos[0], agent.goal[-1][1]-agent.pos[1]])
 
-            norm_agent_own = np.concatenate([norm_pos, norm_vel, norm_deltaG], axis=0)
+            # norm_agent_own = np.concatenate([norm_pos, norm_vel, norm_deltaG], axis=0)
+            # norm_agent_own = np.concatenate([norm_pos, norm_vel, norm_acc, norm_deltaG], axis=0)
+            norm_agent_own = np.concatenate([norm_vel, norm_acc, norm_deltaG], axis=0)
+
             # norm_agent_own = np.concatenate([norm_pos, norm_vel, norm_deltaG, norm_delta_segG], axis=0)
             # norm_agent_own = np.concatenate([norm_vel, norm_deltaG], axis=0)
 
@@ -1819,7 +1834,7 @@ class env_simulator:
             # print("check building collision V1 time used is {} micro".format(end_v1_time))
             # -----------end of check collision with building v1 ---------
 
-            end_v2_time, end_v3_time, v2_decision, v3_decision = 0,0,0,0,
+            end_v2_time, end_v3_time, v2_decision, v3_decision = 0, 0, 0, 0,
             step_collision_record[drone_idx].append([end_v1_time, end_v2_time, end_v3_time,
                                                      v1_decision, v2_decision, v3_decision])
             # if step_collision_record[drone_idx] == None:
@@ -1905,8 +1920,8 @@ class env_simulator:
             # dist_to_goal = 0
             # coef_ref_line = 0.5
             # coef_ref_line = -10
-            coef_ref_line = 3
-            # coef_ref_line = 0
+            # coef_ref_line = 3
+            coef_ref_line = 0
             cross_err_distance, x_error, y_error = self.cross_track_error(host_current_point, drone_obj.ref_line)  # deviation from the reference line, cross track error
             norm_cross_track_deviation_x = x_error * self.normalizer.x_scale
             norm_cross_track_deviation_y = y_error * self.normalizer.y_scale
@@ -1921,8 +1936,8 @@ class env_simulator:
             else:
                 dist_to_ref_line = -coef_ref_line*1
 
-            small_step_penalty_coef = 3
-            # # small_step_penalty_coef = 0
+            # small_step_penalty_coef = 3
+            small_step_penalty_coef = 0
             # spd_penalty_threshold = 2*drone_obj.protectiveBound
             # small_step_penalty_val = (spd_penalty_threshold -
             #                       np.clip(np.linalg.norm(drone_obj.vel), 0, spd_penalty_threshold))*\
@@ -2081,7 +2096,7 @@ class env_simulator:
             status_holder[drone_idx].append([cur_dist_to_goal] + cur_step_reward)
         return status_holder
 
-    def step(self, actions, current_ts):
+    def step(self, actions, current_ts, acc_max):
         next_combine_state = []
         agentCoorKD_list_update = []
         agentRefer_dict = {}  # A dictionary to use agent's current pos as key, their agent name (idx) as value
@@ -2089,7 +2104,7 @@ class env_simulator:
         # hence, 4 here is equivalent to the acceleration of 2m/s^2
 
         # coe_a = 4  # coe_a is the coefficient of action is 4 because our time step is 0.5 sec
-        coe_a = 8  # coe_a is the coefficient of action is 4 because our time step is 0.5 sec
+        coe_a = acc_max  # coe_a is the coefficient of action is 4 because our time step is 0.5 sec
         # based on the input stack of actions we propagate all agents forward
         # for drone_idx, drone_act in actions.items():  # this is for evaluation with default action
         count = 1
@@ -2125,6 +2140,9 @@ class env_simulator:
 
             ax = ax * coe_a
             ay = ay * coe_a
+
+            # record current drone's acceleration
+            self.all_agents[drone_idx].acc = np.array([ax, ay])
 
             # check velocity limit
             curVelx = self.all_agents[drone_idx].vel[0] + ax * self.time_step

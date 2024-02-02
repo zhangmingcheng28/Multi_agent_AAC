@@ -313,10 +313,7 @@ class MADDPG:
             self.critic_optimizer[agent].zero_grad()
             # loss_Q.backward(retain_graph=True)
             loss_Q.backward()
-            self.has_gradients(self.critics[agent], agent, wandb)
-            # for name, param in self.critics[agent].named_parameters():
-            #     if param.grad is not None:
-            #         wandb.log({f"actor/{agent}_/{name}_gradients_histogram": wandb.Histogram(param.grad.cpu().detach().numpy())})
+            # self.has_gradients(self.critics[agent], agent, wandb)
 
             self.critic_optimizer[agent].step()
 
@@ -332,17 +329,15 @@ class MADDPG:
                 actor_loss = 3 - self.critics[agent]([stacked_elem_0_combine, stacked_elem_1_combine], combine_action_action_replaced).mean()
                 # actor_loss = - self.critics[agent]([stacked_elem_0_combine, stacked_elem_1_combine], combine_action_action_replaced).mean()
             else:
-                actor_loss = 3 - self.critics[agent]([stacked_elem_0[:, agent, :], stacked_elem_1[:, agent, :]],
+                # actor_loss = 3 - self.critics[agent]([stacked_elem_0[:, agent, :], stacked_elem_1[:, agent, :]],
+                #                                      ac[:, agent, :]).mean()
+                actor_loss = - self.critics[agent]([stacked_elem_0[:, agent, :], stacked_elem_1[:, agent, :]],
                                                      ac[:, agent, :]).mean()
 
             # actor_loss = -self.critics[agent](stacked_elem_0[:,agent,:], ac[:, agent, :], agents_cur_hidden_state[:, agent, :])[0].mean()
             self.actor_optimizer[agent].zero_grad()
             actor_loss.backward()
-            # for name, param in self.actors[agent].named_parameters():
-            #     if param.grad is not None:
-            #         wandb.log({f"actor/{agent}_/{name}_gradients_histogram": wandb.Histogram(param.grad.cpu().detach().numpy())})
-            # torch.nn.utils.clip_grad_norm_(self.actors[agent].parameters(), 1)
-            self.has_gradients(self.actors[agent], agent, wandb)  # Replace with your actor network variable
+            # self.has_gradients(self.actors[agent], agent, wandb)  # Replace with your actor network variable
             self.actor_optimizer[agent].step()
 
             c_loss.append(loss_Q)

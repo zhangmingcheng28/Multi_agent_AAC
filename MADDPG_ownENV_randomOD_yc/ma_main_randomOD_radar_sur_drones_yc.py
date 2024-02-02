@@ -356,8 +356,8 @@ def main(args):
     # simply_view_evaluation = True  # don't save gif
     simply_view_evaluation = False  # save gif
 
-    # full_observable_critic_flag = True
-    full_observable_critic_flag = False
+    full_observable_critic_flag = True
+    # full_observable_critic_flag = False
 
     if use_wanDB:
         wandb.login(key="efb76db851374f93228250eda60639c70a93d1ec")
@@ -449,12 +449,12 @@ def main(args):
     episode_goal_found = [False] * n_agents
     dummy_xy = (None, None)  # this is a dummy tuple of xy, is not useful during normal training, it is only useful when generating reward map
     if args.mode == "eval":
-        # args.max_episodes = 10  # only evaluate one episode during evaluation mode.
+        args.max_episodes = 10  # only evaluate one episode during evaluation mode.
         # args.max_episodes = 5  # only evaluate one episode during evaluation mode.
         # args.max_episodes = 100
-        args.max_episodes = 20
-        pre_fix = r'D:\MADDPG_2nd_jp\310124_18_58_07\interval_record_eps'
-        episode_to_check = str(25000)
+        # args.max_episodes = 20
+        pre_fix = r'D:\MADDPG_2nd_jp\010224_16_48_16\interval_record_eps'
+        episode_to_check = str(15000)
         load_filepath_0 = pre_fix + '\episode_' + episode_to_check + '_agent_0actor_net.pth'
         load_filepath_1 = pre_fix + '\episode_' + episode_to_check + '_agent_1actor_net.pth'
         load_filepath_2 = pre_fix + '\episode_' + episode_to_check + '_agent_2actor_net.pth'
@@ -471,7 +471,7 @@ def main(args):
         episode_start_time = time.time()
         episode += 1
         eps_reset_start_time = time.time()
-        cur_state, norm_cur_state = env.reset_world(total_agentNum, show=1)
+        cur_state, norm_cur_state = env.reset_world(total_agentNum, show=0)
         eps_reset_time_used = (time.time()-eps_reset_start_time)*1000
         print("current episode {} reset time used is {} milliseconds".format(episode, eps_reset_time_used))  # need to + 1 here, or else will misrecord as the previous episode
         step_collision_record = [[] for _ in range(total_agentNum)]  # reset at each episode, so that we can record down collision at each step for each agent.
