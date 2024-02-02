@@ -32,6 +32,7 @@ class Agent:
         self.pre_acc = np.zeros(2)
         self.maxSpeed = maxSPD
         self.goal = None
+        self.waypoints = None
         self.ref_line = None
         self.heading = None
         # self.detectionRange = 30  # in meters, this is the in diameter

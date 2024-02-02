@@ -358,8 +358,8 @@ def main(args):
     # use_wanDB = False
     use_wanDB = True
 
-    get_evaluation_status = True  # have figure output
-    # get_evaluation_status = False  # no figure output, mainly obtain collision rate
+    # get_evaluation_status = True  # have figure output
+    get_evaluation_status = False  # no figure output, mainly obtain collision rate
 
     simply_view_evaluation = True  # don't save gif
     # simply_view_evaluation = False  # save gif
@@ -448,8 +448,10 @@ def main(args):
     eps_check_collision = []
     eps_noise_record = []
     episode_critic_loss_cal_record = []
-    eps_end = 3000  # at eps = eps_end, the eps value drops to lowest value which is 0.03 (this value is fixed)
-    noise_start_level = 1
+    # eps_end = 3000  # at eps = eps_end, the eps value drops to the lowest value which is 0.03 (this value is fixed)
+    eps_end = 17000  # at eps = eps_end, the eps value drops to the lowest value which is 0.03 (this value is fixed)
+    # noise_start_level = 1
+    noise_start_level = 0.5
     training_start_time = time.time()
 
     # ------------ record episode time ------------- #
@@ -465,11 +467,11 @@ def main(args):
     episode_goal_found = [False] * n_agents
     dummy_xy = (None, None)  # this is a dummy tuple of xy, is not useful during normal training, it is only useful when generating reward map
     if args.mode == "eval":
-        args.max_episodes = 10  # only evaluate one episode during evaluation mode.
+        # args.max_episodes = 10  # only evaluate one episode during evaluation mode.
         # args.max_episodes = 5  # only evaluate one episode during evaluation mode.
-        # args.max_episodes = 100
-        pre_fix = r'D:\MADDPG_2nd_jp\010224_10_13_25\interval_record_eps'
-        episode_to_check = str(15000)
+        args.max_episodes = 100
+        pre_fix = r'D:\MADDPG_2nd_jp\010224_16_53_11\interval_record_eps'
+        episode_to_check = str(12000)
         load_filepath_0 = pre_fix + '\episode_' + episode_to_check + '_agent_0actor_net.pth'
         load_filepath_1 = pre_fix + '\episode_' + episode_to_check + '_agent_1actor_net.pth'
         load_filepath_2 = pre_fix + '\episode_' + episode_to_check + '_agent_2actor_net.pth'
@@ -1021,6 +1023,7 @@ def main(args):
                         num_true = sum(episode_goal_found)
                         # Determine the number of True values and print the appropriate response
                         if num_true == 1:
+                            save_gif(env, trajectory_eachPlay, pre_fix, episode_to_check, episode)
                             if saved_gif == False:
                                 save_gif(env, trajectory_eachPlay, pre_fix, episode_to_check, episode)
                                 saved_gif = True  # once current episode saved, no need to save one more time.

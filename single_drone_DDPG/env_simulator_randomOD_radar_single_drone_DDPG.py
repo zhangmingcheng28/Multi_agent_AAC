@@ -339,6 +339,10 @@ class env_simulator:
                                               for points in refinedPath if not np.array_equal(np.array([(points[0] + math.ceil(self.bound[0] / self.gridlength)) * self.gridlength,
                                                                                                         (points[1] + math.ceil(self.bound[2] / self.gridlength)) * self.gridlength]),
                                                                                               self.all_agents[agentIdx].ini_pos)]  # if not np.array_equal(np.array(points), self.all_agents[agentIdx].ini_pos)
+
+            # populate removable way point list
+            self.all_agents[agentIdx].waypoints = deepcopy(self.all_agents[agentIdx].goal)
+
             # load the to goal but we include the initial position
             goalPt_withini = [[(points[0] + math.ceil(self.bound[0] / self.gridlength)) * self.gridlength,
                                                (points[1] + math.ceil(self.bound[2] / self.gridlength)) * self.gridlength]
@@ -455,6 +459,10 @@ class env_simulator:
                     plt.plot(wp[0], wp[1], marker='*', color='y', markersize=10)
                     plt.plot([wp[0], ini[0]], [wp[1], ini[1]], '--', color='c')
                     ini = wp
+                for wp in goalPt_withini:
+                    # plt.plot(wp[0], wp[1], marker='*', color='y', markersize=10)
+                    # plt.text([wp[0], ini[0]], [wp[1], ini[1]], str((wp[0],wp[1])))
+                    plt.text(wp[0], wp[1]+1, str((wp[0], wp[1])))
                 plt.plot(agent.goal[-1][0], agent.goal[-1][1], marker='*', color='y', markersize=10)
                 plt.text(agent.goal[-1][0], agent.goal[-1][1], agent.agent_name)
 
@@ -481,14 +489,14 @@ class env_simulator:
             # nearest_buildingPoly_mat = shapelypoly_to_matpoly(nearest_buildingPoly, True, 'g', 'k')
             # ax.add_patch(nearest_buildingPoly_mat)
 
-            # for demo purposes
-            for poly in polygons_list:
-                if poly.geom_type == "Polygon":
-                    matp_poly = shapelypoly_to_matpoly(poly, False, 'red')  # the 3rd parameter is the edge color
-                    ax.add_patch(matp_poly)
-                else:
-                    x, y = poly.xy
-                    ax.plot(x, y, color='green', linewidth=2, solid_capstyle='round', zorder=3)
+            # # for demo purposes
+            # for poly in polygons_list:
+            #     if poly.geom_type == "Polygon":
+            #         matp_poly = shapelypoly_to_matpoly(poly, False, 'red')  # the 3rd parameter is the edge color
+            #         ax.add_patch(matp_poly)
+            #     else:
+            #         x, y = poly.xy
+            #         ax.plot(x, y, color='green', linewidth=2, solid_capstyle='round', zorder=3)
             # # Plot each start point
             # for point_deg, point_pos in st_points.items():
             #     ax.plot(point_pos.x, point_pos.y, 'o', color='blue')
@@ -1848,7 +1856,7 @@ class env_simulator:
             # check collision with geo-fence
             for geo_fence in self.geo_fence_area:
                 dist_difference = np.linalg.norm(drone_obj.pos - np.array(geo_fence.centroid.coords[0]))
-                if dist_difference >= 5 + drone_obj.protectiveBound:  # 5 is the radius of the geo-fence circle
+                if dist_difference <= 5 + drone_obj.protectiveBound:  # 5 is the radius of the geo-fence circle
                     collide_geo_fence = 1
                     break
 
@@ -1888,40 +1896,59 @@ class env_simulator:
             # wp_circle = Point(self.all_agents[drone_idx].goal[0]).buffer(1, cap_style='round')
             # wp_circle = Point(self.all_agents[drone_idx].goal[0]).buffer(drone_obj.protectiveBound,
             #                                                              cap_style='round')
-            wp_circle = Point(self.all_agents[drone_idx].goal[0]).buffer(3.5, cap_style='round')
-            wp_intersect = host_current_circle.intersection(wp_circle)
-
-            # --------------- a new way to check for the next wp --------------------
-            smallest_dist = math.inf
-            wp_intersect_flag = False
+            # wp_circle = Point(self.all_agents[drone_idx].goal[0]).buffer(3.5, cap_style='round')
+            # wp_intersect = host_current_circle.intersection(wp_circle)
             wp_reach_threshold_dist = 5
-
-            for wpidx, wp in enumerate(self.all_agents[drone_idx].goal):
-                cur_dist_to_wp = curPoint.distance(Point(wp))
-                if cur_dist_to_wp < smallest_dist:
-                    smallest_dist = cur_dist_to_wp
-                    next_wp = np.array(wp)
-                    for geo_fence in self.geo_fence_area:
-                        if Point(next_wp).within(geo_fence):
-                            centroid = geo_fence.centroid
-                            # Choose any point on the boundary of the circle polygon
-                            boundary_point = geo_fence.boundary.coords[0]
-                            # Calculate the radius as the distance from the centroid to the boundary point
-                            geo_fence_radius = centroid.distance(Point(boundary_point))
-                            wp_furthest_distance_to_perimeter = geo_fence_radius + centroid.distance(Point(next_wp))
-                            if wp_furthest_distance_to_perimeter > wp_reach_threshold_dist:
-                                wp_reach_threshold_dist = wp_furthest_distance_to_perimeter+1
-
-                    if smallest_dist < wp_reach_threshold_dist:
-                        wp_intersect_flag = True
-                        # we find the next wp, as long as it is not the last wp
-                        if len(self.all_agents[drone_idx].goal)>1:
-                            drone_obj.removed_goal = drone_obj.goal.pop(wpidx)  # remove current wp
-                            points_list = [Point(coord) for coord in self.all_agents[drone_idx].goal]
-                            next_wPoint = min(points_list, key=lambda point: point.distance(curPoint))
-                            next_wp = np.array([next_wPoint.x, next_wPoint.y])
-                        break  # once the nearest wp is found we break out of the loop
+            # --------------- a new way to check for the next wp --------------------
+            # smallest_dist = math.inf
+            # wp_intersect_flag = False
+            # for wpidx, wp in enumerate(self.all_agents[drone_idx].goal):
+            #     cur_dist_to_wp = curPoint.distance(Point(wp))
+            #     if cur_dist_to_wp < smallest_dist:
+            #         smallest_dist = cur_dist_to_wp
+            #         next_wp = np.array(wp)
+            #         for geo_fence in self.geo_fence_area:
+            #             if Point(next_wp).within(geo_fence):
+            #                 centroid = geo_fence.centroid
+            #                 # Choose any point on the boundary of the circle polygon
+            #                 boundary_point = geo_fence.boundary.coords[0]
+            #                 # Calculate the radius as the distance from the centroid to the boundary point
+            #                 geo_fence_radius = centroid.distance(Point(boundary_point))
+            #                 wp_furthest_distance_to_perimeter = geo_fence_radius + centroid.distance(Point(next_wp))
+            #                 if wp_furthest_distance_to_perimeter > wp_reach_threshold_dist:
+            #                     wp_reach_threshold_dist = wp_furthest_distance_to_perimeter+1
+            # 
+            #         if smallest_dist < wp_reach_threshold_dist:
+            #             wp_intersect_flag = True
+            #             # we find the next wp, as long as it is not the last wp
+            #             if len(self.all_agents[drone_idx].goal) > 1:
+            #                 drone_obj.removed_goal = drone_obj.goal.pop(wpidx)  # remove current wp from set of wps
+            #                 points_list = [Point(coord) for coord in self.all_agents[drone_idx].goal]
+            #                 next_wPoint = min(points_list, key=lambda point: point.distance(curPoint))
+            #                 next_wp = np.array([next_wPoint.x, next_wPoint.y])
+            #             break  # once the nearest wp is found we break out of the loop
             # ---------------end of a new way to check for the next wp --------------------
+
+            #  ------  using sequence wp reaching method ----------
+            cur_dist_to_wp = curPoint.distance(Point(self.all_agents[drone_idx].waypoints[0]))
+            next_wp = np.array(self.all_agents[drone_idx].waypoints[0])
+            for geo_fence in self.geo_fence_area:  # set new way point reach threshold distance
+                if Point(self.all_agents[drone_idx].waypoints[0]).within(geo_fence):
+                    centroid = geo_fence.centroid
+                    # Choose any point on the boundary of the circle polygon
+                    boundary_point = geo_fence.boundary.coords[0]
+                    # Calculate the radius as the distance from the centroid to the boundary point
+                    geo_fence_radius = centroid.distance(Point(boundary_point))
+                    wp_furthest_distance_to_perimeter = geo_fence_radius + \
+                                                        centroid.distance(Point(self.all_agents[drone_idx].waypoints[0]))
+                    if wp_furthest_distance_to_perimeter > wp_reach_threshold_dist:
+                        wp_reach_threshold_dist = wp_furthest_distance_to_perimeter + 1
+            if cur_dist_to_wp < wp_reach_threshold_dist:
+                wp_intersect_flag = True
+            else:
+                wp_intersect_flag = False
+            # ------ end of using sequence wp reaching method ----------
+
 
             # ------------- pre-processed condition for a normal step -----------------
             # rew = 3
@@ -1967,7 +1994,8 @@ class env_simulator:
             # dist_to_goal = 0
             # coef_ref_line = 0.5
             # coef_ref_line = -10
-            coef_ref_line = 3
+            # coef_ref_line = 3
+            coef_ref_line = 5
             # coef_ref_line = 0
             cross_err_distance, x_error, y_error = self.cross_track_error(host_current_point, drone_obj.ref_line)  # deviation from the reference line, cross track error
             norm_cross_track_deviation_x = x_error * self.normalizer.x_scale
@@ -1975,24 +2003,27 @@ class env_simulator:
             # dist_to_ref_line = coef_ref_line*math.sqrt(norm_cross_track_deviation_x ** 2 +
             #                                            norm_cross_track_deviation_y ** 2)
 
-            cross_track_threshold = 5
+            # cross_track_threshold = 5
+            cross_track_threshold = 15*math.sqrt(2)
             # cross_track_threshold = drone_obj.protectiveBound
+
             if cross_err_distance <= cross_track_threshold:
                 # linear increase in reward
                 m = (0 - 1) / (cross_track_threshold - 0)
                 dist_to_ref_line = coef_ref_line*(m * cross_err_distance + 1)  # 0~1*coef_ref_line
                 # dist_to_ref_line = (coef_ref_line*(m * cross_err_distance + 1)) + coef_ref_line  # 0~1*coef_ref_line, with a fixed reward
             else:
-                dist_to_ref_line = -coef_ref_line*1
+                # dist_to_ref_line = -coef_ref_line*1
+                dist_to_ref_line = -coef_ref_line*0  # we don't have penalty if cross-track deviation too much
 
             small_step_penalty_coef = 3
             # # small_step_penalty_coef = 0
-            # spd_penalty_threshold = 2*drone_obj.protectiveBound
-            # small_step_penalty_val = (spd_penalty_threshold -
-            #                       np.clip(np.linalg.norm(drone_obj.vel), 0, spd_penalty_threshold))*\
-            #                      (1.0 / spd_penalty_threshold)  # between 0-1.
-            # small_step_penalty = small_step_penalty_coef * small_step_penalty_val
-            small_step_penalty = small_step_penalty_coef * 0
+            spd_penalty_threshold = 2*drone_obj.protectiveBound
+            small_step_penalty_val = (spd_penalty_threshold -
+                                  np.clip(np.linalg.norm(drone_obj.vel), 0, spd_penalty_threshold))*\
+                                 (1.0 / spd_penalty_threshold)  # between 0-1.
+            small_step_penalty = small_step_penalty_coef * small_step_penalty_val
+            # small_step_penalty = small_step_penalty_coef * 0
 
             # near_goal_coefficient = 3  # so that near_goal_reward will become 0-3 instead of 0-1
             near_goal_coefficient = 0
@@ -2096,6 +2127,12 @@ class env_simulator:
                 rew = rew + reach_target + near_goal_reward
                 reward.append(np.array(rew))
                 done.append(False)
+                # check if the drone has missed any waypoints
+                if len(drone_obj.waypoints) > 1:  # missed waypoints
+                    print("missed waypoint")
+                # check if waypoint swap with the final goal
+                if drone_obj.waypoints[-1] != drone_obj.goal[-1]:
+                    print("goal swapped with some intermediate points")
                 # --------------- end of with way point -----------------------
                 # without wap point
                 # rew = rew + reach_target
@@ -2106,7 +2143,7 @@ class env_simulator:
                 if xy[0] is None and xy[1] is None:  # we only alter drone's goal during actual training
                     # if (not wp_intersect.is_empty) and len(drone_obj.goal) > 1: # check if wp reached, and this is not the end point
                     if wp_intersect_flag and len(drone_obj.goal) > 1: # check if wp reached, and this is not the end point
-                        # drone_obj.removed_goal = drone_obj.goal.pop(0)  # remove current wp
+                        drone_obj.removed_goal = drone_obj.waypoints.pop(0)  # remove current wp
                         # we add a wp reached reward, this reward is equals to the maximum of the path deviation reward
                         rew = rew + coef_ref_line
                         print("drone {} has reached a WP on step {}, claim additional {} points of reward"

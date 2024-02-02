@@ -509,7 +509,7 @@ class MADDPG:
         # return actions.data.cpu().numpy(), noise_value, gru_history_input.squeeze(0).data.cpu()  # NOTE: tensor.data.cpu() is to make the tensor's "is_leaf" = True, this also prevent the error message on line "retain_graph=True"
         # return actions.data.cpu().numpy(), noise_value
 
-    def get_custom_linear_scaling_factor(self, episode, eps_end, start_scale=1, end_scale=0.03):
+    def get_custom_linear_scaling_factor(self, episode, eps_end, start_scale=1, end_scale=0.05):
         # Calculate the slope of the linear decrease only up to eps_end
         if episode <= eps_end:
             slope = (end_scale - start_scale) / (eps_end - 1)
