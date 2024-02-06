@@ -232,8 +232,10 @@ class MADDPG:
         stacked_elem_0 = torch.stack([elem[0] for elem in batch.states]).to(device)
         stacked_elem_1 = torch.stack([elem[1] for elem in batch.states]).to(device)
         if full_observable_critic_flag == True:
-            stacked_elem_0_combine = stacked_elem_0.view(self.batch_size, -1)  # own_state only
-            stacked_elem_1_combine = stacked_elem_1.view(self.batch_size, -1)  # own_state only
+            # stacked_elem_0_combine = stacked_elem_0.view(self.batch_size, -1)  # own_state only
+            stacked_elem_0_combine = stacked_elem_0  # own_state only
+            # stacked_elem_1_combine = stacked_elem_1.view(self.batch_size, -1)  # own_state only
+            stacked_elem_1_combine = stacked_elem_1  # own_state only
 
         # use the stacked tensors
         # current_state in the form of list of length of agents in the environments, then, batchNo X individual Feature length
@@ -243,8 +245,10 @@ class MADDPG:
         next_stacked_elem_0 = torch.stack([elem[0] for elem in batch.next_states]).to(device)
         next_stacked_elem_1 = torch.stack([elem[1] for elem in batch.next_states]).to(device)
         if full_observable_critic_flag == True:
-            next_stacked_elem_0_combine = next_stacked_elem_0.view(self.batch_size, -1)
-            next_stacked_elem_1_combine = next_stacked_elem_1.view(self.batch_size, -1)
+            # next_stacked_elem_0_combine = next_stacked_elem_0.view(self.batch_size, -1)
+            next_stacked_elem_0_combine = next_stacked_elem_0
+            # next_stacked_elem_1_combine = next_stacked_elem_1.view(self.batch_size, -1)
+            next_stacked_elem_1_combine = next_stacked_elem_1
 
         # for done
         dones_stacked = torch.stack([three_agent_dones for three_agent_dones in batch.dones]).to(device)
@@ -258,13 +262,15 @@ class MADDPG:
 
             # configured for target Q
 
-            whole_curren_action = action_batch.view(self.batch_size, -1)
+            # whole_curren_action = action_batch.view(self.batch_size, -1)
+            whole_curren_action = action_batch
 
             # non_final_next_actions = [self.actors_target[i](non_final_next_states_actorin[0][:,i,:], history_batch[:,:,i,:])[0] for i in range(self.n_agents)]
             # non_final_next_actions = [self.actors_target[i](non_final_next_states_actorin[0][:,i,:], agents_next_hidden_state[:,i,:])[0] for i in range(self.n_agents)]
             non_final_next_actions = [self.actors_target[i]([non_final_next_states_actorin[0][:,i,:], non_final_next_states_actorin[1][:,i,:]]) for i in range(self.n_agents)]
 
-            non_final_next_combine_actions = torch.stack(non_final_next_actions).view(self.batch_size, -1)
+            # non_final_next_combine_actions = torch.stack(non_final_next_actions).view(self.batch_size, -1)
+            non_final_next_combine_actions = non_final_next_actions
 
             # get current Q-estimate, using agent's critic network
             # current_Q = self.critics[agent](whole_state, whole_action, whole_agent_combine_gru)
@@ -321,7 +327,8 @@ class MADDPG:
             ac = action_batch.clone()
 
             ac[:, agent, :] = action_i.squeeze(0)  # replace the actor from self.actors[agent] into action batch
-            combine_action_action_replaced = ac.view(self.batch_size, -1)
+            # combine_action_action_replaced = ac.view(self.batch_size, -1)
+            combine_action_action_replaced = ac
 
             # actor_loss = -self.critics[agent](whole_state, whole_action_action_replaced, whole_hs).mean()
             # actor_loss = 3-self.critics[agent](whole_state, whole_action_action_replaced, whole_agent_combine_gru).mean()

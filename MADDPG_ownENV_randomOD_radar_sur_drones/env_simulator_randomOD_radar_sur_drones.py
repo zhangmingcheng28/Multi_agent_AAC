@@ -335,6 +335,9 @@ class env_simulator:
                                               for points in refinedPath if not np.array_equal(np.array([(points[0] + math.ceil(self.bound[0] / self.gridlength)) * self.gridlength,
                                                                                                         (points[1] + math.ceil(self.bound[2] / self.gridlength)) * self.gridlength]),
                                                                                               self.all_agents[agentIdx].ini_pos)]  # if not np.array_equal(np.array(points), self.all_agents[agentIdx].ini_pos)
+
+            self.all_agents[agentIdx].waypoints = deepcopy(self.all_agents[agentIdx].goal)
+
             # load the to goal but we include the initial position
             goalPt_withini = [[(points[0] + math.ceil(self.bound[0] / self.gridlength)) * self.gridlength,
                                                (points[1] + math.ceil(self.bound[2] / self.gridlength)) * self.gridlength]
@@ -1038,8 +1041,8 @@ class env_simulator:
 
             norm_pos = self.normalizer.scale_pos([agent.pos[0], agent.pos[1]])
 
-            # norm_vel = self.normalizer.norm_scale([agent.vel[0], agent.vel[1]])  # normalization using scale
-            norm_vel = self.normalizer.nmlz_vel([agent.vel[0], agent.vel[1]])  # normalization using min_max
+            norm_vel = self.normalizer.norm_scale([agent.vel[0], agent.vel[1]])  # normalization using scale
+            # norm_vel = self.normalizer.nmlz_vel([agent.vel[0], agent.vel[1]])  # normalization using min_max
 
             norm_acc = self.normalizer.norm_scale([agent.acc[0], agent.acc[1]])
 
@@ -1049,13 +1052,13 @@ class env_simulator:
             norm_seg = self.normalizer.nmlz_pos([agent.goal[0][0], agent.goal[0][1]])
             norm_delta_segG = norm_seg - norm_pos
 
-            agent_own = np.array([agent.vel[0], agent.vel[1], agent.acc[0], agent.acc[1],
-                                  agent.goal[-1][0]-agent.pos[0], agent.goal[-1][1]-agent.pos[1]])
+            # agent_own = np.array([agent.vel[0], agent.vel[1], agent.acc[0], agent.acc[1],
+            #                       agent.goal[-1][0]-agent.pos[0], agent.goal[-1][1]-agent.pos[1]])
             # agent_own = np.array([agent.pos[0], agent.pos[1], agent.vel[0], agent.vel[1], agent.acc[0], agent.acc[1],
             #                       agent.goal[-1][0]-agent.pos[0], agent.goal[-1][1]-agent.pos[1]])
 
-            # agent_own = np.array([agent.pos[0], agent.pos[1], agent.vel[0], agent.vel[1],
-            #                       agent.goal[-1][0]-agent.pos[0], agent.goal[-1][1]-agent.pos[1]])
+            agent_own = np.array([agent.pos[0], agent.pos[1], agent.vel[0], agent.vel[1],
+                                  agent.goal[-1][0]-agent.pos[0], agent.goal[-1][1]-agent.pos[1]])
 
             # agent_own = np.array([agent.pos[0], agent.pos[1], agent.vel[0], agent.vel[1],
             #                       agent.goal[-1][0]-agent.pos[0], agent.goal[-1][1]-agent.pos[1],
@@ -1064,9 +1067,9 @@ class env_simulator:
             # agent_own = np.array([agent.vel[0], agent.vel[1],
             #                       agent.goal[-1][0]-agent.pos[0], agent.goal[-1][1]-agent.pos[1]])
 
-            # norm_agent_own = np.concatenate([norm_pos, norm_vel, norm_deltaG], axis=0)
+            norm_agent_own = np.concatenate([norm_pos, norm_vel, norm_deltaG], axis=0)
             # norm_agent_own = np.concatenate([norm_pos, norm_vel, norm_acc, norm_deltaG], axis=0)
-            norm_agent_own = np.concatenate([norm_vel, norm_acc, norm_deltaG], axis=0)
+            # norm_agent_own = np.concatenate([norm_vel, norm_acc, norm_deltaG], axis=0)
 
             # norm_agent_own = np.concatenate([norm_pos, norm_vel, norm_deltaG, norm_delta_segG], axis=0)
             # norm_agent_own = np.concatenate([norm_vel, norm_deltaG], axis=0)
@@ -1853,28 +1856,37 @@ class env_simulator:
             # wp_circle = Point(self.all_agents[drone_idx].goal[0]).buffer(1, cap_style='round')
             # wp_circle = Point(self.all_agents[drone_idx].goal[0]).buffer(drone_obj.protectiveBound,
             #                                                              cap_style='round')
-            wp_circle = Point(self.all_agents[drone_idx].goal[0]).buffer(3.5, cap_style='round')
-            wp_intersect = host_current_circle.intersection(wp_circle)
-
-            # --------------- a new way to check for the next wp --------------------
-            smallest_dist = math.inf
+            # wp_circle = Point(self.all_agents[drone_idx].goal[0]).buffer(3.5, cap_style='round')
+            # wp_intersect = host_current_circle.intersection(wp_circle)
             wp_reach_threshold_dist = 5
-            wp_intersect_flag = False
-            for wpidx, wp in enumerate(self.all_agents[drone_idx].goal):
-                cur_dist_to_wp = curPoint.distance(Point(wp))
-                if cur_dist_to_wp < smallest_dist:
-                    smallest_dist = cur_dist_to_wp
-                    next_wp = np.array(wp)
-                    if smallest_dist < wp_reach_threshold_dist:
-                        wp_intersect_flag = True
-                        # we find the next wp, as long as it is not the last wp
-                        if len(self.all_agents[drone_idx].goal)>1:
-                            drone_obj.removed_goal = drone_obj.goal.pop(wpidx)  # remove current wp
-                            points_list = [Point(coord) for coord in self.all_agents[drone_idx].goal]
-                            next_wPoint = min(points_list, key=lambda point: point.distance(curPoint))
-                            next_wp = np.array([next_wPoint.x, next_wPoint.y])
-                        break  # once the nearest wp is found we break out of the loop
+            # --------------- a new way to check for the next wp --------------------
+            # smallest_dist = math.inf
+            # wp_intersect_flag = False
+            # for wpidx, wp in enumerate(self.all_agents[drone_idx].goal):
+            #     cur_dist_to_wp = curPoint.distance(Point(wp))
+            #     if cur_dist_to_wp < smallest_dist:
+            #         smallest_dist = cur_dist_to_wp
+            #         next_wp = np.array(wp)
+            #         if smallest_dist < wp_reach_threshold_dist:
+            #             wp_intersect_flag = True
+            #             # we find the next wp, as long as it is not the last wp
+            #             if len(self.all_agents[drone_idx].goal) > 1:
+            #                 drone_obj.removed_goal = drone_obj.goal.pop(wpidx)  # remove current wp
+            #                 points_list = [Point(coord) for coord in self.all_agents[drone_idx].goal]
+            #                 next_wPoint = min(points_list, key=lambda point: point.distance(curPoint))
+            #                 next_wp = np.array([next_wPoint.x, next_wPoint.y])
+            #             break  # once the nearest wp is found we break out of the loop
             # ---------------end of a new way to check for the next wp --------------------
+
+            #  ------  using sequence wp reaching method ----------
+            cur_dist_to_wp = curPoint.distance(Point(self.all_agents[drone_idx].waypoints[0]))
+            next_wp = np.array(self.all_agents[drone_idx].waypoints[0])
+
+            if cur_dist_to_wp < wp_reach_threshold_dist:
+                wp_intersect_flag = True
+            else:
+                wp_intersect_flag = False
+            # ------ end of using sequence wp reaching method ----------
 
             # ------------- pre-processed condition for a normal step -----------------
             # rew = 3
@@ -1890,7 +1902,10 @@ class env_simulator:
             before_dist_hg = np.linalg.norm(drone_obj.pre_pos - next_wp)  # distance to goal before action
             # after_dist_hg = np.linalg.norm(drone_obj.pos - drone_obj.goal[-1])  # distance to goal after action
             after_dist_hg = np.linalg.norm(drone_obj.pos - next_wp)  # distance to goal after action
-            dist_to_goal = dist_to_goal_coeff * (before_dist_hg - after_dist_hg)  # (before_dist_hg - after_dist_hg) -max_vel - max_vel
+            # dist_to_goal = dist_to_goal_coeff * (before_dist_hg - after_dist_hg)  # (before_dist_hg - after_dist_hg) -max_vel - max_vel
+
+            dist_left = total_length_to_end_of_line(drone_obj.pos, drone_obj.ref_line)
+            dist_to_goal = dist_to_goal_coeff * (1 - (dist_left / drone_obj.ref_line.length))
 
             if dist_to_goal >= drone_obj.maxSpeed:
                 print("dist_to_goal reward out of range")
@@ -2051,12 +2066,12 @@ class env_simulator:
             else:  # a normal step taken
                 if xy[0] is None and xy[1] is None:  # we only alter drone's goal during actual training
                     # if (not wp_intersect.is_empty) and len(drone_obj.goal) > 1: # check if wp reached, and this is not the end point
-                    if wp_intersect_flag and len(drone_obj.goal) > 1: # check if wp reached, and this is not the end point
-                        # drone_obj.removed_goal = drone_obj.goal.pop(0)  # remove current wp
+                    if wp_intersect_flag and len(drone_obj.waypoints) > 1: # check if wp reached and don't remove last element
+                        drone_obj.removed_goal = drone_obj.waypoints.pop(0)  # remove current wp
                         # we add a wp reached reward, this reward is equals to the maximum of the path deviation reward
-                        rew = rew + coef_ref_line
-                        print("drone {} has reached a WP on step {}, claim additional {} points of reward"
-                              .format(drone_idx, current_ts, coef_ref_line))
+                        # rew = rew + coef_ref_line
+                        # print("drone {} has reached a WP on step {}, claim additional {} points of reward"
+                        #       .format(drone_idx, current_ts, coef_ref_line))
                 rew = rew + dist_to_ref_line + dist_to_goal - \
                       small_step_penalty + near_goal_reward - near_building_penalty + seg_reward
                 # we remove the above termination condition

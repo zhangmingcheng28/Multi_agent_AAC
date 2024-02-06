@@ -41,7 +41,7 @@ else:
     device = torch.device('cpu')
     print('Using CPU')
 
-device = torch.device('cpu')
+# device = torch.device('cpu')
 
 
 def initialize_excel_file(file_path):
@@ -350,14 +350,14 @@ def main(args):
     use_wanDB = False
     # use_wanDB = True
 
-    get_evaluation_status = True  # have figure output
-    # get_evaluation_status = False  # no figure output, mainly obtain collision rate
+    # get_evaluation_status = True  # have figure output
+    get_evaluation_status = False  # no figure output, mainly obtain collision rate
 
-    # simply_view_evaluation = True  # don't save gif
-    simply_view_evaluation = False  # save gif
+    simply_view_evaluation = True  # don't save gif
+    # simply_view_evaluation = False  # save gif
 
-    # full_observable_critic_flag = True
-    full_observable_critic_flag = False
+    full_observable_critic_flag = True
+    # full_observable_critic_flag = False
 
     if use_wanDB:
         wandb.login(key="efb76db851374f93228250eda60639c70a93d1ec")
@@ -384,7 +384,8 @@ def main(args):
     if full_observable_critic_flag:
         actor_dim = [6, 18, 6]  # dim host, maximum dim grid, dim other drones
         # actor_dim = [8, 18, 6]  # dim host, maximum dim grid, dim other drones
-        critic_dim = [ea_dim * total_agentNum for ea_dim in actor_dim]
+        critic_dim = [6, 18, 6]
+        # critic_dim = [ea_dim * total_agentNum for ea_dim in actor_dim]
     else:
         actor_dim = [6, 18, 6]  # dim host, maximum dim grid, dim other drones
         # actor_dim = [8, 18, 6]  # dim host, maximum dim grid, dim other drones
@@ -431,8 +432,8 @@ def main(args):
     eps_check_collision = []
     eps_noise_record = []
     episode_critic_loss_cal_record = []
-    eps_end = 3000  # at eps = eps_end, the eps value drops to lowest value which is 0.03 (this value is fixed)
-    # eps_end = round(args.max_episodes / 2)  # at eps = eps_end, the eps value drops to lowest value which is 0.03 (this value is fixed)
+    # eps_end = 3000  # at eps = eps_end, the eps value drops to lowest value which is 0.03 (this value is fixed)
+    eps_end = round(args.max_episodes / 2)  # at eps = eps_end, the eps value drops to lowest value which is 0.03 (this value is fixed)
     noise_start_level = 1
     training_start_time = time.time()
 
@@ -451,10 +452,10 @@ def main(args):
     if args.mode == "eval":
         # args.max_episodes = 10  # only evaluate one episode during evaluation mode.
         # args.max_episodes = 5  # only evaluate one episode during evaluation mode.
-        # args.max_episodes = 100
-        args.max_episodes = 20
-        pre_fix = r'D:\MADDPG_2nd_jp\310124_18_58_07\interval_record_eps'
-        episode_to_check = str(25000)
+        args.max_episodes = 100
+        # args.max_episodes = 20
+        pre_fix = r'D:\MADDPG_2nd_jp\050224_16_01_15\interval_record_eps'
+        episode_to_check = str(9000)
         load_filepath_0 = pre_fix + '\episode_' + episode_to_check + '_agent_0actor_net.pth'
         load_filepath_1 = pre_fix + '\episode_' + episode_to_check + '_agent_1actor_net.pth'
         load_filepath_2 = pre_fix + '\episode_' + episode_to_check + '_agent_2actor_net.pth'
@@ -471,7 +472,7 @@ def main(args):
         episode_start_time = time.time()
         episode += 1
         eps_reset_start_time = time.time()
-        cur_state, norm_cur_state = env.reset_world(total_agentNum, show=1)
+        cur_state, norm_cur_state = env.reset_world(total_agentNum, show=0)
         eps_reset_time_used = (time.time()-eps_reset_start_time)*1000
         print("current episode {} reset time used is {} milliseconds".format(episode, eps_reset_time_used))  # need to + 1 here, or else will misrecord as the previous episode
         step_collision_record = [[] for _ in range(total_agentNum)]  # reset at each episode, so that we can record down collision at each step for each agent.
@@ -854,7 +855,7 @@ def main(args):
                 for agentIdx, agent in env.all_agents.items():
                     print("drone {}, next WP is {}, deviation from ref line is {}, ref_line_reward is {}, "
                           "dist to next goal is {}, dist_goal_reward is {}, velocity is {}, step {} reward is {}"
-                          .format(agentIdx, agent.goal[0], eps_status_holder[agentIdx][-1][2],
+                          .format(agentIdx, agent.waypoints[0], eps_status_holder[agentIdx][-1][2],
                                   eps_status_holder[agentIdx][-1][3], eps_status_holder[agentIdx][-1][0],
                                   eps_status_holder[agentIdx][-1][1], eps_status_holder[agentIdx][-1][6], step,
                                   reward_aft_action[agentIdx]))
