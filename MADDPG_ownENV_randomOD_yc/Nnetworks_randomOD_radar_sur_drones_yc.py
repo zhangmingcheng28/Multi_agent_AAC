@@ -472,15 +472,21 @@ class critic_single_OnePortion(nn.Module):
 class critic_combine_TwoPortion(nn.Module):
     def __init__(self, critic_obs, n_agents, n_actions, single_history, hidden_state_size):
         super(critic_combine_TwoPortion, self).__init__()
-        # v1 #
-        # self.SA_fc = nn.Sequential(nn.Linear(critic_obs[0]+(n_actions*n_agents), 128), nn.ReLU())
-        self.SA_fc = nn.Sequential(nn.Linear(critic_obs[0]+(n_actions*n_agents), 256), nn.ReLU())
-        # self.SA_grid = nn.Sequential(nn.Linear(critic_obs[1], 128), nn.ReLU())
-        self.SA_grid = nn.Sequential(nn.Linear(critic_obs[1], 256), nn.ReLU())
-        # self.merge_fc_grid = nn.Sequential(nn.Linear(128+128, 256), nn.ReLU())
-        self.merge_fc_grid = nn.Sequential(nn.Linear(256+256, 256), nn.ReLU())
+        # yc_v1 #
+        self.o1a1 = nn.Sequential(nn.Linear(critic_obs[0]+critic_obs[1]+n_actions, 128), nn.ReLU())
+        self.o2a2 = nn.Sequential(nn.Linear(critic_obs[0]+critic_obs[1]+n_actions, 128), nn.ReLU())
+        self.o3a3 = nn.Sequential(nn.Linear(critic_obs[0]+critic_obs[1]+n_actions, 128), nn.ReLU())
+        self.combine_agents_fea = nn.Sequential(nn.Linear(128+128+128, 256), nn.ReLU())
         self.out_feature_q = nn.Sequential(nn.Linear(256, 1))
-        # end of v1 #
+        # end of yc_v1 #
+
+        # yc_v2 #
+        # self.combine_obs_action = nn.Sequential(nn.Linear(((critic_obs[0]+critic_obs[1])*n_agents) +
+        #                                     (n_actions*n_agents), 256), nn.ReLU())
+        # self.combine_feature_process = nn.Sequential(nn.Linear(256, 256), nn.ReLU(),
+        #                                         nn.Linear(256, 256), nn.ReLU())
+        # self.out_feature_q = nn.Sequential(nn.Linear(256, 1))
+        # end of yc_v2 #
 
         #  # v2 #
         # self.S_fc = nn.Sequential(nn.Linear(critic_obs[0], 128), nn.ReLU())
@@ -490,14 +496,45 @@ class critic_combine_TwoPortion(nn.Module):
         # # end of v2 #
 
     def forward(self, combine_state, combine_action):
-        # ---- v1 -----
-        obsWaction = torch.cat((combine_state[0], combine_action), dim=1)  # obs + action
-        own_obsWaction = self.SA_fc(obsWaction)
-        own_grid = self.SA_grid(combine_state[1])  # grid
-        merge_obs_grid = torch.cat((own_obsWaction, own_grid), dim=1)
-        merge_feature = self.merge_fc_grid(merge_obs_grid)
+        # ---- yc_v1 -----
+        for agent_idx in range(3):
+            agent_obs = torch.cat((combine_state[0][:, agent_idx,:], combine_state[1][:, agent_idx,:]), dim=1)
+            if isinstance(combine_action, list):
+                agent_act = combine_action[agent_idx]
+            else:
+                agent_act = combine_action[:, agent_idx, :]
+            obsWact = torch.cat((agent_obs, agent_act), dim=1)  # obs + action
+            if agent_idx == 0:
+                o1a1_fea = self.o1a1(obsWact)
+            elif agent_idx == 1:
+                o2a2_fea = self.o2a2(obsWact)
+            elif agent_idx == 2:
+                o3a3_fea = self.o3a3(obsWact)
+
+        merge_all_agent = torch.cat((o1a1_fea, o2a2_fea, o3a3_fea), dim=1)
+        merge_feature = self.combine_agents_fea(merge_all_agent)
         q = self.out_feature_q(merge_feature)
         # --- end of v1 ---
+
+        # ----- yc_v2 ----
+        # agent_obs_list = []
+        # agent_act_list = []
+        # for agent_idx in range(3):
+        #     agent_obs = torch.cat((combine_state[0][:, agent_idx,:], combine_state[1][:, agent_idx,:]), dim=1)
+        #     agent_obs_list.append(agent_obs)
+        #     if isinstance(combine_action, list):
+        #         agent_act = combine_action[agent_idx]
+        #     else:
+        #         agent_act = combine_action[:, agent_idx, :]
+        #     agent_act_list.append(agent_act)
+        # # Concatenate all observations and then all actions
+        # all_obs_tensor = torch.cat(agent_obs_list, dim=1)
+        # all_actions_tensor = torch.cat(agent_act_list, dim=1)
+        # final_tensor = torch.cat((all_obs_tensor, all_actions_tensor), dim=1)
+        # combine_obs_action = self.combine_obs_action(final_tensor)
+        # processed_combine_feature = self.combine_feature_process(combine_obs_action)
+        # q = self.out_feature_q(processed_combine_feature)
+        # ---- end of yc_v2 ------
 
         # --- v2 ---
         # own_obs = self.S_fc(combine_state[0])

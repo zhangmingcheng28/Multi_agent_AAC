@@ -8,7 +8,7 @@
 """
 import numpy as np
 import torch as T
-from Utilities_own_randomOD_radar_sur_drones import padding_list
+from Utilities_own_randomOD_radar_sur_drones_yc import padding_list
 
 
 class Agent:
@@ -28,10 +28,13 @@ class Agent:
         self.pre_pos = None
         self.vel = None
         self.pre_vel = None
+        self.pre_travelled = None
+        self.travelled = None
         self.acc = np.zeros(2)
         self.pre_acc = np.zeros(2)
         self.maxSpeed = maxSPD
         self.goal = None
+        self.waypoints = None
         self.ref_line = None
         self.heading = None
         # self.detectionRange = 30  # in meters, this is the in diameter

@@ -17,6 +17,37 @@ from shapely.strtree import STRtree
 from shapely.geometry import LineString, Point, Polygon
 import matplotlib.colors as colors
 
+def total_length_to_end_of_line(initial_point, linestring):
+    """
+    Calculate the total distance from an initial point to the nearest point on the line and
+    from there to the end of the line.
+
+    Parameters:
+    initial_point (tuple): The initial point as (x, y).
+    linestring (LineString): The LineString object.
+
+    Returns:
+    float: The total distance from the initial point to the end of the LineString.
+    """
+    # Create a Point object from the tuple
+    point = Point(initial_point)
+
+    # Find the nearest point on the line to the initial point
+    nearest_point_on_line = linestring.interpolate(linestring.project(point))
+
+    # Calculate the distance from the initial point to the nearest point on the line
+    distance_to_line = point.distance(nearest_point_on_line)
+
+    # Calculate the distance from the nearest point on the line to the end of the line
+    projected_distance = linestring.project(nearest_point_on_line)
+    distance_to_end_of_line = linestring.length - projected_distance
+
+    # Sum the distances to get the total distance
+    total_distance = distance_to_line + distance_to_end_of_line
+
+    return total_distance
+
+
 def sort_polygons(polygons):  # this sorting is left to right, but bottom to top. so, 0th is below 2nd. [[2,3],[0,1]]
     boxes = [polygon.bounds for polygon in polygons]
     sorted_boxes = sorted(boxes, key=lambda box: (box[1], box[0]))

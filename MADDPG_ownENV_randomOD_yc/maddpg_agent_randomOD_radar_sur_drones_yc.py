@@ -1,9 +1,9 @@
 # from Nnetworks_MADDPGv3 import CriticNetwork_0724, ActorNetwork
-from Nnetworks_randomOD_radar_sur_drones import critic_combine_TwoPortion, ActorNetwork, Stocha_actor, GRU_actor, GRUCELL_actor, CriticNetwork_woGru, CriticNetwork_wGru, critic_single_obs_wGRU, ActorNetwork_TwoPortion, critic_single_TwoPortion, ActorNetwork_OnePortion, critic_single_OnePortion
+from Nnetworks_randomOD_radar_sur_drones_yc import critic_combine_TwoPortion, ActorNetwork, Stocha_actor, GRU_actor, GRUCELL_actor, CriticNetwork_woGru, CriticNetwork_wGru, critic_single_obs_wGRU, ActorNetwork_TwoPortion, critic_single_TwoPortion, ActorNetwork_OnePortion, critic_single_OnePortion
 import torch
 from copy import deepcopy
 from torch.optim import Adam
-from memory_randomOD_radar_sur_drones import ReplayMemory, Experience
+from memory_randomOD_radar_sur_drones_yc import ReplayMemory, Experience
 # from random_process_MADDPGv3_randomOD import OrnsteinUhlenbeckProcess
 from torch.autograd import Variable
 import os
@@ -11,7 +11,7 @@ import torch.nn as nn
 import time
 import numpy as np
 import torch as T
-from utils_randomOD_radar_sur_drones import device
+from utils_randomOD_radar_sur_drones_yc import device
 import csv
 
 
@@ -232,8 +232,10 @@ class MADDPG:
         stacked_elem_0 = torch.stack([elem[0] for elem in batch.states]).to(device)
         stacked_elem_1 = torch.stack([elem[1] for elem in batch.states]).to(device)
         if full_observable_critic_flag == True:
-            stacked_elem_0_combine = stacked_elem_0.view(self.batch_size, -1)  # own_state only
-            stacked_elem_1_combine = stacked_elem_1.view(self.batch_size, -1)  # own_state only
+            # stacked_elem_0_combine = stacked_elem_0.view(self.batch_size, -1)  # own_state only
+            stacked_elem_0_combine = stacked_elem_0  # own_state only
+            # stacked_elem_1_combine = stacked_elem_1.view(self.batch_size, -1)  # own_state only
+            stacked_elem_1_combine = stacked_elem_1  # own_state only
 
         # use the stacked tensors
         # current_state in the form of list of length of agents in the environments, then, batchNo X individual Feature length
@@ -243,8 +245,10 @@ class MADDPG:
         next_stacked_elem_0 = torch.stack([elem[0] for elem in batch.next_states]).to(device)
         next_stacked_elem_1 = torch.stack([elem[1] for elem in batch.next_states]).to(device)
         if full_observable_critic_flag == True:
-            next_stacked_elem_0_combine = next_stacked_elem_0.view(self.batch_size, -1)
-            next_stacked_elem_1_combine = next_stacked_elem_1.view(self.batch_size, -1)
+            # next_stacked_elem_0_combine = next_stacked_elem_0.view(self.batch_size, -1)
+            next_stacked_elem_0_combine = next_stacked_elem_0
+            # next_stacked_elem_1_combine = next_stacked_elem_1.view(self.batch_size, -1)
+            next_stacked_elem_1_combine = next_stacked_elem_1
 
         # for done
         dones_stacked = torch.stack([three_agent_dones for three_agent_dones in batch.dones]).to(device)
@@ -258,13 +262,15 @@ class MADDPG:
 
             # configured for target Q
 
-            whole_curren_action = action_batch.view(self.batch_size, -1)
+            # whole_curren_action = action_batch.view(self.batch_size, -1)
+            whole_curren_action = action_batch
 
             # non_final_next_actions = [self.actors_target[i](non_final_next_states_actorin[0][:,i,:], history_batch[:,:,i,:])[0] for i in range(self.n_agents)]
             # non_final_next_actions = [self.actors_target[i](non_final_next_states_actorin[0][:,i,:], agents_next_hidden_state[:,i,:])[0] for i in range(self.n_agents)]
             non_final_next_actions = [self.actors_target[i]([non_final_next_states_actorin[0][:,i,:], non_final_next_states_actorin[1][:,i,:]]) for i in range(self.n_agents)]
 
-            non_final_next_combine_actions = torch.stack(non_final_next_actions).view(self.batch_size, -1)
+            # non_final_next_combine_actions = torch.stack(non_final_next_actions).view(self.batch_size, -1)
+            non_final_next_combine_actions = non_final_next_actions
 
             # get current Q-estimate, using agent's critic network
             # current_Q = self.critics[agent](whole_state, whole_action, whole_agent_combine_gru)
@@ -321,7 +327,8 @@ class MADDPG:
             ac = action_batch.clone()
 
             ac[:, agent, :] = action_i.squeeze(0)  # replace the actor from self.actors[agent] into action batch
-            combine_action_action_replaced = ac.view(self.batch_size, -1)
+            # combine_action_action_replaced = ac.view(self.batch_size, -1)
+            combine_action_action_replaced = ac
 
             # actor_loss = -self.critics[agent](whole_state, whole_action_action_replaced, whole_hs).mean()
             # actor_loss = 3-self.critics[agent](whole_state, whole_action_action_replaced, whole_agent_combine_gru).mean()
@@ -370,7 +377,7 @@ class MADDPG:
                 wandb.log({name: float(param.grad.norm())})
                 # wandb.log({'agent' + str(idx): wandb.Histogram(param.grad.cpu().detach().numpy())})
 
-    def choose_action(self, state, cur_total_step, cur_episode, step, total_training_steps, noise_start_level, actor_hiddens, noisy=True):
+    def choose_action(self, state, cur_total_step, cur_episode, step, eps_noise_end, noise_start_level, actor_hiddens, noisy=True):
         # ------------- MADDPG_test_181123_10_10_54 version noise -------------------
         obs = torch.from_numpy(np.stack(state[0])).float().to(device)
         obs_grid = torch.from_numpy(np.stack(state[1])).float().to(device)
@@ -391,7 +398,7 @@ class MADDPG:
         # gru_history_input = torch.FloatTensor(gru_history_input).to(device)  # batch x seq_length x no_agent x feature_length
         gru_history_input = torch.FloatTensor(actor_hiddens).unsqueeze(0).to(device)  # batch x no_agent x feature_length
         for i in range(self.n_agents):
-            self.var[i] = self.get_custom_linear_scaling_factor(cur_episode, total_training_steps, noise_start_level)  # self.var[i] will decrease as the episode increase
+            self.var[i] = self.exponential_decay_variance(cur_episode, eps_noise_end, noise_start_level)  # self.var[i] will decrease as the episode increase
             # self.var[i] = self.linear_decay(episode, eps_end, noise_start_level)  # self.var[i] will decrease as the episode increase
 
         for i in range(self.n_agents):
@@ -464,7 +471,15 @@ class MADDPG:
         # return actions.data.cpu().numpy(), noise_value, gru_history_input.squeeze(0).data.cpu()  # NOTE: tensor.data.cpu() is to make the tensor's "is_leaf" = True, this also prevent the error message on line "retain_graph=True"
         # return actions.data.cpu().numpy(), noise_value
 
-    def get_custom_linear_scaling_factor(self, episode, eps_end, start_scale=1, end_scale=0.03):
+    def exponential_decay_variance(self, episode, eps_end, start_scale=1, end_scale=0.03):
+        if episode <= eps_end:
+            decay_rate = -np.log(end_scale / (start_scale - end_scale)) / eps_end
+            final_variance = end_scale + (start_scale - eps_end) * np.exp(-decay_rate * episode)
+        else:
+            final_variance = end_scale
+        return final_variance
+
+    def get_custom_linear_scaling_factor(self, episode, eps_end, start_scale=1, end_scale=0.05):
         # Calculate the slope of the linear decrease only up to eps_end
         if episode <= eps_end:
             slope = (end_scale - start_scale) / (eps_end - 1)

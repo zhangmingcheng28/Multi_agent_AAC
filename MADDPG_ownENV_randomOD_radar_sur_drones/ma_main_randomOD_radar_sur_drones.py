@@ -793,7 +793,7 @@ def main(args):
                             for idx, val in enumerate(c_loss):
                                 # print(" agent %s, a_loss %3.2f c_loss %3.2f" % (idx, a_loss[idx].item(), c_loss[idx].item()))
                                 wandb.log({'agent' + str(idx) + 'actor_loss': float(a_loss[idx].item()),
-                                           'agent' + str(idx) + 'critic_loss': float(c_loss[idx].item()),}, step=episode)
+                                           'agent' + str(idx) + 'critic_loss': float(c_loss[idx].item())}, step=episode)
                     if episode % args.save_interval == 0 and args.mode == "train":
                         save_model = time.time()
                         # save the models at a predefined interval
