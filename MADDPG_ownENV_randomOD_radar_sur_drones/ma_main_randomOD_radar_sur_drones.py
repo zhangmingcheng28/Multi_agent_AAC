@@ -293,7 +293,7 @@ def view_static_traj(env, trajectory_eachPlay):
             plt.plot(x, y, 'o', color='r')
 
             # plt.text(x-1, y-1, str(round(float(reward_each_agent[trajectory_idx][agentIDX]),2)))
-            plt.text(x - 1, y - 1, 'agent_' + str(agentIDX) + '_' + str(each_agent_traj[2].round(3)))
+            plt.text(x - 1, y - 1, 'U_' + str(agentIDX) + '_' + str(each_agent_traj[2].round(3)))
             # plt.text(x - 1, y - 1, 'agent_' + str(agentIDX) + '_' + str(each_agent_traj[2]))
             self_circle = Point(x, y).buffer(env.all_agents[0].protectiveBound, cap_style='round')
             grid_mat_Scir = shapelypoly_to_matpoly(self_circle, False, 'k')
@@ -347,14 +347,14 @@ def main(args):
         # initialize_excel_file(excel_file_path_time)
         # ------------ end of this portion is to save using excel instead of pickle -----------
 
-    use_wanDB = False
-    # use_wanDB = True
+    # use_wanDB = False
+    use_wanDB = True
 
-    # get_evaluation_status = True  # have figure output
-    get_evaluation_status = False  # no figure output, mainly obtain collision rate
+    get_evaluation_status = True  # have figure output
+    # get_evaluation_status = False  # no figure output, mainly obtain collision rate
 
-    simply_view_evaluation = True  # don't save gif
-    # simply_view_evaluation = False  # save gif
+    # simply_view_evaluation = True  # don't save gif
+    simply_view_evaluation = False  # save gif
 
     full_observable_critic_flag = True
     # full_observable_critic_flag = False
@@ -382,15 +382,20 @@ def main(args):
     # actor_dim = [6+(total_agentNum-1)*2, 10, 6]  # dim host, maximum dim grid, dim other drones
     # critic_dim = [6+(total_agentNum-1)*2, 10, 6]
     if full_observable_critic_flag:
-        actor_dim = [6, 18, 6]  # dim host, maximum dim grid, dim other drones
-        # actor_dim = [8, 18, 6]  # dim host, maximum dim grid, dim other drones
-        critic_dim = [6, 18, 6]
+        # actor_dim = [6, 18, 6]  # dim host, maximum dim grid, dim other drones
+        actor_dim = [8, 18, 6]  # dim host, maximum dim grid, dim other drones
+        # actor_dim = [26, 18, 6]  # dim host, maximum dim grid, dim other drones
+        # critic_dim = [6, 18, 6]
+        critic_dim = [8, 18, 6]
+        # critic_dim = [26, 18, 6]
         # critic_dim = [ea_dim * total_agentNum for ea_dim in actor_dim]
     else:
-        actor_dim = [6, 18, 6]  # dim host, maximum dim grid, dim other drones
+        # actor_dim = [6, 18, 6]  # dim host, maximum dim grid, dim other drones
         # actor_dim = [8, 18, 6]  # dim host, maximum dim grid, dim other drones
-        critic_dim = [6, 18, 6]
+        actor_dim = [26, 18, 6]
+        # critic_dim = [6, 18, 6]
         # critic_dim = [8, 18, 6]
+        critic_dim = [26, 18, 6]
 
     actor_hidden_state = 64
     actor_hidden_state_list = [actor_hidden_state for _ in range(total_agentNum)]
@@ -433,7 +438,8 @@ def main(args):
     eps_noise_record = []
     episode_critic_loss_cal_record = []
     # eps_end = 3000  # at eps = eps_end, the eps value drops to lowest value which is 0.03 (this value is fixed)
-    eps_end = round(args.max_episodes / 2)  # at eps = eps_end, the eps value drops to lowest value which is 0.03 (this value is fixed)
+    # eps_end = round(args.max_episodes / 2)  # at eps = eps_end, the eps value drops to lowest value which is 0.03 (this value is fixed)
+    eps_end = 8000  # at eps = eps_end, the eps value drops to lowest value which is 0.03 (this value is fixed)
     noise_start_level = 1
     training_start_time = time.time()
 
@@ -452,10 +458,10 @@ def main(args):
     if args.mode == "eval":
         # args.max_episodes = 10  # only evaluate one episode during evaluation mode.
         # args.max_episodes = 5  # only evaluate one episode during evaluation mode.
-        args.max_episodes = 100
-        # args.max_episodes = 20
-        pre_fix = r'D:\MADDPG_2nd_jp\050224_16_01_15\interval_record_eps'
-        episode_to_check = str(9000)
+        # args.max_episodes = 100
+        args.max_episodes = 20
+        pre_fix = r'D:\MADDPG_2nd_jp\060224_16_10_53\interval_record_eps'
+        episode_to_check = str(31000)
         load_filepath_0 = pre_fix + '\episode_' + episode_to_check + '_agent_0actor_net.pth'
         load_filepath_1 = pre_fix + '\episode_' + episode_to_check + '_agent_1actor_net.pth'
         load_filepath_2 = pre_fix + '\episode_' + episode_to_check + '_agent_2actor_net.pth'
@@ -474,7 +480,7 @@ def main(args):
         eps_reset_start_time = time.time()
         cur_state, norm_cur_state = env.reset_world(total_agentNum, show=0)
         eps_reset_time_used = (time.time()-eps_reset_start_time)*1000
-        print("current episode {} reset time used is {} milliseconds".format(episode, eps_reset_time_used))  # need to + 1 here, or else will misrecord as the previous episode
+        # print("current episode {} reset time used is {} milliseconds".format(episode, eps_reset_time_used))  # need to + 1 here, or else will misrecord as the previous episode
         step_collision_record = [[] for _ in range(total_agentNum)]  # reset at each episode, so that we can record down collision at each step for each agent.
         eps_status_holder = [None] * n_agents
         episode_decision = [False] * 3
@@ -652,13 +658,13 @@ def main(args):
                 step_update_time_start = time.time()
                 c_loss, a_loss, single_eps_critic_cal_record = model.update_myown(episode, total_step, UPDATE_EVERY, single_eps_critic_cal_record, wandb, full_observable_critic_flag)  # last working learning framework
                 update_time_used = (time.time() - step_update_time_start)*1000
-                print("current step update time used is {} milliseconds".format(update_time_used))
+                # print("current step update time used is {} milliseconds".format(update_time_used))
                 cur_state = next_state
                 norm_cur_state = norm_next_state
                 cur_actor_hiddens = next_actor_hiddens
                 eps_reward.append(step_reward_record)
                 whole_step_time = (time.time()-step_start_time)*1000
-                print("current episode, one whole step time used is {} milliseconds".format(whole_step_time))
+                # print("current episode, one whole step time used is {} milliseconds".format(whole_step_time))
                 step_time_breakdown.append([generate_action_time, step_transition_time, reward_generation_time,
                                             update_time_used, whole_step_time])
                 if args.episode_length < step:
@@ -782,12 +788,12 @@ def main(args):
                     print("[Episode %05d] reward %6.4f" % (episode, accum_reward))
 
                     if use_wanDB:
-                        wandb.log({'overall_reward': float(accum_reward)})
+                        wandb.log({'overall_reward': float(accum_reward)}, step=episode)
                         if c_loss and a_loss:
                             for idx, val in enumerate(c_loss):
                                 # print(" agent %s, a_loss %3.2f c_loss %3.2f" % (idx, a_loss[idx].item(), c_loss[idx].item()))
-                                wandb.log({'agent' + str(idx) + 'actor_loss': float(a_loss[idx].item())})
-                                wandb.log({'agent' + str(idx) + 'critic_loss': float(c_loss[idx].item())})
+                                wandb.log({'agent' + str(idx) + 'actor_loss': float(a_loss[idx].item()),
+                                           'agent' + str(idx) + 'critic_loss': float(c_loss[idx].item()),}, step=episode)
                     if episode % args.save_interval == 0 and args.mode == "train":
                         save_model = time.time()
                         # save the models at a predefined interval
@@ -805,7 +811,7 @@ def main(args):
                     #     pickle.dump(episode_critic_loss_cal_record, handle, protocol=pickle.HIGHEST_PROTOCOL)
                     epsTime = time.time()-episode_start_time
                     eps_time_record.append([eps_reset_time_used, epsTime, step_time_breakdown])
-                    print("episode {} used time in calculation is  {} seconds".format(episode, epsTime))
+                    # print("episode {} used time in calculation is  {} seconds".format(episode, epsTime))
 
                     # --------- removed to save time ----------
                     # storage_time = time.time()  # storage time is too long, one episode is >= 150 milliseconds
@@ -848,7 +854,8 @@ def main(args):
                 # trajectory_eachPlay.append([[each_agent_traj[0], each_agent_traj[1], reward_aft_action[each_agent_idx]] for each_agent_idx, each_agent_traj in enumerate(cur_state[0])])
                 traj_step_list = []
                 for each_agent_idx, each_agent in env.all_agents.items():
-                    traj_step_list.append([each_agent.pos[0], each_agent.pos[1], reward_aft_action[each_agent_idx]])
+                    # traj_step_list.append([each_agent.pos[0], each_agent.pos[1], reward_aft_action[each_agent_idx]])
+                    traj_step_list.append([each_agent.pos[0], each_agent.pos[1], np.array(step_reward_record[each_agent_idx][1])])
                 trajectory_eachPlay.append(traj_step_list)
                 accum_reward = accum_reward + sum(reward_aft_action)
                 # show states in text
@@ -1058,7 +1065,7 @@ if __name__ == '__main__':
     parser.add_argument('--scenario', default="simple_spread", type=str)
     parser.add_argument('--max_episodes', default=35000, type=int)  # run for a total of 50000 episodes
     parser.add_argument('--algo', default="maddpg", type=str, help="commnet/bicnet/maddpg")
-    parser.add_argument('--mode', default="eval", type=str, help="train/eval")
+    parser.add_argument('--mode', default="train", type=str, help="train/eval")
     parser.add_argument('--episode_length', default=150, type=int)  # maximum play per episode
     parser.add_argument('--memory_length', default=int(1e5), type=int)
     parser.add_argument('--seed', default=777, type=int)  # may choose to use 3407

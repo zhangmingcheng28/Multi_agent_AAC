@@ -440,12 +440,12 @@ class env_simulator:
             # ax.add_patch(nearest_buildingPoly_mat)
 
             # for demo purposes
-            for poly in polygons_list:
-                if poly.geom_type == "Polygon":
-                    matp_poly = shapelypoly_to_matpoly(poly, False, 'red')  # the 3rd parameter is the edge color
-                    ax.add_patch(matp_poly)
-                else:
-                    x, y = poly.xy
+            # for poly in polygons_list:
+            #     if poly.geom_type == "Polygon":
+            #         matp_poly = shapelypoly_to_matpoly(poly, False, 'red')  # the 3rd parameter is the edge color
+            #         ax.add_patch(matp_poly)
+            #     else:
+            #         x, y = poly.xy
                     # ax.plot(x, y, color='green', linewidth=2, solid_capstyle='round', zorder=3)
             # # Plot each start point
             # for point_deg, point_pos in st_points.items():
@@ -1039,6 +1039,63 @@ class env_simulator:
 
             rest_compu_time = time.time()
 
+
+            host_current_point = Point(agent.pos[0], agent.pos[1])
+            cross_err_distance, x_error, y_error = self.cross_track_error(host_current_point,
+                                                                          agent.ref_line)  # deviation from the reference line, cross track error
+            norm_cross_track_deviation_x = x_error * self.normalizer.x_scale
+            norm_cross_track_deviation_y = y_error * self.normalizer.y_scale
+
+            # no_norm_cross = np.array([x_error, y_error])
+            norm_cross = np.array([norm_cross_track_deviation_x, norm_cross_track_deviation_y])
+
+            # ----- discrete the ref line --------------
+            if agent.pre_pos is None:
+                cur_heading_rad = agent.heading
+            else:
+                cur_heading_rad = math.atan2(agent.pos[1]-agent.pre_pos[1], agent.pos[0]-agent.pre_pos[0])
+
+            host_detection_circle = host_current_point.buffer(agent.detectionRange / 2)
+
+            point_b = nearest_points(agent.ref_line, host_current_point)[0]  # [0] meaning return must be nearer to the 1st input variable
+            dist_to_b = agent.ref_line.project(point_b)
+            line_within_circle = agent.ref_line.intersection(host_detection_circle)
+            if line_within_circle.length == 0:
+                # If there is no intersection, we determine whether this drone is on the left or right of the nearest line segment
+                # Identify the closest segment to the nearest point on the line
+                segments = list(zip(agent.ref_line.coords[:-1], agent.ref_line.coords[1:]))
+                closest_segment = min(segments, key=lambda seg: LineString(seg).distance(point_b))
+                # Calculate the side using cross product logic
+                A = closest_segment[0]
+                B = closest_segment[1]
+                C = (agent.pos[0], agent.pos[1])
+                # Compute the cross product
+                cross_product = (B[0] - A[0]) * (C[1] - A[1]) - (B[1] - A[1]) * (C[0] - A[0])
+                if cross_product > 0:  # on left of the closest line segment
+                    points_spread = [-2 for _ in range(20)]
+                elif cross_product < 0:  # on the right of the closest line segment
+                    points_spread = [2 for _ in range(20)]
+                else:
+                    points_spread = [0 for _ in range(20)]
+                    print("point is on the line, which has very low chance, in that case we just assign 0.")
+                ref_line_obs = points_spread
+                norm_ref_line_obs = np.array(points_spread)
+
+            else:
+                # Calculate the total distance we can spread out points from Point B
+                total_spread_distance = min(agent.detectionRange / 2, line_within_circle.length)
+                # Calculate the interval for the points
+                interval = total_spread_distance / 10
+                # Get 10 points along the LineString from Point B
+                points_spread = [line_within_circle.interpolate(dist_to_b + interval * i) for i in range(1, 11)]
+                # For demonstration, return the coordinates of the points
+                ref_line_obs = [coord for point in points_spread for coord in point.coords[0]]
+                # we normalize these ref_line_coordinates
+                norm_ref_line_obs = np.array(
+                    [norm_coo for point in points_spread for norm_coo in self.normalizer.scale_pos(point.coords[0])])
+
+            # ----- end of discrete the ref line --------------
+
             norm_pos = self.normalizer.scale_pos([agent.pos[0], agent.pos[1]])
 
             norm_vel = self.normalizer.norm_scale([agent.vel[0], agent.vel[1]])  # normalization using scale
@@ -1057,8 +1114,14 @@ class env_simulator:
             # agent_own = np.array([agent.pos[0], agent.pos[1], agent.vel[0], agent.vel[1], agent.acc[0], agent.acc[1],
             #                       agent.goal[-1][0]-agent.pos[0], agent.goal[-1][1]-agent.pos[1]])
 
-            agent_own = np.array([agent.pos[0], agent.pos[1], agent.vel[0], agent.vel[1],
+            # agent_own = np.array([agent.pos[0], agent.pos[1], agent.vel[0], agent.vel[1],
+            #                       agent.goal[-1][0]-agent.pos[0], agent.goal[-1][1]-agent.pos[1]])
+
+            agent_own = np.array([agent.pos[0], agent.pos[1], agent.vel[0], agent.vel[1], x_error, y_error,
                                   agent.goal[-1][0]-agent.pos[0], agent.goal[-1][1]-agent.pos[1]])
+
+            # agent_own = np.array([agent.pos[0], agent.pos[1], agent.vel[0], agent.vel[1]]+ref_line_obs+
+            #                       [agent.goal[-1][0]-agent.pos[0], agent.goal[-1][1]-agent.pos[1]])
 
             # agent_own = np.array([agent.pos[0], agent.pos[1], agent.vel[0], agent.vel[1],
             #                       agent.goal[-1][0]-agent.pos[0], agent.goal[-1][1]-agent.pos[1],
@@ -1067,7 +1130,9 @@ class env_simulator:
             # agent_own = np.array([agent.vel[0], agent.vel[1],
             #                       agent.goal[-1][0]-agent.pos[0], agent.goal[-1][1]-agent.pos[1]])
 
-            norm_agent_own = np.concatenate([norm_pos, norm_vel, norm_deltaG], axis=0)
+            # norm_agent_own = np.concatenate([norm_pos, norm_vel, norm_deltaG], axis=0)
+            norm_agent_own = np.concatenate([norm_pos, norm_vel, norm_cross, norm_deltaG], axis=0)
+            # norm_agent_own = np.concatenate([norm_pos, norm_vel, norm_ref_line_obs, norm_deltaG], axis=0)
             # norm_agent_own = np.concatenate([norm_pos, norm_vel, norm_acc, norm_deltaG], axis=0)
             # norm_agent_own = np.concatenate([norm_vel, norm_acc, norm_deltaG], axis=0)
 
@@ -1754,11 +1819,13 @@ class env_simulator:
         one_step_reward = []
         check_goal = [False] * len(self.all_agents)
         reward_record_idx = 0  # this is used as a list index, increase with for loop. No need go with agent index, this index is also shared by done checking
-        crash_penalty_wall = 5
+        # crash_penalty_wall = 5
+        crash_penalty_wall = 15
         big_crash_penalty_wall = 200
         crash_penalty_drone = 1
         # reach_target = 1
         reach_target = 5
+        survival_penalty = 3
 
         potential_conflict_count = 0
         final_goal_toadd = 0
@@ -1935,8 +2002,9 @@ class env_simulator:
             # dist_to_goal = 0
             # coef_ref_line = 0.5
             # coef_ref_line = -10
-            # coef_ref_line = 3
-            coef_ref_line = 0
+            coef_ref_line = 3
+            # coef_ref_line = 1.5
+            # coef_ref_line = 0
             cross_err_distance, x_error, y_error = self.cross_track_error(host_current_point, drone_obj.ref_line)  # deviation from the reference line, cross track error
             norm_cross_track_deviation_x = x_error * self.normalizer.x_scale
             norm_cross_track_deviation_y = y_error * self.normalizer.y_scale
@@ -2073,7 +2141,7 @@ class env_simulator:
                         # print("drone {} has reached a WP on step {}, claim additional {} points of reward"
                         #       .format(drone_idx, current_ts, coef_ref_line))
                 rew = rew + dist_to_ref_line + dist_to_goal - \
-                      small_step_penalty + near_goal_reward - near_building_penalty + seg_reward
+                      small_step_penalty + near_goal_reward - near_building_penalty + seg_reward - survival_penalty
                 # we remove the above termination condition
                 done.append(False)
                 step_reward = np.array(rew)

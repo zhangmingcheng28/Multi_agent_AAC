@@ -1953,12 +1953,13 @@ class env_simulator:
 
             # ------------- pre-processed condition for a normal step -----------------
             # rew = 3
-            rew = 0
+            # rew = 0
+            rew = -2
             # dist_to_goal_coeff = 1
             dist_to_goal_coeff = 1
 
-            x_norm, y_norm = self.normalizer.nmlz_pos(drone_obj.pos)
-            tx_norm, ty_norm = self.normalizer.nmlz_pos(drone_obj.goal[-1])
+            # x_norm, y_norm = self.normalizer.nmlz_pos(drone_obj.pos)
+            # tx_norm, ty_norm = self.normalizer.nmlz_pos(drone_obj.goal[-1])
             # dist_to_goal = dist_to_goal_coeff * math.sqrt(((x_norm-tx_norm)**2 + (y_norm-ty_norm)**2))  # 0~2.828 at each step
 
             # before_dist_hg = np.linalg.norm(drone_obj.pre_pos - drone_obj.goal[-1])  # distance to goal before action
@@ -2145,7 +2146,7 @@ class env_simulator:
                     # if (not wp_intersect.is_empty) and len(drone_obj.goal) > 1: # check if wp reached, and this is not the end point
                     if wp_intersect_flag and len(drone_obj.waypoints) > 1: # check if wp reached and don't remove last element
                         drone_obj.removed_goal = drone_obj.waypoints.pop(0)  # remove current wp
-                        # we add a wp reached reward, this reward is equals to the maximum of the path deviation reward
+                        # # we add a wp reached reward, this reward is equals to the maximum of the path deviation reward
                         # rew = rew + coef_ref_line
                         # print("drone {} has reached a WP on step {}, claim additional {} points of reward"
                         #       .format(drone_idx, current_ts, coef_ref_line))
