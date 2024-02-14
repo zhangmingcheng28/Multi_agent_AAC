@@ -1035,6 +1035,11 @@ class env_simulator:
             all_agent_line_collection.append(line_collection)
             all_agent_mini_intersection_list.append(mini_intersection_list)
             self.all_agents[agentIdx].observableSpace = distances
+
+            # normalize radar reading by its maximum range
+            for ea_dist in self.all_agents[agentIdx].observableSpace:
+                ea_dist[0] = ea_dist[0] / (self.all_agents[agentIdx].detectionRange / 2)
+
             # ------------- end of create radar --------------- #
 
             rest_compu_time = time.time()
@@ -1045,6 +1050,10 @@ class env_simulator:
             norm_cross_track_deviation_y = y_error * self.normalizer.y_scale
 
             norm_cross = np.array([norm_cross_track_deviation_x, norm_cross_track_deviation_y])
+
+            combine_norm_cross = np.array([np.linalg.norm(norm_cross),
+                                           norm_cross_track_deviation_x,
+                                           norm_cross_track_deviation_y])
 
             norm_pos = self.normalizer.scale_pos([agent.pos[0], agent.pos[1]])
 
@@ -1062,7 +1071,10 @@ class env_simulator:
             # agent_own = np.array([agent.vel[0], agent.vel[1], agent.acc[0], agent.acc[1],
             #                       agent.goal[-1][0]-agent.pos[0], agent.goal[-1][1]-agent.pos[1]])
 
-            agent_own = np.array([x_error, y_error, agent.vel[0], agent.vel[1], agent.acc[0], agent.acc[1],
+            # agent_own = np.array([x_error, y_error, agent.vel[0], agent.vel[1], agent.acc[0], agent.acc[1],
+            #                       agent.goal[-1][0]-agent.pos[0], agent.goal[-1][1]-agent.pos[1]])
+
+            agent_own = np.array([cross_err_distance, x_error, y_error, agent.vel[0], agent.vel[1], agent.acc[0], agent.acc[1],
                                   agent.goal[-1][0]-agent.pos[0], agent.goal[-1][1]-agent.pos[1]])
 
             # agent_own = np.array([agent.pos[0], agent.pos[1], agent.vel[0], agent.vel[1], agent.acc[0], agent.acc[1],
@@ -1081,7 +1093,8 @@ class env_simulator:
             # norm_agent_own = np.concatenate([norm_pos, norm_vel, norm_deltaG], axis=0)
             # norm_agent_own = np.concatenate([norm_pos, norm_vel, norm_acc, norm_deltaG], axis=0)
             # norm_agent_own = np.concatenate([norm_vel, norm_acc, norm_deltaG], axis=0)
-            norm_agent_own = np.concatenate([norm_cross, norm_vel, norm_acc, norm_deltaG], axis=0)
+            # norm_agent_own = np.concatenate([norm_cross, norm_vel, norm_acc, norm_deltaG], axis=0)
+            norm_agent_own = np.concatenate([combine_norm_cross, norm_vel, norm_acc, norm_deltaG], axis=0)
 
             # norm_agent_own = np.concatenate([norm_pos, norm_vel, norm_deltaG, norm_delta_segG], axis=0)
             # norm_agent_own = np.concatenate([norm_vel, norm_deltaG], axis=0)
@@ -1766,12 +1779,14 @@ class env_simulator:
         one_step_reward = []
         check_goal = [False] * len(self.all_agents)
         reward_record_idx = 0  # this is used as a list index, increase with for loop. No need go with agent index, this index is also shared by done checking
-        crash_penalty_wall = 15
+        crash_penalty_wall = 5
         big_crash_penalty_wall = 200
         crash_penalty_drone = 1
         # reach_target = 1
-        reach_target = 5
-        survival_penalty = 2
+        # reach_target = 15
+        reach_target = 20
+        # survival_penalty = 2
+        survival_penalty = 0
 
         potential_conflict_count = 0
         final_goal_toadd = 0
@@ -1872,6 +1887,7 @@ class env_simulator:
             # wp_circle = Point(self.all_agents[drone_idx].goal[0]).buffer(3.5, cap_style='round')
             # wp_intersect = host_current_circle.intersection(wp_circle)
             wp_reach_threshold_dist = 5
+
             # --------------- a new way to check for the next wp --------------------
             # smallest_dist = math.inf
             # wp_intersect_flag = False
@@ -1904,7 +1920,9 @@ class env_simulator:
             # ------------- pre-processed condition for a normal step -----------------
             # rew = 3
             rew = 0
+            # dist_to_goal_coeff = 1
             dist_to_goal_coeff = 1
+            # dist_to_goal_coeff = 3
             # dist_to_goal_coeff = 0
 
             x_norm, y_norm = self.normalizer.nmlz_pos(drone_obj.pos)
@@ -1948,6 +1966,7 @@ class env_simulator:
             # dist_to_goal = 0
             # coef_ref_line = 0.5
             # coef_ref_line = -10
+            # coef_ref_line = 1
             coef_ref_line = 3
             # coef_ref_line = 0
             cross_err_distance, x_error, y_error = self.cross_track_error(host_current_point, drone_obj.ref_line)  # deviation from the reference line, cross track error
@@ -1963,7 +1982,8 @@ class env_simulator:
                 dist_to_ref_line = coef_ref_line*(m * cross_err_distance + 1)  # 0~1*coef_ref_line
                 # dist_to_ref_line = (coef_ref_line*(m * cross_err_distance + 1)) + coef_ref_line  # 0~1*coef_ref_line, with a fixed reward
             else:
-                dist_to_ref_line = -coef_ref_line*1
+                # dist_to_ref_line = -coef_ref_line*1
+                dist_to_ref_line = -coef_ref_line*0
 
             # small_step_penalty_coef = 3
             small_step_penalty_coef = 0
@@ -2108,9 +2128,9 @@ class env_simulator:
             eps_status_holder = self.display_one_eps_status(eps_status_holder, drone_idx, after_dist_hg, [dist_to_goal, cross_err_distance, dist_to_ref_line, near_building_penalty, small_step_penalty, np.linalg.norm(drone_obj.vel), near_goal_reward, seg_reward])
             # overall_status_record[2].append()  # 3rd is accumulated reward till that step for each agent
 
-
         if full_observable_critic_flag:
             reward = [np.sum(reward) for _ in reward]
+        # reward = [np.sum(reward) for _ in reward]
         # all_reach_target = all(agent.reach_target == True for agent in self.all_agents.values())
         # if all_reach_target:  # in this episode all agents have reached their target at least one
         #     # we cannot just assign a single True to "done", as it must be a list to output from the function.

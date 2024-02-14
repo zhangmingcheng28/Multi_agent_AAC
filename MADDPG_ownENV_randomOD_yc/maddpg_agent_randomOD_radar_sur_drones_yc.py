@@ -333,7 +333,8 @@ class MADDPG:
             # actor_loss = -self.critics[agent](whole_state, whole_action_action_replaced, whole_hs).mean()
             # actor_loss = 3-self.critics[agent](whole_state, whole_action_action_replaced, whole_agent_combine_gru).mean()
             if full_observable_critic_flag:
-                actor_loss = 3 - self.critics[agent]([stacked_elem_0_combine, stacked_elem_1_combine], combine_action_action_replaced).mean()
+                # actor_loss = 3 - self.critics[agent]([stacked_elem_0_combine, stacked_elem_1_combine], combine_action_action_replaced).mean()
+                actor_loss = - self.critics[agent]([stacked_elem_0_combine, stacked_elem_1_combine], combine_action_action_replaced).mean()
                 # actor_loss = - self.critics[agent]([stacked_elem_0_combine, stacked_elem_1_combine], combine_action_action_replaced).mean()
             else:
                 # actor_loss = 3 - self.critics[agent]([stacked_elem_0[:, agent, :], stacked_elem_1[:, agent, :]],
@@ -398,7 +399,8 @@ class MADDPG:
         # gru_history_input = torch.FloatTensor(gru_history_input).to(device)  # batch x seq_length x no_agent x feature_length
         gru_history_input = torch.FloatTensor(actor_hiddens).unsqueeze(0).to(device)  # batch x no_agent x feature_length
         for i in range(self.n_agents):
-            self.var[i] = self.exponential_decay_variance(cur_episode, eps_noise_end, noise_start_level)  # self.var[i] will decrease as the episode increase
+            self.var[i] = self.get_custom_linear_scaling_factor(cur_episode, eps_noise_end, noise_start_level)  # self.var[i] will decrease as the episode increase
+            # self.var[i] = self.exponential_decay_variance(cur_episode, eps_noise_end, noise_start_level)  # self.var[i] will decrease as the episode increase
             # self.var[i] = self.linear_decay(episode, eps_end, noise_start_level)  # self.var[i] will decrease as the episode increase
 
         for i in range(self.n_agents):

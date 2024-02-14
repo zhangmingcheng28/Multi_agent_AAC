@@ -350,14 +350,14 @@ def main(args):
     # use_wanDB = False
     use_wanDB = True
 
-    get_evaluation_status = True  # have figure output
-    # get_evaluation_status = False  # no figure output, mainly obtain collision rate
+    # get_evaluation_status = True  # have figure output
+    get_evaluation_status = False  # no figure output, mainly obtain collision rate
 
     # simply_view_evaluation = True  # don't save gif
     simply_view_evaluation = False  # save gif
 
-    # full_observable_critic_flag = True
-    full_observable_critic_flag = False
+    full_observable_critic_flag = True
+    # full_observable_critic_flag = False
 
     if use_wanDB:
         wandb.login(key="efb76db851374f93228250eda60639c70a93d1ec")
@@ -383,15 +383,19 @@ def main(args):
     # critic_dim = [6+(total_agentNum-1)*2, 10, 6]
     if full_observable_critic_flag:
         # actor_dim = [6, 18, 6]  # dim host, maximum dim grid, dim other drones
-        actor_dim = [8, 18, 6]  # dim host, maximum dim grid, dim other drones
+        # actor_dim = [8, 18, 6]  # dim host, maximum dim grid, dim other drones
+        actor_dim = [9, 18, 6]  # dim host, maximum dim grid, dim other drones
         # critic_dim = [6, 18, 6]
-        critic_dim = [8, 18, 6]
+        # critic_dim = [8, 18, 6]
+        critic_dim = [9, 18, 6]
         # critic_dim = [ea_dim * total_agentNum for ea_dim in actor_dim]
     else:
         # actor_dim = [6, 18, 6]  # dim host, maximum dim grid, dim other drones
-        actor_dim = [8, 18, 6]  # dim host, maximum dim grid, dim other drones
+        # actor_dim = [8, 18, 6]  # dim host, maximum dim grid, dim other drones
+        actor_dim = [9, 18, 6]  # dim host, maximum dim grid, dim other drones
         # critic_dim = [6, 18, 6]
-        critic_dim = [8, 18, 6]
+        # critic_dim = [8, 18, 6]
+        critic_dim = [9, 18, 6]
 
     actor_hidden_state = 64
     actor_hidden_state_list = [actor_hidden_state for _ in range(total_agentNum)]
@@ -434,9 +438,9 @@ def main(args):
     eps_noise_record = []
     episode_critic_loss_cal_record = []
     # eps_end = 3000  # at eps = eps_end, the eps value drops to lowest value which is 0.03 (this value is fixed)
-    # eps_end = 8000  # at eps = eps_end, the eps value drops to lowest value which is 0.03 (this value is fixed)
-    eps_end = round(args.max_episodes / 2)  # at eps = eps_end, the eps value drops to lowest value which is 0.03 (this value is fixed)
-    noise_start_level = 0.5
+    eps_end = 8000  # at eps = eps_end, the eps value drops to lowest value which is 0.03 (this value is fixed)
+    # eps_end = round(args.max_episodes / 2)  # at eps = eps_end, the eps value drops to lowest value which is 0.03 (this value is fixed)
+    noise_start_level = 1
     training_start_time = time.time()
 
     # ------------ record episode time ------------- #
@@ -454,10 +458,10 @@ def main(args):
     if args.mode == "eval":
         # args.max_episodes = 10  # only evaluate one episode during evaluation mode.
         # args.max_episodes = 5  # only evaluate one episode during evaluation mode.
-        # args.max_episodes = 100
-        args.max_episodes = 35
-        pre_fix = r'D:\MADDPG_2nd_jp\050224_16_01_15\interval_record_eps'
-        episode_to_check = str(11000)
+        args.max_episodes = 100
+        # args.max_episodes = 25
+        pre_fix = r'D:\MADDPG_2nd_jp\130224_12_39_32\interval_record_eps'
+        episode_to_check = str(15000)
         load_filepath_0 = pre_fix + '\episode_' + episode_to_check + '_agent_0actor_net.pth'
         load_filepath_1 = pre_fix + '\episode_' + episode_to_check + '_agent_1actor_net.pth'
         load_filepath_2 = pre_fix + '\episode_' + episode_to_check + '_agent_2actor_net.pth'
@@ -649,7 +653,10 @@ def main(args):
                     model.memory.push(obs, ac_tensor, next_obs, rw_tensor, done_tensor, history_tensor, cur_actor_hiddens, next_actor_hiddens)
 
                 # accum_reward = accum_reward + reward_aft_action[0]  # we just take the first agent's reward, because we are using a joint reward, so all agents obtain the same reward.
-                accum_reward = accum_reward + sum(reward_aft_action)
+                if full_observable_critic_flag:
+                    accum_reward = accum_reward + reward_aft_action[0]
+                else:
+                    accum_reward = accum_reward + sum(reward_aft_action)
 
                 step_update_time_start = time.time()
                 c_loss, a_loss, single_eps_critic_cal_record = model.update_myown(episode, total_step, UPDATE_EVERY, single_eps_critic_cal_record, wandb, full_observable_critic_flag)  # last working learning framework
@@ -671,7 +678,7 @@ def main(args):
                     print("Some agent triggers termination condition like collision, current episode {} ends at step {}".format(episode, step-1))  # we need to -1 here, because we perform step + 1 after each complete step. Just to be consistent with the step count inside the reward function.
                 elif all([agent.reach_target for agent_idx, agent in env.all_agents.items()]):
                     episode_decision[2] = True
-                    print("All agents have reached their destinations, episode terminated.")
+                    print("All agents have reached their destinations at step {}, episode {} terminated.".format(step-1, episode))
                     # show termination condition in picture when termination condition reached.
                     # os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
                     # matplotlib.use('TkAgg')
