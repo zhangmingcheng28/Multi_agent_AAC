@@ -167,9 +167,9 @@ class ActorNetwork_ATT_TwoPortion(nn.Module):
         self.own_fc = nn.Sequential(nn.Linear(actor_dim[0], 64), nn.ReLU())
         self.own_grid = nn.Sequential(nn.Linear(actor_dim[1], 64), nn.ReLU())
         self.neigh_fc = nn.Sequential(nn.Linear(actor_dim[2], 64), nn.ReLU())
-        self.merge_feature = nn.Sequential(nn.Linear(64+64, 128), nn.ReLU())
+        self.merge_feature = nn.Sequential(nn.Linear(64+64+64, 256), nn.ReLU())
         # self.merge_feature_l2 = nn.Sequential(nn.Linear(64+64, 128), nn.ReLU())  # this is just a dummy
-        self.act_out = nn.Sequential(nn.Linear(128, n_actions), nn.Tanh())
+        self.act_out = nn.Sequential(nn.Linear(256, n_actions), nn.Tanh())
 
         # attention
         self.k = nn.Linear(64, 64, bias=False)
@@ -607,21 +607,23 @@ class critic_combine_TwoPortion(nn.Module):
         # --- end of v2 ---
         return q
 
-
 class critic_ATT_combine_TwoPortion(nn.Module):
     def __init__(self, critic_obs, n_agents, n_actions, single_history, hidden_state_size):
         super(critic_ATT_combine_TwoPortion, self).__init__()
         self.n_agents = n_agents
         # yc_v1 #
+        # self.individual_agent_layers = nn.ModuleList([
+        #     nn.Sequential(
+        #         nn.Linear(critic_obs[0]+critic_obs[1]+n_actions, 128),
+        #         nn.ReLU(),
+        #         attention_layer(critic_obs[2], 128)
+        #     ) for _ in range(n_agents)
+        # ])  # nn.ModuleList we can use a list comprehension to do.
         self.individual_agent_layers = nn.ModuleList([
-            nn.Sequential(
-                nn.Linear(critic_obs[0]+critic_obs[1]+n_actions, 128),
-                nn.ReLU(),
-            ) for _ in range(n_agents)
-        ])  # nn.ModuleList we can use a list comprehension to do.
-
-        self.combine_agents_fea = nn.Sequential(nn.Linear(128+128+128, 256), nn.ReLU())
-        self.out_feature_q = nn.Sequential(nn.Linear(256, 1))
+            CustomAgentLayer(critic_obs, n_actions, 128) for _ in range(n_agents)
+        ])
+        self.combine_agents_fea = nn.Sequential(nn.Linear(256+256+256, 512), nn.ReLU())
+        self.out_feature_q = nn.Sequential(nn.Linear(512, 1))
         # end of yc_v1 #
 
     def forward(self, combine_state, combine_action):
@@ -633,8 +635,10 @@ class critic_ATT_combine_TwoPortion(nn.Module):
                 agent_act = combine_action[agent_idx]
             else:
                 agent_act = combine_action[:, agent_idx, :]
-            obsWact = torch.cat((agent_obs, agent_act), dim=1)  # obs + action
-            single_agent_feature = self.individual_agent_layers[agent_idx](obsWact)
+            obsWact = torch.cat((agent_obs, agent_act), dim=1)
+            sur_nei_obs = combine_state[2][:, agent_idx, :, :]
+            # obs + action
+            single_agent_feature = self.individual_agent_layers[agent_idx](obsWact, sur_nei_obs)
             agent_features.append(single_agent_feature)
 
         merge_all_agent = torch.cat(agent_features, dim=1)
@@ -642,3 +646,42 @@ class critic_ATT_combine_TwoPortion(nn.Module):
         q = self.out_feature_q(merge_feature)
         # --- end of v1 ---
         return q
+
+
+class CustomAgentLayer(nn.Module):
+    def __init__(self, critic_obs, n_actions, attention_features):
+        super(CustomAgentLayer, self).__init__()
+        self.obsWact_fea_extract = nn.Sequential(nn.Linear(critic_obs[0] + n_actions + critic_obs[1], 128), nn.ReLU())
+
+        self.attention = attention_layer(128, attention_features, critic_obs)
+
+    def forward(self, obsWact, sur_nei_obs):
+        obsWact_features = self.obsWact_fea_extract(obsWact)
+        individual_agent_att = self.attention(obsWact_features, sur_nei_obs)
+        obsWact_features_Watt = torch.cat((obsWact_features, individual_agent_att), dim=1)
+        return obsWact_features_Watt
+
+
+class attention_layer(nn.Module):
+    def __init__(self, input_dim, attention_features, critic_obs):
+        super(attention_layer, self).__init__()
+        self.neigh_fc = nn.Linear(critic_obs[2], attention_features)
+        self.k = nn.Linear(input_dim, attention_features, bias=False)
+        self.q = nn.Linear(input_dim, attention_features, bias=False)
+        self.v = nn.Linear(input_dim, attention_features, bias=False)
+
+    def forward(self, obsWact_features, sur_nei_obs):
+        q = self.q(obsWact_features)
+        sur_nei_features = self.neigh_fc(sur_nei_obs)
+        k = self.k(sur_nei_features)
+        v = self.v(sur_nei_features)
+        mask = sur_nei_obs.mean(axis=2, keepdim=True).bool()
+        score = torch.bmm(k, q.unsqueeze(axis=2))
+        score_mask = score.clone()  # clone操作很必要
+        score_mask[~mask] = float('-inf')  # 不然赋值操作后会无法计算梯度
+
+        alpha = F.softmax(score_mask / np.sqrt(k.size(-1)), dim=1)  # we use dim=1 here because we need to get attention of each sequence in K towards all hidden vector of q in each batch.
+        alpha_mask = alpha.clone()
+        alpha_mask[~mask] = 0
+        v_att = torch.sum(v * alpha_mask, axis=1)
+        return v_att

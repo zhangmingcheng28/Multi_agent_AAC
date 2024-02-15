@@ -12,9 +12,9 @@ import time
 import matplotlib.animation as animation
 import pickle
 import wandb
-from parameters_randomOD_radar_sur_drones_yc import initialize_parameters
-from maddpg_agent_randomOD_radar_sur_drones_yc import MADDPG
-from utils_randomOD_radar_sur_drones_yc import *
+from parameters_randomOD_radar_sur_drones_yc_att import initialize_parameters
+from maddpg_agent_randomOD_radar_sur_drones_yc_att import MADDPG
+from utils_randomOD_radar_sur_drones_yc_att import *
 from copy import deepcopy
 import torch
 import matplotlib.pyplot as plt
@@ -24,7 +24,7 @@ from shapely.strtree import STRtree
 from matplotlib.markers import MarkerStyle
 import math
 from matplotlib.transforms import Affine2D
-from Utilities_own_randomOD_radar_sur_drones_yc import *
+from Utilities_own_randomOD_radar_sur_drones_yc_att import *
 from collections import deque
 import csv
 
@@ -40,7 +40,7 @@ else:
     device = torch.device('cpu')
     print('Using CPU')
 
-# device = torch.device('cpu')
+device = torch.device('cpu')
 
 def main(args):
 
@@ -64,8 +64,8 @@ def main(args):
         # initialize_excel_file(excel_file_path_time)
         # ------------ end of this portion is to save using excel instead of pickle -----------
 
-    use_wanDB = False
-    # use_wanDB = True
+    # use_wanDB = False
+    use_wanDB = True
 
     # get_evaluation_status = True  # have figure output
     get_evaluation_status = False  # no figure output, mainly obtain collision rate
@@ -180,8 +180,8 @@ def main(args):
         # args.max_episodes = 5  # only evaluate one episode during evaluation mode.
         args.max_episodes = 100
         # args.max_episodes = 25
-        pre_fix = r'D:\MADDPG_2nd_jp\140224_16_02_10\interval_record_eps'
-        episode_to_check = str(14000)
+        pre_fix = r'D:\MADDPG_2nd_jp\130224_12_39_32\interval_record_eps'
+        episode_to_check = str(15000)
         load_filepath_0 = pre_fix + '\episode_' + episode_to_check + '_agent_0actor_net.pth'
         load_filepath_1 = pre_fix + '\episode_' + episode_to_check + '_agent_1actor_net.pth'
         load_filepath_2 = pre_fix + '\episode_' + episode_to_check + '_agent_2actor_net.pth'
@@ -348,7 +348,8 @@ def main(args):
                         else:
                             sur_agents = []
                             for each_agent_list in element:
-                                sur_agents.append(torch.from_numpy(np.squeeze(np.array(each_agent_list), axis=1)).float())
+                                # sur_agents.append(torch.from_numpy(np.squeeze(np.array(each_agent_list), axis=1)).float())
+                                sur_agents.append(torch.from_numpy(np.array(each_agent_list)).float())
                             obs.append(sur_agents)
 
                     for elementIdx, element in enumerate(norm_next_state):
@@ -359,7 +360,8 @@ def main(args):
                         else:
                             sur_agents = []
                             for each_agent_list in element:
-                                sur_agents.append(torch.from_numpy(np.squeeze(np.array(each_agent_list), axis=1)).float())
+                                # sur_agents.append(torch.from_numpy(np.squeeze(np.array(each_agent_list), axis=1)).float())
+                                sur_agents.append(torch.from_numpy(np.array(each_agent_list)).float())
                             next_obs.append(sur_agents)
                     # ------------------ end of store norm or non-norm state into experience replay --------------------
                     rw_tensor = torch.FloatTensor(np.array(reward_aft_action)).to(device)
@@ -566,7 +568,7 @@ def main(args):
                 # action = env.get_actions_noCR()  # only update heading, don't update any other attribute
                 # for a_idx, action_ele in enumerate(action):
                 #     action[a_idx] = [-0.3535, 0.3535]
-                next_state, norm_next_state, polygons_list, all_agent_st_points, all_agent_ed_points, all_agent_intersection_point_list, all_agent_line_collection, all_agent_mini_intersection_list = env.step(action, step, acc_max, actor_dim)  # no heading update here
+                next_state, norm_next_state, polygons_list, all_agent_st_points, all_agent_ed_points, all_agent_intersection_point_list, all_agent_line_collection, all_agent_mini_intersection_list = env.step(action, step, acc_max)  # no heading update here
                 reward_aft_action, done_aft_action, check_goal, step_reward_record, eps_status_holder, step_collision_record, bound_building_check = env.ss_reward(step, step_reward_record, eps_status_holder, step_collision_record, dummy_xy, full_observable_critic_flag)
                 # reward_aft_action, done_aft_action, check_goal, step_reward_record = env.get_step_reward_5_v3(step, step_reward_record)
 
@@ -787,7 +789,7 @@ if __name__ == '__main__':
     parser.add_argument('--scenario', default="simple_spread", type=str)
     parser.add_argument('--max_episodes', default=35000, type=int)  # run for a total of 50000 episodes
     parser.add_argument('--algo', default="maddpg", type=str, help="commnet/bicnet/maddpg")
-    parser.add_argument('--mode', default="eval", type=str, help="train/eval")
+    parser.add_argument('--mode', default="train", type=str, help="train/eval")
     parser.add_argument('--episode_length', default=50, type=int)  # maximum play per episode
     parser.add_argument('--memory_length', default=int(1e5), type=int)
     parser.add_argument('--seed', default=777, type=int)  # may choose to use 3407

@@ -18,7 +18,7 @@ from scipy.spatial import KDTree
 import random
 import itertools
 from copy import deepcopy
-from agent_randomOD_radar_sur_drones_yc import Agent
+from agent_randomOD_radar_sur_drones_yc_att import Agent
 import pandas as pd
 import math
 import numpy as np
@@ -30,7 +30,7 @@ import matplotlib.pyplot as plt
 import matplotlib
 import re
 import time
-from Utilities_own_randomOD_radar_sur_drones_yc import *
+from Utilities_own_randomOD_radar_sur_drones_yc_att import *
 import torch as T
 import torch
 import torch.nn.functional as F
@@ -1154,12 +1154,16 @@ class env_simulator:
                         other_agents.append(surround_agent)
                         norm_other_agents.append(norm_surround_agent)
 
+                # make list of 1x7 array into a nx7 array, where n is the original length of the list
+                other_agents = np.array(other_agents).squeeze(1)
+                norm_other_agents = np.array(norm_other_agents).squeeze(1)
+
                 overall_state_p3.append(other_agents)
                 norm_overall_state_p3.append(norm_other_agents)
 
             else:  # for agents that don't have neighbours we populate with zeros.
-                overall_state_p3.append([np.zeros((1, actor_dim[-1]))])
-                norm_overall_state_p3.append([np.zeros((1, actor_dim[-1]))])
+                overall_state_p3.append(np.zeros((1, actor_dim[-1])))
+                norm_overall_state_p3.append(np.zeros((1, actor_dim[-1])))
 
             overall_state_p1.append(agent_own)
             distances_list = [dist_eles[0] for dist_eles in agent.observableSpace]
@@ -1168,6 +1172,8 @@ class env_simulator:
             norm_overall_state_p1.append(norm_agent_own)
             norm_overall_state_p2.append(distances_list)
 
+        # overall_state_p3 = np.array(overall_state_p3).squeeze()
+        # norm_overall_state_p3 = np.array(norm_overall_state_p3).squeeze()
         overall.append(overall_state_p1)
         overall.append(overall_state_p2)
         overall.append(overall_state_p3)
