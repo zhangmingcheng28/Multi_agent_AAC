@@ -691,7 +691,6 @@ def main(args):
                     # plt.axhline(y=self.bound[2], c="green")
                     # plt.axhline(y=self.bound[3], c="green")
 
-
                     plt.xlabel("X axis")
                     plt.ylabel("Y axis")
                     plt.axis('equal')

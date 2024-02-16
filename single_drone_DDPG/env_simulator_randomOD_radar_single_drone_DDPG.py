@@ -399,7 +399,7 @@ class env_simulator:
         all_agent_line_collection, all_agent_mini_intersection_list = self.cur_state_norm_state_v3(agentRefer_dict)
 
         # we set up geo-fence area here
-        for _ in range(3):  # we create 3 centre points for generate temporary geo-fence
+        for _ in range(1):  # we create 3 centre points for generate temporary geo-fence
             # get the nearest point from the host drone's pos to its ref line
             nearest_points = self.all_agents[0].ref_line.interpolate(self.all_agents[0].ref_line.project(Point(self.all_agents[0].pos)))
 
@@ -1790,7 +1790,7 @@ class env_simulator:
         big_crash_penalty_wall = 200
         crash_penalty_drone = 1
         # reach_target = 1
-        reach_target = 5
+        reach_target = 15
 
         potential_conflict_count = 0
         final_goal_toadd = 0
@@ -1953,20 +1953,24 @@ class env_simulator:
 
             # ------------- pre-processed condition for a normal step -----------------
             # rew = 3
-            # rew = 0
-            rew = -2
+            rew = 0
+            # rew = -3
+            survival_penalty = -2
             # dist_to_goal_coeff = 1
             dist_to_goal_coeff = 1
 
-            # x_norm, y_norm = self.normalizer.nmlz_pos(drone_obj.pos)
-            # tx_norm, ty_norm = self.normalizer.nmlz_pos(drone_obj.goal[-1])
+            x_norm, y_norm = self.normalizer.nmlz_pos(drone_obj.pos)
+            tx_norm, ty_norm = self.normalizer.nmlz_pos(drone_obj.goal[-1])
             # dist_to_goal = dist_to_goal_coeff * math.sqrt(((x_norm-tx_norm)**2 + (y_norm-ty_norm)**2))  # 0~2.828 at each step
 
             # before_dist_hg = np.linalg.norm(drone_obj.pre_pos - drone_obj.goal[-1])  # distance to goal before action
             before_dist_hg = np.linalg.norm(drone_obj.pre_pos - next_wp)  # distance to goal before action
             # after_dist_hg = np.linalg.norm(drone_obj.pos - drone_obj.goal[-1])  # distance to goal after action
             after_dist_hg = np.linalg.norm(drone_obj.pos - next_wp)  # distance to goal after action
-            dist_to_goal = dist_to_goal_coeff * (before_dist_hg - after_dist_hg)  # (before_dist_hg - after_dist_hg) -max_vel - max_vel
+            # dist_to_goal = dist_to_goal_coeff * (before_dist_hg - after_dist_hg)  # (before_dist_hg - after_dist_hg) -max_vel - max_vel
+
+            dist_left = total_length_to_end_of_line(drone_obj.pos, drone_obj.ref_line)
+            dist_to_goal = dist_to_goal_coeff * (1 - (dist_left / drone_obj.ref_line.length))
 
             if dist_to_goal >= drone_obj.maxSpeed:
                 print("dist_to_goal reward out of range")
@@ -2015,7 +2019,7 @@ class env_simulator:
                 dist_to_ref_line = coef_ref_line*(m * cross_err_distance + 1)  # 0~1*coef_ref_line
                 # dist_to_ref_line = (coef_ref_line*(m * cross_err_distance + 1)) + coef_ref_line  # 0~1*coef_ref_line, with a fixed reward
             else:
-                # dist_to_ref_line = -coef_ref_line*1
+                # dist_to_ref_line = -coef_ref_line*0.6
                 dist_to_ref_line = -coef_ref_line*0  # we don't have penalty if cross-track deviation too much
 
             small_step_penalty_coef = 3
@@ -2146,12 +2150,12 @@ class env_simulator:
                     # if (not wp_intersect.is_empty) and len(drone_obj.goal) > 1: # check if wp reached, and this is not the end point
                     if wp_intersect_flag and len(drone_obj.waypoints) > 1: # check if wp reached and don't remove last element
                         drone_obj.removed_goal = drone_obj.waypoints.pop(0)  # remove current wp
-                        # # we add a wp reached reward, this reward is equals to the maximum of the path deviation reward
+                        # we add a wp reached reward, this reward is equals to the maximum of the path deviation reward
                         # rew = rew + coef_ref_line
                         # print("drone {} has reached a WP on step {}, claim additional {} points of reward"
                         #       .format(drone_idx, current_ts, coef_ref_line))
                 rew = rew + dist_to_ref_line + dist_to_goal - \
-                      small_step_penalty + near_goal_reward - near_building_penalty + seg_reward
+                      small_step_penalty + near_goal_reward - near_building_penalty + seg_reward + survival_penalty
                 # we remove the above termination condition
                 done.append(False)
                 step_reward = np.array(rew)

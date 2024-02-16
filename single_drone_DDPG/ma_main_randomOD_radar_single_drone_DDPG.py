@@ -17,7 +17,6 @@ from parameters_randomOD_radar_single_drone_DDPG import initialize_parameters
 from maddpg_agent_randomOD_radar_single_drone_DDPG import MADDPG
 from utils_randomOD_radar_single_drone_DDPG import *
 from copy import deepcopy
-import torch
 import matplotlib.pyplot as plt
 import matplotlib
 from shapely.geometry import LineString, Point, Polygon
@@ -361,8 +360,8 @@ def main(args):
     # get_evaluation_status = True  # have figure output
     get_evaluation_status = False  # no figure output, mainly obtain collision rate
 
-    # simply_view_evaluation = True  # don't save gif
-    simply_view_evaluation = False  # save gif
+    simply_view_evaluation = True  # don't save gif
+    # simply_view_evaluation = False  # save gif
 
     # full_observable_critic_flag = True
     full_observable_critic_flag = False
@@ -469,9 +468,8 @@ def main(args):
     if args.mode == "eval":
         # args.max_episodes = 10  # only evaluate one episode during evaluation mode.
         # args.max_episodes = 5  # only evaluate one episode during evaluation mode.
-        args.max_episodes = 100
-        # args.max_episodes = 15
-        pre_fix = r'D:\MADDPG_2nd_jp\020224_15_57_28\interval_record_eps'
+        args.max_episodes = 500
+        pre_fix = r'D:\MADDPG_2nd_jp\060224_12_59_57\interval_record_eps'
         episode_to_check = str(35000)
         load_filepath_0 = pre_fix + '\episode_' + episode_to_check + '_agent_0actor_net.pth'
         load_filepath_1 = pre_fix + '\episode_' + episode_to_check + '_agent_1actor_net.pth'
@@ -492,7 +490,7 @@ def main(args):
         eps_reset_start_time = time.time()
         cur_state, norm_cur_state = env.reset_world(total_agentNum, show=0)
         eps_reset_time_used = (time.time()-eps_reset_start_time)*1000
-        print("current episode {} reset time used is {} milliseconds".format(episode, eps_reset_time_used))  # need to + 1 here, or else will misrecord as the previous episode
+        # print("current episode {} reset time used is {} milliseconds".format(episode, eps_reset_time_used))  # need to + 1 here, or else will misrecord as the previous episode
         step_collision_record = [[] for _ in range(total_agentNum)]  # reset at each episode, so that we can record down collision at each step for each agent.
         eps_status_holder = [None] * n_agents
         episode_decision = [False] * 3
@@ -670,13 +668,13 @@ def main(args):
                 step_update_time_start = time.time()
                 c_loss, a_loss, single_eps_critic_cal_record = model.update_myown(episode, total_step, UPDATE_EVERY, single_eps_critic_cal_record, wandb, full_observable_critic_flag, use_GRU_flag)  # last working learning framework
                 update_time_used = (time.time() - step_update_time_start)*1000
-                print("current step update time used is {} milliseconds".format(update_time_used))
+                # print("current step update time used is {} milliseconds".format(update_time_used))
                 cur_state = next_state
                 norm_cur_state = norm_next_state
                 cur_actor_hiddens = next_actor_hiddens
                 eps_reward.append(step_reward_record)
                 whole_step_time = (time.time()-step_start_time)*1000
-                print("current episode, one whole step time used is {} milliseconds".format(whole_step_time))
+                # print("current episode, one whole step time used is {} milliseconds".format(whole_step_time))
                 step_time_breakdown.append([generate_action_time, step_transition_time, reward_generation_time,
                                             update_time_used, whole_step_time])
                 if args.episode_length < step:
