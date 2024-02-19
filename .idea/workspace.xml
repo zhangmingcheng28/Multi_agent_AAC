@@ -5,7 +5,6 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="f4b70a76-8539-4f85-9a24-01358cebe64d" name="Changes" comment="Changes">
-      <change beforePath="$PROJECT_DIR$/.idea/vcs.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/MADDPG_SS_baseV3/ma_main_MADDPGv3_ss.py" beforeDir="false" afterPath="$PROJECT_DIR$/MADDPG_SS_baseV3/ma_main_MADDPGv3_ss.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/MADDPG_SS_baseV3/reward_analysis_ss.py" beforeDir="false" afterPath="$PROJECT_DIR$/MADDPG_SS_baseV3/reward_analysis_ss.py" afterDir="false" />
@@ -13,6 +12,7 @@
       <change beforePath="$PROJECT_DIR$/MADDPG_ownENV_randomOD_radar_sur_drones/env_simulator_randomOD_radar_sur_drones.py" beforeDir="false" afterPath="$PROJECT_DIR$/MADDPG_ownENV_randomOD_radar_sur_drones/env_simulator_randomOD_radar_sur_drones.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/MADDPG_ownENV_randomOD_radar_sur_drones/ma_main_randomOD_radar_sur_drones.py" beforeDir="false" afterPath="$PROJECT_DIR$/MADDPG_ownENV_randomOD_radar_sur_drones/ma_main_randomOD_radar_sur_drones.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/MADDPG_ownENV_randomOD_radar_sur_drones/maddpg_agent_randomOD_radar_sur_drones.py" beforeDir="false" afterPath="$PROJECT_DIR$/MADDPG_ownENV_randomOD_radar_sur_drones/maddpg_agent_randomOD_radar_sur_drones.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/MADDPG_ownENV_randomOD_yc_att/ma_main_randomOD_radar_sur_drones_yc_att.py" beforeDir="false" afterPath="$PROJECT_DIR$/MADDPG_ownENV_randomOD_yc_att/ma_main_randomOD_radar_sur_drones_yc_att.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/MADDPG_ownENV_v1/env_simulator_MADDPGv1.py" beforeDir="false" afterPath="$PROJECT_DIR$/MADDPG_ownENV_v1/env_simulator_MADDPGv1.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/MADDPG_ownENV_v1/ma_main_MADDPGv1.py" beforeDir="false" afterPath="$PROJECT_DIR$/MADDPG_ownENV_v1/ma_main_MADDPGv1.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/MADDPG_ownENV_v1/parameters_MADDPGv1.py" beforeDir="false" afterPath="$PROJECT_DIR$/MADDPG_ownENV_v1/parameters_MADDPGv1.py" afterDir="false" />
@@ -99,7 +99,7 @@
       <recent name="F:\githubClone\Multi_agent_AAC\MA_ver2" />
     </key>
   </component>
-  <component name="RunManager" selected="Python.main_V5_1">
+  <component name="RunManager" selected="Python.ma_main_randomOD_radar_sur_drones_yc_att">
     <configuration name="Utilities_V5_1" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="Multi_agent_AAC" />
       <option name="INTERPRETER_OPTIONS" value="" />
@@ -122,7 +122,7 @@
       <option name="INPUT_FILE" value="" />
       <method v="2" />
     </configuration>
-    <configuration name="main_V5 (1)" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+    <configuration name="ma_main_randomOD_radar_sur_drones" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="Multi_agent_AAC" />
       <option name="INTERPRETER_OPTIONS" value="" />
       <option name="PARENT_ENVS" value="true" />
@@ -130,12 +130,34 @@
         <env name="PYTHONUNBUFFERED" value="1" />
       </envs>
       <option name="SDK_HOME" value="" />
-      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/combine_learningfw_ownenv/algo" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/MADDPG_ownENV_randomOD_radar_sur_drones" />
       <option name="IS_MODULE_SDK" value="true" />
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
       <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/combine_learningfw_ownenv/algo/main_V5.py" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/MADDPG_ownENV_randomOD_radar_sur_drones/ma_main_randomOD_radar_sur_drones.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
+    <configuration name="ma_main_randomOD_radar_sur_drones_yc_att" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+      <module name="Multi_agent_AAC" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/MADDPG_ownENV_randomOD_yc_att" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/MADDPG_ownENV_randomOD_yc_att/ma_main_randomOD_radar_sur_drones_yc_att.py" />
       <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
@@ -158,28 +180,6 @@
       <option name="ADD_SOURCE_ROOTS" value="true" />
       <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
       <option name="SCRIPT_NAME" value="$PROJECT_DIR$/combine_learningfw_ownenv/algo/main_V5_1.py" />
-      <option name="PARAMETERS" value="" />
-      <option name="SHOW_COMMAND_LINE" value="false" />
-      <option name="EMULATE_TERMINAL" value="false" />
-      <option name="MODULE_MODE" value="false" />
-      <option name="REDIRECT_INPUT" value="false" />
-      <option name="INPUT_FILE" value="" />
-      <method v="2" />
-    </configuration>
-    <configuration name="view_traject_V5" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
-      <module name="Multi_agent_AAC" />
-      <option name="INTERPRETER_OPTIONS" value="" />
-      <option name="PARENT_ENVS" value="true" />
-      <envs>
-        <env name="PYTHONUNBUFFERED" value="1" />
-      </envs>
-      <option name="SDK_HOME" value="" />
-      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/combine_learningfw_ownenv/algo" />
-      <option name="IS_MODULE_SDK" value="true" />
-      <option name="ADD_CONTENT_ROOTS" value="true" />
-      <option name="ADD_SOURCE_ROOTS" value="true" />
-      <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/combine_learningfw_ownenv/algo/view_traject_V5.py" />
       <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
@@ -212,18 +212,18 @@
     </configuration>
     <list>
       <item itemvalue="Python.Utilities_V5_1" />
-      <item itemvalue="Python.main_V5 (1)" />
       <item itemvalue="Python.main_V5_1" />
-      <item itemvalue="Python.view_traject_V5" />
       <item itemvalue="Python.view_traject_V5_1" />
+      <item itemvalue="Python.ma_main_randomOD_radar_sur_drones" />
+      <item itemvalue="Python.ma_main_randomOD_radar_sur_drones_yc_att" />
     </list>
     <recent_temporary>
       <list>
+        <item itemvalue="Python.ma_main_randomOD_radar_sur_drones_yc_att" />
+        <item itemvalue="Python.ma_main_randomOD_radar_sur_drones" />
         <item itemvalue="Python.main_V5_1" />
         <item itemvalue="Python.view_traject_V5_1" />
         <item itemvalue="Python.Utilities_V5_1" />
-        <item itemvalue="Python.view_traject_V5" />
-        <item itemvalue="Python.main_V5 (1)" />
       </list>
     </recent_temporary>
   </component>
@@ -251,7 +251,7 @@
       <workItem from="1684739801083" duration="9414000" />
       <workItem from="1685110815887" duration="1211000" />
       <workItem from="1685335160129" duration="15246000" />
-      <workItem from="1708066674214" duration="700000" />
+      <workItem from="1708066674214" duration="4217000" />
     </task>
     <servers />
   </component>
@@ -421,7 +421,7 @@
     <SUITE FILE_PATH="coverage/Multi_agent_AAC$ma_main_MAAC.coverage" NAME="ma_main_MAAC Coverage Results" MODIFIED="1700013525352" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/basedline_MAAC_ownENV" />
     <SUITE FILE_PATH="coverage/Multi_agent_AAC$ma_main_randomOD_tidy.coverage" NAME="ma_main_randomOD_tidy Coverage Results" MODIFIED="1702890293273" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/MADDPG_ownENV_randomOD_tidy" />
     <SUITE FILE_PATH="coverage/Multi_agent_AAC$attention_test.coverage" NAME="attention_test Coverage Results" MODIFIED="1683181732039" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/MA_ver1" />
-    <SUITE FILE_PATH="coverage/ma_main_randomOD_gru_radar_py$ma_main_randomOD_radar_sur_drones_yc_att.coverage" NAME="ma_main_randomOD_radar_sur_drones_yc_att Coverage Results" MODIFIED="1707970407797" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/MADDPG_ownENV_randomOD_yc_att" />
+    <SUITE FILE_PATH="coverage/ma_main_randomOD_gru_radar_py$ma_main_randomOD_radar_sur_drones_yc_att.coverage" NAME="ma_main_randomOD_radar_sur_drones_yc_att Coverage Results" MODIFIED="1708307774606" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/MADDPG_ownENV_randomOD_yc_att" />
     <SUITE FILE_PATH="coverage/Multi_agent_AAC$agent_MADDPGv2_flowV1.coverage" NAME="agent_MADDPGv2_flowV1 Coverage Results" MODIFIED="1689064958580" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/MADDPG_ownENV_v2_trafficflow" />
     <SUITE FILE_PATH="coverage/Multi_agent_AAC$time_spent_analysis.coverage" NAME="time_spent_analysis Coverage Results" MODIFIED="1701140339470" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/MADDPG_ownENV_randomOD_tidy" />
     <SUITE FILE_PATH="coverage/Multi_agent_AAC$ma_main_MADDPGv3_randomOD.coverage" NAME="ma_main_MADDPGv3_randomOD Coverage Results" MODIFIED="1700619480606" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/MADDPG_ownENV_v3_randomOD" />
@@ -437,7 +437,7 @@
     <SUITE FILE_PATH="coverage/Multi_agent_AAC$parameters_V5.coverage" NAME="parameters_V5 Coverage Results" MODIFIED="1685084906633" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/combine_learningfw_ownenv/algo" />
     <SUITE FILE_PATH="coverage/Multi_agent_AAC$ma_main__1_.coverage" NAME="ma_main (1) Coverage Results" MODIFIED="1687070946196" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/old_framework_test_backup/algo" />
     <SUITE FILE_PATH="coverage/Multi_agent_AAC$ma_main_randomOD_gru.coverage" NAME="ma_main_randomOD_gru Coverage Results" MODIFIED="1705838839803" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/MADDPG_ownENV_randomOD_gru" />
-    <SUITE FILE_PATH="coverage/ma_main_randomOD_gru_radar_py$ma_main_randomOD_radar_sur_drones.coverage" NAME="ma_main_randomOD_radar_sur_drones Coverage Results" MODIFIED="1708060673372" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/MADDPG_ownENV_randomOD_radar_sur_drones" />
+    <SUITE FILE_PATH="coverage/ma_main_randomOD_gru_radar_py$ma_main_randomOD_radar_sur_drones.coverage" NAME="ma_main_randomOD_radar_sur_drones Coverage Results" MODIFIED="1708307227399" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/MADDPG_ownENV_randomOD_radar_sur_drones" />
     <SUITE FILE_PATH="coverage/Multi_agent_AAC$ma_main_MADDPGv2_flowV1.coverage" NAME="ma_main_MADDPGv2_flowV1 Coverage Results" MODIFIED="1694139168499" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/MADDPG_ownENV_v2_trafficflow" />
     <SUITE FILE_PATH="coverage/Multi_agent_AAC$noise_analysis.coverage" NAME="noise_analysis Coverage Results" MODIFIED="1700379918097" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/MADDPG_ownENV_v3_randomOD" />
     <SUITE FILE_PATH="coverage/Multi_agent_AAC$env_simulator_V1.coverage" NAME="env_simulator_V1 Coverage Results" MODIFIED="1678435922267" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/MA_ver1" />
