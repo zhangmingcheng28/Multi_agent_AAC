@@ -922,50 +922,50 @@ class env_simulator:
                 min_distance = line.length
 
                 # Build other drone's position circle, and decide the minimum intersection distance from cur host drone to other drone
-                for other_agents_idx, others in self.all_agents.items():
-                    if other_agents_idx == agentIdx:
-                        continue
-                    other_circle = Point(others.pos).buffer(agent.protectiveBound)
-                    # Check if the LineString intersects with the circle
-                    if line.intersects(other_circle):
-                        drone_nearest_flag = 0
-                        # Find the intersection point(s)
-                        intersection = line.intersection(other_circle)
-                        # The intersection could be a Point or a MultiPoint
-                        # If it's a MultiPoint, we'll calculate the distance to the first intersection
-                        if intersection.geom_type == 'MultiPoint':
-                            # Calculate distance from the starting point of the LineString to each intersection point
-                            drone_perimeter_point = min(intersection.geoms, key=lambda point: drone_ctr.distance(point))
-
-                        elif intersection.geom_type == 'Point':
-                            # Calculate the distance from the start of the LineString to the intersection point
-                            drone_perimeter_point = intersection
-                        elif intersection.geom_type in ['LineString', 'MultiLineString']:
-                            # The intersection is a line (or part of the line lies on the circle's edge)
-                            # Find the nearest point on this "intersection line" to the start of the original line
-                            drone_perimeter_point = nearest_points(drone_ctr, intersection)[1]
-                        elif intersection.geom_type == 'GeometryCollection':
-                            complex_min_dist = math.inf
-                            for geom in intersection:
-                                if geom.geom_type == 'Point':
-                                    dist = drone_ctr.distance(geom)
-                                    if dist < complex_min_dist:
-                                        complex_min_dist = dist
-                                        drone_perimeter_point = geom
-                                elif geom.geom_type == 'LineString':
-                                    nearest_geom_point = nearest_points(drone_ctr, geom)[1]
-                                    dist = drone_ctr.distance(nearest_geom_point)
-                                    if dist < complex_min_dist:
-                                        complex_min_dist = dist
-                                        drone_perimeter_point = nearest_geom_point
-                        else:
-                            raise ValueError(
-                                "Intersection is not a point or multipoint, which is unexpected for LineString and Polygon intersection.")
-                        intersection_point_list.append(drone_perimeter_point)
-                        drone_distance = drone_ctr.distance(drone_perimeter_point)
-                        if drone_distance < drone_min_dist:
-                            drone_min_dist = drone_distance
-                            drone_nearest_pt = drone_perimeter_point
+                # for other_agents_idx, others in self.all_agents.items():
+                #     if other_agents_idx == agentIdx:
+                #         continue
+                #     other_circle = Point(others.pos).buffer(agent.protectiveBound)
+                #     # Check if the LineString intersects with the circle
+                #     if line.intersects(other_circle):
+                #         drone_nearest_flag = 0
+                #         # Find the intersection point(s)
+                #         intersection = line.intersection(other_circle)
+                #         # The intersection could be a Point or a MultiPoint
+                #         # If it's a MultiPoint, we'll calculate the distance to the first intersection
+                #         if intersection.geom_type == 'MultiPoint':
+                #             # Calculate distance from the starting point of the LineString to each intersection point
+                #             drone_perimeter_point = min(intersection.geoms, key=lambda point: drone_ctr.distance(point))
+                #
+                #         elif intersection.geom_type == 'Point':
+                #             # Calculate the distance from the start of the LineString to the intersection point
+                #             drone_perimeter_point = intersection
+                #         elif intersection.geom_type in ['LineString', 'MultiLineString']:
+                #             # The intersection is a line (or part of the line lies on the circle's edge)
+                #             # Find the nearest point on this "intersection line" to the start of the original line
+                #             drone_perimeter_point = nearest_points(drone_ctr, intersection)[1]
+                #         elif intersection.geom_type == 'GeometryCollection':
+                #             complex_min_dist = math.inf
+                #             for geom in intersection:
+                #                 if geom.geom_type == 'Point':
+                #                     dist = drone_ctr.distance(geom)
+                #                     if dist < complex_min_dist:
+                #                         complex_min_dist = dist
+                #                         drone_perimeter_point = geom
+                #                 elif geom.geom_type == 'LineString':
+                #                     nearest_geom_point = nearest_points(drone_ctr, geom)[1]
+                #                     dist = drone_ctr.distance(nearest_geom_point)
+                #                     if dist < complex_min_dist:
+                #                         complex_min_dist = dist
+                #                         drone_perimeter_point = nearest_geom_point
+                #         else:
+                #             raise ValueError(
+                #                 "Intersection is not a point or multipoint, which is unexpected for LineString and Polygon intersection.")
+                #         intersection_point_list.append(drone_perimeter_point)
+                #         drone_distance = drone_ctr.distance(drone_perimeter_point)
+                #         if drone_distance < drone_min_dist:
+                #             drone_min_dist = drone_distance
+                #             drone_nearest_pt = drone_perimeter_point
                 # ------------ end of radar check surrounding drone's position -------------------------
 
                 # # If there are intersecting polygons, find the nearest intersection point

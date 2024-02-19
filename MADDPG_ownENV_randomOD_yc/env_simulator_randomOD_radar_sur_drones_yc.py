@@ -1060,8 +1060,8 @@ class env_simulator:
             # norm_vel = self.normalizer.norm_scale([agent.vel[0], agent.vel[1]])  # normalization using scale
             norm_vel = self.normalizer.nmlz_vel([agent.vel[0], agent.vel[1]])  # normalization using min_max
 
-            # norm_acc = self.normalizer.norm_scale([agent.acc[0], agent.acc[1]])  # normalization using scale
-            norm_acc = self.normalizer.nmlz_acc([agent.acc[0], agent.acc[1]])  # normalization using max
+            norm_acc = self.normalizer.norm_scale([agent.acc[0], agent.acc[1]])  # normalization using scale
+            # norm_acc = self.normalizer.nmlz_acc([agent.acc[0], agent.acc[1]])  # normalization using max
 
             norm_G = self.normalizer.nmlz_pos([agent.goal[-1][0], agent.goal[-1][1]])
             norm_deltaG = norm_G - norm_pos
@@ -1803,8 +1803,8 @@ class env_simulator:
         # reach_target = 1
         # reach_target = 15
         reach_target = 20
-        # survival_penalty = 2
-        survival_penalty = 0
+        survival_penalty = 2
+        # survival_penalty = 0
 
         potential_conflict_count = 0
         final_goal_toadd = 0
@@ -1939,8 +1939,8 @@ class env_simulator:
             # rew = 3
             rew = 0
             # dist_to_goal_coeff = 1
-            dist_to_goal_coeff = 1
-            # dist_to_goal_coeff = 3
+            # dist_to_goal_coeff = 1
+            dist_to_goal_coeff = 3
             # dist_to_goal_coeff = 0
 
             x_norm, y_norm = self.normalizer.nmlz_pos(drone_obj.pos)
