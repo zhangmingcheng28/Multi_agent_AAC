@@ -1796,6 +1796,7 @@ class env_simulator:
         agent_to_remove = []
         one_step_reward = []
         check_goal = [False] * len(self.all_agents)
+        # previous_ever_reached = [agent.reach_target for agent in self.all_agents.values()]
         reward_record_idx = 0  # this is used as a list index, increase with for loop. No need go with agent index, this index is also shared by done checking
         crash_penalty_wall = 5
         big_crash_penalty_wall = 200
@@ -1803,8 +1804,8 @@ class env_simulator:
         # reach_target = 1
         # reach_target = 15
         reach_target = 20
-        survival_penalty = 2
-        # survival_penalty = 0
+        # survival_penalty = 0.5
+        survival_penalty = 0
 
         potential_conflict_count = 0
         final_goal_toadd = 0
@@ -1858,10 +1859,17 @@ class env_simulator:
             host_current_circle = Point(self.all_agents[drone_idx].pos[0], self.all_agents[drone_idx].pos[1]).buffer(
                 self.all_agents[drone_idx].protectiveBound)
             host_current_point = Point(self.all_agents[drone_idx].pos[0], self.all_agents[drone_idx].pos[1])
-            # loop through neighbors from current time step
+
+            # loop through neighbors from current time step, and search for the nearest neighbour and its neigh_keys
+            nearest_neigh_key = None
+            shortest_neigh_dist = drone_obj.detectionRange / 2
             for neigh_keys in self.all_agents[drone_idx].surroundingNeighbor:
                 # get distance from host to all the surrounding vehicles
                 diff_dist_vec = drone_obj.pos - self.all_agents[neigh_keys].pos  # host pos vector - intruder pos vector
+                euclidean_dist_diff = np.linalg.norm(diff_dist_vec)
+                if euclidean_dist_diff < shortest_neigh_dist:
+                    shortest_neigh_dist = euclidean_dist_diff
+                    nearest_neigh_key = neigh_keys
                 if np.linalg.norm(diff_dist_vec) <= drone_obj.protectiveBound * 2:
                     print("drone_{} collide with drone_{} at time step {}".format(drone_idx, neigh_keys, current_ts))
                     collision_drones.append(neigh_keys)
@@ -2000,17 +2008,17 @@ class env_simulator:
                 dist_to_ref_line = coef_ref_line*(m * cross_err_distance + 1)  # 0~1*coef_ref_line
                 # dist_to_ref_line = (coef_ref_line*(m * cross_err_distance + 1)) + coef_ref_line  # 0~1*coef_ref_line, with a fixed reward
             else:
-                # dist_to_ref_line = -coef_ref_line*1
-                dist_to_ref_line = -coef_ref_line*0
+                dist_to_ref_line = -coef_ref_line*1
+                # dist_to_ref_line = -coef_ref_line*0
 
-            # small_step_penalty_coef = 3
-            small_step_penalty_coef = 0
-            # spd_penalty_threshold = 2*drone_obj.protectiveBound
-            # small_step_penalty_val = (spd_penalty_threshold -
-            #                       np.clip(np.linalg.norm(drone_obj.vel), 0, spd_penalty_threshold))*\
-            #                      (1.0 / spd_penalty_threshold)  # between 0-1.
-            # small_step_penalty = small_step_penalty_coef * small_step_penalty_val
-            small_step_penalty = small_step_penalty_coef * 0
+            small_step_penalty_coef = 3
+            # small_step_penalty_coef = 0
+            spd_penalty_threshold = 2*drone_obj.protectiveBound
+            small_step_penalty_val = (spd_penalty_threshold -
+                                  np.clip(np.linalg.norm(drone_obj.vel), 0, spd_penalty_threshold))*\
+                                 (1.0 / spd_penalty_threshold)  # between 0-1.
+            small_step_penalty = small_step_penalty_coef * small_step_penalty_val
+            # small_step_penalty = small_step_penalty_coef * 0
 
             # near_goal_coefficient = 3  # so that near_goal_reward will become 0-3 instead of 0-1
             near_goal_coefficient = 0
@@ -2048,6 +2056,21 @@ class env_simulator:
             else:
                 near_building_penalty = 0  # if min_dist is outside of the bound, other parts of the reward will be taking care.
 
+            # ---- penalty term for surrounding drones ---
+            near_drone_penalty_coef = 3
+            dist_to_penalty_upperbound = 6
+            dist_to_penalty_lowerbound = 2.5
+            # assume when at lowerbound, y = 1
+            c_drone = 1 + (dist_to_penalty_lowerbound / (dist_to_penalty_upperbound - dist_to_penalty_lowerbound))
+            m_drone = (0-1)/(dist_to_penalty_upperbound - dist_to_penalty_lowerbound)
+            if nearest_neigh_key is not None:
+                if shortest_neigh_dist >= dist_to_penalty_lowerbound and shortest_neigh_dist <= dist_to_penalty_upperbound:
+                    near_drone_penalty = near_drone_penalty_coef * (m_drone*shortest_neigh_dist+c_drone)
+                else:
+                    near_drone_penalty = near_drone_penalty_coef * 0
+            else:
+                near_drone_penalty = near_drone_penalty_coef * 0
+            # ---- end of penalty term for surrounding agents ----
 
 
             # if min_dist < drone_obj.protectiveBound:
@@ -2103,6 +2126,10 @@ class env_simulator:
             elif not goal_cur_intru_intersect.is_empty:  # reached goal?
                 # --------------- with way point -----------------------
                 check_goal[reward_record_idx] = True
+
+                # if drone_obj.reach_target == False:
+                #     rew = rew + reach_target + near_goal_reward + 200
+
                 drone_obj.reach_target = True
                 # print("drone_{} has reached its final goal at time step {}".format(drone_idx, current_ts))
                 agent_to_remove.append(drone_idx)  # NOTE: drone_idx is the key value.
@@ -2125,7 +2152,7 @@ class env_simulator:
                         # print("drone {} has reached a WP on step {}, claim additional {} points of reward"
                         #       .format(drone_idx, current_ts, coef_ref_line))
                 rew = rew + dist_to_ref_line + dist_to_goal - \
-                      small_step_penalty + near_goal_reward - near_building_penalty + seg_reward-survival_penalty
+                      small_step_penalty + near_goal_reward - near_building_penalty + seg_reward-survival_penalty - near_drone_penalty
                 # we remove the above termination condition
                 done.append(False)
                 step_reward = np.array(rew)
@@ -2148,6 +2175,15 @@ class env_simulator:
 
         if full_observable_critic_flag:
             reward = [np.sum(reward) for _ in reward]
+
+        # ever_reach_goal = [agent.reach_target for agent in self.all_agents.values()]
+        # if check_goal.count(True) == 1 and ever_reach_goal.count(True) == 0:
+        #     reward = [ea_rw + 200 for ea_rw in reward]
+        # elif check_goal.count(True) == 2 and ever_reach_goal.count(True) == 1:
+        #     reward = [ea_rw + 400 for ea_rw in reward]
+        # elif check_goal.count(True) == 3 and ever_reach_goal.count(True) == 2:
+        #     reward = [ea_rw + 600 for ea_rw in reward]
+
         # reward = [np.sum(reward) for _ in reward]
         # all_reach_target = all(agent.reach_target == True for agent in self.all_agents.values())
         # if all_reach_target:  # in this episode all agents have reached their target at least one
