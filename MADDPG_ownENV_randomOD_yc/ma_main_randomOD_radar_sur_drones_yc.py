@@ -104,18 +104,22 @@ def main(args):
     if full_observable_critic_flag:
         # actor_dim = [6, 18, 6]  # dim host, maximum dim grid, dim other drones
         # actor_dim = [8, 18, 6]  # dim host, maximum dim grid, dim other drones
-        actor_dim = [9, 18, 7]  # dim host, maximum dim grid, dim other drones
+        # actor_dim = [9, 18, 7]  # dim host, maximum dim grid, dim other drones
+        actor_dim = [11, 18, 7]  # dim host, maximum dim grid, dim other drones
         # critic_dim = [6, 18, 6]
         # critic_dim = [8, 18, 6]
-        critic_dim = [9, 18, 7]
+        # critic_dim = [9, 18, 7]
+        critic_dim = [11, 18, 7]
         # critic_dim = [ea_dim * total_agentNum for ea_dim in actor_dim]
     else:
         # actor_dim = [6, 18, 6]  # dim host, maximum dim grid, dim other drones
         # actor_dim = [8, 18, 6]  # dim host, maximum dim grid, dim other drones
-        actor_dim = [9, 18, 7]  # dim host, maximum dim grid, dim other drones
+        # actor_dim = [9, 18, 7]  # dim host, maximum dim grid, dim other drones
+        actor_dim = [11, 18, 7]  # dim host, maximum dim grid, dim other drones
         # critic_dim = [6, 18, 6]
         # critic_dim = [8, 18, 6]
-        critic_dim = [9, 18, 7]
+        # critic_dim = [9, 18, 7]
+        critic_dim = [11, 18, 7]
 
     actor_hidden_state = 64
     actor_hidden_state_list = [actor_hidden_state for _ in range(total_agentNum)]

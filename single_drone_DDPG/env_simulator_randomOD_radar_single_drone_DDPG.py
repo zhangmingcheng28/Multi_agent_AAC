@@ -1955,9 +1955,11 @@ class env_simulator:
             # rew = 3
             rew = 0
             # rew = -3
-            survival_penalty = -2
+            # survival_penalty = -2
+            survival_penalty = 0
             # dist_to_goal_coeff = 1
-            dist_to_goal_coeff = 1
+            # dist_to_goal_coeff = 1
+            dist_to_goal_coeff = 3
 
             x_norm, y_norm = self.normalizer.nmlz_pos(drone_obj.pos)
             tx_norm, ty_norm = self.normalizer.nmlz_pos(drone_obj.goal[-1])
@@ -2019,8 +2021,8 @@ class env_simulator:
                 dist_to_ref_line = coef_ref_line*(m * cross_err_distance + 1)  # 0~1*coef_ref_line
                 # dist_to_ref_line = (coef_ref_line*(m * cross_err_distance + 1)) + coef_ref_line  # 0~1*coef_ref_line, with a fixed reward
             else:
-                # dist_to_ref_line = -coef_ref_line*0.6
-                dist_to_ref_line = -coef_ref_line*0  # we don't have penalty if cross-track deviation too much
+                dist_to_ref_line = -coef_ref_line*0.6
+                # dist_to_ref_line = -coef_ref_line*0  # we don't have penalty if cross-track deviation too much
 
             small_step_penalty_coef = 3
             # # small_step_penalty_coef = 0

@@ -354,14 +354,14 @@ def main(args):
         # initialize_excel_file(excel_file_path_time)
         # ------------ end of this portion is to save using excel instead of pickle -----------
 
-    use_wanDB = False
-    # use_wanDB = True
+    # use_wanDB = False
+    use_wanDB = True
 
-    # get_evaluation_status = True  # have figure output
-    get_evaluation_status = False  # no figure output, mainly obtain collision rate
+    get_evaluation_status = True  # have figure output
+    # get_evaluation_status = False  # no figure output, mainly obtain collision rate
 
-    simply_view_evaluation = True  # don't save gif
-    # simply_view_evaluation = False  # save gif
+    # simply_view_evaluation = True  # don't save gif
+    simply_view_evaluation = False  # save gif
 
     # full_observable_critic_flag = True
     full_observable_critic_flag = False
@@ -448,7 +448,8 @@ def main(args):
     eps_noise_record = []
     episode_critic_loss_cal_record = []
     # eps_end = 3000  # at eps = eps_end, the eps value drops to the lowest value which is 0.03 (this value is fixed)
-    eps_end = 17000  # at eps = eps_end, the eps value drops to the lowest value which is 0.03 (this value is fixed)
+    # eps_end = 17000  # at eps = eps_end, the eps value drops to the lowest value which is 0.03 (this value is fixed)
+    eps_end = 5000  # at eps = eps_end, the eps value drops to the lowest value which is 0.03 (this value is fixed)
     # noise_start_level = 1
     noise_start_level = 0.5
     training_start_time = time.time()
@@ -468,8 +469,8 @@ def main(args):
     if args.mode == "eval":
         # args.max_episodes = 10  # only evaluate one episode during evaluation mode.
         # args.max_episodes = 5  # only evaluate one episode during evaluation mode.
-        args.max_episodes = 500
-        pre_fix = r'D:\MADDPG_2nd_jp\060224_12_59_57\interval_record_eps'
+        args.max_episodes = 100
+        pre_fix = r'D:\MADDPG_2nd_jp\210224_16_21_23\interval_record_eps'
         episode_to_check = str(35000)
         load_filepath_0 = pre_fix + '\episode_' + episode_to_check + '_agent_0actor_net.pth'
         load_filepath_1 = pre_fix + '\episode_' + episode_to_check + '_agent_1actor_net.pth'
@@ -992,20 +993,21 @@ def main(args):
                             # print("current spd is {} m/s, curent spd penalty is {}". format(step_reward_decomposition[5], step_reward_decomposition[4]))
                     print("[Episode %05d] reward %6.4f " % (episode, accum_reward))
 
-                    if get_evaluation_status:
-                        if simply_view_evaluation:
-                        # ------------------ static display trajectory ---------------------------- #
-                            view_static_traj(env, trajectory_eachPlay)
-                        # ------------------ end of static display trajectory ---------------------------- #
-
-                        # ---------- new save as gif ----------------------- #
-                        else:
-                            save_gif(env, trajectory_eachPlay, pre_fix, episode_to_check, episode)
+                    # if get_evaluation_status:
+                    #     if simply_view_evaluation:
+                    #     # ------------------ static display trajectory ---------------------------- #
+                    #         view_static_traj(env, trajectory_eachPlay)
+                    #     # ------------------ end of static display trajectory ---------------------------- #
+                    #
+                    #     # ---------- new save as gif ----------------------- #
+                    #     else:
+                    #         save_gif(env, trajectory_eachPlay, pre_fix, episode_to_check, episode)
 
                     if True in done_aft_action and step < args.episode_length:
-                        if saved_gif == False:
-                            save_gif(env, trajectory_eachPlay, pre_fix, episode_to_check, episode)
-                            saved_gif = True  # once current episode saved, no need to save one more time.
+                        save_gif(env, trajectory_eachPlay, pre_fix, episode_to_check, episode)
+                        # if saved_gif == False:
+                        #     save_gif(env, trajectory_eachPlay, pre_fix, episode_to_check, episode)
+                        #     saved_gif = True  # once current episode saved, no need to save one more time.
                         collision_count = collision_count + 1
                         if bound_building_check[0] == True:  # collide due to boundary
                             crash_to_bound = crash_to_bound + 1
@@ -1023,15 +1025,15 @@ def main(args):
                         # Determine the number of True values and print the appropriate response
                         if num_true == 1:
                             # save_gif(env, trajectory_eachPlay, pre_fix, episode_to_check, episode)
-                            if saved_gif == False:
-                                save_gif(env, trajectory_eachPlay, pre_fix, episode_to_check, episode)
-                                saved_gif = True  # once current episode saved, no need to save one more time.
+                            # if saved_gif == False:
+                            #     save_gif(env, trajectory_eachPlay, pre_fix, episode_to_check, episode)
+                            #     saved_gif = True  # once current episode saved, no need to save one more time.
                             # print("There is one True value in the list.")
                             one_drone_reach = one_drone_reach + 1
                         elif num_true == 2:
-                            if saved_gif == False:
-                                save_gif(env, trajectory_eachPlay, pre_fix, episode_to_check, episode)
-                                saved_gif = True  # once current episode saved, no need to save one more time.
+                            # if saved_gif == False:
+                            #     save_gif(env, trajectory_eachPlay, pre_fix, episode_to_check, episode)
+                            #     saved_gif = True  # once current episode saved, no need to save one more time.
                             # print("There are two True values in the list.")
                             two_drone_reach = two_drone_reach + 1
                         else:  # all 3 reaches goal
@@ -1070,7 +1072,7 @@ if __name__ == '__main__':
     parser.add_argument('--scenario', default="simple_spread", type=str)
     parser.add_argument('--max_episodes', default=35000, type=int)  # run for a total of 50000 episodes
     parser.add_argument('--algo', default="maddpg", type=str, help="commnet/bicnet/maddpg")
-    parser.add_argument('--mode', default="eval", type=str, help="train/eval")
+    parser.add_argument('--mode', default="train", type=str, help="train/eval")
     parser.add_argument('--episode_length', default=150, type=int)  # maximum play per episode
     parser.add_argument('--memory_length', default=int(1e5), type=int)
     parser.add_argument('--seed', default=777, type=int)  # may choose to use 3407
