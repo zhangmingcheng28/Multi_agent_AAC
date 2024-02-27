@@ -8,7 +8,7 @@
 """
 import numpy as np
 import torch as T
-from Utilities_own_randomOD_radar_one_model import padding_list
+from Utilities_own_randomOD_radar_sur_drones_oneModel import padding_list
 
 
 class Agent:
@@ -32,9 +32,14 @@ class Agent:
         self.pre_acc = np.zeros(2)
         self.maxSpeed = maxSPD
         self.goal = None
+        self.waypoints = None
         self.ref_line = None
+        self.ref_line_segments = None
         self.heading = None
+        # self.detectionRange = 30  # in meters, this is the in diameter
+        # self.detectionRange = 40  # in meters, this is the in diameter
         self.detectionRange = 30  # in meters, this is the in diameter
+        # self.detectionRange = 100  # in meters, this is the in diameter, 100m, no convergence
         self.protectiveBound = 2.5  # diameter is 2.5*2, this is radius
         # a dictionary, key is the agent idx, value is the array of 1x6,
         # which correspond to the observation vector of that neighbor

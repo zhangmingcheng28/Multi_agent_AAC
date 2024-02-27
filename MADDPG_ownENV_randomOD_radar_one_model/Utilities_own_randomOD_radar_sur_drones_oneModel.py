@@ -17,6 +17,50 @@ from shapely.strtree import STRtree
 from shapely.geometry import LineString, Point, Polygon
 import matplotlib.colors as colors
 
+
+def find_index_of_min_first_element(lst):
+    # Initialize the index and the minimum value
+    min_index = 0
+    min_value = lst[0][0]
+
+    # Loop through the list to find the min value and its index
+    for i, sublist in enumerate(lst):
+        if sublist[0] < min_value:
+            min_value = sublist[0]
+            min_index = i
+
+    return min_index
+
+def total_length_to_end_of_line(initial_point, linestring):
+    """
+    Calculate the total distance from an initial point to the nearest point on the line and
+    from there to the end of the line.
+
+    Parameters:
+    initial_point (tuple): The initial point as (x, y).
+    linestring (LineString): The LineString object.
+
+    Returns:
+    float: The total distance from the initial point to the end of the LineString.
+    """
+    # Create a Point object from the tuple
+    point = Point(initial_point)
+
+    # Find the nearest point on the line to the initial point
+    nearest_point_on_line = linestring.interpolate(linestring.project(point))
+
+    # Calculate the distance from the initial point to the nearest point on the line
+    distance_to_line = point.distance(nearest_point_on_line)
+
+    # Calculate the distance from the nearest point on the line to the end of the line
+    projected_distance = linestring.project(nearest_point_on_line)
+    distance_to_end_of_line = linestring.length - projected_distance
+
+    # Sum the distances to get the total distance
+    total_distance = distance_to_line + distance_to_end_of_line
+
+    return total_distance
+
 def sort_polygons(polygons):  # this sorting is left to right, but bottom to top. so, 0th is below 2nd. [[2,3],[0,1]]
     boxes = [polygon.bounds for polygon in polygons]
     sorted_boxes = sorted(boxes, key=lambda box: (box[1], box[0]))
@@ -184,7 +228,7 @@ class NormalizeData:
         y_normalized = self.normalize_min + (pos_c[1] - self.dis_min_y) * self.y_scale
         return np.array([x_normalized, y_normalized])
 
-    def scale_vel(self, change_in_pos):
+    def norm_scale(self, change_in_pos):
         return np.array([self.x_scale * change_in_pos[0], self.y_scale * change_in_pos[1]])
 
     def nmlz_pos_diff(self, diff):
@@ -199,11 +243,11 @@ class NormalizeData:
 
     def nmlz_vel(self, cur_vel):
         vx, vy = cur_vel[0], cur_vel[1]
-        # vx_normalized = vx / self.spd_max
-        # vy_normalized = vy / self.spd_max
-        vx_normalized = (vx / self.spd_max) * 2 - 1
-        vy_normalized = (vy / self.spd_max) * 2 - 1
-        return vx_normalized, vy_normalized
+        vx_normalized = vx / self.spd_max
+        vy_normalized = vy / self.spd_max
+        # vx_normalized = (vx / self.spd_max) * 2 - 1
+        # vy_normalized = (vy / self.spd_max) * 2 - 1
+        return np.array([vx_normalized, vy_normalized])
 
     def nmlz_acc(self, cur_acc):
         ax, ay = cur_acc[0], cur_acc[1]

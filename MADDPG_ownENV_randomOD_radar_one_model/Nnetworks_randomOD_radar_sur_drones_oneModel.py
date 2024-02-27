@@ -148,6 +148,7 @@ class ActorNetwork_TwoPortion(nn.Module):
         self.own_fc = nn.Sequential(nn.Linear(actor_dim[0], 64), nn.ReLU())
         self.own_grid = nn.Sequential(nn.Linear(actor_dim[1], 64), nn.ReLU())
         self.merge_feature = nn.Sequential(nn.Linear(64+64, 128), nn.ReLU())
+        self.merge_feature_l2 = nn.Sequential(nn.Linear(64+64, 128), nn.ReLU())
         self.act_out = nn.Sequential(nn.Linear(128, n_actions), nn.Tanh())
 
     def forward(self, cur_state):
@@ -155,6 +156,22 @@ class ActorNetwork_TwoPortion(nn.Module):
         own_grid = self.own_grid(cur_state[1])
         merge_obs_grid = torch.cat((own_obs, own_grid), dim=1)
         merge_feature = self.merge_feature(merge_obs_grid)
+        out_action = self.act_out(merge_feature)
+        return out_action
+
+
+class ActorNetwork_OnePortion(nn.Module):
+    def __init__(self, actor_dim, n_actions):  # actor_obs consists of three parts 0 = own, 1 = own grid, 2 = surrounding drones
+        super(ActorNetwork_OnePortion, self).__init__()
+
+        self.own_fcWgrid = nn.Sequential(nn.Linear(actor_dim[0]+actor_dim[1], 64), nn.ReLU())
+        self.merge_feature = nn.Sequential(nn.Linear(64, 64), nn.ReLU())
+        self.act_out = nn.Sequential(nn.Linear(64, n_actions), nn.Tanh())
+
+    def forward(self, cur_state):
+        own_obsWgrid = torch.cat((cur_state[0], cur_state[1]), dim=1)
+        obsWgrid_feat = self.own_fcWgrid(own_obsWgrid)
+        merge_feature = self.merge_feature(obsWgrid_feat)
         out_action = self.act_out(merge_feature)
         return out_action
 
@@ -423,131 +440,135 @@ class critic_single_obs_wGRU(nn.Module):
 class critic_single_TwoPortion(nn.Module):
     def __init__(self, critic_obs, n_agents, n_actions, single_history, hidden_state_size):
         super(critic_single_TwoPortion, self).__init__()
+        # --- original, used in 16 Feb MADDPG_test_160224_13_17_59 ---
         self.SA_fc = nn.Sequential(nn.Linear(critic_obs[0]+n_actions, 64), nn.ReLU())
         self.SA_grid = nn.Sequential(nn.Linear(critic_obs[1], 64), nn.ReLU())
         self.merge_fc_grid = nn.Sequential(nn.Linear(64+64, 256), nn.ReLU())
         self.out_feature_q = nn.Sequential(nn.Linear(256, 1))
+        # --- end of original --------------------------------------
+
+        # ----- v1 -------
+        # self.sa_fc = nn.Sequential(nn.Linear(critic_obs[0], 64), nn.ReLU())
+        # self.sa_grid = nn.Sequential(nn.Linear(critic_obs[1], 64), nn.ReLU())
+        # self.merge_fc_gridWact = nn.Sequential(nn.Linear(64+64+n_actions, 256), nn.ReLU())
+        # self.out_feature_q = nn.Sequential(nn.Linear(256, 1))
+        # ------ end of v1 ----
+
+        # ----- v1_1 -------
+        # self.sa_fc = nn.Sequential(nn.Linear(critic_obs[0], 64), nn.ReLU())
+        # self.sa_grid = nn.Sequential(nn.Linear(critic_obs[1], 64), nn.ReLU())
+        # self.act_feature = nn.Sequential(nn.Linear(n_actions, 64), nn.ReLU())
+        # self.merge_fc_gridWact = nn.Sequential(nn.Linear(64+64+64, 256), nn.ReLU())
+        # self.out_feature_q = nn.Sequential(nn.Linear(256, 1))
+        # ------ end of v1_1 ----
 
     def forward(self, single_state, single_action):
+        # --- original, used in 16 Feb MADDPG_test_160224_13_17_59 ---
         obsWaction = torch.cat((single_state[0], single_action), dim=1)
         own_obsWaction = self.SA_fc(obsWaction)
         own_grid = self.SA_grid(single_state[1])
         merge_obs_grid = torch.cat((own_obsWaction, own_grid), dim=1)
         merge_feature = self.merge_fc_grid(merge_obs_grid)
         q = self.out_feature_q(merge_feature)
+        # --- end of original --------------------------------------
+
+        # ----- v1 -------
+        # own_obs = self.sa_fc(single_state[0])
+        # own_grid = self.sa_grid(single_state[1])
+        # merge_obs_gridWact = torch.cat((own_obs, own_grid, single_action), dim=1)
+        # merge_feature = self.merge_fc_gridWact(merge_obs_gridWact)
+        # q = self.out_feature_q(merge_feature)
+        # ------ end of v1 ----
+
+        # ----- v1_1 -------
+        # own_obs = self.sa_fc(single_state[0])
+        # own_grid = self.sa_grid(single_state[1])
+        # own_act = self.act_feature(single_action)
+        # merge_obs_gridWact = torch.cat((own_obs, own_grid, own_act), dim=1)
+        # merge_feature = self.merge_fc_gridWact(merge_obs_gridWact)
+        # q = self.out_feature_q(merge_feature)
+        # ------ end of v1_1 ----
         return q
 
 
+class critic_single_OnePortion(nn.Module):
+    def __init__(self, critic_obs, n_agents, n_actions, single_history, hidden_state_size):
+        super(critic_single_OnePortion, self).__init__()
+        self.SA_fcWgrid = nn.Sequential(nn.Linear(critic_obs[0]+n_actions+critic_obs[1], 64), nn.ReLU())
+        self.merge_fc_grid = nn.Sequential(nn.Linear(64, 256), nn.ReLU())
+        self.out_feature_q = nn.Sequential(nn.Linear(256, 1))
 
-class CriticNetwork_0724(nn.Module):
-    def __init__(self, critic_obs, n_agents, n_actions):
-        super(CriticNetwork_0724, self).__init__()
-
-        # in critic network we should use multi-head attention mechanism to help to capture more complex relationship
-        # between different inputs, in the context of this paper, the input consists of many drone's states as well as
-        # their actions. This is two group of inputs, therefore my hypothesis is that using multi-head attention is
-        # better here.
-
-        # critic_obs[0] is sum of all agent's own observed states
-        # critic_obs[1] is sum of all agent's observed grid maps
-        # critic_obs[3] is sum of all agent's action taken
-
-        # self.sum_own_fc = nn.Sequential(nn.Linear(critic_obs*n_agents, 1024), nn.ReLU())  # may be here can be replaced with another attention mechanism
-        self.sum_own_fc = nn.Sequential(nn.Linear(critic_obs[0]*n_agents, 256), nn.ReLU())  # may be here can be replaced with another attention mechanism
-        self.sum_grid_fc = nn.Sequential(nn.Linear(critic_obs[1]*n_agents, 128), nn.ReLU())
-
-        # self.single_own_fc = nn.Sequential(nn.Linear(critic_obs[0], 128), nn.ReLU())  # may be here can be replaced with another attention mechanism
-        self.single_own_fc = nn.Sequential(nn.Linear(critic_obs[0], 256), nn.ReLU())  # may be here can be replaced with another attention mechanism
-        # self.single_grid_fc = nn.Sequential(nn.Linear(critic_obs[1], 128), nn.ReLU())
-        self.single_grid_fc = nn.Sequential(nn.Linear(critic_obs[1], 256), nn.ReLU())
-        self.single_surr = nn.Sequential(nn.Linear(critic_obs[2], 128), nn.ReLU())
-
-        # for surrounding agents' encoding, for each agent, we there are n-neighbours, each neighbour is represented by
-        # a vector of length = 6. Before we put into an experience replay, we pad it up to max_num_neigh * 6 array.
-        # so, one agent will have an array of max_num_neigh * 6, after flatten, then for one batch, there are a total of
-        # n_agents exist in the airspace, therefore, the final dimension will be max_num_neigh * 6 * max_num_neigh.
-        # self.sum_sur_fc = nn.Sequential(nn.Linear(critic_obs[2]*n_agents*n_agents, 256), nn.ReLU())
-
-        # critic attention for overall sur_neighbours with overall own_state
-        self.single_k = nn.Linear(128, 128, bias=False)
-        self.single_q = nn.Linear(128, 128, bias=False)
-        self.single_v = nn.Linear(128, 128, bias=False)
-        #
-        # self.n_heads = 3
-        # self.single_head_dim = int((256+256+256) / self.n_heads)
-        # self.com_k = nn.Linear(self.single_head_dim, self.single_head_dim, bias=False)
-        # self.com_q = nn.Linear(self.single_head_dim, self.single_head_dim, bias=False)
-        # self.com_v = nn.Linear(self.single_head_dim, self.single_head_dim, bias=False)
-        # self.multi_att_out = nn.Sequential(nn.Linear(self.n_heads * self.single_head_dim + n_agents * n_actions, 128),
-        #                                    nn.ReLU())
-        #
-        # self.combine_env_fc = nn.Sequential(nn.Linear(256+256+256, 256), nn.ReLU(), nn.Linear(256, 128), nn.ReLU(),
-        #                                     nn.Linear(128, 64), nn.ReLU())
-        # self.combine_env_fc = nn.Sequential(nn.Linear(256+128, 128), nn.ReLU())
-        # self.combine_env_fc = nn.Sequential(nn.Linear((n_agents*128)+(n_agents*128), 64), nn.ReLU())
-        self.combine_env_fc = nn.Sequential(nn.Linear((n_agents*256)+(n_agents*256), 1028), nn.ReLU(), nn.Linear(1028, 64), nn.ReLU())
-
-        self.combine_all = nn.Sequential(nn.Linear(64+n_agents * n_actions, 64), nn.ReLU(), nn.Linear(64, 1))
-
-        # self.sum_agents_action_fc = nn.Sequential(nn.Linear(critic_obs[2]*n_agents, 256), nn.ReLU())
-        #
-        # self.multi_attention = nn.MultiheadAttention(embed_dim=256+256, num_heads=2)  # 1st input is the sum of neurons from actions and combined states encoding
-        #
-        # # the input of this judgement layer is 256+256 because this is right after the multi-head attention layer
-        # # the output dimension of the multi-head attention is default to be the dimension of the "embed_dim"
-        # self.judgement_fc = nn.Sequential(nn.Linear(128, 64), nn.ReLU(), nn.Linear(64, 1))
-
-        # self.name = name
-
-        # self.optimizer = optim.Adam(self.parameters(), lr=critic_lr)
-        # self.device = T.device('cuda:0' if T.cuda.is_available() else 'cpu')
-        #
-        # self.to(self.device)
-
-    def forward(self, state, actor_actions):  # state[0] is sum of all agent's own observed states, state[1] is is sum of all agent's observed grid maps
-        # pre-process, compute attention for every agent based on their surrounding agents
-        attention_all_agent = []
-        grid_all_agent = []
-        own_all_agent = []
-        for one_agent_batch_own, one_agent_batch_grid, one_agent_batch_surr in zip(*state):  # automatically loop over 5 times
-            single_grid_out = self.single_grid_fc(one_agent_batch_grid)
-            single_own_out = self.single_own_fc(one_agent_batch_own)
-
-            # single_surr_out = self.single_surr(one_agent_batch_surr)
-            # single_q = self.single_q(single_own_out)
-            # single_k = self.single_k(single_surr_out)
-            # single_v = self.single_v(single_surr_out)
-            # mask = one_agent_batch_surr.mean(axis=2, keepdim=True).bool()
-            # score = torch.bmm(single_k, single_q.unsqueeze(axis=2))
-            # score_mask = score.clone()  # clone操作很必要
-            # score_mask[~mask] = float('-inf')  # 不然赋值操作后会无法计算梯度
-            # alpha = F.softmax(score_mask / np.sqrt(single_k.size(-1)), dim=1)  # we use dim=1 here because we need to get attention of each sequence in K towards all hidden vector of q in each batch.
-            # alpha_mask = alpha.clone()
-            # alpha_mask[~mask] = 0
-            # v_att = torch.sum(single_v * alpha_mask, axis=1)
-            # attention_all_agent.append(v_att)
-
-            grid_all_agent.append(single_grid_out)
-            own_all_agent.append(single_own_out)
+    def forward(self, single_state, single_action):
+        obsWactionWgrid = torch.cat((single_state[0], single_action, single_state[1]), dim=1)
+        own_obsWactionWgrid = self.SA_fcWgrid(obsWactionWgrid)
+        merge_feature = self.merge_fc_grid(own_obsWactionWgrid)
+        q = self.out_feature_q(merge_feature)
+        return q
 
 
-        # sum_att = torch.stack(attention_all_agent).transpose(0, 1)
-        # sum_att = sum_att.reshape(sum_att.shape[0], -1)
+class critic_combine_TwoPortion(nn.Module):
+    def __init__(self, critic_obs, n_agents, n_actions, single_history, hidden_state_size):
+        super(critic_combine_TwoPortion, self).__init__()
+        # v1 #
+        # # self.SA_fc = nn.Sequential(nn.Linear(critic_obs[0]+(n_actions*n_agents), 128), nn.ReLU())
+        # self.SA_fc = nn.Sequential(nn.Linear(critic_obs[0]+(n_actions*n_agents), 256), nn.ReLU())
+        # # self.SA_grid = nn.Sequential(nn.Linear(critic_obs[1], 128), nn.ReLU())
+        # self.SA_grid = nn.Sequential(nn.Linear(critic_obs[1], 256), nn.ReLU())
+        # # self.merge_fc_grid = nn.Sequential(nn.Linear(128+128, 256), nn.ReLU())
+        # self.merge_fc_grid = nn.Sequential(nn.Linear(256+256, 256), nn.ReLU())
+        # self.out_feature_q = nn.Sequential(nn.Linear(256, 1))
+        # end of v1 #
 
-        sum_grid = torch.stack(grid_all_agent).transpose(0, 1)
-        sum_grid = sum_grid.reshape(sum_grid.shape[0], -1)
+        #  # v2 #
+        # self.S_fc = nn.Sequential(nn.Linear(critic_obs[0], 128), nn.ReLU())
+        # self.grid_fc = nn.Sequential(nn.Linear(critic_obs[1], 128), nn.ReLU())
+        # self.combine_inputWact = nn.Sequential(nn.Linear(128+128+(n_actions*n_agents), 256), nn.ReLU())
+        # self.out_feature_q = nn.Sequential(nn.Linear(256, 1))
+        # # end of v2 #
 
-        sum_own = torch.stack(own_all_agent).transpose(0, 1)
-        sum_own = sum_own.reshape(sum_own.shape[0], -1)
+        # v1_yc #
+        self.o1a1 = nn.Sequential(nn.Linear(critic_obs[0]+critic_obs[1]+n_actions, 128), nn.ReLU())
+        self.o2a2 = nn.Sequential(nn.Linear(critic_obs[0]+critic_obs[1]+n_actions, 128), nn.ReLU())
+        self.o3a3 = nn.Sequential(nn.Linear(critic_obs[0]+critic_obs[1]+n_actions, 128), nn.ReLU())
+        self.combine_agents_fea = nn.Sequential(nn.Linear(128+128+128, 256), nn.ReLU())
+        self.out_feature_q = nn.Sequential(nn.Linear(256, 1))
+        # end of v1_yc #
 
-        # sum_own = self.sum_own_fc(state[0])
-        # sum_grid = self.sum_grid_fc(state[1])
+    def forward(self, combine_state, combine_action):
+        # ---- v1 -----
+        # obsWaction = torch.cat((combine_state[0], combine_action), dim=1)  # obs + action
+        # own_obsWaction = self.SA_fc(obsWaction)
+        # own_grid = self.SA_grid(combine_state[1])  # grid
+        # merge_obs_grid = torch.cat((own_obsWaction, own_grid), dim=1)
+        # merge_feature = self.merge_fc_grid(merge_obs_grid)
+        # q = self.out_feature_q(merge_feature)
+        # --- end of v1 ---
 
-        # env_concat = torch.cat((sum_att, sum_grid), dim=1)
-        env_concat = torch.cat((sum_own, sum_grid), dim=1)
+        # --- v2 ---
+        # own_obs = self.S_fc(combine_state[0])
+        # own_grid = self.grid_fc(combine_state[1])
+        # combine_obs = torch.cat((own_obs, own_grid, combine_action), dim=1)
+        # combine_obs_feature = self.combine_inputWact(combine_obs)
+        # q = self.out_feature_q(combine_obs_feature)
+        # --- end of v2 ---
 
-        env_encode = self.combine_env_fc(env_concat)
-        entire_comb = torch.cat((env_encode, actor_actions), dim=1)
-        # entire_comb = torch.cat((sum_own_e, actor_actions), dim=1)
-        q = self.combine_all(entire_comb)
+        # ---- yc_v1 -----
+        for agent_idx in range(3):
+            agent_obs = torch.cat((combine_state[0][:, agent_idx,:], combine_state[1][:, agent_idx,:]), dim=1)
+            if isinstance(combine_action, list):
+                agent_act = combine_action[agent_idx]
+            else:
+                agent_act = combine_action[:, agent_idx, :]
+            obsWact = torch.cat((agent_obs, agent_act), dim=1)  # obs + action
+            if agent_idx == 0:
+                o1a1_fea = self.o1a1(obsWact)
+            elif agent_idx == 1:
+                o2a2_fea = self.o2a2(obsWact)
+            elif agent_idx == 2:
+                o3a3_fea = self.o3a3(obsWact)
+
+        merge_all_agent = torch.cat((o1a1_fea, o2a2_fea, o3a3_fea), dim=1)
+        merge_feature = self.combine_agents_fea(merge_all_agent)
+        q = self.out_feature_q(merge_feature)
+        # --- end of yc_v1 ---
         return q

@@ -7,13 +7,11 @@
 @Package dependency:
 """
 import numpy as np
-from grid_env_generation_newframe_randomOD_radar_one_model import env_generation
-from env_simulator_randomOD_radar_one_model import env_simulator
+from grid_env_generation_newframe_randomOD_radar_sur_drones_oneModel import env_generation
+from env_simulator_randomOD_radar_sur_drones_oneModel import env_simulator
 
 
 def initialize_parameters():
-    n_episodes = 12000
-    max_t = 45
     eps_start = 1.0
     eps_end = 0.05  # The minimum number of epsilon
     #eps_decay = 0.99992
@@ -25,10 +23,10 @@ def initialize_parameters():
     # BUFFER_SIZE = int(1e5)  # replay buffer size
     # BUFFER_SIZE = int(5e4)  # replay buffer size
     BATCH_SIZE = 256  # minibatch size
-    GAMMA = 0.90  # discount factor
+    # GAMMA = 0.90  # discount factor
+    GAMMA = 0.95  # discount factor
     TAU = 0.01  # for soft update of target parameters, 0.001, so 99.9% of the weights in the target network is
-    learning_rate = 1e-5  # learning rate, previous = 0.0005 or 5e-4, now changed to 0.002
-    UPDATE_EVERY = 2  # how often to update the network
+    UPDATE_EVERY = 1  # how often to update the network
 
     # set boundary
     xlow = 455
@@ -61,4 +59,4 @@ def initialize_parameters():
     # agentConfig = (r'D:\Multi_agent_AAC\MA_ver1\fixedDrone_2_drone.xlsx')
     # agentConfig = (r'D:\github_clone\Multi_agent_AAC\MA_ver1\fixedDrone_5_adj.xlsx')
     env = env_simulator(staticEnv[0], staticEnv[1], staticEnv[2], bound, staticEnv[3], agentConfig)
-    return n_episodes, max_t, eps_start, eps_end, eps_period, eps, env, agent_grid_obs, BUFFER_SIZE, BATCH_SIZE, GAMMA, TAU, learning_rate, UPDATE_EVERY, seed, staticEnv[-1]
+    return eps_start, eps_end, eps_period, eps, env, agent_grid_obs, BUFFER_SIZE, BATCH_SIZE, GAMMA, TAU, UPDATE_EVERY, seed, staticEnv[-1]
