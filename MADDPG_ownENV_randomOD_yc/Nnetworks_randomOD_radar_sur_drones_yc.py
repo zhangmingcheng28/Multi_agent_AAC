@@ -542,7 +542,9 @@ class critic_combine_TwoPortion(nn.Module):
         ])  # nn.ModuleList we can use a list comprehension to do.
 
         self.combine_agents_fea = nn.Sequential(nn.Linear(128+128+128, 256), nn.ReLU())
+        # self.combine_agents_fea = nn.Sequential(nn.Linear(128+128+128, 512), nn.ReLU())
         self.out_feature_q = nn.Sequential(nn.Linear(256, 1))
+        # self.out_feature_q = nn.Sequential(nn.Linear(512, 1))
         # end of yc_v1 #
 
         # ---- yc_v1_1 -----#
