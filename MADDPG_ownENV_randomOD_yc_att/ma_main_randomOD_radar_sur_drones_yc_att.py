@@ -398,7 +398,7 @@ def main(args):
                 elif (True in done_aft_action):
                     episode_decision[1] = True
                     print("Some agent triggers termination condition like collision, current episode {} ends at step {}".format(episode, step-1))  # we need to -1 here, because we perform step + 1 after each complete step. Just to be consistent with the step count inside the reward function.
-                elif all([agent.reach_target for agent_idx, agent in env.all_agents.items()]):
+                elif all(check_goal):
                     episode_decision[2] = True
                     print("All agents have reached their destinations at step {}, episode {} terminated.".format(step-1, episode))
                     # show termination condition in picture when termination condition reached.

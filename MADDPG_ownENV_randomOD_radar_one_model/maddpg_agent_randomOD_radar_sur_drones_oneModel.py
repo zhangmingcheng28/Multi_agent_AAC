@@ -222,7 +222,7 @@ class MADDPG:
         # if True:
             return None, None, single_eps_critic_cal_record
 
-        # if i_episode > 20000:
+        # if i_episode > 13000:
         #     changed_lr = 0.0005
         #     for param_group in self.critic_optimizer.param_groups:
         #         param_group['lr'] = changed_lr

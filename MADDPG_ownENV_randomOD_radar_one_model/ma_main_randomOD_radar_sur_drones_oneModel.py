@@ -347,11 +347,11 @@ def main(args):
         # initialize_excel_file(excel_file_path_time)
         # ------------ end of this portion is to save using excel instead of pickle -----------
 
-    use_wanDB = False
-    # use_wanDB = True
+    # use_wanDB = False
+    use_wanDB = True
 
-    # get_evaluation_status = True  # have figure output
-    get_evaluation_status = False  # no figure output, mainly obtain collision rate
+    get_evaluation_status = True  # have figure output
+    # get_evaluation_status = False  # no figure output, mainly obtain collision rate
 
     # simply_view_evaluation = True  # don't save gif
     simply_view_evaluation = False  # save gif
@@ -467,12 +467,12 @@ def main(args):
     if args.mode == "eval":
         # args.max_episodes = 10  # only evaluate one episode during evaluation mode.
         # args.max_episodes = 5  # only evaluate one episode during evaluation mode.
-        args.max_episodes = 100
-        # args.max_episodes = 20
-        pre_fix = r'D:\MADDPG_2nd_jp\260224_15_58_23\interval_record_eps'
+        # args.max_episodes = 100
+        args.max_episodes = 20
+        pre_fix = r'D:\MADDPG_2nd_jp\270224_20_09_39\interval_record_eps'
         # episode_to_check = str(10000)
         # pre_fix = r'F:\OneDrive_NTU_PhD\OneDrive - Nanyang Technological University\DDPG_2ndJournal\dim_8_transfer_learning'
-        episode_to_check = str(24000)
+        episode_to_check = str(18000)
         # using one model, so we load all the same
         load_filepath_0 = pre_fix + '\episode_' + episode_to_check + '_actor_net.pth'
         load_filepath_1 = pre_fix + '\episode_' + episode_to_check + '_actor_net.pth'
@@ -726,6 +726,11 @@ def main(args):
                 elif all(check_goal):
                     episode_decision[2] = True
                     print("All agents have reached their destinations at step {}, episode {} terminated.".format(step-1, episode))
+                elif all([agent.reach_target for agent_idx, agent in env.all_agents.items()]):  # check whether these two termination condition has any difference
+                    episode_decision[2] = True
+                    print(
+                        "All agents have reached their destinations at step {}, episode {} terminated.".format(step - 1,
+                                                                                                               episode))
                     # show termination condition in picture when termination condition reached.
                     # os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
                     # matplotlib.use('TkAgg')
@@ -1115,7 +1120,7 @@ if __name__ == '__main__':
     parser.add_argument('--scenario', default="simple_spread", type=str)
     parser.add_argument('--max_episodes', default=35000, type=int)  # run for a total of 50000 episodes
     parser.add_argument('--algo', default="maddpg", type=str, help="commnet/bicnet/maddpg")
-    parser.add_argument('--mode', default="eval", type=str, help="train/eval")
+    parser.add_argument('--mode', default="train", type=str, help="train/eval")
     # parser.add_argument('--episode_length', default=150, type=int)  # maximum play per episode
     parser.add_argument('--episode_length', default=50, type=int)  # maximum play per episode
     parser.add_argument('--memory_length', default=int(1e5), type=int)

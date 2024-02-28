@@ -1210,16 +1210,16 @@ class env_simulator:
             for neigh_keys in self.all_agents[agentIdx].surroundingNeighbor:
                 # ----- start of make nei invis when neigh reached their goal -----
                 # check if this drone reached their goal yet
-                host_current_circle = Point(self.all_agents[neigh_keys].pos[0],
+                nei_cur_circle = Point(self.all_agents[neigh_keys].pos[0],
                                             self.all_agents[neigh_keys].pos[1]).buffer(self.all_agents[neigh_keys].protectiveBound)
 
-                tar_circle = Point(self.all_agents[neigh_keys].goal[-1]).buffer(1,
+                nei_tar_circle = Point(self.all_agents[neigh_keys].goal[-1]).buffer(1,
                                                                                cap_style='round')  # set to [-1] so there are no more reference path
                 # when there is no intersection between two geometries, "RuntimeWarning" will appear
                 # RuntimeWarning is, "invalid value encountered in intersection"
-                goal_cur_intru_intersect = host_current_circle.intersection(tar_circle)
+                nei_goal_intersect = nei_cur_circle.intersection(nei_tar_circle)
 
-                # if not goal_cur_intru_intersect.is_empty:  # current neigh has reached their goal
+                # if not nei_goal_intersect.is_empty:  # current neigh has reached their goal  # this will affect the drone's state space observation do note of this.
                 #     continue  # straight away pass this neigh which has already reached.
 
                 # ----- end of make nei invis when neigh reached their goal -----
@@ -2057,23 +2057,25 @@ class env_simulator:
 
             # loop through neighbors from current time step, and search for the nearest neighbour and its neigh_keys
             nearest_neigh_key = None
+            # shortest_neigh_dist = drone_obj.detectionRange / 2
             shortest_neigh_dist = math.inf
             for neigh_keys in self.all_agents[drone_idx].surroundingNeighbor:
                 # ---- start of make nei invis when nei has reached their goal ----
                 # check if this drone reached their goal yet
-                host_current_circle = Point(self.all_agents[neigh_keys].pos[0],
+                cur_nei_circle = Point(self.all_agents[neigh_keys].pos[0],
                                             self.all_agents[neigh_keys].pos[1]).buffer(self.all_agents[neigh_keys].protectiveBound)
 
-                tar_circle = Point(self.all_agents[neigh_keys].goal[-1]).buffer(1,
+                cur_nei_tar_circle = Point(self.all_agents[neigh_keys].goal[-1]).buffer(1,
                                                                                cap_style='round')  # set to [-1] so there are no more reference path
                 # when there is no intersection between two geometries, "RuntimeWarning" will appear
                 # RuntimeWarning is, "invalid value encountered in intersection"
-                goal_cur_intru_intersect = host_current_circle.intersection(tar_circle)
+                neigh_goal_intersect = cur_nei_circle.intersection(cur_nei_tar_circle)
 
-                # if not goal_cur_intru_intersect.is_empty:  # current neigh has reached their goal
+                # if not neigh_goal_intersect.is_empty:  # current neigh has reached their goal
                 #     continue  # straight away pass this neigh which has already reached.
 
                 # ---- end of make nei invis when nei has reached their goal ----
+
                 # get distance from host to all the surrounding vehicles
                 diff_dist_vec = drone_obj.pos - self.all_agents[neigh_keys].pos  # host pos vector - intruder pos vector
                 euclidean_dist_diff = np.linalg.norm(diff_dist_vec)
@@ -2201,8 +2203,8 @@ class env_simulator:
             # dist_to_goal = 0
             # coef_ref_line = 0.5
             # coef_ref_line = -10
-            # coef_ref_line = 3
-            coef_ref_line = 1
+            coef_ref_line = 3
+            # coef_ref_line = 1
             # coef_ref_line = 2
             # coef_ref_line = 1.5
             # coef_ref_line = 0
@@ -2228,7 +2230,8 @@ class env_simulator:
             # near_drone_penalty_coef = 1
             # near_drone_penalty_coef = 3
             # near_drone_penalty_coef = 0
-            dist_to_penalty_upperbound = 6
+            # dist_to_penalty_upperbound = 6
+            dist_to_penalty_upperbound = 10
             dist_to_penalty_lowerbound = 2.5
             # assume when at lowerbound, y = 1
             c_drone = 1 + (dist_to_penalty_lowerbound / (dist_to_penalty_upperbound - dist_to_penalty_lowerbound))
@@ -2276,10 +2279,14 @@ class env_simulator:
             #                                                     (1-(min_dist/turningPtConst)**2))  # value from 0 ~ 1.
             # turningPtConst = 12.5
             turningPtConst = 5
+            # turningPtConst = 10
             if turningPtConst == 12.5:
                 c = 1.25
             elif turningPtConst == 5:
                 c = 2
+
+            c = 1 + (drone_obj.protectiveBound / (turningPtConst - drone_obj.protectiveBound))
+
             # # linear building penalty
             # makesure only when min_dist is >=0 and <= turningPtConst, then we activate this penalty
             m = (0-1)/(turningPtConst-drone_obj.protectiveBound)  # we must consider drone's circle, because when min_distance is less than drone's radius, it is consider collision.
@@ -2342,7 +2349,7 @@ class env_simulator:
                 reward.append(np.array(rew))
             elif not goal_cur_intru_intersect.is_empty:  # reached goal?
                 # --------------- with way point -----------------------
-                check_goal[reward_record_idx] = True
+                check_goal[drone_idx] = True
                 if drone_obj.reach_target == False:  # never reach before, if a drone has reached its target, we don't change this flag
                     drone_obj.reach_target = True
                 # print("drone_{} has reached its final goal at time step {}".format(drone_idx, current_ts))

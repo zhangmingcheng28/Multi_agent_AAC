@@ -2101,7 +2101,7 @@ class env_simulator:
                 reward.append(np.array(rew))
             elif not goal_cur_intru_intersect.is_empty:  # reached goal?
                 # --------------- with way point -----------------------
-                check_goal[reward_record_idx] = True
+                check_goal[drone_idx] = True
 
                 # if drone_obj.reach_target == False:
                 #     rew = rew + reach_target + near_goal_reward + 200
