@@ -1864,10 +1864,16 @@ class env_simulator:
             host_current_circle = Point(self.all_agents[drone_idx].pos[0], self.all_agents[drone_idx].pos[1]).buffer(
                 self.all_agents[drone_idx].protectiveBound)
             host_current_point = Point(self.all_agents[drone_idx].pos[0], self.all_agents[drone_idx].pos[1])
-            # loop through neighbors from current time step
+            # loop through neighbors from current time step, and search for the nearest neighbour and its neigh_keys
+            nearest_neigh_key = None
+            shortest_neigh_dist = drone_obj.detectionRange / 2
             for neigh_keys in self.all_agents[drone_idx].surroundingNeighbor:
                 # get distance from host to all the surrounding vehicles
                 diff_dist_vec = drone_obj.pos - self.all_agents[neigh_keys].pos  # host pos vector - intruder pos vector
+                euclidean_dist_diff = np.linalg.norm(diff_dist_vec)
+                if euclidean_dist_diff < shortest_neigh_dist:
+                    shortest_neigh_dist = euclidean_dist_diff
+                    nearest_neigh_key = neigh_keys
                 if np.linalg.norm(diff_dist_vec) <= drone_obj.protectiveBound * 2:
                     print("drone_{} collide with drone_{} at time step {}".format(drone_idx, neigh_keys, current_ts))
                     collision_drones.append(neigh_keys)
@@ -1965,6 +1971,8 @@ class env_simulator:
             if dist_to_goal >= drone_obj.maxSpeed:
                 print("dist_to_goal reward out of range")
 
+
+
             # ------- small segment reward ------------
             # dist_to_seg_coeff = 10
             # dist_to_seg_coeff = 1
@@ -2054,7 +2062,21 @@ class env_simulator:
             else:
                 near_building_penalty = 0  # if min_dist is outside of the bound, other parts of the reward will be taking care.
 
-
+            # ---- penalty term for surrounding drones ---
+            near_drone_penalty_coef = 3
+            dist_to_penalty_upperbound = 6
+            dist_to_penalty_lowerbound = 2.5
+            # assume when at lowerbound, y = 1
+            c_drone = 1 + (dist_to_penalty_lowerbound / (dist_to_penalty_upperbound - dist_to_penalty_lowerbound))
+            m_drone = (0-1)/(dist_to_penalty_upperbound - dist_to_penalty_lowerbound)
+            if nearest_neigh_key is not None:
+                if shortest_neigh_dist >= dist_to_penalty_lowerbound and shortest_neigh_dist <= dist_to_penalty_upperbound:
+                    near_drone_penalty = near_drone_penalty_coef * (m_drone*shortest_neigh_dist+c_drone)
+                else:
+                    near_drone_penalty = near_drone_penalty_coef * 0
+            else:
+                near_drone_penalty = near_drone_penalty_coef * 0
+            # ---- end of penalty term for surrounding agents ----
 
             # if min_dist < drone_obj.protectiveBound:
             #     print("check for collision")
@@ -2072,7 +2094,7 @@ class env_simulator:
             # must use "host_passed_volume", or else, we unable to confirm whether the host's circle is at left or right of the boundary lines
             if x_left_bound.intersects(host_passed_volume) or x_right_bound.intersects(host_passed_volume) or y_bottom_bound.intersects(host_passed_volume) or y_top_bound.intersects(host_passed_volume):
                 print("drone_{} has crash into boundary at time step {}".format(drone_idx, current_ts))
-                rew = rew - crash_penalty_wall - small_step_penalty - near_building_penalty
+                rew = rew - crash_penalty_wall - small_step_penalty - near_building_penalty - near_drone_penalty
                 done.append(True)
                 bound_building_check[0] = True
                 # done.append(False)
@@ -2082,7 +2104,7 @@ class env_simulator:
                 # done.append(True)
                 done.append(True)
                 bound_building_check[1] = True
-                rew = rew - crash_penalty_wall - small_step_penalty - near_building_penalty
+                rew = rew - crash_penalty_wall - small_step_penalty - near_building_penalty - near_drone_penalty
                 # rew = rew - big_crash_penalty_wall
                 reward.append(np.array(rew))
             # # ---------- Termination only during collision to wall on the 3rd time -----------------------
@@ -2104,7 +2126,7 @@ class env_simulator:
                 done.append(True)
                 # done.append(False)
                 bound_building_check[2] = True
-                rew = rew - crash_penalty_wall - small_step_penalty - near_building_penalty
+                rew = rew - crash_penalty_wall - small_step_penalty - near_building_penalty - near_drone_penalty
                 reward.append(np.array(rew))
             elif not goal_cur_intru_intersect.is_empty:  # reached goal?
                 # --------------- with way point -----------------------
@@ -2131,7 +2153,7 @@ class env_simulator:
                         # print("drone {} has reached a WP on step {}, claim additional {} points of reward"
                         #       .format(drone_idx, current_ts, coef_ref_line))
                 rew = rew + dist_to_ref_line + dist_to_goal - \
-                      small_step_penalty + near_goal_reward - near_building_penalty + seg_reward-survival_penalty
+                      small_step_penalty + near_goal_reward - near_building_penalty + seg_reward-survival_penalty - near_drone_penalty
                 # we remove the above termination condition
                 done.append(False)
                 step_reward = np.array(rew)
