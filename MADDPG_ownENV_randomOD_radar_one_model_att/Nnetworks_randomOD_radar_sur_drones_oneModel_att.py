@@ -164,6 +164,45 @@ class ActorNetwork_TwoPortion(nn.Module):
         return out_action
 
 
+class ActorNetwork_ATT_TwoPortion(nn.Module):
+    def __init__(self, actor_dim, n_actions):  # actor_obs consists of three parts 0 = own, 1 = own grid, 2 = surrounding drones
+        super(ActorNetwork_ATT_TwoPortion, self).__init__()
+
+        self.own_fc = nn.Sequential(nn.Linear(actor_dim[0], 64), nn.ReLU())
+        self.own_grid = nn.Sequential(nn.Linear(actor_dim[1], 64), nn.ReLU())
+        self.neigh_fc = nn.Sequential(nn.Linear(actor_dim[2], 64), nn.ReLU())
+        self.merge_feature = nn.Sequential(nn.Linear(64+64+64, 256), nn.ReLU())
+        self.act_out = nn.Sequential(nn.Linear(256, n_actions), nn.Tanh())
+
+        # attention
+        self.k = nn.Linear(64, 64, bias=False)
+        self.q = nn.Linear(64, 64, bias=False)
+        self.v = nn.Linear(64, 64, bias=False)
+
+    def forward(self, cur_state):
+        own_obs = self.own_fc(cur_state[0])
+        own_grid = self.own_grid(cur_state[1])
+        x_e = self.neigh_fc(cur_state[2])
+        # mask attention embedding
+        q = self.q(own_obs)
+        k = self.k(x_e)
+        v = self.v(x_e)
+        mask = cur_state[2].mean(axis=2, keepdim=True).bool()
+        score = torch.bmm(k, q.unsqueeze(axis=2))
+        score_mask = score.clone()  # clone操作很必要
+        score_mask[~mask] = float('-inf')  # 不然赋值操作后会无法计算梯度
+
+        alpha = F.softmax(score_mask / np.sqrt(k.size(-1)), dim=1)  # we use dim=1 here because we need to get attention of each sequence in K towards all hidden vector of q in each batch.
+        alpha_mask = alpha.clone()
+        alpha_mask[~mask] = 0
+        v_att = torch.sum(v * alpha_mask, axis=1)
+
+        merge_obs_grid = torch.cat((own_obs, own_grid, v_att), dim=1)
+        merge_feature = self.merge_feature(merge_obs_grid)
+        out_action = self.act_out(merge_feature)
+        return out_action
+
+
 class ActorNetwork_OnePortion(nn.Module):
     def __init__(self, actor_dim, n_actions):  # actor_obs consists of three parts 0 = own, 1 = own grid, 2 = surrounding drones
         super(ActorNetwork_OnePortion, self).__init__()
@@ -496,6 +535,44 @@ class critic_single_TwoPortion(nn.Module):
         # merge_feature = self.merge_fc_gridWact(merge_obs_gridWact)
         # q = self.out_feature_q(merge_feature)
         # ------ end of v1_1 ----
+        return q
+
+
+class critic_single_TwoPortion_ATT(nn.Module):
+    def __init__(self, critic_obs, n_agents, n_actions, single_history, hidden_state_size):
+        super(critic_single_TwoPortion_ATT, self).__init__()
+        self.own_fc = nn.Sequential(nn.Linear(critic_obs[0], 64), nn.ReLU())
+        self.own_grid = nn.Sequential(nn.Linear(critic_obs[1], 64), nn.ReLU())
+        self.neigh_fc = nn.Sequential(nn.Linear(critic_obs[2], 64), nn.ReLU())
+        self.out_feature_q = nn.Sequential(nn.Linear(256, 1), nn.Tanh())
+
+        # attention
+        self.k = nn.Linear(256, 256, bias=False)
+        self.q = nn.Linear(256, 256, bias=False)
+        self.v = nn.Linear(256, 256, bias=False)
+
+    def forward(self, single_state, single_action):
+        own_obs = self.own_fc(single_state[0])
+        own_grid = self.own_grid(single_state[1])
+        x_e = self.neigh_fc(single_state[2])
+
+        own_situation = torch.cat((own_obs, own_grid, single_action), dim=1)  # 64+64+2
+
+        # mask attention embedding
+        q = self.q(own_situation)
+        k = self.k(x_e)
+        v = self.v(x_e)
+        mask = single_state[2].mean(axis=2, keepdim=True).bool()
+        score = torch.bmm(k, q.unsqueeze(axis=2))
+        score_mask = score.clone()  # clone操作很必要
+        score_mask[~mask] = float('-inf')  # 不然赋值操作后会无法计算梯度
+
+        alpha = F.softmax(score_mask / np.sqrt(k.size(-1)), dim=1)  # we use dim=1 here because we need to get attention of each sequence in K towards all hidden vector of q in each batch.
+        alpha_mask = alpha.clone()
+        alpha_mask[~mask] = 0
+        v_att = torch.sum(v * alpha_mask, axis=1)
+        q = self.out_feature_q(v_att)
+
         return q
 
 

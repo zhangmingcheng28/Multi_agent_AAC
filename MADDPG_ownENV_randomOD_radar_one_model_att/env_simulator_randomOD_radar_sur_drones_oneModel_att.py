@@ -18,7 +18,7 @@ from scipy.spatial import KDTree
 import random
 import itertools
 from copy import deepcopy
-from agent_randomOD_radar_sur_drones_oneModel import Agent
+from agent_randomOD_radar_sur_drones_oneModel_att import Agent
 import pandas as pd
 import math
 import numpy as np
@@ -30,7 +30,7 @@ import matplotlib.pyplot as plt
 import matplotlib
 import re
 import time
-from Utilities_own_randomOD_radar_sur_drones_oneModel import *
+from Utilities_own_randomOD_radar_sur_drones_oneModel_att import *
 import torch as T
 import torch
 import torch.nn.functional as F
@@ -196,7 +196,7 @@ class env_simulator:
                 # top left
                 # plt.plot(centre_coord[0], centre_coord[1], marker='.', color='g', markersize=2)
 
-    def reset_world(self, total_agentNum, show):  # set initialize position and observation for all agents
+    def reset_world(self, total_agentNum, actor_dim, show):  # set initialize position and observation for all agents
         self.global_time = 0.0
         self.time_step = 0.5
         # reset OU_noise as well
@@ -398,7 +398,7 @@ class env_simulator:
         # overall_state, norm_overall_state = self.cur_state_norm_state_fully_observable(agentRefer_dict)
         # print('time used is {}'.format(time.time() - start_time))
         overall_state, norm_overall_state, polygons_list, all_agent_st_pos, all_agent_ed_pos, all_agent_intersection_point_list, \
-        all_agent_line_collection, all_agent_mini_intersection_list = self.cur_state_norm_state_v3(agentRefer_dict)
+        all_agent_line_collection, all_agent_mini_intersection_list = self.cur_state_norm_state_v3(agentRefer_dict, actor_dim)
 
         if show:
             os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
@@ -755,8 +755,8 @@ class env_simulator:
         # identify neighbors (use distance)
         point_to_search = cur_agent.pos
         # subtract a small value to exclude point at exactly "search_distance"
-        # search_distance = (cur_agent.detectionRange / 2) + cur_agent.protectiveBound - 1e-6
-        search_distance = 10000
+        search_distance = (cur_agent.detectionRange / 2) + cur_agent.protectiveBound - 1e-6
+        # search_distance = 10000
         # indices_from_KDtree = self.cur_allAgentCoor_KD.query_ball_point(point_to_search, search_distance)
         for agent_idx, agent in self.all_agents.items():  # loop through all agent to confirm its neighbour
             if agent.agent_name == cur_agent.agent_name:  # skip the current querying agent
@@ -830,7 +830,7 @@ class env_simulator:
         norm_overall.append(norm_overall_state_p2)
         return overall, norm_overall
 
-    def cur_state_norm_state_v3(self, agentRefer_dict):
+    def cur_state_norm_state_v3(self, agentRefer_dict, actor_dim):
         overall = []
         norm_overall = []
         # prepare for output states
@@ -1269,15 +1269,15 @@ class env_simulator:
             # agent_own = np.array([agent.pos[0], agent.pos[1], agent.vel[0], agent.vel[1],
             #                       agent.goal[-1][0]-agent.pos[0], agent.goal[-1][1]-agent.pos[1]])
 
-            # agent_own = np.array([agent.pos[0], agent.pos[1], agent.vel[0], agent.vel[1], x_error, y_error,
-            #                       agent.goal[-1][0]-agent.pos[0], agent.goal[-1][1]-agent.pos[1]])
+            agent_own = np.array([agent.pos[0], agent.pos[1], agent.vel[0], agent.vel[1], x_error, y_error,
+                                  agent.goal[-1][0]-agent.pos[0], agent.goal[-1][1]-agent.pos[1]])
 
             # agent_own = np.array([agent.pos[0], agent.pos[1], agent.vel[0], agent.vel[1], x_error, y_error,
             #                       agent.goal[-1][0]-agent.pos[0], agent.goal[-1][1]-agent.pos[1], nearest_neigh_pos[0],
             #                       nearest_neigh_pos[1]])
 
-            agent_own = np.array([agent.pos[0], agent.pos[1], agent.vel[0], agent.vel[1], x_error, y_error,
-                                  agent.goal[-1][0]-agent.pos[0], agent.goal[-1][1]-agent.pos[1], delta_nei[0], delta_nei[1]])
+            # agent_own = np.array([agent.pos[0], agent.pos[1], agent.vel[0], agent.vel[1], x_error, y_error,
+            #                       agent.goal[-1][0]-agent.pos[0], agent.goal[-1][1]-agent.pos[1], delta_nei[0], delta_nei[1]])
 
             # agent_own = np.array([agent.pos[0], agent.pos[1], agent.vel[0], agent.vel[1], x_error, y_error,
             #                       agent.goal[-1][0]-agent.pos[0], agent.goal[-1][1]-agent.pos[1], delta_nei[0], delta_nei[1],
@@ -1294,9 +1294,9 @@ class env_simulator:
             #                       agent.goal[-1][0]-agent.pos[0], agent.goal[-1][1]-agent.pos[1]])
 
             # norm_agent_own = np.concatenate([norm_pos, norm_vel, norm_deltaG], axis=0)
-            # norm_agent_own = np.concatenate([norm_pos, norm_vel, norm_cross, norm_deltaG], axis=0)
+            norm_agent_own = np.concatenate([norm_pos, norm_vel, norm_cross, norm_deltaG], axis=0)
             # norm_agent_own = np.concatenate([norm_pos, norm_vel, norm_cross, norm_deltaG, norm_nearest_neigh_pos], axis=0)
-            norm_agent_own = np.concatenate([norm_pos, norm_vel, norm_cross, norm_deltaG, norm_delta_nei], axis=0)
+            # norm_agent_own = np.concatenate([norm_pos, norm_vel, norm_cross, norm_deltaG, norm_delta_nei], axis=0)
             # norm_agent_own = np.concatenate([norm_pos, norm_vel, norm_cross, norm_deltaG, norm_delta_nei, norm_nearest_neigh_vel], axis=0)
             # norm_agent_own = np.concatenate([norm_pos, norm_vel, norm_ref_line_obs, norm_deltaG], axis=0)
             # norm_agent_own = np.concatenate([norm_pos, norm_vel, norm_acc, norm_deltaG], axis=0)
@@ -1323,31 +1323,54 @@ class env_simulator:
             other_agents = []
             norm_other_agents = []
             if len(agent.surroundingNeighbor) > 0:  # meaning there is surrounding neighbors around the current agent
+                possible_conflict = 0  # possible conflict between the host drone and the current neighbour
                 for other_agentIdx, other_agent in agent.surroundingNeighbor.items():
                     if other_agentIdx != agent_idx:
-                        surround_agent = np.array([[other_agent[0] - agent.pos[0],
-                                                   other_agent[1] - agent.pos[1],
-                                                   other_agent[-2] - other_agent[0],
-                                                   other_agent[-1] - other_agent[1],
-                                                   other_agent[2], other_agent[3]]])
 
-                        norm_pos_diff = self.normalizer.nmlz_pos_diff(
-                            [other_agent[0] - agent.pos[0], other_agent[1] - agent.pos[1]])
+                        delta_host_x = self.all_agents[other_agentIdx].pos[0] - agent.pos[0]
+                        delta_host_y = self.all_agents[other_agentIdx].pos[1] - agent.pos[1]
+                        norm_delta_pos = self.normalizer.scale_pos([delta_host_x, delta_host_y])
+                        cur_neigh_vx = self.all_agents[other_agentIdx].vel[0]
+                        cur_neigh_vy = self.all_agents[other_agentIdx].vel[1]
+                        norm_neigh_vel = self.normalizer.nmlz_vel([cur_neigh_vx, cur_neigh_vy])  # normalization using min_max
+                        cur_neigh_ax = self.all_agents[other_agentIdx].acc[0]
+                        cur_neigh_ay = self.all_agents[other_agentIdx].acc[1]
+                        # norm_neigh_acc = self.normalizer.norm_scale([cur_neigh_ax, cur_neigh_ay])
+                        norm_neigh_acc = self.normalizer.nmlz_acc([cur_neigh_ax, cur_neigh_ay])
 
-                        norm_G_diff = self.normalizer.nmlz_pos_diff(
-                            [other_agent[-2] - other_agent[0], other_agent[-1] - other_agent[1]])
+                        # delta_neigh_gx = self.all_agents[other_agentIdx].goal[-1][0]-self.all_agents[other_agentIdx].pos[0]
+                        # delta_neigh_gy = self.all_agents[other_agentIdx].goal[-1][1]-self.all_agents[other_agentIdx].pos[1]
 
-                        norm_vel = tuple(self.normalizer.nmlz_vel([other_agent[2], other_agent[3]]))
-                        # norm_vel = self.normalizer.nmlz_vel([other_agent[2], other_agent[3]])
-                        norm_surround_agent = np.array([list(norm_pos_diff + norm_G_diff + norm_vel)])
+                        rel_dist_withNeg = -1 * (self.all_agents[other_agentIdx].pos-agent.pos) # relative distance, host-intru
+                        rel_vel = self.all_agents[other_agentIdx].vel-agent.vel  # get relative velocity, host-intru
+                        rel_vel_norm_withSQ = np.square(np.linalg.norm(rel_vel))  # square of norm
+                        tcpa = np.dot(rel_dist_withNeg, rel_vel) / rel_vel_norm_withSQ
+                        d_tcpa = np.linalg.norm(((rel_dist_withNeg * -1) + (rel_vel * tcpa)))
+                        if rel_vel_norm_withSQ == 0:
+                            possible_conflict = 0
+                        else:
+                            if (tcpa <= 1) and (d_tcpa < (self.all_agents[other_agentIdx].protectiveBound + agent.protectiveBound)):
+                                possible_conflict = 1
+
+                        # surround_agent = np.array([delta_host_x, delta_host_y, cur_neigh_vx, cur_neigh_vy, cur_neigh_ax, cur_neigh_ay, possible_conflict]).reshape(1, actor_dim[-1])
+                        surround_agent = np.array([delta_host_x, delta_host_y, cur_neigh_vx, cur_neigh_vy, cur_neigh_ax, cur_neigh_ay]).reshape(1, actor_dim[-1])
+
+                        # norm_surround_agent = np.concatenate([norm_delta_pos, norm_neigh_vel, norm_neigh_acc, np.array([possible_conflict])], axis=0).reshape(1, actor_dim[-1])
+                        norm_surround_agent = np.concatenate([norm_delta_pos, norm_neigh_vel, norm_neigh_acc], axis=0).reshape(1, actor_dim[-1])
 
                         other_agents.append(surround_agent)
                         norm_other_agents.append(norm_surround_agent)
+
+                # make list of 1x7 array into a nx7 array, where n is the original length of the list
+                other_agents = np.array(other_agents).squeeze(1)
+                norm_other_agents = np.array(norm_other_agents).squeeze(1)
+
                 overall_state_p3.append(other_agents)
                 norm_overall_state_p3.append(norm_other_agents)
-            else:
-                overall_state_p3.append([np.zeros((1, 6))])
-                norm_overall_state_p3.append([np.zeros((1, 6))])
+
+            else:   # for agents that don't have neighbours we populate with zeros.
+                overall_state_p3.append(np.zeros((1, actor_dim[-1])))
+                norm_overall_state_p3.append(np.zeros((1, actor_dim[-1])))
 
             overall_state_p1.append(agent_own)
             overall_state_p2.append(agent.observableSpace)
@@ -2252,8 +2275,8 @@ class env_simulator:
                 near_drone_penalty = near_drone_penalty_coef * 0
             # -----end of near drone penalty ----------------
 
-            small_step_penalty_coef = 5
-            # small_step_penalty_coef = 0
+            # small_step_penalty_coef = 5
+            small_step_penalty_coef = 0
             # spd_penalty_threshold = 2*drone_obj.protectiveBound
             spd_penalty_threshold = drone_obj.protectiveBound
             small_step_penalty_val = (spd_penalty_threshold -
@@ -2438,7 +2461,7 @@ class env_simulator:
             status_holder[drone_idx].append([cur_dist_to_goal] + cur_step_reward)
         return status_holder
 
-    def step(self, actions, current_ts, acc_max):
+    def step(self, actions, current_ts, acc_max, actor_dim):
         next_combine_state = []
         agentCoorKD_list_update = []
         agentRefer_dict = {}  # A dictionary to use agent's current pos as key, their agent name (idx) as value
@@ -2531,7 +2554,7 @@ class env_simulator:
 
         # next_state, next_state_norm = self.cur_state_norm_state_fully_observable(agentRefer_dict)
         # start_acceleration_time = time.time()
-        next_state, next_state_norm, polygons_list, all_agent_st_points, all_agent_ed_points, all_agent_intersection_point_list, all_agent_line_collection, all_agent_mini_intersection_list = self.cur_state_norm_state_v3(agentRefer_dict)
+        next_state, next_state_norm, polygons_list, all_agent_st_points, all_agent_ed_points, all_agent_intersection_point_list, all_agent_line_collection, all_agent_mini_intersection_list = self.cur_state_norm_state_v3(agentRefer_dict, actor_dim)
         # print("obtain_current_state, time used {} milliseconds".format(
         #     (time.time() - start_acceleration_time) * 1000))
 
