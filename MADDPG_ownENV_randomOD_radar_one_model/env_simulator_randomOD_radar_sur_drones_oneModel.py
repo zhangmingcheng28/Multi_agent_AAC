@@ -1043,7 +1043,6 @@ class env_simulator:
             # self.all_agents[agentIdx].observableSpace = distances
             # # ------------- end of create radar --------------- #
 
-
             # ---- start of radar creation (only detect surrounding obstacles ----
             drone_ctr = Point(agent.pos)
             nearest_buildingPoly_idx = self.allbuildingSTR.nearest(drone_ctr)
@@ -1144,6 +1143,12 @@ class env_simulator:
             all_agent_mini_intersection_list.append(mini_intersection_list)
             self.all_agents[agentIdx].observableSpace = np.array(distances)
             # ---- end of radar creation (only detect surrounding obstacles ----
+
+            # -------- normalize radar reading by its maximum range -----
+            # for ea_dist_idx, ea_dist in enumerate(self.all_agents[agentIdx].observableSpace):
+            #     ea_dist = ea_dist / (self.all_agents[agentIdx].detectionRange / 2)
+            #     self.all_agents[agentIdx].observableSpace[ea_dist_idx] = ea_dist
+            # -------- end of normalize radar reading by its maximum range -----
 
             rest_compu_time = time.time()
 
@@ -1983,7 +1988,7 @@ class env_simulator:
         # return reward, done, check_goal, step_reward_record, agent_filled
         return reward, done, check_goal, step_reward_record
 
-    def ss_reward(self, current_ts, step_reward_record, eps_status_holder, step_collision_record, xy, full_observable_critic_flag):
+    def ss_reward(self, current_ts, step_reward_record, eps_status_holder, step_collision_record, xy, full_observable_critic_flag, args):
         bound_building_check = [False] * 3
         reward, done = [], []
         agent_to_remove = []
@@ -2182,6 +2187,11 @@ class env_simulator:
             # dist_to_goal = dist_to_goal_coeff * np.linalg.norm(projected_velocity)
             # ---- end of v2 leading to goal reward, based on compute_projected_velocity ---
 
+            # ---- v3 leading to goal reward, based on remained distance to travel only ---
+            # dist_left = total_length_to_end_of_line_without_cross(drone_obj.pos, drone_obj.ref_line)
+            # dist_to_goal = dist_to_goal_coeff * (1 - (dist_left / drone_obj.ref_line.length))  # v3
+            # ---- end of v3 leading to goal reward, based on remained distance to travel only ---
+
             if dist_to_goal > drone_obj.maxSpeed:
                 print("dist_to_goal reward out of range")
 
@@ -2367,7 +2377,11 @@ class env_simulator:
                 agent_to_remove.append(drone_idx)  # NOTE: drone_idx is the key value.
                 rew = rew + reach_target + near_goal_reward
                 reward.append(np.array(rew))
-                done.append(False)
+                if full_observable_critic_flag:
+                    done.append(False)
+                else:
+                    done.append(True)
+
                 # --------------- end of with way point -----------------------
                 # without wap point
                 # rew = rew + reach_target
@@ -2391,7 +2405,10 @@ class env_simulator:
                 rew = rew + dist_to_ref_line + dist_to_goal - \
                       small_step_penalty + near_goal_reward - near_building_penalty + seg_reward - survival_penalty - near_drone_penalty
                 # we remove the above termination condition
-                done.append(False)
+                if current_ts >= args.episode_length:
+                    done.append(True)
+                else:
+                    done.append(False)
                 step_reward = np.array(rew)
                 reward.append(step_reward)
                 # for debug, record the reward
@@ -2415,6 +2432,11 @@ class env_simulator:
 
         if full_observable_critic_flag:
             reward = [np.sum(reward) for _ in reward]
+            if all(check_goal):
+                for element_idx, element in enumerate(done):
+                    done[element_idx] = True
+
+
 
         # ever_reached = [agent.reach_target for agent in self.all_agents.values()]
         # if check_goal.count(True) == 1 and ever_reached.count(True) == 0:

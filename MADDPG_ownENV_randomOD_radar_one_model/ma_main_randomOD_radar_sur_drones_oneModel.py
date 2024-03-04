@@ -44,6 +44,7 @@ else:
 device = torch.device('cpu')
 #
 
+
 def initialize_excel_file(file_path):
     # Create a new workbook and add three empty sheets
     wb = Workbook()
@@ -347,8 +348,8 @@ def main(args):
         # initialize_excel_file(excel_file_path_time)
         # ------------ end of this portion is to save using excel instead of pickle -----------
 
-    use_wanDB = False
-    # use_wanDB = True
+    # use_wanDB = False
+    use_wanDB = True
 
     # get_evaluation_status = True  # have figure output
     get_evaluation_status = False  # no figure output, mainly obtain collision rate
@@ -553,7 +554,7 @@ def main(args):
                 # reward_aft_action, done_aft_action, check_goal, step_reward_record = env.get_step_reward_5_v3(step, step_reward_record)   # remove reached agent here
 
                 one_step_reward_start = time.time()
-                reward_aft_action, done_aft_action, check_goal, step_reward_record, status_holder, step_collision_record, bound_building_check = env.ss_reward(step, step_reward_record, eps_status_holder, step_collision_record, dummy_xy, full_observable_critic_flag)   # remove reached agent here
+                reward_aft_action, done_aft_action, check_goal, step_reward_record, status_holder, step_collision_record, bound_building_check = env.ss_reward(step, step_reward_record, eps_status_holder, step_collision_record, dummy_xy, full_observable_critic_flag, args)   # remove reached agent here
                 reward_generation_time = (time.time() - one_step_reward_start)*1000
                 # print("current step reward time used is {} milliseconds".format(reward_generation_time))
 
@@ -696,8 +697,8 @@ def main(args):
                         one_agent_next_obs.append(one_agent_one_portion)
 
                     for i in range(len(one_agent_next_obs)):
-                        if done_tensor[i] == 1:
-                            continue
+                        # if done_tensor[i] == 1:
+                        #     continue
                         model.memory.push(one_agent_obs[i], ac_tensor[i,:], one_agent_next_obs[i], rw_tensor[i], done_tensor[i], history_tensor[:,i,:],
                                           cur_actor_hiddens[i,:], next_actor_hiddens[i,:])
                     # ------- end of push to memory one by one ----------
@@ -903,7 +904,7 @@ def main(args):
                 # for a_idx, action_ele in enumerate(action):
                 #     action[a_idx] = [-0.3535, 0.3535]
                 next_state, norm_next_state, polygons_list, all_agent_st_points, all_agent_ed_points, all_agent_intersection_point_list, all_agent_line_collection, all_agent_mini_intersection_list = env.step(action, step, acc_max)  # no heading update here
-                reward_aft_action, done_aft_action, check_goal, step_reward_record, eps_status_holder, step_collision_record, bound_building_check = env.ss_reward(step, step_reward_record, eps_status_holder, step_collision_record, dummy_xy, full_observable_critic_flag)
+                reward_aft_action, done_aft_action, check_goal, step_reward_record, eps_status_holder, step_collision_record, bound_building_check = env.ss_reward(step, step_reward_record, eps_status_holder, step_collision_record, dummy_xy, full_observable_critic_flag, args)
                 # reward_aft_action, done_aft_action, check_goal, step_reward_record = env.get_step_reward_5_v3(step, step_reward_record)
 
                 step += 1
@@ -1124,7 +1125,7 @@ if __name__ == '__main__':
     parser.add_argument('--scenario', default="simple_spread", type=str)
     parser.add_argument('--max_episodes', default=35000, type=int)  # run for a total of 50000 episodes
     parser.add_argument('--algo', default="maddpg", type=str, help="commnet/bicnet/maddpg")
-    parser.add_argument('--mode', default="eval", type=str, help="train/eval")
+    parser.add_argument('--mode', default="train", type=str, help="train/eval")
     # parser.add_argument('--episode_length', default=150, type=int)  # maximum play per episode
     parser.add_argument('--episode_length', default=50, type=int)  # maximum play per episode
     # parser.add_argument('--episode_length', default=100, type=int)  # maximum play per episode

@@ -474,6 +474,51 @@ class critic_single_obs_wGRU_TwoPortion(nn.Module):
         q = self.own_fc_outlay(h)
         return q, h
 
+class critic_single_obs_wGRU_TwoPortion_TD3(nn.Module):
+    def __init__(self, critic_obs, n_agents, n_actions, single_history, hidden_state_size):
+        super(critic_single_obs_wGRU_TwoPortion_TD3, self).__init__()
+        # Q1
+        self.SA_fc_q1 = nn.Sequential(nn.Linear(critic_obs[0]+n_actions, 64), nn.ReLU())
+        self.SA_grid_q1 = nn.Sequential(nn.Linear(critic_obs[1], 64), nn.ReLU())
+        self.rnn_hidden_dim_q1 = hidden_state_size
+        self.gru_cell_q1 = nn.GRUCell(64+64, hidden_state_size)
+        self.own_fc_outlay_q1 = nn.Linear(64, 1)
+
+        # Q2
+        self.SA_fc_q2 = nn.Sequential(nn.Linear(critic_obs[0]+n_actions, 64), nn.ReLU())
+        self.SA_grid_q2 = nn.Sequential(nn.Linear(critic_obs[1], 64), nn.ReLU())
+        self.rnn_hidden_dim_q2 = hidden_state_size
+        self.gru_cell_q2 = nn.GRUCell(64+64, hidden_state_size)
+        self.own_fc_outlay_q2 = nn.Linear(64, 1)
+
+    def forward(self, single_state, single_action, history_hidden_state):
+        obsWaction = torch.cat((single_state[0], single_action), dim=1)
+
+        own_obsWaction_q1 = self.SA_fc_q1(obsWaction)
+        own_grid_q1 = self.SA_grid_q1(single_state[1])
+        merge_obs_grid_q1 = torch.cat((own_obsWaction_q1, own_grid_q1), dim=1)
+        h_in_q1 = history_hidden_state.reshape(-1, self.rnn_hidden_dim_q1)
+        h_q1 = self.gru_cell_q1(merge_obs_grid_q1, h_in_q1)
+        q1 = self.own_fc_outlay_q1(h_q1)
+
+        own_obsWaction_q2 = self.SA_fc_q2(obsWaction)
+        own_grid_q2 = self.SA_grid_q2(single_state[1])
+        merge_obs_grid_q2 = torch.cat((own_obsWaction_q2, own_grid_q2), dim=1)
+        h_in_q2 = history_hidden_state.reshape(-1, self.rnn_hidden_dim_q2)
+        h_q2 = self.gru_cell_q2(merge_obs_grid_q2, h_in_q2)
+        q2 = self.own_fc_outlay_q2(h_q2)
+        return q1, h_q1, q2, h_q2
+
+    def q1(self, single_state, single_action, history_hidden_state):
+        obsWaction = torch.cat((single_state[0], single_action), dim=1)
+        own_obsWaction_q1 = self.SA_fc_q1(obsWaction)
+        own_grid_q1 = self.SA_grid_q1(single_state[1])
+        merge_obs_grid_q1 = torch.cat((own_obsWaction_q1, own_grid_q1), dim=1)
+        h_in_q1 = history_hidden_state.reshape(-1, self.rnn_hidden_dim_q1)
+        h_q1 = self.gru_cell_q1(merge_obs_grid_q1, h_in_q1)
+        q1 = self.own_fc_outlay_q1(h_q1)
+        return q1, h_q1
+
 
 class critic_single_TwoPortion(nn.Module):
     def __init__(self, critic_obs, n_agents, n_actions, single_history, hidden_state_size):
@@ -491,6 +536,63 @@ class critic_single_TwoPortion(nn.Module):
         merge_feature = self.merge_fc_grid(merge_obs_grid)
         q = self.out_feature_q(merge_feature)
         return q
+
+class critic_single_TwoPortion_TD3(nn.Module):
+    def __init__(self, critic_obs, n_agents, n_actions, single_history, hidden_state_size):
+        super(critic_single_TwoPortion_TD3, self).__init__()
+        self.SA_fc = nn.Sequential(nn.Linear(critic_obs[0]+n_actions, 64), nn.ReLU())
+        self.SA_grid = nn.Sequential(nn.Linear(critic_obs[1], 64), nn.ReLU())
+        self.merge_fc_grid = nn.Sequential(nn.Linear(64+64, 256), nn.ReLU())
+        self.out_feature_q = nn.Sequential(nn.Linear(256, 1))
+
+    def forward(self, single_state, single_action):
+        obsWaction = torch.cat((single_state[0], single_action), dim=1)
+        own_obsWaction = self.SA_fc(obsWaction)
+        own_grid = self.SA_grid(single_state[1])
+        merge_obs_grid = torch.cat((own_obsWaction, own_grid), dim=1)
+        merge_feature = self.merge_fc_grid(merge_obs_grid)
+        q = self.out_feature_q(merge_feature)
+        return q
+
+
+class critic_single_TwoPortion_TD3(nn.Module):
+    def __init__(self, critic_obs, n_agents, n_actions, single_history, hidden_state_size):
+        super(critic_single_TwoPortion_TD3, self).__init__()
+        # Q1 no GRU
+        self.SA_fc_q1 = nn.Sequential(nn.Linear(critic_obs[0]+n_actions, 64), nn.ReLU())
+        self.SA_grid_q1 = nn.Sequential(nn.Linear(critic_obs[1], 64), nn.ReLU())
+        self.merge_fc_grid_q1 = nn.Sequential(nn.Linear(64+64, 256), nn.ReLU())
+        self.out_feature_q_q1 = nn.Sequential(nn.Linear(256, 1))
+        # Q2 no GRU
+        self.SA_fc_q2 = nn.Sequential(nn.Linear(critic_obs[0]+n_actions, 64), nn.ReLU())
+        self.SA_grid_q2 = nn.Sequential(nn.Linear(critic_obs[1], 64), nn.ReLU())
+        self.merge_fc_grid_q2 = nn.Sequential(nn.Linear(64+64, 256), nn.ReLU())
+        self.out_feature_q_q2 = nn.Sequential(nn.Linear(256, 1))
+
+    def forward(self, single_state, single_action):
+        obsWaction = torch.cat((single_state[0], single_action), dim=1)
+
+        own_obsWaction_q1 = self.SA_fc_q1(obsWaction)
+        own_grid_q1 = self.SA_grid_q1(single_state[1])
+        merge_obs_grid_q1 = torch.cat((own_obsWaction_q1, own_grid_q1), dim=1)
+        merge_feature_q1 = self.merge_fc_grid_q1(merge_obs_grid_q1)
+        q1 = self.out_feature_q_q1(merge_feature_q1)
+
+        own_obsWaction_q2 = self.SA_fc_q2(obsWaction)
+        own_grid_q2 = self.SA_grid_q2(single_state[1])
+        merge_obs_grid_q2 = torch.cat((own_obsWaction_q2, own_grid_q2), dim=1)
+        merge_feature_q2 = self.merge_fc_grid_q2(merge_obs_grid_q2)
+        q2 = self.out_feature_q_q2(merge_feature_q2)
+        return q1, q2
+
+    def q1(self, single_state, single_action):
+        obsWaction = torch.cat((single_state[0], single_action), dim=1)
+        own_obsWaction_q1 = self.SA_fc_q1(obsWaction)
+        own_grid_q1 = self.SA_grid_q1(single_state[1])
+        merge_obs_grid_q1 = torch.cat((own_obsWaction_q1, own_grid_q1), dim=1)
+        merge_feature_q1 = self.merge_fc_grid_q1(merge_obs_grid_q1)
+        q1 = self.out_feature_q_q1(merge_feature_q1)
+        return q1
 
 
 class critic_single_OnePortion(nn.Module):

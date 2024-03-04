@@ -215,7 +215,7 @@ class MADDPG:
 
         return c_loss, a_loss
 
-    def update_myown(self, i_episode, total_step_count, UPDATE_EVERY, single_eps_critic_cal_record, wandb=None, full_observable_critic_flag=False, use_GRU_flag=False):
+    def update_myown(self, i_episode, total_step_count, UPDATE_EVERY, single_eps_critic_cal_record, action, wandb=None, full_observable_critic_flag=False, use_GRU_flag=False):
 
         self.train_num = i_episode
 
