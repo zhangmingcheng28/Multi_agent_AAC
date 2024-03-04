@@ -1958,8 +1958,8 @@ class env_simulator:
             # survival_penalty = -2
             survival_penalty = 0
             # dist_to_goal_coeff = 1
-            # dist_to_goal_coeff = 1
-            dist_to_goal_coeff = 3
+            dist_to_goal_coeff = 1
+            # dist_to_goal_coeff = 3
 
             x_norm, y_norm = self.normalizer.nmlz_pos(drone_obj.pos)
             tx_norm, ty_norm = self.normalizer.nmlz_pos(drone_obj.goal[-1])
@@ -2003,7 +2003,8 @@ class env_simulator:
             # coef_ref_line = 0.5
             # coef_ref_line = -10
             # coef_ref_line = 3
-            coef_ref_line = 5
+            # coef_ref_line = 5
+            coef_ref_line = 2
             # coef_ref_line = 0
             cross_err_distance, x_error, y_error = self.cross_track_error(host_current_point, drone_obj.ref_line)  # deviation from the reference line, cross track error
             norm_cross_track_deviation_x = x_error * self.normalizer.x_scale

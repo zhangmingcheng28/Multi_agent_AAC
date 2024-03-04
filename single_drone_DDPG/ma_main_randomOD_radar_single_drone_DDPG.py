@@ -15,6 +15,7 @@ import pickle
 import wandb
 from parameters_randomOD_radar_single_drone_DDPG import initialize_parameters
 from maddpg_agent_randomOD_radar_single_drone_DDPG import MADDPG
+from TD3_agent_single_drone import TD3
 from utils_randomOD_radar_single_drone_DDPG import *
 from copy import deepcopy
 import matplotlib.pyplot as plt
@@ -354,8 +355,8 @@ def main(args):
         # initialize_excel_file(excel_file_path_time)
         # ------------ end of this portion is to save using excel instead of pickle -----------
 
-    # use_wanDB = False
-    use_wanDB = True
+    use_wanDB = False
+    # use_wanDB = True
 
     get_evaluation_status = True  # have figure output
     # get_evaluation_status = False  # no figure output, mainly obtain collision rate
@@ -439,6 +440,10 @@ def main(args):
 
     if args.algo == "maddpg":
         model = MADDPG(actor_dim, critic_dim, n_actions, actor_hidden_state, gru_history_length, n_agents, args, criticNet_lr, actorNet_lr, GAMMA, TAU, full_observable_critic_flag, use_GRU_flag)
+    elif args.algo == 'TD3':
+        model = TD3(actor_dim, critic_dim, n_actions, actor_hidden_state, gru_history_length, n_agents, args,
+                       criticNet_lr, actorNet_lr, GAMMA, TAU, full_observable_critic_flag, use_GRU_flag)
+
 
     episode = 0
     total_step = 0
@@ -470,8 +475,8 @@ def main(args):
         # args.max_episodes = 10  # only evaluate one episode during evaluation mode.
         # args.max_episodes = 5  # only evaluate one episode during evaluation mode.
         args.max_episodes = 100
-        pre_fix = r'D:\MADDPG_2nd_jp\210224_16_21_23\interval_record_eps'
-        episode_to_check = str(35000)
+        pre_fix = r'D:\MADDPG_2nd_jp\230224_16_07_48\interval_record_eps'
+        episode_to_check = str(25000)
         load_filepath_0 = pre_fix + '\episode_' + episode_to_check + '_agent_0actor_net.pth'
         load_filepath_1 = pre_fix + '\episode_' + episode_to_check + '_agent_1actor_net.pth'
         load_filepath_2 = pre_fix + '\episode_' + episode_to_check + '_agent_2actor_net.pth'
@@ -667,7 +672,7 @@ def main(args):
                 accum_reward = accum_reward + sum(reward_aft_action)
 
                 step_update_time_start = time.time()
-                c_loss, a_loss, single_eps_critic_cal_record = model.update_myown(episode, total_step, UPDATE_EVERY, single_eps_critic_cal_record, wandb, full_observable_critic_flag, use_GRU_flag)  # last working learning framework
+                c_loss, a_loss, single_eps_critic_cal_record = model.update_myown(episode, total_step, UPDATE_EVERY, single_eps_critic_cal_record, action, wandb, full_observable_critic_flag, use_GRU_flag)  # last working learning framework
                 update_time_used = (time.time() - step_update_time_start)*1000
                 # print("current step update time used is {} milliseconds".format(update_time_used))
                 cur_state = next_state
@@ -1004,7 +1009,7 @@ def main(args):
                     #         save_gif(env, trajectory_eachPlay, pre_fix, episode_to_check, episode)
 
                     if True in done_aft_action and step < args.episode_length:
-                        save_gif(env, trajectory_eachPlay, pre_fix, episode_to_check, episode)
+                        # save_gif(env, trajectory_eachPlay, pre_fix, episode_to_check, episode)
                         # if saved_gif == False:
                         #     save_gif(env, trajectory_eachPlay, pre_fix, episode_to_check, episode)
                         #     saved_gif = True  # once current episode saved, no need to save one more time.
@@ -1071,12 +1076,12 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--scenario', default="simple_spread", type=str)
     parser.add_argument('--max_episodes', default=35000, type=int)  # run for a total of 50000 episodes
-    parser.add_argument('--algo', default="maddpg", type=str, help="commnet/bicnet/maddpg")
+    parser.add_argument('--algo', default="TD3", type=str, help="commnet/bicnet/maddpg/TD3")
     parser.add_argument('--mode', default="train", type=str, help="train/eval")
     parser.add_argument('--episode_length', default=150, type=int)  # maximum play per episode
     parser.add_argument('--memory_length', default=int(1e5), type=int)
     parser.add_argument('--seed', default=777, type=int)  # may choose to use 3407
-    parser.add_argument('--batch_size', default=512, type=int)  # original 512
+    parser.add_argument('--batch_size', default=12, type=int)  # original 512
     parser.add_argument('--render_flag', default=False, type=bool)
     parser.add_argument('--ou_theta', default=0.15, type=float)
     parser.add_argument('--ou_mu', default=0.0, type=float)
