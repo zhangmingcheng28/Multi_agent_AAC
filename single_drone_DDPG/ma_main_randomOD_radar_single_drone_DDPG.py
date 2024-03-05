@@ -355,8 +355,8 @@ def main(args):
         # initialize_excel_file(excel_file_path_time)
         # ------------ end of this portion is to save using excel instead of pickle -----------
 
-    use_wanDB = False
-    # use_wanDB = True
+    # use_wanDB = False
+    use_wanDB = True
 
     get_evaluation_status = True  # have figure output
     # get_evaluation_status = False  # no figure output, mainly obtain collision rate
@@ -805,11 +805,11 @@ def main(args):
 
                     if use_wanDB:
                         wandb.log({'overall_reward': float(accum_reward)})
-                        if c_loss and a_loss:
-                            for idx, val in enumerate(c_loss):
-                                # print(" agent %s, a_loss %3.2f c_loss %3.2f" % (idx, a_loss[idx].item(), c_loss[idx].item()))
-                                wandb.log({'agent' + str(idx) + 'actor_loss': float(a_loss[idx].item())})
-                                wandb.log({'agent' + str(idx) + 'critic_loss': float(c_loss[idx].item())})
+                        # if c_loss and a_loss:
+                        #     for idx, val in enumerate(c_loss):
+                        #         # print(" agent %s, a_loss %3.2f c_loss %3.2f" % (idx, a_loss[idx].item(), c_loss[idx].item()))
+                        #         wandb.log({'agent' + str(idx) + 'actor_loss': float(a_loss[idx].item())})
+                        #         wandb.log({'agent' + str(idx) + 'critic_loss': float(c_loss[idx].item())})
                     if episode % args.save_interval == 0 and args.mode == "train":
                         save_model = time.time()
                         # save the models at a predefined interval
