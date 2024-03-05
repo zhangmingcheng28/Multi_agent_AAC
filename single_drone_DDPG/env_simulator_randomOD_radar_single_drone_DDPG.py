@@ -1779,7 +1779,7 @@ class env_simulator:
         # return reward, done, check_goal, step_reward_record, agent_filled
         return reward, done, check_goal, step_reward_record
 
-    def ss_reward(self, current_ts, step_reward_record, eps_status_holder, step_collision_record, xy, full_observable_critic_flag):
+    def ss_reward(self, current_ts, step_reward_record, eps_status_holder, step_collision_record, xy, full_observable_critic_flag, args):
         bound_building_check = [False] * 3
         reward, done = [], []
         agent_to_remove = []
@@ -2135,7 +2135,8 @@ class env_simulator:
                 agent_to_remove.append(drone_idx)  # NOTE: drone_idx is the key value.
                 rew = rew + reach_target + near_goal_reward
                 reward.append(np.array(rew))
-                done.append(False)
+                # done.append(False)
+                done.append(True)
                 # check if the drone has missed any waypoints
                 if len(drone_obj.waypoints) > 1:  # missed waypoints
                     print("missed waypoint")
@@ -2160,7 +2161,10 @@ class env_simulator:
                 rew = rew + dist_to_ref_line + dist_to_goal - \
                       small_step_penalty + near_goal_reward - near_building_penalty + seg_reward + survival_penalty
                 # we remove the above termination condition
-                done.append(False)
+                if current_ts >= args.episode_length:
+                    done.append(True)
+                else:
+                    done.append(False)
                 step_reward = np.array(rew)
                 reward.append(step_reward)
                 # for debug, record the reward
