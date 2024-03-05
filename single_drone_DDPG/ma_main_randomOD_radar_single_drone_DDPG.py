@@ -409,7 +409,8 @@ def main(args):
         # critic_dim = [8, 18, 6]
         # critic_dim = [4, 18, 4]
 
-    actor_hidden_state = 64
+    # actor_hidden_state = 64
+    actor_hidden_state = 256
     actor_hidden_state_list = [actor_hidden_state for _ in range(total_agentNum)]
 
     gru_history_length = 10
@@ -672,7 +673,8 @@ def main(args):
                 accum_reward = accum_reward + sum(reward_aft_action)
 
                 step_update_time_start = time.time()
-                c_loss, a_loss, single_eps_critic_cal_record = model.update_myown(episode, total_step, UPDATE_EVERY, single_eps_critic_cal_record, action, wandb, full_observable_critic_flag, use_GRU_flag)  # last working learning framework
+                # c_loss, a_loss, single_eps_critic_cal_record = model.update_myown(episode, total_step, UPDATE_EVERY, single_eps_critic_cal_record, action, wandb, full_observable_critic_flag, use_GRU_flag)  # last working learning framework
+                c_loss, a_loss, single_eps_critic_cal_record = model.update_myown_ddpg(episode, total_step, UPDATE_EVERY, single_eps_critic_cal_record, action, wandb, full_observable_critic_flag, use_GRU_flag)  # last working learning framework
                 update_time_used = (time.time() - step_update_time_start)*1000
                 # print("current step update time used is {} milliseconds".format(update_time_used))
                 cur_state = next_state

@@ -211,20 +211,40 @@ class GRUCELL_actor(nn.Module):
 class GRUCELL_actor_TwoPortion(nn.Module):
     def __init__(self, actor_dim, n_actions, actor_hidden_state_size):
         super(GRUCELL_actor_TwoPortion, self).__init__()
+        # v1 original
+        # self.own_fc = nn.Sequential(nn.Linear(actor_dim[0], 64), nn.ReLU())
+        # self.own_grid = nn.Sequential(nn.Linear(actor_dim[1], 64), nn.ReLU())
+        # self.rnn_hidden_dim = actor_hidden_state_size
+        # self.gru_cell = nn.GRUCell(64+64, actor_hidden_state_size)
+        # self.outlay = nn.Sequential(nn.Linear(64, n_actions), nn.Tanh())
+        # v2
         self.own_fc = nn.Sequential(nn.Linear(actor_dim[0], 64), nn.ReLU())
         self.own_grid = nn.Sequential(nn.Linear(actor_dim[1], 64), nn.ReLU())
+        self.fc_Wgrid = nn.Sequential(nn.Linear(actor_dim[0] + actor_dim[1], 128), nn.ReLU())
         self.rnn_hidden_dim = actor_hidden_state_size
         self.gru_cell = nn.GRUCell(64+64, actor_hidden_state_size)
-        self.outlay = nn.Sequential(nn.Linear(64, n_actions), nn.Tanh())
+        self.outlay = nn.Sequential(nn.Linear(256+128, n_actions), nn.Tanh())
+
 
     def forward(self, cur_state, history_hidden_state):
+        # V1
+        # own_obs = self.own_fc(cur_state[0])
+        # own_grid = self.own_grid(cur_state[1])
+        # merge_obs_grid = torch.cat((own_obs, own_grid), dim=1)
+        # h_in = history_hidden_state.reshape(-1, self.rnn_hidden_dim)
+        # h = self.gru_cell(merge_obs_grid, h_in)
+        # action_out = self.outlay(h)
+        # V2
         own_obs = self.own_fc(cur_state[0])
         own_grid = self.own_grid(cur_state[1])
         merge_obs_grid = torch.cat((own_obs, own_grid), dim=1)
         h_in = history_hidden_state.reshape(-1, self.rnn_hidden_dim)
-        h = self.gru_cell(merge_obs_grid, h_in)
-        action_out = self.outlay(h)
-        return action_out, h
+        h_out = self.gru_cell(merge_obs_grid, h_in)  # 256
+        obs_Wgrid = torch.cat((cur_state[0], cur_state[1]), dim=1)
+        obs_Wgrid_fea = self.fc_Wgrid(obs_Wgrid)  # 128
+        combine_feature = torch.cat((h_out, obs_Wgrid_fea), dim=1)
+        action_out = self.outlay(combine_feature)
+        return action_out, h_out
 
 
 class Stocha_actor(nn.Module):

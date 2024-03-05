@@ -524,7 +524,7 @@ def main(args):
 
         trajectory_eachPlay = []
 
-        while True:  # start of an episode (this episode ends when (agent_added < max_agent_to_add))
+        while True:  # start of an step
             if args.mode == "train":
                 step_start_time = time.time()
                 step_reward_record = [None] * n_agents
