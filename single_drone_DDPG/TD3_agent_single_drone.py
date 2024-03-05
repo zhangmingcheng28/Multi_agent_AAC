@@ -6,7 +6,7 @@
 @Description: 
 @Package dependency:
 """
-from Nnetworks_randomOD_radar_single_drone_DDPG import critic_combine_TwoPortion, critic_single_obs_wGRU_TwoPortion_TD3, GRUCELL_actor_TwoPortion, ActorNetwork, Stocha_actor, GRU_actor, GRUCELL_actor, CriticNetwork_woGru, CriticNetwork_wGru, critic_single_obs_wGRU, ActorNetwork_TwoPortion, critic_single_TwoPortion, ActorNetwork_OnePortion, critic_single_OnePortion
+from Nnetworks_randomOD_radar_single_drone_DDPG import critic_single_TwoPortion_TD3, critic_single_obs_wGRU_TwoPortion_TD3, GRUCELL_actor_TwoPortion, ActorNetwork, Stocha_actor, GRU_actor, GRUCELL_actor, CriticNetwork_woGru, CriticNetwork_wGru, critic_single_obs_wGRU, ActorNetwork_TwoPortion, critic_single_TwoPortion, ActorNetwork_OnePortion, critic_single_OnePortion
 import torch
 import copy
 from copy import deepcopy
@@ -75,7 +75,7 @@ class TD3(object):
         else:
             self.actors = [ActorNetwork_TwoPortion(actor_dim, dim_act) for _ in range(n_agents)]  # use deterministic policy
             self.critics = [
-                critic_single_TwoPortion(critic_dim, n_agents, dim_act, gru_history_length, actor_hidden_state_size) for
+                critic_single_TwoPortion_TD3(critic_dim, n_agents, dim_act, gru_history_length, actor_hidden_state_size) for
                 _ in range(n_agents)]
 
         self.actors_target = copy.deepcopy(self.actors)
@@ -260,7 +260,7 @@ class TD3(object):
                     self.critics_target[agent]([next_stacked_elem_0[:, agent, :], next_stacked_elem_1[:, agent, :]],
                                                non_final_next_actions[agent], agents_next_hidden_state[:, agent, :])
                 else:
-                    next_target_critic_value = self.critics_target[agent]([next_stacked_elem_0[:,agent,:], next_stacked_elem_1[:,agent,:]], non_final_next_actions[agent]).squeeze()
+                    next_target_Q1, next_target_Q2 = self.critics_target[agent]([next_stacked_elem_0[:,agent,:], next_stacked_elem_1[:,agent,:]], non_final_next_actions[agent])
 
                 target_Q = torch.min(next_target_Q1, next_target_Q2).squeeze(1)
                 target_Q = (reward_batch[:, agent]) + (self.GAMMA * target_Q * (1-dones_stacked[:, agent]))
@@ -272,7 +272,7 @@ class TD3(object):
                     [stacked_elem_0[:, agent, :], stacked_elem_1[:, agent, :]],
                     action_batch[:, agent, :], agents_cur_hidden_state[:, agent, :])
             else:
-                current_Q = self.critics[agent]([stacked_elem_0[:, agent, :], stacked_elem_1[:, agent, :]],
+                current_Q1, current_Q2 = self.critics[agent]([stacked_elem_0[:, agent, :], stacked_elem_1[:, agent, :]],
                                                 action_batch[:, agent, :])
 
             # Compute critic loss
@@ -291,7 +291,7 @@ class TD3(object):
                 a_loss = -self.critics[agent].q1([stacked_elem_0[:, agent, :], stacked_elem_1[:, agent, :]],
                                                     action_batch[:, agent, :], agents_cur_hidden_state[:, agent, :])[0].mean()
             else:
-                a_loss = -self.critics.Q1(state, self.actors(state)).mean()
+                a_loss = -self.critics[agent].q1([stacked_elem_0[:, agent, :], stacked_elem_1[:, agent, :]],action_batch[:, agent, :]).mean()
 
             # Optimize the actor
             self.actors_optimizer[agent].zero_grad()

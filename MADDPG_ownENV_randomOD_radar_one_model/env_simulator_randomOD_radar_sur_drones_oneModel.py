@@ -2178,8 +2178,8 @@ class env_simulator:
             after_dist_hg = np.linalg.norm(drone_obj.pos - next_wp)  # distance to goal after action
             # dist_to_goal = dist_to_goal_coeff * (before_dist_hg - after_dist_hg)  # (before_dist_hg - after_dist_hg) -max_vel - max_vel
 
-            dist_left = total_length_to_end_of_line(drone_obj.pos, drone_obj.ref_line)
-            dist_to_goal = dist_to_goal_coeff * (1 - (dist_left / drone_obj.ref_line.length))  # v1
+            # dist_left = total_length_to_end_of_line(drone_obj.pos, drone_obj.ref_line)
+            # dist_to_goal = dist_to_goal_coeff * (1 - (dist_left / drone_obj.ref_line.length))  # v1
 
             # ---- v2 leading to goal reward, based on compute_projected_velocity ---
             # projected_velocity = compute_projected_velocity(drone_obj.vel, drone_obj.ref_line, Point(drone_obj.pos))
@@ -2188,8 +2188,8 @@ class env_simulator:
             # ---- end of v2 leading to goal reward, based on compute_projected_velocity ---
 
             # ---- v3 leading to goal reward, based on remained distance to travel only ---
-            # dist_left = total_length_to_end_of_line_without_cross(drone_obj.pos, drone_obj.ref_line)
-            # dist_to_goal = dist_to_goal_coeff * (1 - (dist_left / drone_obj.ref_line.length))  # v3
+            dist_left = total_length_to_end_of_line_without_cross(drone_obj.pos, drone_obj.ref_line)
+            dist_to_goal = dist_to_goal_coeff * (1 - (dist_left / drone_obj.ref_line.length))  # v3
             # ---- end of v3 leading to goal reward, based on remained distance to travel only ---
 
             if dist_to_goal > drone_obj.maxSpeed:
@@ -2377,11 +2377,7 @@ class env_simulator:
                 agent_to_remove.append(drone_idx)  # NOTE: drone_idx is the key value.
                 rew = rew + reach_target + near_goal_reward
                 reward.append(np.array(rew))
-                if full_observable_critic_flag:
-                    done.append(False)
-                else:
-                    done.append(True)
-
+                done.append(False)
                 # --------------- end of with way point -----------------------
                 # without wap point
                 # rew = rew + reach_target
@@ -2432,11 +2428,10 @@ class env_simulator:
 
         if full_observable_critic_flag:
             reward = [np.sum(reward) for _ in reward]
-            if all(check_goal):
-                for element_idx, element in enumerate(done):
-                    done[element_idx] = True
 
-
+        if all(check_goal):
+            for element_idx, element in enumerate(done):
+                done[element_idx] = True
 
         # ever_reached = [agent.reach_target for agent in self.all_agents.values()]
         # if check_goal.count(True) == 1 and ever_reached.count(True) == 0:

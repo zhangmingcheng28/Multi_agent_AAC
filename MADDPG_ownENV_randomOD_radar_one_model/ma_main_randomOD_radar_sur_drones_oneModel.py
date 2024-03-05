@@ -469,10 +469,10 @@ def main(args):
     if args.mode == "eval":
         # args.max_episodes = 10  # only evaluate one episode during evaluation mode.
         # args.max_episodes = 5  # only evaluate one episode during evaluation mode.
-        # args.max_episodes = 100
-        args.max_episodes = 250
+        args.max_episodes = 100
+        # args.max_episodes = 250
         # args.max_episodes = 20
-        pre_fix = r'D:\MADDPG_2nd_jp\010324_16_29_46\interval_record_eps'
+        pre_fix = r'D:\MADDPG_2nd_jp\040324_10_51_32\interval_record_eps'
         # episode_to_check = str(10000)
         # pre_fix = r'F:\OneDrive_NTU_PhD\OneDrive - Nanyang Technological University\DDPG_2ndJournal\dim_8_transfer_learning'
         episode_to_check = str(35000)

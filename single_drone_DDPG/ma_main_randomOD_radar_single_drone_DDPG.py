@@ -355,8 +355,8 @@ def main(args):
         # initialize_excel_file(excel_file_path_time)
         # ------------ end of this portion is to save using excel instead of pickle -----------
 
-    # use_wanDB = False
-    use_wanDB = True
+    use_wanDB = False
+    # use_wanDB = True
 
     get_evaluation_status = True  # have figure output
     # get_evaluation_status = False  # no figure output, mainly obtain collision rate
@@ -367,8 +367,8 @@ def main(args):
     # full_observable_critic_flag = True
     full_observable_critic_flag = False
 
-    use_GRU_flag = True
-    # use_GRU_flag = False
+    # use_GRU_flag = True
+    use_GRU_flag = False
 
     if use_wanDB:
         wandb.login(key="efb76db851374f93228250eda60639c70a93d1ec")

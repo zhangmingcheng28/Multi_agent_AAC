@@ -537,23 +537,6 @@ class critic_single_TwoPortion(nn.Module):
         q = self.out_feature_q(merge_feature)
         return q
 
-class critic_single_TwoPortion_TD3(nn.Module):
-    def __init__(self, critic_obs, n_agents, n_actions, single_history, hidden_state_size):
-        super(critic_single_TwoPortion_TD3, self).__init__()
-        self.SA_fc = nn.Sequential(nn.Linear(critic_obs[0]+n_actions, 64), nn.ReLU())
-        self.SA_grid = nn.Sequential(nn.Linear(critic_obs[1], 64), nn.ReLU())
-        self.merge_fc_grid = nn.Sequential(nn.Linear(64+64, 256), nn.ReLU())
-        self.out_feature_q = nn.Sequential(nn.Linear(256, 1))
-
-    def forward(self, single_state, single_action):
-        obsWaction = torch.cat((single_state[0], single_action), dim=1)
-        own_obsWaction = self.SA_fc(obsWaction)
-        own_grid = self.SA_grid(single_state[1])
-        merge_obs_grid = torch.cat((own_obsWaction, own_grid), dim=1)
-        merge_feature = self.merge_fc_grid(merge_obs_grid)
-        q = self.out_feature_q(merge_feature)
-        return q
-
 
 class critic_single_TwoPortion_TD3(nn.Module):
     def __init__(self, critic_obs, n_agents, n_actions, single_history, hidden_state_size):
