@@ -358,8 +358,8 @@ def main(args):
     # use_wanDB = False
     use_wanDB = True
 
-    get_evaluation_status = True  # have figure output
-    # get_evaluation_status = False  # no figure output, mainly obtain collision rate
+    # get_evaluation_status = True  # have figure output
+    get_evaluation_status = False  # no figure output, mainly obtain collision rate
 
     # simply_view_evaluation = True  # don't save gif
     simply_view_evaluation = False  # save gif
@@ -409,8 +409,8 @@ def main(args):
         # critic_dim = [8, 18, 6]
         # critic_dim = [4, 18, 4]
 
-    # actor_hidden_state = 64
-    actor_hidden_state = 256
+    actor_hidden_state = 64
+    # actor_hidden_state = 256
     actor_hidden_state_list = [actor_hidden_state for _ in range(total_agentNum)]
 
     gru_history_length = 10
@@ -476,8 +476,9 @@ def main(args):
         # args.max_episodes = 10  # only evaluate one episode during evaluation mode.
         # args.max_episodes = 5  # only evaluate one episode during evaluation mode.
         args.max_episodes = 100
-        pre_fix = r'D:\MADDPG_2nd_jp\230224_16_07_48\interval_record_eps'
-        episode_to_check = str(25000)
+        # args.max_episodes = 20
+        pre_fix = r'D:\MADDPG_2nd_jp\060324_10_02_29\interval_record_eps'
+        episode_to_check = str(35000)
         load_filepath_0 = pre_fix + '\episode_' + episode_to_check + '_agent_0actor_net.pth'
         load_filepath_1 = pre_fix + '\episode_' + episode_to_check + '_agent_1actor_net.pth'
         load_filepath_2 = pre_fix + '\episode_' + episode_to_check + '_agent_2actor_net.pth'
@@ -688,7 +689,7 @@ def main(args):
                 if args.episode_length < step:
                     episode_decision[0] = True
                     print("Agents stuck in some places, maximum step in one episode reached, current episode {} ends, all {} steps used".format(episode, args.episode_length))
-                elif (True in done_aft_action):
+                elif any([agent.collision for agent_idx, agent in env.all_agents.items()]):
                     episode_decision[1] = True
                     print("Some agent triggers termination condition like collision, current episode {} ends at step {}".format(episode, step-1))  # we need to -1 here, because we perform step + 1 after each complete step. Just to be consistent with the step count inside the reward function.
                 elif all([agent.reach_target for agent_idx, agent in env.all_agents.items()]):
@@ -807,6 +808,9 @@ def main(args):
 
                     if use_wanDB:
                         wandb.log({'overall_reward': float(accum_reward)})
+                        if c_loss and a_loss:
+                            wandb.log({'actor_loss': float(a_loss[0])})
+                            wandb.log({'critic_loss': float(c_loss[0])})
                         # if c_loss and a_loss:
                         #     for idx, val in enumerate(c_loss):
                         #         # print(" agent %s, a_loss %3.2f c_loss %3.2f" % (idx, a_loss[idx].item(), c_loss[idx].item()))
@@ -861,7 +865,7 @@ def main(args):
                 # for a_idx, action_ele in enumerate(action):
                 #     action[a_idx] = [-0.3535, 0.3535]
                 next_state, norm_next_state, polygons_list, all_agent_st_points, all_agent_ed_points, all_agent_intersection_point_list, all_agent_line_collection, all_agent_mini_intersection_list = env.step(action, step)  # no heading update here
-                reward_aft_action, done_aft_action, check_goal, step_reward_record, eps_status_holder, step_collision_record, bound_building_check = env.ss_reward(step, step_reward_record, eps_status_holder, step_collision_record, dummy_xy, full_observable_critic_flag)
+                reward_aft_action, done_aft_action, check_goal, step_reward_record, eps_status_holder, step_collision_record, bound_building_check = env.ss_reward(step, step_reward_record, eps_status_holder, step_collision_record, dummy_xy, full_observable_critic_flag,args)
                 # reward_aft_action, done_aft_action, check_goal, step_reward_record = env.get_step_reward_5_v3(step, step_reward_record)
 
                 step += 1
@@ -1000,18 +1004,18 @@ def main(args):
                             # print("current spd is {} m/s, curent spd penalty is {}". format(step_reward_decomposition[5], step_reward_decomposition[4]))
                     print("[Episode %05d] reward %6.4f " % (episode, accum_reward))
 
-                    # if get_evaluation_status:
-                    #     if simply_view_evaluation:
-                    #     # ------------------ static display trajectory ---------------------------- #
-                    #         view_static_traj(env, trajectory_eachPlay)
-                    #     # ------------------ end of static display trajectory ---------------------------- #
-                    #
-                    #     # ---------- new save as gif ----------------------- #
-                    #     else:
-                    #         save_gif(env, trajectory_eachPlay, pre_fix, episode_to_check, episode)
+                    if get_evaluation_status:
+                        if simply_view_evaluation:
+                        # ------------------ static display trajectory ---------------------------- #
+                            view_static_traj(env, trajectory_eachPlay)
+                        # ------------------ end of static display trajectory ---------------------------- #
 
-                    if True in done_aft_action and step < args.episode_length:
-                        # save_gif(env, trajectory_eachPlay, pre_fix, episode_to_check, episode)
+                        # ---------- new save as gif ----------------------- #
+                        else:
+                            save_gif(env, trajectory_eachPlay, pre_fix, episode_to_check, episode)
+
+                    if any([agent.collision for agent_idx, agent in env.all_agents.items()]) and step < args.episode_length:
+                        save_gif(env, trajectory_eachPlay, pre_fix, episode_to_check, episode)  # check for collision case
                         # if saved_gif == False:
                         #     save_gif(env, trajectory_eachPlay, pre_fix, episode_to_check, episode)
                         #     saved_gif = True  # once current episode saved, no need to save one more time.
@@ -1024,6 +1028,7 @@ def main(args):
                             pass
 
                     else:  # no collision -> no True in done_aft_action, and all steps used
+                        save_gif(env, trajectory_eachPlay, pre_fix, episode_to_check, episode)  # check for stuck case, but no collision
                         all_steps_used = all_steps_used + 1
 
                     if True in episode_goal_found:
@@ -1078,7 +1083,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--scenario', default="simple_spread", type=str)
     parser.add_argument('--max_episodes', default=35000, type=int)  # run for a total of 50000 episodes
-    parser.add_argument('--algo', default="TD3", type=str, help="commnet/bicnet/maddpg/TD3")
+    parser.add_argument('--algo', default="maddpg", type=str, help="commnet/bicnet/maddpg/TD3")
     parser.add_argument('--mode', default="train", type=str, help="train/eval")
     parser.add_argument('--episode_length', default=150, type=int)  # maximum play per episode
     parser.add_argument('--memory_length', default=int(1e5), type=int)

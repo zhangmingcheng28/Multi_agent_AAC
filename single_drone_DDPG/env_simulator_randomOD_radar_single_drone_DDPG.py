@@ -300,6 +300,7 @@ class env_simulator:
             # make sure we reset reach target
             self.all_agents[agentIdx].reach_target = False
             self.all_agents[agentIdx].collide_wall_count = 0
+            self.all_agents[agentIdx].collision = False
 
             # large_start = [random_start_pos[0] / self.gridlength, random_start_pos[1] / self.gridlength]
             # large_end = [random_end_pos[0] / self.gridlength, random_end_pos[1] / self.gridlength]
@@ -1786,7 +1787,8 @@ class env_simulator:
         one_step_reward = []
         check_goal = [False] * len(self.all_agents)
         reward_record_idx = 0  # this is used as a list index, increase with for loop. No need go with agent index, this index is also shared by done checking
-        crash_penalty_wall = 5
+        # crash_penalty_wall = 5
+        crash_penalty_wall = 20
         big_crash_penalty_wall = 200
         crash_penalty_drone = 1
         # reach_target = 1
@@ -2071,7 +2073,6 @@ class env_simulator:
                 near_building_penalty = 0  # if min_dist is outside of the bound, other parts of the reward will be taking care.
 
 
-
             # if min_dist < drone_obj.protectiveBound:
             #     print("check for collision")
             # # (linear building penalty) same thing, another way of express
@@ -2088,17 +2089,19 @@ class env_simulator:
             # must use "host_passed_volume", or else, we unable to confirm whether the host's circle is at left or right of the boundary lines
             if x_left_bound.intersects(host_passed_volume) or x_right_bound.intersects(host_passed_volume) or y_bottom_bound.intersects(host_passed_volume) or y_top_bound.intersects(host_passed_volume):
                 print("drone_{} has crash into boundary at time step {}".format(drone_idx, current_ts))
-                rew = rew - crash_penalty_wall - small_step_penalty - near_building_penalty
+                rew = rew - crash_penalty_wall
                 done.append(True)
                 bound_building_check[0] = True
+                drone_obj.collision = True
                 # done.append(False)
                 reward.append(np.array(rew))
             # # crash into buildings or crash with other neighbors
             elif collide_building == 1:
                 # done.append(True)
                 done.append(True)
+                drone_obj.collision = True
                 bound_building_check[1] = True
-                rew = rew - crash_penalty_wall - small_step_penalty - near_building_penalty
+                rew = rew - crash_penalty_wall
                 # rew = rew - big_crash_penalty_wall
                 reward.append(np.array(rew))
             # # ---------- Termination only during collision to wall on the 3rd time -----------------------
@@ -2119,13 +2122,15 @@ class env_simulator:
             elif collide_geo_fence == 1:
                 done.append(True)
                 bound_building_check[1] = True
-                rew = rew - crash_penalty_wall - small_step_penalty - near_building_penalty
+                drone_obj.collision = True
+                rew = rew - crash_penalty_wall
                 reward.append(np.array(rew))
             elif len(collision_drones) > 0:
                 done.append(True)
                 # done.append(False)
                 bound_building_check[2] = True
-                rew = rew - crash_penalty_wall - small_step_penalty - near_building_penalty
+                drone_obj.collision = True
+                rew = rew - crash_penalty_wall
                 reward.append(np.array(rew))
             elif not goal_cur_intru_intersect.is_empty:  # reached goal?
                 # --------------- with way point -----------------------
@@ -2135,8 +2140,8 @@ class env_simulator:
                 agent_to_remove.append(drone_idx)  # NOTE: drone_idx is the key value.
                 rew = rew + reach_target + near_goal_reward
                 reward.append(np.array(rew))
-                # done.append(False)
-                done.append(True)
+                done.append(False)
+                # done.append(True)
                 # check if the drone has missed any waypoints
                 if len(drone_obj.waypoints) > 1:  # missed waypoints
                     print("missed waypoint")
@@ -2161,10 +2166,11 @@ class env_simulator:
                 rew = rew + dist_to_ref_line + dist_to_goal - \
                       small_step_penalty + near_goal_reward - near_building_penalty + seg_reward + survival_penalty
                 # we remove the above termination condition
-                if current_ts >= args.episode_length:
-                    done.append(True)
-                else:
-                    done.append(False)
+                # if current_ts >= args.episode_length:
+                #     done.append(True)
+                # else:
+                #     done.append(False)
+                done.append(False)
                 step_reward = np.array(rew)
                 reward.append(step_reward)
                 # for debug, record the reward

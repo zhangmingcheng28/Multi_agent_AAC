@@ -319,12 +319,12 @@ class MADDPG:
 
             self.critic_optimizer[agent].step()
 
-            action_i = self.actors[agent]([stacked_elem_0[:, agent, :], stacked_elem_1[:, agent, :]])
-
             if use_GRU_flag:
+                action_i = self.actors[agent]([stacked_elem_0[:, agent, :], stacked_elem_1[:, agent, :]],agents_cur_hidden_state[:, agent, :])[0]
                 actor_loss = - self.critics[agent]([stacked_elem_0[:, agent, :], stacked_elem_1[:, agent, :]],
-                                                     action_i[:, agent, :], agents_cur_hidden_state[:, agent, :])[0].mean()
+                                                     action_i, agents_cur_hidden_state[:, agent, :])[0].mean()
             else:
+                action_i = self.actors[agent]([stacked_elem_0[:, agent, :], stacked_elem_1[:, agent, :]])
                 actor_loss = - self.critics[agent]([stacked_elem_0[:,agent,:], stacked_elem_1[:,agent,:]], action_i[:, agent, :]).mean()
 
             # actor_loss = -self.critics[agent](stacked_elem_0[:,agent,:], ac[:, agent, :], agents_cur_hidden_state[:, agent, :])[0].mean()
