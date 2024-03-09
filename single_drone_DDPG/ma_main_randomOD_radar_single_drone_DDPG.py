@@ -3,9 +3,11 @@ import sys
 # sys.path.append('D:\Multi_agent_AAC\old_framework_test')
 from openpyxl import load_workbook
 from openpyxl import Workbook
+from scipy.spatial.distance import cdist
 import argparse
 import datetime
 import pandas as pd
+from scipy.spatial import KDTree
 import numpy as np
 import torch
 import os
@@ -41,7 +43,7 @@ else:
     device = torch.device('cpu')
     print('Using CPU')
 
-# device = torch.device('cpu')
+device = torch.device('cpu')
 
 def initialize_excel_file(file_path):
     # Create a new workbook and add three empty sheets
@@ -355,8 +357,8 @@ def main(args):
         # initialize_excel_file(excel_file_path_time)
         # ------------ end of this portion is to save using excel instead of pickle -----------
 
-    # use_wanDB = False
-    use_wanDB = True
+    use_wanDB = False
+    # use_wanDB = True
 
     # get_evaluation_status = True  # have figure output
     get_evaluation_status = False  # no figure output, mainly obtain collision rate
@@ -445,7 +447,6 @@ def main(args):
         model = TD3(actor_dim, critic_dim, n_actions, actor_hidden_state, gru_history_length, n_agents, args,
                        criticNet_lr, actorNet_lr, GAMMA, TAU, full_observable_critic_flag, use_GRU_flag)
 
-
     episode = 0
     total_step = 0
     score_history = []
@@ -477,8 +478,8 @@ def main(args):
         # args.max_episodes = 5  # only evaluate one episode during evaluation mode.
         args.max_episodes = 100
         # args.max_episodes = 20
-        pre_fix = r'D:\MADDPG_2nd_jp\060324_10_02_29\interval_record_eps'
-        episode_to_check = str(35000)
+        pre_fix = r'D:\MADDPG_2nd_jp\080324_13_19_09\interval_record_eps'
+        episode_to_check = str(18000)
         load_filepath_0 = pre_fix + '\episode_' + episode_to_check + '_agent_0actor_net.pth'
         load_filepath_1 = pre_fix + '\episode_' + episode_to_check + '_agent_1actor_net.pth'
         load_filepath_2 = pre_fix + '\episode_' + episode_to_check + '_agent_2actor_net.pth'
@@ -541,7 +542,7 @@ def main(args):
                 # action = model.choose_action(cur_state, episode, noisy=True)
 
                 one_step_transition_start = time.time()
-                next_state, norm_next_state, polygons_list, all_agent_st_points, all_agent_ed_points, all_agent_intersection_point_list, all_agent_line_collection, all_agent_mini_intersection_list = env.step(action, step)
+                next_state, norm_next_state, polygons_list, prob_display = env.step(action, step)
                 step_transition_time = (time.time() - one_step_transition_start)*1000
                 # print("current step transition time used is {} milliseconds".format(step_transition_time))
 
@@ -549,7 +550,7 @@ def main(args):
                 # reward_aft_action, done_aft_action, check_goal, step_reward_record = env.get_step_reward_5_v3(step, step_reward_record)   # remove reached agent here
 
                 one_step_reward_start = time.time()
-                reward_aft_action, done_aft_action, check_goal, step_reward_record, status_holder, step_collision_record, bound_building_check = env.ss_reward(step, step_reward_record, eps_status_holder, step_collision_record, dummy_xy, full_observable_critic_flag, args)   # remove reached agent here
+                reward_aft_action, done_aft_action, check_goal, step_reward_record, status_holder, step_collision_record, bound_building_check = env.ss_reward(step, step_reward_record, eps_status_holder, step_collision_record, dummy_xy, full_observable_critic_flag, args, prob_display)   # remove reached agent here
                 reward_generation_time = (time.time() - one_step_reward_start)*1000
                 # print("current step reward time used is {} milliseconds".format(reward_generation_time))
 
@@ -847,6 +848,7 @@ def main(args):
                     #
                     break  # this is to break out from "while True:", which is one play
             elif args.mode == "eval":
+                # # ---------- start of generate reward map ----------
                 step_reward_record = [None] * n_agents
                 # show_step_by_step = True
                 show_step_by_step = False
@@ -864,9 +866,113 @@ def main(args):
                 # action = env.get_actions_noCR()  # only update heading, don't update any other attribute
                 # for a_idx, action_ele in enumerate(action):
                 #     action[a_idx] = [-0.3535, 0.3535]
-                next_state, norm_next_state, polygons_list, all_agent_st_points, all_agent_ed_points, all_agent_intersection_point_list, all_agent_line_collection, all_agent_mini_intersection_list = env.step(action, step)  # no heading update here
-                reward_aft_action, done_aft_action, check_goal, step_reward_record, eps_status_holder, step_collision_record, bound_building_check = env.ss_reward(step, step_reward_record, eps_status_holder, step_collision_record, dummy_xy, full_observable_critic_flag,args)
+                next_state, norm_next_state, polygons_list, prob_display = env.step(action, step)  # no heading update here
+                reward_aft_action, done_aft_action, check_goal, step_reward_record, eps_status_holder, step_collision_record, bound_building_check = env.ss_reward(step, step_reward_record, eps_status_holder, step_collision_record, dummy_xy, full_observable_critic_flag, args, prob_display)
                 # reward_aft_action, done_aft_action, check_goal, step_reward_record = env.get_step_reward_5_v3(step, step_reward_record)
+
+                # # ---------- start of generate reward map ----------
+                # if True:
+                # # if False:
+                #     os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
+                #     matplotlib.use('TkAgg')
+                #     fig, ax = plt.subplots(1, 1)
+                #     bound_x = np.linspace(env.bound[0], env.bound[1], 150)
+                #     bound_y = np.linspace(env.bound[2], env.bound[3], 150)
+                #     X, Y = np.meshgrid(bound_x, bound_y)
+                #     Z = np.zeros((X.shape[0], X.shape[1]))
+                #     for i in range(X.shape[0]):  # Loop over rows
+                #         print(i)
+                #         for j in range(X.shape[1]):  # Loop over columns
+                #             x_val = X[i, j]  # X-coordinate at (i, j)
+                #             y_val = Y[i, j]  # Y-coordinate at (i, j)
+                #             pos_to_test = (x_val, y_val)
+                #             reward_aft_action, done_aft_action, check_goal, step_reward_record, eps_status_holder, step_collision_record, bound_building_check = env.ss_reward(step, step_reward_record, eps_status_holder, step_collision_record, pos_to_test, full_observable_critic_flag, args, prob_display)
+                #             Z[i, j] = reward_aft_action[0]
+                #             # text = plt.text(x_val, y_val, round(Z[i, j], 1),
+                #             #                ha="center", va="center", color="r")
+                #
+                #     for agentIdx, agent in env.all_agents.items():
+                #         if agentIdx != 0:
+                #             continue
+                #         plt.plot(agent.ini_pos[0], agent.ini_pos[1],
+                #                  marker=MarkerStyle(">",
+                #                                     fillstyle="right",
+                #                                     transform=Affine2D().rotate_deg(math.degrees(agent.heading))),
+                #                  color='y')
+                #         plt.text(agent.ini_pos[0], agent.ini_pos[1], agent.agent_name)
+                #
+                #         # link individual drone's starting position with its goal
+                #         ini = agent.ini_pos
+                #         for wp in agent.goal:
+                #             plt.plot(wp[0], wp[1], marker='*', color='y', markersize=10)
+                #             plt.plot([wp[0], ini[0]], [wp[1], ini[1]], '--', color='c')
+                #             ini = wp
+                #         plt.plot(agent.goal[-1][0], agent.goal[-1][1], marker='*', color='y', markersize=10)
+                #         plt.text(agent.goal[-1][0], agent.goal[-1][1], agent.agent_name)
+                #
+                #     # Flatten the arrays for use with KDTree and plotting
+                #     x_flat = X.flatten()
+                #     y_flat = Y.flatten()
+                #     z_flat = Z.flatten()
+                #     # Create a KDTree for fast spatial lookup
+                #     tree = KDTree(list(zip(x_flat, y_flat)))
+                #
+                #     # Create the scatter plot
+                #     scatter = plt.scatter(X, Y, c=Z, cmap='viridis')
+                #     coordinates = np.column_stack((X, Y))  # Combine X and Y for distance calculation
+                #
+                #     # Add the color bar
+                #     plt.colorbar(scatter)
+                #
+                #     # Define the event handler
+                #     def on_click(event):
+                #         # Extract the click location
+                #         click_x, click_y = event.xdata, event.ydata
+                #
+                #         # If click is outside the axes, ignore it
+                #         if click_x is None or click_y is None:
+                #             return
+                #
+                #         # Use the KDTree to find the nearest point to our click
+                #         dist, index = tree.query([click_x, click_y])
+                #
+                #         # Retrieve the Z value corresponding to the nearest X, Y point
+                #         z_value = z_flat[index]
+                #
+                #         # Print the Z value
+                #         print(f"Nearest Z value: {z_value}")
+                #     # Connect the event handler to the figure
+                #     fig.canvas.mpl_connect('button_press_event', on_click)
+                #     # draw occupied_poly
+                #     for one_poly in env.world_map_2D_polyList[0][0]:
+                #         one_poly_mat = shapelypoly_to_matpoly(one_poly, True, 'y', 'b')
+                #         ax.add_patch(one_poly_mat)
+                #     # draw non-occupied_poly
+                #     for zero_poly in env.world_map_2D_polyList[0][1]:
+                #         zero_poly_mat = shapelypoly_to_matpoly(zero_poly, False, 'y')
+                #         # ax.add_patch(zero_poly_mat)
+                #
+                #     # show building obstacles
+                #     for poly in env.buildingPolygons:
+                #         matp_poly = shapelypoly_to_matpoly(poly, False, 'red')  # the 3rd parameter is the edge color
+                #         ax.add_patch(matp_poly)
+                #     # # Now create a new figure for the 3D plot
+                #     # fig_3d = plt.figure()
+                #     # ax_3d = fig_3d.add_subplot(111, projection='3d')
+                #     #
+                #     # # Plot the surface
+                #     # surf = ax_3d.plot_surface(X, Y, Z, cmap='viridis')
+                #     #
+                #     # # Add color bar
+                #     # fig_3d.colorbar(surf, shrink=0.5, aspect=5)
+                #
+                #     # plt.colorbar(label='Reward')
+                #     plt.title('Reward Heatmap for a Continuous Simulated Area')
+                #     plt.xlabel("X axis")
+                #     plt.ylabel("Y axis")
+                #     plt.axis('equal')
+                #     plt.show()
+                # # ---------- end of generate reward map ----------
 
                 step += 1
                 total_step += 1
@@ -977,12 +1083,10 @@ def main(args):
                     # nearest_buildingPoly_mat = shapelypoly_to_matpoly(nearest_buildingPoly, True, 'g', 'k')
                     # ax.add_patch(nearest_buildingPoly_mat)
 
-
                     # plt.axvline(x=self.bound[0], c="green")
                     # plt.axvline(x=self.bound[1], c="green")
                     # plt.axhline(y=self.bound[2], c="green")
                     # plt.axhline(y=self.bound[3], c="green")
-
 
                     plt.xlabel("X axis")
                     plt.ylabel("Y axis")
@@ -1015,7 +1119,7 @@ def main(args):
                             save_gif(env, trajectory_eachPlay, pre_fix, episode_to_check, episode)
 
                     if any([agent.collision for agent_idx, agent in env.all_agents.items()]) and step < args.episode_length:
-                        save_gif(env, trajectory_eachPlay, pre_fix, episode_to_check, episode)  # check for collision case
+                        # save_gif(env, trajectory_eachPlay, pre_fix, episode_to_check, episode)  # check for collision case
                         # if saved_gif == False:
                         #     save_gif(env, trajectory_eachPlay, pre_fix, episode_to_check, episode)
                         #     saved_gif = True  # once current episode saved, no need to save one more time.
@@ -1028,7 +1132,9 @@ def main(args):
                             pass
 
                     else:  # no collision -> no True in done_aft_action, and all steps used
-                        save_gif(env, trajectory_eachPlay, pre_fix, episode_to_check, episode)  # check for stuck case, but no collision
+                        # if not True in episode_goal_found:  # when stuck we print result
+                        #     save_gif(env, trajectory_eachPlay, pre_fix, episode_to_check, episode)  # check for stuck case, but no collision
+                        #
                         all_steps_used = all_steps_used + 1
 
                     if True in episode_goal_found:

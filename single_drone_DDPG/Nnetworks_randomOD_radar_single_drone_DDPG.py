@@ -212,11 +212,17 @@ class GRUCELL_actor_TwoPortion(nn.Module):
     def __init__(self, actor_dim, n_actions, actor_hidden_state_size):
         super(GRUCELL_actor_TwoPortion, self).__init__()
         # v1 original
+        # self.own_fc = nn.Sequential(nn.Linear(actor_dim[0], 64), nn.ReLU())
+        # self.own_grid = nn.Sequential(nn.Linear(actor_dim[1], 64), nn.ReLU())
+        # self.rnn_hidden_dim = actor_hidden_state_size
+        # self.gru_cell = nn.GRUCell(64+64, actor_hidden_state_size)
+        # self.outlay = nn.Sequential(nn.Linear(64, n_actions), nn.Tanh())
+        # V1.1
         self.own_fc = nn.Sequential(nn.Linear(actor_dim[0], 64), nn.ReLU())
         self.own_grid = nn.Sequential(nn.Linear(actor_dim[1], 64), nn.ReLU())
         self.rnn_hidden_dim = actor_hidden_state_size
-        self.gru_cell = nn.GRUCell(64+64, actor_hidden_state_size)
-        self.outlay = nn.Sequential(nn.Linear(64, n_actions), nn.Tanh())
+        self.gru_cell = nn.GRUCell(64, actor_hidden_state_size)
+        self.outlay = nn.Sequential(nn.Linear(64+64, n_actions), nn.Tanh())
         # v2
         # self.own_fc = nn.Sequential(nn.Linear(actor_dim[0], 64), nn.ReLU())
         # self.own_grid = nn.Sequential(nn.Linear(actor_dim[1], 64), nn.ReLU())
@@ -228,12 +234,19 @@ class GRUCELL_actor_TwoPortion(nn.Module):
 
     def forward(self, cur_state, history_hidden_state):
         # V1
+        # own_obs = self.own_fc(cur_state[0])
+        # own_grid = self.own_grid(cur_state[1])
+        # merge_obs_grid = torch.cat((own_obs, own_grid), dim=1)
+        # h_in = history_hidden_state.reshape(-1, self.rnn_hidden_dim)
+        # h_out = self.gru_cell(merge_obs_grid, h_in)
+        # action_out = self.outlay(h_out)
+        # V1.1
         own_obs = self.own_fc(cur_state[0])
         own_grid = self.own_grid(cur_state[1])
-        merge_obs_grid = torch.cat((own_obs, own_grid), dim=1)
         h_in = history_hidden_state.reshape(-1, self.rnn_hidden_dim)
-        h_out = self.gru_cell(merge_obs_grid, h_in)
-        action_out = self.outlay(h_out)
+        h_out = self.gru_cell(own_grid, h_in)
+        merge_obs_H_grid = torch.cat((own_obs, h_out), dim=1)
+        action_out = self.outlay(merge_obs_H_grid)
         # V2
         # own_obs = self.own_fc(cur_state[0])
         # own_grid = self.own_grid(cur_state[1])

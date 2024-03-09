@@ -295,6 +295,7 @@ class env_simulator:
             self.all_agents[agentIdx].removed_goal = None
             # make sure we reset reach target
             self.all_agents[agentIdx].reach_target = False
+            self.all_agents[agentIdx].collision = False
             self.all_agents[agentIdx].collide_wall_count = 0
 
             # large_start = [random_start_pos[0] / self.gridlength, random_start_pos[1] / self.gridlength]
@@ -311,7 +312,6 @@ class env_simulator:
             height = self.world_map_2D.shape[1]
 
             jps_map = self.world_map_2D_jps
-
 
             outPath = jps_find_path((int(small_area_map_s[0]),int(small_area_map_s[1])), (int(small_area_map_e[0]),int(small_area_map_e[1])), jps_map)
 
@@ -748,8 +748,8 @@ class env_simulator:
         # identify neighbors (use distance)
         point_to_search = cur_agent.pos
         # subtract a small value to exclude point at exactly "search_distance"
-        # search_distance = (cur_agent.detectionRange / 2) + cur_agent.protectiveBound - 1e-6
-        search_distance = 10000
+        search_distance = (cur_agent.detectionRange / 2) + cur_agent.protectiveBound - 1e-6
+        # search_distance = 10000
         # indices_from_KDtree = self.cur_allAgentCoor_KD.query_ball_point(point_to_search, search_distance)
         for agent_idx, agent in self.all_agents.items():  # loop through all agent to confirm its neighbour
             if agent.agent_name == cur_agent.agent_name:  # skip the current querying agent
@@ -968,11 +968,6 @@ class env_simulator:
             self.all_agents[agentIdx].observableSpace = np.array(distances)
             # ---- end of radar creation (only detect surrounding obstacles ----
 
-            # normalize radar reading by its maximum range
-            for ea_dist in self.all_agents[agentIdx].observableSpace:
-                # ea_dist[0] = ea_dist[0] / (self.all_agents[agentIdx].detectionRange / 2)
-                ea_dist = ea_dist / (self.all_agents[agentIdx].detectionRange / 2)
-
             # ------ find nearest neighbour ------
             # loop through neighbors from current time step, and search for the nearest neighbour and its neigh_keys
             nearest_neigh_key = None
@@ -1002,6 +997,12 @@ class env_simulator:
             # ------- end if find nearest neighbour ------
 
             # ------------- end of create radar --------------- #
+
+            # -------- normalize radar reading by its maximum range -----
+            # for ea_dist_idx, ea_dist in enumerate(self.all_agents[agentIdx].observableSpace):
+            #     ea_dist = ea_dist / (self.all_agents[agentIdx].detectionRange / 2)
+            #     self.all_agents[agentIdx].observableSpace[ea_dist_idx] = ea_dist
+            # -------- end of normalize radar reading by its maximum range -----
 
             rest_compu_time = time.time()
 
@@ -1765,7 +1766,7 @@ class env_simulator:
         # return reward, done, check_goal, step_reward_record, agent_filled
         return reward, done, check_goal, step_reward_record
 
-    def ss_reward(self, current_ts, step_reward_record, eps_status_holder, step_collision_record, xy, full_observable_critic_flag):
+    def ss_reward(self, current_ts, step_reward_record, eps_status_holder, step_collision_record, xy, full_observable_critic_flag, args):
         bound_building_check = [False] * 3
         reward, done = [], []
         agent_to_remove = []
@@ -1923,7 +1924,8 @@ class env_simulator:
             rew = 0
             # dist_to_goal_coeff = 1
             # dist_to_goal_coeff = 1
-            dist_to_goal_coeff = 3
+            # dist_to_goal_coeff = 3
+            dist_to_goal_coeff = 5
             # dist_to_goal_coeff = 0
 
             x_norm, y_norm = self.normalizer.nmlz_pos(drone_obj.pos)
@@ -1985,8 +1987,8 @@ class env_simulator:
                 dist_to_ref_line = -coef_ref_line*1
                 # dist_to_ref_line = -coef_ref_line*0
 
-            small_step_penalty_coef = 3
-            # small_step_penalty_coef = 0
+            # small_step_penalty_coef = 3
+            small_step_penalty_coef = 0
             spd_penalty_threshold = 2*drone_obj.protectiveBound
             small_step_penalty_val = (spd_penalty_threshold -
                                   np.clip(np.linalg.norm(drone_obj.vel), 0, spd_penalty_threshold))*\
@@ -2027,14 +2029,15 @@ class env_simulator:
             # # linear building penalty
             # makesure only when min_dist is >=0 and <= turningPtConst, then we activate this penalty
             m = (0-1)/(turningPtConst-drone_obj.protectiveBound)  # we must consider drone's circle, because when min_distance is less than drone's radius, it is consider collision.
-            if min_dist>=drone_obj.protectiveBound and min_dist<=turningPtConst:
+            if min_dist>drone_obj.protectiveBound and min_dist<=turningPtConst:
                 near_building_penalty = near_building_penalty_coef*(m*min_dist+c)  # at each step, penalty from 3 to 0.
             else:
                 near_building_penalty = 0  # if min_dist is outside of the bound, other parts of the reward will be taking care.
 
             # ---- penalty term for surrounding drones ---
             # near_drone_penalty_coef = 3
-            near_drone_penalty_coef = 10
+            near_drone_penalty_coef = 0
+            # near_drone_penalty_coef = 10
             dist_to_penalty_upperbound = 6
             dist_to_penalty_lowerbound = 2.5
             # assume when at lowerbound, y = 1
@@ -2065,8 +2068,9 @@ class env_simulator:
             # must use "host_passed_volume", or else, we unable to confirm whether the host's circle is at left or right of the boundary lines
             if x_left_bound.intersects(host_passed_volume) or x_right_bound.intersects(host_passed_volume) or y_bottom_bound.intersects(host_passed_volume) or y_top_bound.intersects(host_passed_volume):
                 print("drone_{} has crash into boundary at time step {}".format(drone_idx, current_ts))
-                rew = rew - crash_penalty_wall - small_step_penalty - near_building_penalty
+                rew = rew - crash_penalty_wall
                 done.append(True)
+                drone_obj.collision = True
                 bound_building_check[0] = True
                 # done.append(False)
                 reward.append(np.array(rew))
@@ -2074,8 +2078,9 @@ class env_simulator:
             elif collide_building == 1:
                 # done.append(True)
                 done.append(True)
+                drone_obj.collision = True
                 bound_building_check[1] = True
-                rew = rew - crash_penalty_wall - small_step_penalty - near_building_penalty
+                rew = rew - crash_penalty_wall
                 # rew = rew - big_crash_penalty_wall
                 reward.append(np.array(rew))
             # # ---------- Termination only during collision to wall on the 3rd time -----------------------
@@ -2093,19 +2098,19 @@ class env_simulator:
             #         rew = rew - dist_to_ref_line - crash_penalty_wall - dist_to_goal - small_step_penalty + near_goal_reward - 20
             #         reward.append(np.array(rew))
             # # ----------End of termination only during collision to wall on the 3rd time -----------------------
-            elif len(collision_drones) > 0:
-                done.append(True)
-                # done.append(False)
-                bound_building_check[2] = True
-                rew = rew - crash_penalty_wall - small_step_penalty - near_drone_penalty
-                reward.append(np.array(rew))
+
+            # elif len(collision_drones) > 0:
+            #     done.append(True)
+            #     # done.append(False)
+            #     bound_building_check[2] = True
+            #     rew = rew - crash_penalty_wall
+            #     reward.append(np.array(rew))
+
             elif not goal_cur_intru_intersect.is_empty:  # reached goal?
                 # --------------- with way point -----------------------
                 check_goal[drone_idx] = True
-
                 # if drone_obj.reach_target == False:
                 #     rew = rew + reach_target + near_goal_reward + 200
-
                 drone_obj.reach_target = True
                 # print("drone_{} has reached its final goal at time step {}".format(drone_idx, current_ts))
                 agent_to_remove.append(drone_idx)  # NOTE: drone_idx is the key value.
@@ -2130,6 +2135,10 @@ class env_simulator:
                 rew = rew + dist_to_ref_line + dist_to_goal - \
                       small_step_penalty + near_goal_reward - near_building_penalty + seg_reward-survival_penalty - near_drone_penalty
                 # we remove the above termination condition
+                # if current_ts >= args.episode_length:
+                #     done.append(True)
+                # else:
+                #     done.append(False)
                 done.append(False)
                 step_reward = np.array(rew)
                 reward.append(step_reward)
@@ -2151,6 +2160,16 @@ class env_simulator:
 
         if full_observable_critic_flag:
             reward = [np.sum(reward) for _ in reward]
+
+        if all(check_goal):  # when all agent reaches their goal
+            for element_idx, element in enumerate(done):
+                # done[element_idx] = True
+                # we add a big reward to all agents for reaching the target
+                reward[element_idx] = reward[element_idx]+500
+        if any(agent.collision == True for agent in self.all_agents.values()):  # when any drone collide
+            for element_idx, element in enumerate(done):
+                done[element_idx] = True
+
 
         # ever_reach_goal = [agent.reach_target for agent in self.all_agents.values()]
         # if check_goal.count(True) == 1 and ever_reach_goal.count(True) == 0:

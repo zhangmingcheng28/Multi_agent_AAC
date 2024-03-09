@@ -1997,7 +1997,8 @@ class env_simulator:
         # previous_ever_reached = [agent.reach_target for agent in self.all_agents.values()]
         reward_record_idx = 0  # this is used as a list index, increase with for loop. No need go with agent index, this index is also shared by done checking
         # crash_penalty_wall = 5
-        crash_penalty_wall = 15
+        # crash_penalty_wall = 15
+        crash_penalty_wall = 20
         # crash_penalty_wall = 100
         big_crash_penalty_wall = 200
         crash_penalty_drone = 1
@@ -2178,8 +2179,8 @@ class env_simulator:
             after_dist_hg = np.linalg.norm(drone_obj.pos - next_wp)  # distance to goal after action
             # dist_to_goal = dist_to_goal_coeff * (before_dist_hg - after_dist_hg)  # (before_dist_hg - after_dist_hg) -max_vel - max_vel
 
-            # dist_left = total_length_to_end_of_line(drone_obj.pos, drone_obj.ref_line)
-            # dist_to_goal = dist_to_goal_coeff * (1 - (dist_left / drone_obj.ref_line.length))  # v1
+            dist_left = total_length_to_end_of_line(drone_obj.pos, drone_obj.ref_line)
+            dist_to_goal = dist_to_goal_coeff * (1 - (dist_left / drone_obj.ref_line.length))  # v1
 
             # ---- v2 leading to goal reward, based on compute_projected_velocity ---
             # projected_velocity = compute_projected_velocity(drone_obj.vel, drone_obj.ref_line, Point(drone_obj.pos))
@@ -2188,8 +2189,8 @@ class env_simulator:
             # ---- end of v2 leading to goal reward, based on compute_projected_velocity ---
 
             # ---- v3 leading to goal reward, based on remained distance to travel only ---
-            dist_left = total_length_to_end_of_line_without_cross(drone_obj.pos, drone_obj.ref_line)
-            dist_to_goal = dist_to_goal_coeff * (1 - (dist_left / drone_obj.ref_line.length))  # v3
+            # dist_left = total_length_to_end_of_line_without_cross(drone_obj.pos, drone_obj.ref_line)
+            # dist_to_goal = dist_to_goal_coeff * (1 - (dist_left / drone_obj.ref_line.length))  # v3
             # ---- end of v3 leading to goal reward, based on remained distance to travel only ---
 
             if dist_to_goal > drone_obj.maxSpeed:
@@ -2264,8 +2265,8 @@ class env_simulator:
 
             small_step_penalty_coef = 5
             # small_step_penalty_coef = 0
-            # spd_penalty_threshold = 2*drone_obj.protectiveBound
-            spd_penalty_threshold = drone_obj.protectiveBound
+            spd_penalty_threshold = 2*drone_obj.protectiveBound
+            # spd_penalty_threshold = drone_obj.protectiveBound
             small_step_penalty_val = (spd_penalty_threshold -
                                   np.clip(np.linalg.norm(drone_obj.vel), 0, spd_penalty_threshold))*\
                                  (1.0 / spd_penalty_threshold)  # between 0-1.
@@ -2334,7 +2335,7 @@ class env_simulator:
             # must use "host_passed_volume", or else, we unable to confirm whether the host's circle is at left or right of the boundary lines
             if x_left_bound.intersects(host_passed_volume) or x_right_bound.intersects(host_passed_volume) or y_bottom_bound.intersects(host_passed_volume) or y_top_bound.intersects(host_passed_volume):
                 print("drone_{} has crash into boundary at time step {}".format(drone_idx, current_ts))
-                rew = rew - crash_penalty_wall - small_step_penalty - near_building_penalty
+                rew = rew - crash_penalty_wall 
                 done.append(True)
                 bound_building_check[0] = True
                 # done.append(False)
@@ -2344,7 +2345,7 @@ class env_simulator:
                 # done.append(True)
                 done.append(True)
                 bound_building_check[1] = True
-                rew = rew - crash_penalty_wall - small_step_penalty - near_building_penalty
+                rew = rew - crash_penalty_wall
                 # rew = rew - big_crash_penalty_wall
                 reward.append(np.array(rew))
             # # ---------- Termination only during collision to wall on the 3rd time -----------------------
@@ -2366,7 +2367,7 @@ class env_simulator:
                 done.append(True)
                 # done.append(False)
                 bound_building_check[2] = True
-                rew = rew - crash_penalty_wall - small_step_penalty - near_drone_penalty
+                rew = rew - crash_penalty_wall
                 reward.append(np.array(rew))
             elif not goal_cur_intru_intersect.is_empty:  # reached goal?
                 # --------------- with way point -----------------------
@@ -2401,10 +2402,11 @@ class env_simulator:
                 rew = rew + dist_to_ref_line + dist_to_goal - \
                       small_step_penalty + near_goal_reward - near_building_penalty + seg_reward - survival_penalty - near_drone_penalty
                 # we remove the above termination condition
-                if current_ts >= args.episode_length:
-                    done.append(True)
-                else:
-                    done.append(False)
+                # if current_ts >= args.episode_length:
+                #     done.append(True)
+                # else:
+                #     done.append(False)
+                done.append(False)
                 step_reward = np.array(rew)
                 reward.append(step_reward)
                 # for debug, record the reward
@@ -2429,9 +2431,9 @@ class env_simulator:
         if full_observable_critic_flag:
             reward = [np.sum(reward) for _ in reward]
 
-        if all(check_goal):
-            for element_idx, element in enumerate(done):
-                done[element_idx] = True
+        # if all(check_goal):
+        #     for element_idx, element in enumerate(done):
+        #         done[element_idx] = True
 
         # ever_reached = [agent.reach_target for agent in self.all_agents.values()]
         # if check_goal.count(True) == 1 and ever_reached.count(True) == 0:
