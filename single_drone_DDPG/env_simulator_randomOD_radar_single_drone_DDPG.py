@@ -2164,7 +2164,8 @@ class env_simulator:
                 # done.append(True)
                 # check if the drone has missed any waypoints
                 if len(drone_obj.waypoints) > 1:  # missed waypoints
-                    print("missed waypoint")
+                    # print("missed waypoint")
+                    pass
                 # check if waypoint swap with the final goal
                 if drone_obj.waypoints[-1] != drone_obj.goal[-1]:
                     print("goal swapped with some intermediate points")

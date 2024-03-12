@@ -412,6 +412,7 @@ def main(args):
         # critic_dim = [4, 18, 4]
 
     actor_hidden_state = 64
+    # actor_hidden_state = 128
     # actor_hidden_state = 256
     actor_hidden_state_list = [actor_hidden_state for _ in range(total_agentNum)]
 
@@ -471,6 +472,7 @@ def main(args):
     all_steps_used = 0
     crash_to_bound = 0
     crash_to_building = 0
+    train_reach_count = 0
     episode_goal_found = [False] * n_agents
     dummy_xy = (None, None)  # this is a dummy tuple of xy, is not useful during normal training, it is only useful when generating reward map
     if args.mode == "eval":
@@ -478,8 +480,8 @@ def main(args):
         # args.max_episodes = 5  # only evaluate one episode during evaluation mode.
         args.max_episodes = 100
         # args.max_episodes = 20
-        pre_fix = r'D:\MADDPG_2nd_jp\080324_13_19_09\interval_record_eps'
-        episode_to_check = str(18000)
+        pre_fix = r'D:\MADDPG_2nd_jp\110324_20_05_25\interval_record_eps'
+        episode_to_check = str(35000)
         load_filepath_0 = pre_fix + '\episode_' + episode_to_check + '_agent_0actor_net.pth'
         load_filepath_1 = pre_fix + '\episode_' + episode_to_check + '_agent_1actor_net.pth'
         load_filepath_2 = pre_fix + '\episode_' + episode_to_check + '_agent_2actor_net.pth'
@@ -492,7 +494,6 @@ def main(args):
 
     # while episode < args.max_episodes:
     while episode < args.max_episodes:  # start of an episode
-
         # ------------ my own env.reset() ------------ #
         episode_start_time = time.time()
         episode += 1
@@ -695,6 +696,7 @@ def main(args):
                     print("Some agent triggers termination condition like collision, current episode {} ends at step {}".format(episode, step-1))  # we need to -1 here, because we perform step + 1 after each complete step. Just to be consistent with the step count inside the reward function.
                 elif all([agent.reach_target for agent_idx, agent in env.all_agents.items()]):
                     episode_decision[2] = True
+                    train_reach_count = train_reach_count + 1
                     print("All agents have reached their destinations, episode terminated.")
                     # show termination condition in picture when termination condition reached.
                     # os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
@@ -825,6 +827,9 @@ def main(args):
                         model.save_model(episode, filepath)  # this is the original save model
                         time_used_for_csv_model_save = (time.time()-save_model)*1000  # *1000 for milliseconds
                         print("current episode used time in save csv and model is {} milliseconds".format(episode, time_used_for_csv_model_save))
+                    if episode % 100 == 0:
+                        print("The previous 100 episode, there are {} episode reached".format(train_reach_count))
+                        train_reach_count = 0  # reset reach_count
                     # save episodes reward for entire system at each of one episode
                     eps_reward_record.append(eps_reward)
                     eps_check_collision.append(step_collision_record)
@@ -1190,7 +1195,7 @@ if __name__ == '__main__':
     parser.add_argument('--scenario', default="simple_spread", type=str)
     parser.add_argument('--max_episodes', default=35000, type=int)  # run for a total of 50000 episodes
     parser.add_argument('--algo', default="maddpg", type=str, help="commnet/bicnet/maddpg/TD3")
-    parser.add_argument('--mode', default="train", type=str, help="train/eval")
+    parser.add_argument('--mode', default="eval", type=str, help="train/eval")
     parser.add_argument('--episode_length', default=150, type=int)  # maximum play per episode
     parser.add_argument('--memory_length', default=int(1e5), type=int)
     parser.add_argument('--seed', default=777, type=int)  # may choose to use 3407
