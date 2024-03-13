@@ -1269,8 +1269,8 @@ class env_simulator:
             # agent_own = np.array([agent.pos[0], agent.pos[1], agent.vel[0], agent.vel[1],
             #                       agent.goal[-1][0]-agent.pos[0], agent.goal[-1][1]-agent.pos[1]])
 
-            agent_own = np.array([agent.pos[0], agent.pos[1], agent.vel[0], agent.vel[1], x_error, y_error,
-                                  agent.goal[-1][0]-agent.pos[0], agent.goal[-1][1]-agent.pos[1]])
+            # agent_own = np.array([agent.pos[0], agent.pos[1], agent.vel[0], agent.vel[1], x_error, y_error,
+            #                       agent.goal[-1][0]-agent.pos[0], agent.goal[-1][1]-agent.pos[1]])
 
             # agent_own = np.array([agent.pos[0], agent.pos[1], agent.vel[0], agent.vel[1], x_error, y_error,
             #                       agent.goal[-1][0]-agent.pos[0], agent.goal[-1][1]-agent.pos[1], nearest_neigh_pos[0],
@@ -1294,7 +1294,7 @@ class env_simulator:
             #                       agent.goal[-1][0]-agent.pos[0], agent.goal[-1][1]-agent.pos[1]])
 
             # norm_agent_own = np.concatenate([norm_pos, norm_vel, norm_deltaG], axis=0)
-            norm_agent_own = np.concatenate([norm_pos, norm_vel, norm_cross, norm_deltaG], axis=0)
+            # norm_agent_own = np.concatenate([norm_pos, norm_vel, norm_cross, norm_deltaG], axis=0)
             # norm_agent_own = np.concatenate([norm_pos, norm_vel, norm_cross, norm_deltaG, norm_nearest_neigh_pos], axis=0)
             # norm_agent_own = np.concatenate([norm_pos, norm_vel, norm_cross, norm_deltaG, norm_delta_nei], axis=0)
             # norm_agent_own = np.concatenate([norm_pos, norm_vel, norm_cross, norm_deltaG, norm_delta_nei, norm_nearest_neigh_vel], axis=0)
@@ -1323,7 +1323,8 @@ class env_simulator:
             other_agents = []
             norm_other_agents = []
             if len(agent.surroundingNeighbor) > 0:  # meaning there is surrounding neighbors around the current agent
-                possible_conflict = 0  # possible conflict between the host drone and the current neighbour
+                # possible_conflict = 0  # possible conflict between the host drone and the current neighbour
+                total_possible_conflict = 0  # total possible conflict between the host drone and the current neighbour
                 for other_agentIdx, other_agent in agent.surroundingNeighbor.items():
                     if other_agentIdx != agent_idx:
 
@@ -1346,12 +1347,13 @@ class env_simulator:
                         rel_vel_norm_withSQ = np.square(np.linalg.norm(rel_vel))  # square of norm
                         tcpa = np.dot(rel_dist_withNeg, rel_vel) / rel_vel_norm_withSQ
                         d_tcpa = np.linalg.norm(((rel_dist_withNeg * -1) + (rel_vel * tcpa)))
-                        if rel_vel_norm_withSQ == 0:
-                            possible_conflict = 0
-                        else:
-                            if (tcpa <= 1) and (d_tcpa < (self.all_agents[other_agentIdx].protectiveBound + agent.protectiveBound)):
-                                possible_conflict = 1
-
+                        # if rel_vel_norm_withSQ == 0:
+                        #     possible_conflict = 0
+                        # else:
+                        #     if (tcpa <= 1) and (d_tcpa < (self.all_agents[other_agentIdx].protectiveBound + agent.protectiveBound)):
+                        #         possible_conflict = 1
+                        if (tcpa <= 1) and (d_tcpa < (self.all_agents[other_agentIdx].protectiveBound + agent.protectiveBound)):
+                            total_possible_conflict = total_possible_conflict + 1
                         # surround_agent = np.array([delta_host_x, delta_host_y, cur_neigh_vx, cur_neigh_vy, cur_neigh_ax, cur_neigh_ay, possible_conflict]).reshape(1, actor_dim[-1])
                         surround_agent = np.array([delta_host_x, delta_host_y, cur_neigh_vx, cur_neigh_vy, cur_neigh_ax, cur_neigh_ay]).reshape(1, actor_dim[-1])
 
@@ -1369,8 +1371,15 @@ class env_simulator:
                 norm_overall_state_p3.append(norm_other_agents)
 
             else:   # for agents that don't have neighbours we populate with zeros.
+                total_possible_conflict = 0  # total possible conflict between the host drone and the current neighbour
                 overall_state_p3.append(np.zeros((1, actor_dim[-1])))
                 norm_overall_state_p3.append(np.zeros((1, actor_dim[-1])))
+
+            # populate agent states after account for the surrounding agents
+            agent_own = np.array([agent.pos[0], agent.pos[1], agent.vel[0], agent.vel[1], x_error, y_error,
+                                  agent.goal[-1][0] - agent.pos[0], agent.goal[-1][1] - agent.pos[1]])
+
+            norm_agent_own = np.concatenate([norm_pos, norm_vel, norm_cross, norm_deltaG], axis=0)
 
             overall_state_p1.append(agent_own)
             overall_state_p2.append(agent.observableSpace)

@@ -398,11 +398,13 @@ def main(args):
         # actor_dim = [6, 18, 6]  # dim host, maximum dim grid, dim other drones
         # actor_dim = [8, 18, 6]  # dim host, maximum dim grid, dim other drones
         actor_dim = [10, 18, 6]  # dim host, maximum dim grid, dim other drones
+        # actor_dim = [11, 18, 6]  # dim host, maximum dim grid, dim other drones
         # actor_dim = [12, 18, 6]  # dim host, maximum dim grid, dim other drones
         # actor_dim = [26, 18, 6]
         # critic_dim = [6, 18, 6]
         # critic_dim = [8, 18, 6]
         critic_dim = [10, 18, 6]
+        # critic_dim = [11, 18, 6]
         # critic_dim = [12, 18, 6]
         # critic_dim = [26, 18, 6]
 
@@ -473,10 +475,10 @@ def main(args):
         args.max_episodes = 100
         # args.max_episodes = 250
         # args.max_episodes = 20
-        pre_fix = r'D:\MADDPG_2nd_jp\060324_20_51_05\interval_record_eps'
+        pre_fix = r'D:\MADDPG_2nd_jp\110324_10_17_03\interval_record_eps'
         # episode_to_check = str(10000)
         # pre_fix = r'F:\OneDrive_NTU_PhD\OneDrive - Nanyang Technological University\DDPG_2ndJournal\dim_8_transfer_learning'
-        episode_to_check = str(12000)
+        episode_to_check = str(35000)
         # using one model, so we load all the same
         load_filepath_0 = pre_fix + '\episode_' + episode_to_check + '_actor_net.pth'
         load_filepath_1 = pre_fix + '\episode_' + episode_to_check + '_actor_net.pth'
