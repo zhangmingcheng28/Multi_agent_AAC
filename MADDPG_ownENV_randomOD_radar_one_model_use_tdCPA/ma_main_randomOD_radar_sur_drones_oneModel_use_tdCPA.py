@@ -41,7 +41,7 @@ else:
     device = torch.device('cpu')
     print('Using CPU')
 
-device = torch.device('cpu')
+# device = torch.device('cpu')
 #
 
 def main(args):
@@ -116,18 +116,18 @@ def main(args):
         # actor_dim = [6, 18, 6]  # dim host, maximum dim grid, dim other drones
         # actor_dim = [8, 18, 6]  # dim host, maximum dim grid, dim other drones
         # actor_dim = [10, 18, 6]  # dim host, maximum dim grid, dim other drones
-        # actor_dim = [18, 18, 6]  # dim host, maximum dim grid, dim other drones
+        actor_dim = [18, 18, 6]  # dim host, maximum dim grid, dim other drones
         # actor_dim = [16, 18, 6]  # dim host, maximum dim grid, dim other drones
-        actor_dim = [14, 18, 6]  # dim host, maximum dim grid, dim other drones
+        # actor_dim = [14, 18, 6]  # dim host, maximum dim grid, dim other drones
         # actor_dim = [11, 18, 6]  # dim host, maximum dim grid, dim other drones
         # actor_dim = [12, 18, 6]  # dim host, maximum dim grid, dim other drones
         # actor_dim = [26, 18, 6]
         # critic_dim = [6, 18, 6]
         # critic_dim = [8, 18, 6]
         # critic_dim = [10, 18, 6]
-        # critic_dim = [18, 18, 6]
+        critic_dim = [18, 18, 6]
         # critic_dim = [16, 18, 6]
-        critic_dim = [14, 18, 6]
+        # critic_dim = [14, 18, 6]
         # critic_dim = [11, 18, 6]
         # critic_dim = [12, 18, 6]
         # critic_dim = [26, 18, 6]
