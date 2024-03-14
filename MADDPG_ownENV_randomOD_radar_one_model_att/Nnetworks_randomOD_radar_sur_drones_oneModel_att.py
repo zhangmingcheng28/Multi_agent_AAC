@@ -145,22 +145,32 @@ class ActorNetwork_TwoPortion(nn.Module):
     def __init__(self, actor_dim, n_actions):  # actor_obs consists of three parts 0 = own, 1 = own grid, 2 = surrounding drones
         super(ActorNetwork_TwoPortion, self).__init__()
 
-        self.own_fc = nn.Sequential(nn.Linear(actor_dim[0], 64), nn.ReLU())
-        # self.own_fc = nn.Sequential(nn.Linear(actor_dim[0], 128), nn.ReLU())
-        self.own_grid = nn.Sequential(nn.Linear(actor_dim[1], 64), nn.ReLU())
-        # self.own_grid = nn.Sequential(nn.Linear(actor_dim[1], 128), nn.ReLU())
-        self.merge_feature = nn.Sequential(nn.Linear(64+64, 128), nn.ReLU())
-        # self.merge_feature_l2 = nn.Sequential(nn.Linear(64 + 64, 128), nn.ReLU())
-        # self.merge_feature = nn.Sequential(nn.Linear(128+128, 256), nn.ReLU())
+        # self.own_fc = nn.Sequential(nn.Linear(actor_dim[0], 64), nn.ReLU())
+        # # self.own_fc = nn.Sequential(nn.Linear(actor_dim[0], 128), nn.ReLU())
+        # self.own_grid = nn.Sequential(nn.Linear(actor_dim[1], 64), nn.ReLU())
+        # # self.own_grid = nn.Sequential(nn.Linear(actor_dim[1], 128), nn.ReLU())
+        # self.merge_feature = nn.Sequential(nn.Linear(64+64, 128), nn.ReLU())
+        # # self.merge_feature_l2 = nn.Sequential(nn.Linear(64 + 64, 128), nn.ReLU())
+        # # self.merge_feature = nn.Sequential(nn.Linear(128+128, 256), nn.ReLU())
+        # self.act_out = nn.Sequential(nn.Linear(128, n_actions), nn.Tanh())
+        # # self.act_out = nn.Sequential(nn.Linear(256, n_actions), nn.Tanh())
+
+        # ignore radar
+        self.own_fc = nn.Sequential(nn.Linear(actor_dim[0], 128), nn.ReLU())
+        self.hidden = nn.Sequential(nn.Linear(128, 128), nn.ReLU())
         self.act_out = nn.Sequential(nn.Linear(128, n_actions), nn.Tanh())
-        # self.act_out = nn.Sequential(nn.Linear(256, n_actions), nn.Tanh())
 
     def forward(self, cur_state):
+        # own_obs = self.own_fc(cur_state[0])
+        # own_grid = self.own_grid(cur_state[1])
+        # merge_obs_grid = torch.cat((own_obs, own_grid), dim=1)
+        # merge_feature = self.merge_feature(merge_obs_grid)
+        # out_action = self.act_out(merge_feature)
+
+        # ignore radar
         own_obs = self.own_fc(cur_state[0])
-        own_grid = self.own_grid(cur_state[1])
-        merge_obs_grid = torch.cat((own_obs, own_grid), dim=1)
-        merge_feature = self.merge_feature(merge_obs_grid)
-        out_action = self.act_out(merge_feature)
+        hidden = self.hidden(own_obs)
+        out_action = self.act_out(hidden)
         return out_action
 
 
@@ -656,4 +666,41 @@ class critic_combine_TwoPortion(nn.Module):
         merge_feature = self.combine_agents_fea(merge_all_agent)
         q = self.out_feature_q(merge_feature)
         # --- end of yc_v1 ---
+        return q
+
+
+class critic_combine_ignore_radar(nn.Module):
+    def __init__(self, critic_obs, n_agents, n_actions, single_history, hidden_state_size):
+        super(critic_combine_ignore_radar, self).__init__()
+
+        # v1_yc_ignore_radar #
+        self.o1a1 = nn.Sequential(nn.Linear(critic_obs[0]+n_actions, 128), nn.ReLU())
+        self.o2a2 = nn.Sequential(nn.Linear(critic_obs[0]+n_actions, 128), nn.ReLU())
+        self.o3a3 = nn.Sequential(nn.Linear(critic_obs[0]+n_actions, 128), nn.ReLU())
+        self.combine_agents_fea = nn.Sequential(nn.Linear(128+128+128, 256), nn.ReLU())
+        self.out_feature_q = nn.Sequential(nn.Linear(256, 1))
+        # end of v1_yc_ignore_radar #
+
+    def forward(self, combine_state, combine_action):
+
+        # ---- yc_v1_ignore_radar -----
+        for agent_idx in range(3):
+            # agent_obs = torch.cat((combine_state[0][:, agent_idx,:], combine_state[1][:, agent_idx,:]), dim=1)
+            agent_obs = combine_state[0][:, agent_idx,:]
+            if isinstance(combine_action, list):
+                agent_act = combine_action[agent_idx]
+            else:
+                agent_act = combine_action[:, agent_idx, :]
+            obsWact = torch.cat((agent_obs, agent_act), dim=1)  # obs + action
+            if agent_idx == 0:
+                o1a1_fea = self.o1a1(obsWact)
+            elif agent_idx == 1:
+                o2a2_fea = self.o2a2(obsWact)
+            elif agent_idx == 2:
+                o3a3_fea = self.o3a3(obsWact)
+
+        merge_all_agent = torch.cat((o1a1_fea, o2a2_fea, o3a3_fea), dim=1)
+        merge_feature = self.combine_agents_fea(merge_all_agent)
+        q = self.out_feature_q(merge_feature)
+        # --- end of yc_v1_ignore_radar ---
         return q

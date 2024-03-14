@@ -43,288 +43,6 @@ else:
 
 device = torch.device('cpu')
 #
-
-def initialize_excel_file(file_path):
-    # Create a new workbook and add three empty sheets
-    wb = Workbook()
-    wb.save(file_path)
-
-
-def append_to_excel(file_path, data):
-    # Try to load the workbook, and create it if it does not exist
-    try:
-        wb = load_workbook(file_path)
-        new_workbook = False
-    except FileNotFoundError:
-        wb = Workbook()
-        new_workbook = True
-        # wb.remove(wb.active)  # Remove the default sheet created by openpyxl if not need
-    except Exception as e:  # Catch other exceptions, such as invalid file format
-        print(f"An error occurred: {e}")
-        return
-    if new_workbook:
-        if 'Sheet' in wb.sheetnames:
-            # If the sheet exists, remove it
-            wb.remove('Sheet')
-    # Check if the required sheets exist, if not create them
-    if len(data) == 3:  # for record eps time
-        number_of_sheets = len(data)
-        required_sheets = ['Sheet'+str(i) for i in range(number_of_sheets)]
-        for sheet_name in required_sheets:
-            if sheet_name not in wb.sheetnames:
-                wb.create_sheet(title=sheet_name)
-
-        # Append the data to the respective sheets
-        for i, portion in enumerate(data):
-            sheet = wb[required_sheets[i]]
-            if isinstance(portion, list):
-                for item in portion:
-                    sheet.append(item if isinstance(item, list) else [item])
-                # If this is the last portion of data, append -1 to the last row
-                if i == len(data) - 1:
-                    sheet.append([-1])
-            else:
-                sheet.append([portion])
-    else:
-        if isinstance(data[0], list):  # for record reward
-            # In reward record, we are recording in the form that one step have 3 agents
-            required_sheets = ["agent0", "agent1", "agent2"]
-            for sheet_name in required_sheets:
-                if sheet_name not in wb.sheetnames:
-                    wb.create_sheet(title=sheet_name)
-            for idx, step_reward in enumerate(data):
-                for agent_idx, single_sheet_name in enumerate(required_sheets):
-                    sheet = wb[single_sheet_name]
-                    sheet.append(step_reward[agent_idx])
-                    if idx == len(data)-1:
-                        sheet.append([-9999])
-
-        else:  # for record noise
-            wb.create_sheet(title='noise given at each step')
-            sheet = wb['noise given at each step']
-            for i, portion in enumerate(data):
-                sheet.append(list(portion))
-            sheet.append([-999])
-
-    # Save the workbook
-    wb.save(file_path)
-
-
-def animate(frame_num, ax, env, trajectory_eachPlay):
-    ax.clear()
-    plt.axis('equal')
-    plt.xlim(env.bound[0], env.bound[1])
-    plt.ylim(env.bound[2], env.bound[3])
-    plt.axvline(x=env.bound[0], c="green")
-    plt.axvline(x=env.bound[1], c="green")
-    plt.axhline(y=env.bound[2], c="green")
-    plt.axhline(y=env.bound[3], c="green")
-    plt.xlabel("X axis")
-    plt.ylabel("Y axis")
-
-    # draw occupied_poly
-    for one_poly in env.world_map_2D_polyList[0][0]:
-        one_poly_mat = shapelypoly_to_matpoly(one_poly, True, 'y', 'b')
-        ax.add_patch(one_poly_mat)
-    # draw non-occupied_poly
-    for zero_poly in env.world_map_2D_polyList[0][1]:
-        zero_poly_mat = shapelypoly_to_matpoly(zero_poly, False, 'y')
-        # ax.add_patch(zero_poly_mat)
-
-    # show building obstacles
-    for poly in env.buildingPolygons:
-        matp_poly = shapelypoly_to_matpoly(poly, False, 'red')  # the 3rd parameter is the edge color
-        ax.add_patch(matp_poly)
-
-    for agentIdx, agent in env.all_agents.items():
-        plt.plot(agent.ini_pos[0], agent.ini_pos[1],
-                 marker=MarkerStyle(">",
-                                    fillstyle="right",
-                                    transform=Affine2D().rotate_deg(math.degrees(agent.heading))),
-                 color='y')
-        plt.text(agent.ini_pos[0], agent.ini_pos[1], agent.agent_name)
-        plt.plot(agent.goal[-1][0], agent.goal[-1][1], marker='*', color='y', markersize=10)
-        plt.text(agent.goal[-1][0], agent.goal[-1][1], agent.agent_name)
-
-        # link individual drone's starting position with its goal
-        ini = agent.ini_pos
-        # for wp in agent.goal:
-        for wp in agent.ref_line.coords:
-            # plt.plot(wp[0], wp[1], marker='*', color='y', markersize=10)
-            plt.plot([wp[0], ini[0]], [wp[1], ini[1]], '--', color='c')
-            ini = wp
-
-    for a_idx, agent in enumerate(trajectory_eachPlay[frame_num]):
-        x, y = agent[0], agent[1]
-        plt.plot(x, y, 'o', color='r')
-
-        # plt.text(x-1, y-1, 'agent_'+str(a_idx)+'_'+str(round(float(frame_num), 2)))
-        plt.text(x-1, y-1, 'agent_'+str(a_idx)+'_'+str(agent[2]))
-
-        self_circle = Point(x, y).buffer(env.all_agents[0].protectiveBound, cap_style='round')
-        grid_mat_Scir = shapelypoly_to_matpoly(self_circle, False, 'k')
-        ax.add_patch(grid_mat_Scir)
-
-    return ax.patches + [ax.texts]
-
-
-def get_history_tensor(history, sequence_length, input_size):
-    # If history is shorter than the sequence length, pad it with zeros
-    if len(history) < sequence_length:
-        padding = torch.zeros(sequence_length - len(history), input_size)
-        history_tensor = torch.cat((padding, torch.stack(list(history))))
-    else:
-        history_tensor = torch.stack(list(history))
-
-    # Add a batch dimension and return
-    return history_tensor.unsqueeze(0)
-
-
-def save_gif(env, trajectory_eachPlay, pre_fix, episode_to_check, episode):
-    os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
-    matplotlib.use('TkAgg')
-    fig, ax = plt.subplots(1, 1)
-
-    plt.axis('equal')
-    plt.xlim(env.bound[0], env.bound[1])
-    plt.ylim(env.bound[2], env.bound[3])
-    plt.axvline(x=env.bound[0], c="green")
-    plt.axvline(x=env.bound[1], c="green")
-    plt.axhline(y=env.bound[2], c="green")
-    plt.axhline(y=env.bound[3], c="green")
-    plt.xlabel("X axis")
-    plt.ylabel("Y axis")
-
-    # draw occupied_poly
-    for one_poly in env.world_map_2D_polyList[0][0]:
-        one_poly_mat = shapelypoly_to_matpoly(one_poly, True, 'y', 'b')
-        ax.add_patch(one_poly_mat)
-    # draw non-occupied_poly
-    for zero_poly in env.world_map_2D_polyList[0][1]:
-        zero_poly_mat = shapelypoly_to_matpoly(zero_poly, False, 'y')
-        # ax.add_patch(zero_poly_mat)
-
-    # show building obstacles
-    for poly in env.buildingPolygons:
-        matp_poly = shapelypoly_to_matpoly(poly, False, 'red')  # the 3rd parameter is the edge color
-        ax.add_patch(matp_poly)
-
-    for agentIdx, agent in env.all_agents.items():
-        plt.plot(agent.ini_pos[0], agent.ini_pos[1],
-                 marker=MarkerStyle(">",
-                                    fillstyle="right",
-                                    transform=Affine2D().rotate_deg(math.degrees(agent.heading))),
-                 color='y')
-        plt.text(agent.ini_pos[0], agent.ini_pos[1], agent.agent_name)
-        # plot self_circle of the drone
-        self_circle = Point(agent.ini_pos[0],
-                            agent.ini_pos[1]).buffer(agent.protectiveBound, cap_style='round')
-        grid_mat_Scir = shapelypoly_to_matpoly(self_circle, inFill=False, Edgecolor='k')
-        ax.add_patch(grid_mat_Scir)
-
-        # plot drone's detection range
-        detec_circle = Point(agent.ini_pos[0],
-                             agent.ini_pos[1]).buffer(agent.detectionRange / 2, cap_style='round')
-        detec_circle_mat = shapelypoly_to_matpoly(detec_circle, inFill=False, Edgecolor='g')
-        ax.add_patch(detec_circle_mat)
-
-        plt.plot(agent.goal[-1][0], agent.goal[-1][1], marker='*', color='y', markersize=10)
-        plt.text(agent.goal[-1][0], agent.goal[-1][1], agent.agent_name)
-
-    # Create animation
-    ani = animation.FuncAnimation(fig, animate, fargs=(ax, env, trajectory_eachPlay), frames=len(trajectory_eachPlay),
-                                  interval=300, blit=False)
-    # Save as GIF
-    gif_path = pre_fix + '\episode_' + episode_to_check + 'simulation_num_' + str(episode) + '.gif'
-    ani.save(gif_path, writer='pillow')
-
-    # Close figure
-    plt.close(fig)
-
-
-def view_static_traj(env, trajectory_eachPlay):
-    os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
-    matplotlib.use('TkAgg')
-    fig, ax = plt.subplots(1, 1)
-    # display initial condition
-    # global_state = env.reset_world(show=0)  # just a dummy to reset all condition so that initial condition can be added to the output graph
-    for agentIdx, agent in env.all_agents.items():
-        # if agentIdx != 0:
-        #     continue
-        plt.plot(agent.ini_pos[0], agent.ini_pos[1],
-                 marker=MarkerStyle(">",
-                                    fillstyle="right",
-                                    transform=Affine2D().rotate_deg(math.degrees(agent.heading))),
-                 color='y')
-        plt.text(agent.ini_pos[0], agent.ini_pos[1], agent.agent_name)
-        # plot self_circle of the drone
-        self_circle = Point(agent.ini_pos[0],
-                            agent.ini_pos[1]).buffer(agent.protectiveBound, cap_style='round')
-        grid_mat_Scir = shapelypoly_to_matpoly(self_circle, inFill=False, Edgecolor='k')
-        ax.add_patch(grid_mat_Scir)
-
-        # plot drone's detection range
-        detec_circle = Point(agent.ini_pos[0],
-                             agent.ini_pos[1]).buffer(agent.detectionRange / 2, cap_style='round')
-        detec_circle_mat = shapelypoly_to_matpoly(detec_circle, inFill=False, Edgecolor='g')
-        ax.add_patch(detec_circle_mat)
-
-        # link individual drone's starting position with its goal
-        ini = agent.ini_pos
-        # for wp in agent.goal:
-        for wp in agent.ref_line.coords:
-            plt.plot(wp[0], wp[1], marker='*', color='y', markersize=10)
-            plt.plot([wp[0], ini[0]], [wp[1], ini[1]], '--', color='c')
-            # plot drone's detection range
-            wp_circle = Point(wp[0], wp[1]).buffer(agent.protectiveBound, cap_style='round')
-            wp_circle_mat = shapelypoly_to_matpoly(wp_circle, inFill=False, Edgecolor='g')
-            ax.add_patch(wp_circle_mat)
-            ini = wp
-
-        plt.plot(agent.goal[-1][0], agent.goal[-1][1], marker='*', color='y', markersize=10)
-        plt.text(agent.goal[-1][0], agent.goal[-1][1], agent.agent_name)
-
-    # draw trajectory in current episode
-    for trajectory_idx, trajectory_val in enumerate(trajectory_eachPlay):  # each time step
-        for agentIDX, each_agent_traj in enumerate(trajectory_val):  # for each agent's motion in a time step
-            # if agentIDX != 0:
-            #     continue
-            x, y = each_agent_traj[0], each_agent_traj[1]
-            plt.plot(x, y, 'o', color='r')
-
-            # plt.text(x-1, y-1, str(round(float(reward_each_agent[trajectory_idx][agentIDX]),2)))
-            plt.text(x - 1, y - 1, 'U_' + str(agentIDX) + '_' + str(each_agent_traj[2].round(3)))
-            # plt.text(x - 1, y - 1, 'agent_' + str(agentIDX) + '_' + str(each_agent_traj[2]))
-            self_circle = Point(x, y).buffer(env.all_agents[0].protectiveBound, cap_style='round')
-            grid_mat_Scir = shapelypoly_to_matpoly(self_circle, False, 'k')
-            ax.add_patch(grid_mat_Scir)
-
-    # draw occupied_poly
-    for one_poly in env.world_map_2D_polyList[0][0]:
-        one_poly_mat = shapelypoly_to_matpoly(one_poly, True, 'y', 'b')
-        ax.add_patch(one_poly_mat)
-    # draw non-occupied_poly
-    for zero_poly in env.world_map_2D_polyList[0][1]:
-        zero_poly_mat = shapelypoly_to_matpoly(zero_poly, False, 'y')
-        # ax.add_patch(zero_poly_mat)
-
-    # show building obstacles
-    for poly in env.buildingPolygons:
-        matp_poly = shapelypoly_to_matpoly(poly, False, 'red')  # the 3rd parameter is the edge color
-        ax.add_patch(matp_poly)
-
-    plt.axis('equal')
-    plt.xlim(env.bound[0], env.bound[1])
-    plt.ylim(env.bound[2], env.bound[3])
-    plt.axvline(x=env.bound[0], c="green")
-    plt.axvline(x=env.bound[1], c="green")
-    plt.axhline(y=env.bound[2], c="green")
-    plt.axhline(y=env.bound[3], c="green")
-    plt.xlabel("X axis")
-    plt.ylabel("Y axis")
-    plt.show()
-
-
 def main(args):
 
     if args.mode == "train":
@@ -356,8 +74,8 @@ def main(args):
     # simply_view_evaluation = True  # don't save gif
     simply_view_evaluation = False  # save gif
 
-    # full_observable_critic_flag = True
-    full_observable_critic_flag = False
+    full_observable_critic_flag = True
+    # full_observable_critic_flag = False
 
     # transfer_learning = True
     transfer_learning = False
@@ -386,10 +104,12 @@ def main(args):
     # critic_dim = [6+(total_agentNum-1)*2, 10, 6]
     if full_observable_critic_flag:
         # actor_dim = [6, 18, 6]  # dim host, maximum dim grid, dim other drones
-        actor_dim = [8, 18, 6]  # dim host, maximum dim grid, dim other drones
+        # actor_dim = [8, 18, 6]  # dim host, maximum dim grid, dim other drones
+        actor_dim = [16, 18, 6]  # dim host, maximum dim grid, dim other drones
         # actor_dim = [26, 18, 6]  # dim host, maximum dim grid, dim other drones
         # critic_dim = [6, 18, 6]
-        critic_dim = [8, 18, 6]
+        # critic_dim = [8, 18, 6]
+        critic_dim = [16, 18, 6]
         # critic_dim = [26, 18, 6]
         # critic_dim = [ea_dim * total_agentNum for ea_dim in actor_dim]
     else:
@@ -426,8 +146,8 @@ def main(args):
     ini_Nsigma = largest_Nsigma
 
     # max_spd = 15
-    max_spd = 10
-    # max_spd = 5
+    # max_spd = 10
+    max_spd = 5
     env.create_world(total_agentNum, n_actions, GAMMA, TAU, UPDATE_EVERY, largest_Nsigma, smallest_Nsigma, ini_Nsigma, max_xy, max_spd, acc_range)
 
     # --------- my own -----------
@@ -462,6 +182,8 @@ def main(args):
     all_drone_reach = 0
     all_steps_used = 0
     crash_to_bound = 0
+    crash_to_drone = 0
+    crash_due_to_nearest = 0
     crash_to_building = 0
     episode_goal_found = [False] * n_agents
     dummy_xy = (None, None)  # this is a dummy tuple of xy, is not useful during normal training, it is only useful when generating reward map
@@ -553,7 +275,7 @@ def main(args):
                 # reward_aft_action, done_aft_action, check_goal, step_reward_record = env.get_step_reward_5_v3(step, step_reward_record)   # remove reached agent here
 
                 one_step_reward_start = time.time()
-                reward_aft_action, done_aft_action, check_goal, step_reward_record, status_holder, step_collision_record, bound_building_check = env.ss_reward(step, step_reward_record, eps_status_holder, step_collision_record, dummy_xy, full_observable_critic_flag)   # remove reached agent here
+                reward_aft_action, done_aft_action, check_goal, step_reward_record, status_holder, step_collision_record, bound_building_check = env.ss_reward(step, step_reward_record, eps_status_holder, step_collision_record, dummy_xy, full_observable_critic_flag, args)   # remove reached agent here
                 reward_generation_time = (time.time() - one_step_reward_start)*1000
                 # print("current step reward time used is {} milliseconds".format(reward_generation_time))
 
@@ -674,35 +396,36 @@ def main(args):
 
                     # padded_tensor = torch.nn.functional.pad(hs_tensor, pad=(0, 0, 0, 0, 0, args.episode_length), mode='constant', value=0)
 
-                    # model.memory.push(obs, ac_tensor, next_obs, rw_tensor, done_tensor, history_tensor, cur_actor_hiddens, next_actor_hiddens)
+                    if full_observable_critic_flag:
+                        model.memory.push(obs, ac_tensor, next_obs, rw_tensor, done_tensor, history_tensor, cur_actor_hiddens, next_actor_hiddens)
+                    else:
+                        # ------- push to memory one by one ----------
+                        # for obs and next_obs
+                        one_agent_obs = []
+                        for i in range(total_agentNum):
+                            one_agent_one_portion = []
+                            for observation_portion in obs:
+                                if isinstance(observation_portion, list):
+                                    one_agent_one_portion.append(observation_portion[i])
+                                else:
+                                    one_agent_one_portion.append(observation_portion[i, :])
+                            one_agent_obs.append(one_agent_one_portion)
+                        one_agent_next_obs = []
+                        for i in range(total_agentNum):
+                            one_agent_one_portion = []
+                            for observation_portion in next_obs:
+                                if isinstance(observation_portion, list):
+                                    one_agent_one_portion.append(observation_portion[i])
+                                else:
+                                    one_agent_one_portion.append(observation_portion[i, :])
+                            one_agent_next_obs.append(one_agent_one_portion)
 
-                    # ------- push to memory one by one ----------
-                    # for obs and next_obs
-                    one_agent_obs = []
-                    for i in range(total_agentNum):
-                        one_agent_one_portion = []
-                        for observation_portion in obs:
-                            if isinstance(observation_portion, list):
-                                one_agent_one_portion.append(observation_portion[i])
-                            else:
-                                one_agent_one_portion.append(observation_portion[i, :])
-                        one_agent_obs.append(one_agent_one_portion)
-                    one_agent_next_obs = []
-                    for i in range(total_agentNum):
-                        one_agent_one_portion = []
-                        for observation_portion in next_obs:
-                            if isinstance(observation_portion, list):
-                                one_agent_one_portion.append(observation_portion[i])
-                            else:
-                                one_agent_one_portion.append(observation_portion[i, :])
-                        one_agent_next_obs.append(one_agent_one_portion)
-
-                    for i in range(len(one_agent_next_obs)):
-                        # if done_tensor[i] == 1:
-                        #     continue
-                        model.memory.push(one_agent_obs[i], ac_tensor[i,:], one_agent_next_obs[i], rw_tensor[i], done_tensor[i], history_tensor[:,i,:],
-                                          cur_actor_hiddens[i,:], next_actor_hiddens[i,:])
-                    # ------- end of push to memory one by one ----------
+                        for i in range(len(one_agent_next_obs)):
+                            # if done_tensor[i] == 1:
+                            #     continue
+                            model.memory.push(one_agent_obs[i], ac_tensor[i,:], one_agent_next_obs[i], rw_tensor[i], done_tensor[i], history_tensor[:,i,:],
+                                              cur_actor_hiddens[i,:], next_actor_hiddens[i,:])
+                        # ------- end of push to memory one by one ----------
 
                 # accum_reward = accum_reward + reward_aft_action[0]  # we just take the first agent's reward, because we are using a joint reward, so all agents obtain the same reward.
                 if full_observable_critic_flag:
@@ -855,6 +578,64 @@ def main(args):
                                 # print(" agent %s, a_loss %3.2f c_loss %3.2f" % (idx, a_loss[idx].item(), c_loss[idx].item()))
                                 wandb.log({'agent' + str(idx) + 'actor_loss': float(a_loss[idx].item()),
                                            'agent' + str(idx) + 'critic_loss': float(c_loss[idx].item())}, step=episode)
+                    if True in done_aft_action and step < args.episode_length:
+                        collision_count = collision_count + 1
+                        if bound_building_check[0] == True:  # collide due to boundary
+                            crash_to_bound = crash_to_bound + 1
+                        elif bound_building_check[1] == True:  # collide due to building
+                            crash_to_building = crash_to_building + 1
+                        elif bound_building_check[2] == True:  # collide due to drones
+                            crash_to_drone = crash_to_drone + 1
+                            # save_gif(env, trajectory_eachPlay, pre_fix, episode_to_check, episode)
+                            if bound_building_check[3] == True:
+                                crash_due_to_nearest = crash_due_to_nearest + 1
+                        else:
+                            pass
+                    else:  # no collision -> no True in done_aft_action, and all steps used
+                        all_steps_used = all_steps_used + 1
+
+                    if True in episode_goal_found:
+                        # Count the number of reach cases
+                        num_true = sum(episode_goal_found)
+                        # Determine the number of True values and print the appropriate response
+                        if num_true == 1:
+                            # print("There is one True value in the list.")
+                            one_drone_reach = one_drone_reach + 1
+                        elif num_true == 2:
+                            # print("There are two True values in the list.")
+                            two_drone_reach = two_drone_reach + 1
+                        else:  # all 3 reaches goal
+                            all_drone_reach = all_drone_reach + 1
+                            # print("There are no True values in the list.")
+                    if episode % 100 == 0:  # every 100 episode we record the training performance (without evaluation)
+
+                        print("collision count for last 100 episode is {}, {}%".format(collision_count,
+                                                                        round(collision_count / 100 * 100,
+                                                                              2)))
+                        print("Collision due to bound is {}".format(crash_to_bound))
+                        print("Collision due to building is {}".format(crash_to_building))
+                        print("Collision due to drone is {}, among them, caused by nearest drone is {}".format(
+                            crash_to_drone, crash_due_to_nearest))
+                        print("all steps used count is {}, {}%".format(all_steps_used,
+                                                                       round(all_steps_used / 100 * 100,
+                                                                             2)))
+                        print("One goal reached count is {}, {}%".format(one_drone_reach, round(
+                            one_drone_reach / args.max_episodes * 100, 2)))
+                        print("Two goal reached count is {}, {}%".format(two_drone_reach, round(
+                            two_drone_reach / args.max_episodes * 100, 2)))
+                        print("All goal reached count is {}, {}%".format(all_drone_reach, round(
+                            all_drone_reach / args.max_episodes * 100, 2)))
+
+                        collision_count = 0
+                        one_drone_reach = 0
+                        two_drone_reach = 0
+                        all_drone_reach = 0
+                        all_steps_used = 0
+                        crash_to_bound = 0
+                        crash_to_building = 0
+                        crash_to_drone = 0
+                        crash_due_to_nearest = 0
+
                     if episode % args.save_interval == 0 and args.mode == "train":
                         save_model = time.time()
                         # save the models at a predefined interval
@@ -904,8 +685,8 @@ def main(args):
                 # action = env.get_actions_noCR()  # only update heading, don't update any other attribute
                 # for a_idx, action_ele in enumerate(action):
                 #     action[a_idx] = [-0.3535, 0.3535]
-                next_state, norm_next_state, polygons_list, all_agent_st_points, all_agent_ed_points, all_agent_intersection_point_list, all_agent_line_collection, all_agent_mini_intersection_list = env.step(action, step, acc_max, actor_dim)  # no heading update here
-                reward_aft_action, done_aft_action, check_goal, step_reward_record, eps_status_holder, step_collision_record, bound_building_check = env.ss_reward(step, step_reward_record, eps_status_holder, step_collision_record, dummy_xy, full_observable_critic_flag)
+                next_state, norm_next_state, polygons_list, all_agent_st_points, all_agent_ed_points, all_agent_intersection_point_list, all_agent_line_collection, all_agent_mini_intersection_list = env.step(action, step, acc_max)  # no heading update here
+                reward_aft_action, done_aft_action, check_goal, step_reward_record, eps_status_holder, step_collision_record, bound_building_check = env.ss_reward(step, step_reward_record, eps_status_holder, step_collision_record, dummy_xy, full_observable_critic_flag, args)
                 # reward_aft_action, done_aft_action, check_goal, step_reward_record = env.get_step_reward_5_v3(step, step_reward_record)
 
                 step += 1
@@ -1068,6 +849,11 @@ def main(args):
                             crash_to_bound = crash_to_bound + 1
                         elif bound_building_check[1] == True:  # collide due to building
                             crash_to_building = crash_to_building + 1
+                        elif bound_building_check[2] == True:  # collide due to drones
+                            crash_to_drone = crash_to_drone + 1
+                            # save_gif(env, trajectory_eachPlay, pre_fix, episode_to_check, episode)
+                            if bound_building_check[3] == True:
+                                crash_due_to_nearest = crash_due_to_nearest + 1
                         else:
                             pass
 
@@ -1112,6 +898,7 @@ def main(args):
         print("total collision count is {}, {}%".format(collision_count, round(collision_count/args.max_episodes*100,2)))
         print("Collision due to bound is {}".format(crash_to_bound))
         print("Collision due to building is {}".format(crash_to_building))
+        print("Collision due to drone is {}, among them, caused by nearest drone is {}".format(crash_to_drone, crash_due_to_nearest))
         print("all steps used count is {}, {}%".format(all_steps_used, round(all_steps_used/args.max_episodes*100,2)))
         print("One goal reached count is {}, {}%".format(one_drone_reach, round(one_drone_reach/args.max_episodes*100,2)))
         print("Two goal reached count is {}, {}%".format(two_drone_reach, round(two_drone_reach/args.max_episodes*100,2)))
@@ -1126,7 +913,7 @@ if __name__ == '__main__':
     parser.add_argument('--scenario', default="simple_spread", type=str)
     parser.add_argument('--max_episodes', default=35000, type=int)  # run for a total of 50000 episodes
     parser.add_argument('--algo', default="maddpg", type=str, help="commnet/bicnet/maddpg")
-    parser.add_argument('--mode', default="eval", type=str, help="train/eval")
+    parser.add_argument('--mode', default="train", type=str, help="train/eval")
     # parser.add_argument('--episode_length', default=150, type=int)  # maximum play per episode
     parser.add_argument('--episode_length', default=50, type=int)  # maximum play per episode
     # parser.add_argument('--episode_length', default=100, type=int)  # maximum play per episode

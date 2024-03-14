@@ -290,6 +290,7 @@ class env_simulator:
                     break
 
             self.all_agents[agentIdx].pos = np.array(random_start_pos)
+            self.all_agents[agentIdx].pre_pos = np.array(random_start_pos)
             self.all_agents[agentIdx].ini_pos = np.array(random_start_pos)
             start_pos_memory.append(np.array(random_start_pos))
             self.all_agents[agentIdx].removed_goal = None
@@ -365,6 +366,9 @@ class env_simulator:
             # random_spd = 1  # we fixed a initialized spd
             random_spd = 0  # we fixed a initialized spd
             self.all_agents[agentIdx].vel = np.array([random_spd*math.cos(self.all_agents[agentIdx].heading),
+                                             random_spd*math.sin(self.all_agents[agentIdx].heading)])
+            
+            self.all_agents[agentIdx].pre_vel = np.array([random_spd*math.cos(self.all_agents[agentIdx].heading),
                                              random_spd*math.sin(self.all_agents[agentIdx].heading)])
 
             # NOTE: UAV's max speed don't change with time, so when we find it normalized bound, we use max speed
@@ -755,8 +759,8 @@ class env_simulator:
         # identify neighbors (use distance)
         point_to_search = cur_agent.pos
         # subtract a small value to exclude point at exactly "search_distance"
-        search_distance = (cur_agent.detectionRange / 2) + cur_agent.protectiveBound - 1e-6
-        # search_distance = 10000
+        # search_distance = (cur_agent.detectionRange / 2) + cur_agent.protectiveBound - 1e-6
+        search_distance = 10000
         # indices_from_KDtree = self.cur_allAgentCoor_KD.query_ball_point(point_to_search, search_distance)
         for agent_idx, agent in self.all_agents.items():  # loop through all agent to confirm its neighbour
             if agent.agent_name == cur_agent.agent_name:  # skip the current querying agent
@@ -1069,6 +1073,13 @@ class env_simulator:
             # ]
             polygons_list_wBound = self.list_of_occupied_grid_wBound
             polygons_tree_wBound = self.allbuildingSTR_wBound
+            surounding_agent_circles = []
+            for other_agents_idx, others in self.all_agents.items():
+                if other_agents_idx == agentIdx:
+                    continue
+                other_circle = Point(others.pos).buffer(agent.protectiveBound)
+                surounding_agent_circles.append(other_circle)
+            surounding_agent_circles_tree = STRtree(surounding_agent_circles)
 
             distances = []
             intersection_point_list = []
@@ -1087,63 +1098,86 @@ class env_simulator:
                 end_point = Point(end_x, end_y)
                 ed_points[point_deg] = end_point
                 min_intersection_pt = end_point
+                drone_perimeter_point = end_point
 
                 # Create the LineString from the start point to the end point
                 line = LineString([point_pos, end_point])
                 line_collection.append(line)
-                # Query the STRtree for polygons that intersect with the line segment
-                intersecting_polygons = polygons_tree_wBound.query(line)
-
-                # If there are intersecting polygons, find the nearest intersection point
-                if len(intersecting_polygons) != 0:  # check if a list is empty
-                    # Initialize the minimum distance to be the length of the line segment
-                    min_distance = line.length
-                    for polygon_idx in intersecting_polygons:
-                        if polygons_list_wBound[polygon_idx].geom_type == "Polygon":
-                            # Check if the line intersects with the polygon's boundary
-                            if line.intersects(polygons_list_wBound[polygon_idx]):
-                                intersection_point = line.intersection(polygons_list_wBound[polygon_idx].boundary)
-                                if intersection_point.type == 'MultiPoint':
-                                    nearest_point = min(intersection_point.geoms,
-                                                        key=lambda point: drone_ctr.distance(point))
-                                else:
-                                    nearest_point = intersection_point
-                                intersection_point_list.append(intersection_point)
-                                distance = drone_ctr.distance(intersection_point)
-                                # min_distance = min(min_distance, distance)
-                                if distance <= min_distance:
-                                    min_distance = distance
-                                    min_intersection_pt = nearest_point
-                        else:  # possible intersection is not a polygon but a LineString
-                            if line.intersects(polygons_list_wBound[polygon_idx]):
-                                intersection = line.intersection(polygons_list_wBound[polygon_idx])
-                                if intersection.geom_type == 'Point':
-                                    intersection_distance = intersection.distance(drone_ctr)
-                                    if intersection_distance < min_distance:
-                                        min_distance = intersection_distance
-                                        min_intersection_pt = intersection
-                                # If it's a line of intersection, add each end points of the intersection line
-                                elif intersection.geom_type == 'LineString':
-                                    for point in intersection.coords:
-                                        one_end_of_intersection_line = Point(point)
-                                        intersection_distance = one_end_of_intersection_line.distance(drone_ctr)
-                                        if intersection_distance < min_distance:
-                                            min_distance = intersection_distance
-                                            min_intersection_pt = one_end_of_intersection_line
-
-                    # check whether this "min_distance" is shorter compared to intersection to 4 boundary lines.
-                    distances.append(min_distance)
-                    mini_intersection_list.append(min_intersection_pt)
-                else:
-                    # If no intersections, the distance is the length of the line segment
-                    distances.append(line.length)
+                possible_intersections = surounding_agent_circles_tree.query(line)
+                # Check if the LineString intersects with the circle
+                shortest_dist = math.inf
+                distances.append(line.length)
+                for geom in possible_intersections:
+                    if line.intersects(surounding_agent_circles[geom]):  # have intersection
+                        drone_nearest_flag = 0
+                        # Find the intersection point(s)
+                        intersection = line.intersection(surounding_agent_circles[geom])
+                        # The intersection could be a Point or a MultiPoint
+                        # If it's a MultiPoint, we'll calculate the distance to the first intersection
+                        if intersection.geom_type == 'MultiPoint':
+                            # Calculate distance from the starting point of the LineString to each intersection point
+                            drone_perimeter_point = min(intersection.geoms, key=lambda point: drone_ctr.distance(point))
+                            dist = drone_ctr.distance(drone_perimeter_point)
+                            if dist<shortest_dist:
+                                shortest_dist = dist
+                                distances[-1] = shortest_dist
+                                min_intersection_pt = drone_perimeter_point
+                        elif intersection.geom_type == 'Point':
+                            # Calculate the distance from the start of the LineString to the intersection point
+                            drone_perimeter_point = intersection
+                            dist = drone_ctr.distance(drone_perimeter_point)
+                            if dist < shortest_dist:
+                                shortest_dist = dist
+                                distances[-1] = shortest_dist
+                                min_intersection_pt = drone_perimeter_point
+                        elif intersection.geom_type in ['LineString', 'MultiLineString']:
+                            # The intersection is a line (or part of the line lies on the circle's edge)
+                            # Find the nearest point on this "intersection line" to the start of the original line
+                            drone_perimeter_point = nearest_points(drone_ctr, intersection)[1]
+                            dist = drone_ctr.distance(drone_perimeter_point)
+                            if dist < shortest_dist:
+                                shortest_dist = dist
+                                distances[-1] = shortest_dist
+                                min_intersection_pt = drone_perimeter_point
+                        elif intersection.geom_type == 'GeometryCollection':
+                            # complex_min_dist = math.inf
+                            for geom in intersection:
+                                if geom.geom_type == 'Point':
+                                    dist = drone_ctr.distance(geom)
+                                    if dist < shortest_dist:
+                                        shortest_dist = dist
+                                        distances[-1] = shortest_dist
+                                        drone_perimeter_point = geom
+                                        min_intersection_pt = drone_perimeter_point
+                                elif geom.geom_type == 'LineString':
+                                    nearest_geom_point = nearest_points(drone_ctr, geom)[1]
+                                    dist = drone_ctr.distance(nearest_geom_point)
+                                    if dist < shortest_dist:
+                                        shortest_dist = dist
+                                        distances[-1] = shortest_dist
+                                        drone_perimeter_point = nearest_geom_point
+                                        min_intersection_pt = drone_perimeter_point
+                        else:
+                            raise ValueError(
+                                "Intersection is not a point or multipoint, which is unexpected for LineString and Polygon intersection.")
+                        intersection_point_list.append(drone_perimeter_point)  # include all possible intersection points.
+                        mini_intersection_list.append(min_intersection_pt)  # only include the nearest intersection point to host drone's centre
 
             all_agent_ed_pos.append(ed_points)
             all_agent_intersection_point_list.append(intersection_point_list)
             all_agent_line_collection.append(line_collection)
             all_agent_mini_intersection_list.append(mini_intersection_list)
             self.all_agents[agentIdx].observableSpace = np.array(distances)
+            # if len(self.all_agents[agentIdx].observableSpace) != 18:
+            #     print("check")
+
             # ---- end of radar creation (only detect surrounding obstacles ----
+
+            # -------- normalize radar reading by its maximum range -----
+            # for ea_dist_idx, ea_dist in enumerate(self.all_agents[agentIdx].observableSpace):
+            #     ea_dist = ea_dist / (self.all_agents[agentIdx].detectionRange / 2)
+            #     self.all_agents[agentIdx].observableSpace[ea_dist_idx] = ea_dist
+            # -------- end of normalize radar reading by its maximum range -----
 
             rest_compu_time = time.time()
 
@@ -1250,8 +1284,8 @@ class env_simulator:
 
             norm_pos = self.normalizer.scale_pos([agent.pos[0], agent.pos[1]])
 
-            norm_vel = self.normalizer.norm_scale([agent.vel[0], agent.vel[1]])  # normalization using scale
-            # norm_vel = self.normalizer.nmlz_vel([agent.vel[0], agent.vel[1]])  # normalization using min_max
+            # norm_vel = self.normalizer.norm_scale([agent.vel[0], agent.vel[1]])  # normalization using scale
+            norm_vel = self.normalizer.nmlz_vel([agent.vel[0], agent.vel[1]])  # normalization using min_max
 
             norm_acc = self.normalizer.norm_scale([agent.acc[0], agent.acc[1]])
 
@@ -1322,9 +1356,16 @@ class env_simulator:
 
             other_agents = []
             norm_other_agents = []
+            p1_other_agents = []
+            p1_norm_other_agents = []
+            # filling term for no surrounding agent detected
+            pre_total_possible_conflict = 0  # total possible conflict between the host drone and the current neighbour
+            cur_total_possible_conflict = 0  # total possible conflict between the host drone and the current neighbour
+            tcpa = -10
+            pre_tcpa = -10
+            d_tcpa = -10
+            pre_d_tcpa = -10
             if len(agent.surroundingNeighbor) > 0:  # meaning there is surrounding neighbors around the current agent
-                # possible_conflict = 0  # possible conflict between the host drone and the current neighbour
-                total_possible_conflict = 0  # total possible conflict between the host drone and the current neighbour
                 for other_agentIdx, other_agent in agent.surroundingNeighbor.items():
                     if other_agentIdx != agent_idx:
 
@@ -1339,47 +1380,87 @@ class env_simulator:
                         # norm_neigh_acc = self.normalizer.norm_scale([cur_neigh_ax, cur_neigh_ay])
                         norm_neigh_acc = self.normalizer.nmlz_acc([cur_neigh_ax, cur_neigh_ay])
 
-                        # delta_neigh_gx = self.all_agents[other_agentIdx].goal[-1][0]-self.all_agents[other_agentIdx].pos[0]
-                        # delta_neigh_gy = self.all_agents[other_agentIdx].goal[-1][1]-self.all_agents[other_agentIdx].pos[1]
+                        # calculate current t_cpa/d_cpa
+                        tcpa, d_tcpa, cur_total_possible_conflict = compute_t_cpa_d_cpa_potential_col(self.all_agents[other_agentIdx].pos, agent.pos, self.all_agents[other_agentIdx].vel, agent.vel, self.all_agents[other_agentIdx].protectiveBound, agent.protectiveBound, cur_total_possible_conflict)
+                        # -------------------------------------------------
 
-                        rel_dist_withNeg = -1 * (self.all_agents[other_agentIdx].pos-agent.pos) # relative distance, host-intru
-                        rel_vel = self.all_agents[other_agentIdx].vel-agent.vel  # get relative velocity, host-intru
-                        rel_vel_norm_withSQ = np.square(np.linalg.norm(rel_vel))  # square of norm
-                        tcpa = np.dot(rel_dist_withNeg, rel_vel) / rel_vel_norm_withSQ
-                        d_tcpa = np.linalg.norm(((rel_dist_withNeg * -1) + (rel_vel * tcpa)))
-                        # if rel_vel_norm_withSQ == 0:
-                        #     possible_conflict = 0
-                        # else:
-                        #     if (tcpa <= 1) and (d_tcpa < (self.all_agents[other_agentIdx].protectiveBound + agent.protectiveBound)):
-                        #         possible_conflict = 1
-                        if (tcpa <= 1) and (d_tcpa < (self.all_agents[other_agentIdx].protectiveBound + agent.protectiveBound)):
-                            total_possible_conflict = total_possible_conflict + 1
-                        # surround_agent = np.array([delta_host_x, delta_host_y, cur_neigh_vx, cur_neigh_vy, cur_neigh_ax, cur_neigh_ay, possible_conflict]).reshape(1, actor_dim[-1])
-                        surround_agent = np.array([delta_host_x, delta_host_y, cur_neigh_vx, cur_neigh_vy, cur_neigh_ax, cur_neigh_ay]).reshape(1, actor_dim[-1])
+                        # calculate previous t_cpa/d_cpa
+                        pre_tcpa, pre_d_tcpa, pre_total_possible_conflict = compute_t_cpa_d_cpa_potential_col(
+                            self.all_agents[other_agentIdx].pre_pos, agent.pre_pos, self.all_agents[other_agentIdx].pre_vel,
+                            agent.pre_vel, self.all_agents[other_agentIdx].protectiveBound, agent.protectiveBound,
+                            pre_total_possible_conflict)
+                        # ---------------------------
+                        p1_surround_agent = np.array([delta_host_x, delta_host_y, cur_neigh_vx, cur_neigh_vy])
+                        p1_norm_surround_agent = np.concatenate([norm_delta_pos, norm_neigh_vel], axis=0)
 
-                        # norm_surround_agent = np.concatenate([norm_delta_pos, norm_neigh_vel, norm_neigh_acc, np.array([possible_conflict])], axis=0).reshape(1, actor_dim[-1])
-                        norm_surround_agent = np.concatenate([norm_delta_pos, norm_neigh_vel, norm_neigh_acc], axis=0).reshape(1, actor_dim[-1])
+                        surround_agent = np.array([[other_agent[0] - agent.pos[0],
+                                                   other_agent[1] - agent.pos[1],
+                                                   other_agent[-2] - other_agent[0],
+                                                   other_agent[-1] - other_agent[1],
+                                                   other_agent[2], other_agent[3]]])
+
+                        norm_pos_diff = self.normalizer.nmlz_pos_diff(
+                            [other_agent[0] - agent.pos[0], other_agent[1] - agent.pos[1]])
+
+                        norm_G_diff = self.normalizer.nmlz_pos_diff(
+                            [other_agent[-2] - other_agent[0], other_agent[-1] - other_agent[1]])
+
+                        norm_vel = tuple(self.normalizer.nmlz_vel([other_agent[2], other_agent[3]]))
+                        # norm_vel = self.normalizer.nmlz_vel([other_agent[2], other_agent[3]])
+                        norm_surround_agent = np.array([list(norm_pos_diff + norm_G_diff + norm_vel)])
 
                         other_agents.append(surround_agent)
                         norm_other_agents.append(norm_surround_agent)
-
-                # make list of 1x7 array into a nx7 array, where n is the original length of the list
-                other_agents = np.array(other_agents).squeeze(1)
-                norm_other_agents = np.array(norm_other_agents).squeeze(1)
+                        p1_other_agents.append(p1_surround_agent)
+                        p1_norm_other_agents.append(p1_norm_surround_agent)
 
                 overall_state_p3.append(other_agents)
                 norm_overall_state_p3.append(norm_other_agents)
+            else:
+                overall_state_p3.append([np.zeros((1, 6))])
+                norm_overall_state_p3.append([np.zeros((1, 6))])
 
-            else:   # for agents that don't have neighbours we populate with zeros.
-                total_possible_conflict = 0  # total possible conflict between the host drone and the current neighbour
-                overall_state_p3.append(np.zeros((1, actor_dim[-1])))
-                norm_overall_state_p3.append(np.zeros((1, actor_dim[-1])))
+            max_neigh_count = len(self.all_agents) - 1
+            filling_required = max_neigh_count - len(agent.surroundingNeighbor)
+            # filling_value = -2
+            filling_value = 0
+            filling_dim = 4
+            for _ in range(filling_required):
+                p1_other_agents.append(np.array([filling_value]*filling_dim))
+                p1_norm_other_agents.append(np.array([filling_value]*filling_dim))
+            all_other_agents = np.concatenate(p1_other_agents)
+            norm_all_other_agents = np.concatenate(p1_norm_other_agents)
+            # agent_own = np.array([agent.pos[0], agent.pos[1], agent.vel[0], agent.vel[1], x_error, y_error,
+            #                       agent.goal[-1][0]-agent.pos[0], agent.goal[-1][1]-agent.pos[1],
+            #                       tcpa, d_tcpa, pre_total_possible_conflict, cur_total_possible_conflict])
 
-            # populate agent states after account for the surrounding agents
-            agent_own = np.array([agent.pos[0], agent.pos[1], agent.vel[0], agent.vel[1], x_error, y_error,
-                                  agent.goal[-1][0] - agent.pos[0], agent.goal[-1][1] - agent.pos[1]])
+            # self_obs = np.array([agent.pos[0], agent.pos[1], agent.vel[0], agent.vel[1], x_error, y_error,
+            #                       agent.goal[-1][0]-agent.pos[0], agent.goal[-1][1]-agent.pos[1],
+            #                       pre_total_possible_conflict, cur_total_possible_conflict])
 
-            norm_agent_own = np.concatenate([norm_pos, norm_vel, norm_cross, norm_deltaG], axis=0)
+            self_obs = np.array([agent.pos[0], agent.pos[1], agent.vel[0], agent.vel[1],
+                                  agent.goal[-1][0]-agent.pos[0], agent.goal[-1][1]-agent.pos[1],
+                                  pre_total_possible_conflict, cur_total_possible_conflict])
+
+            # self_obs = np.array([agent.vel[0], agent.vel[1],
+            #                       agent.goal[-1][0]-agent.pos[0], agent.goal[-1][1]-agent.pos[1],
+            #                       pre_total_possible_conflict, cur_total_possible_conflict])
+
+            agent_own = np.concatenate((self_obs, all_other_agents), axis=0)
+
+            # norm_agent_own = np.concatenate([norm_pos, norm_vel, norm_cross, norm_deltaG,
+            #                                  (tcpa, d_tcpa, pre_total_possible_conflict, cur_total_possible_conflict)], axis=0)
+
+            # norm_self_obs = np.concatenate([norm_pos, norm_vel, norm_cross, norm_deltaG,
+            #                                  (pre_total_possible_conflict, cur_total_possible_conflict)], axis=0)
+
+            norm_self_obs = np.concatenate([norm_pos, norm_vel, norm_deltaG,
+                                             (pre_total_possible_conflict, cur_total_possible_conflict)], axis=0)
+
+            # norm_self_obs = np.concatenate([norm_vel, norm_deltaG,
+            #                                  (pre_total_possible_conflict, cur_total_possible_conflict)], axis=0)
+
+            norm_agent_own = np.concatenate((norm_self_obs, norm_all_other_agents), axis=0)
 
             overall_state_p1.append(agent_own)
             overall_state_p2.append(agent.observableSpace)
@@ -2015,8 +2096,8 @@ class env_simulator:
         # return reward, done, check_goal, step_reward_record, agent_filled
         return reward, done, check_goal, step_reward_record
 
-    def ss_reward(self, current_ts, step_reward_record, eps_status_holder, step_collision_record, xy, full_observable_critic_flag):
-        bound_building_check = [False] * 3
+    def ss_reward(self, current_ts, step_reward_record, eps_status_holder, step_collision_record, xy, full_observable_critic_flag, args):
+        bound_building_check = [False] * 4
         reward, done = [], []
         agent_to_remove = []
         one_step_reward = []
@@ -2024,7 +2105,8 @@ class env_simulator:
         # previous_ever_reached = [agent.reach_target for agent in self.all_agents.values()]
         reward_record_idx = 0  # this is used as a list index, increase with for loop. No need go with agent index, this index is also shared by done checking
         # crash_penalty_wall = 5
-        crash_penalty_wall = 15
+        # crash_penalty_wall = 15
+        crash_penalty_wall = 20
         # crash_penalty_wall = 100
         big_crash_penalty_wall = 200
         crash_penalty_drone = 1
@@ -2089,9 +2171,37 @@ class env_simulator:
 
             # loop through neighbors from current time step, and search for the nearest neighbour and its neigh_keys
             nearest_neigh_key = None
-            # shortest_neigh_dist = drone_obj.detectionRange / 2
+            immediate_collision_neigh_key = None
+            immediate_tcpa = math.inf
+            immediate_d_tcpa = math.inf
             shortest_neigh_dist = math.inf
+            cur_total_possible_conflict = 0
+            pre_total_possible_conflict = 0
+            all_neigh_dist = []
             for neigh_keys in self.all_agents[drone_idx].surroundingNeighbor:
+                # calculate current t_cpa/d_cpa
+                tcpa, d_tcpa, cur_total_possible_conflict = compute_t_cpa_d_cpa_potential_col(
+                    self.all_agents[neigh_keys].pos, drone_obj.pos, self.all_agents[neigh_keys].vel, drone_obj.vel,
+                    self.all_agents[neigh_keys].protectiveBound, drone_obj.protectiveBound, cur_total_possible_conflict)
+                # calculate previous t_cpa/d_cpa
+                pre_tcpa, pre_d_tcpa, pre_total_possible_conflict = compute_t_cpa_d_cpa_potential_col(
+                    self.all_agents[neigh_keys].pre_pos, drone_obj.pre_pos, self.all_agents[neigh_keys].pre_vel,
+                    drone_obj.pre_vel, self.all_agents[neigh_keys].protectiveBound, drone_obj.protectiveBound,
+                    pre_total_possible_conflict)
+
+                # find the neigh that has the highest collision probability at current step
+                if tcpa >= 0 and tcpa < immediate_tcpa:  # tcpa -> +ve
+                    immediate_tcpa = tcpa
+                    immediate_d_tcpa = d_tcpa
+                    immediate_collision_neigh_key = neigh_keys
+                elif tcpa == -10:  # tcpa equals to special number, -10, meaning two drone relative velocity equals to 0
+                    if d_tcpa < immediate_tcpa: # if currently relative velocity equals to 0, we move on to check their current relative distance
+                        immediate_tcpa = tcpa  # indicate current neigh has a 0 relative velocity
+                        immediate_d_tcpa = d_tcpa
+                        immediate_collision_neigh_key = neigh_keys
+                else:  # tcpa -> -ve, don't have collision risk, no need to update "immediate_tcpa"
+                    pass
+
                 # ---- start of make nei invis when nei has reached their goal ----
                 # check if this drone reached their goal yet
                 cur_nei_circle = Point(self.all_agents[neigh_keys].pos[0],
@@ -2111,6 +2221,7 @@ class env_simulator:
                 # get distance from host to all the surrounding vehicles
                 diff_dist_vec = drone_obj.pos - self.all_agents[neigh_keys].pos  # host pos vector - intruder pos vector
                 euclidean_dist_diff = np.linalg.norm(diff_dist_vec)
+                all_neigh_dist.append(euclidean_dist_diff)
                 if euclidean_dist_diff < shortest_neigh_dist:
                     shortest_neigh_dist = euclidean_dist_diff
                     nearest_neigh_key = neigh_keys
@@ -2189,8 +2300,8 @@ class env_simulator:
             # ------------- pre-processed condition for a normal step -----------------
             # rew = 3
             rew = 0
-            # dist_to_goal_coeff = 1
-            dist_to_goal_coeff = 3
+            dist_to_goal_coeff = 1
+            # dist_to_goal_coeff = 3
             # dist_to_goal_coeff = 1
             # dist_to_goal_coeff = 0
             # dist_to_goal_coeff = 2
@@ -2199,14 +2310,16 @@ class env_simulator:
             tx_norm, ty_norm = self.normalizer.nmlz_pos(drone_obj.goal[-1])
             # dist_to_goal = dist_to_goal_coeff * math.sqrt(((x_norm-tx_norm)**2 + (y_norm-ty_norm)**2))  # 0~2.828 at each step
 
-            # before_dist_hg = np.linalg.norm(drone_obj.pre_pos - drone_obj.goal[-1])  # distance to goal before action
-            before_dist_hg = np.linalg.norm(drone_obj.pre_pos - next_wp)  # distance to goal before action
-            # after_dist_hg = np.linalg.norm(drone_obj.pos - drone_obj.goal[-1])  # distance to goal after action
-            after_dist_hg = np.linalg.norm(drone_obj.pos - next_wp)  # distance to goal after action
+            before_dist_hg = np.linalg.norm(drone_obj.pre_pos - drone_obj.goal[-1])  # distance to goal before action
+            # before_dist_hg = np.linalg.norm(drone_obj.pre_pos - next_wp)  # distance to goal before action
+            after_dist_hg = np.linalg.norm(drone_obj.pos - drone_obj.goal[-1])  # distance to goal after action
+            # after_dist_hg = np.linalg.norm(drone_obj.pos - next_wp)  # distance to goal after action
             # dist_to_goal = dist_to_goal_coeff * (before_dist_hg - after_dist_hg)  # (before_dist_hg - after_dist_hg) -max_vel - max_vel
+            dist_to_goal = dist_to_goal_coeff * (before_dist_hg - after_dist_hg)  # (before_dist_hg - after_dist_hg) -max_vel - max_vel
+            dist_to_goal = dist_to_goal / drone_obj.maxSpeed  # perform a normalization
 
-            dist_left = total_length_to_end_of_line(drone_obj.pos, drone_obj.ref_line)
-            dist_to_goal = dist_to_goal_coeff * (1 - (dist_left / drone_obj.ref_line.length))  # v1
+            # dist_left = total_length_to_end_of_line(drone_obj.pos, drone_obj.ref_line)
+            # dist_to_goal = dist_to_goal_coeff * (1 - (dist_left / drone_obj.ref_line.length))  # v1
 
             # ---- v2 leading to goal reward, based on compute_projected_velocity ---
             # projected_velocity = compute_projected_velocity(drone_obj.vel, drone_obj.ref_line, Point(drone_obj.pos))
@@ -2243,10 +2356,10 @@ class env_simulator:
             # coef_ref_line = 0.5
             # coef_ref_line = -10
             # coef_ref_line = 3
-            coef_ref_line = 1
+            # coef_ref_line = 1
             # coef_ref_line = 2
             # coef_ref_line = 1.5
-            # coef_ref_line = 0
+            coef_ref_line = 0
             cross_err_distance, x_error, y_error = self.cross_track_error(host_current_point, drone_obj.ref_line)  # deviation from the reference line, cross track error
             norm_cross_track_deviation_x = x_error * self.normalizer.x_scale
             norm_cross_track_deviation_y = y_error * self.normalizer.y_scale
@@ -2263,26 +2376,57 @@ class env_simulator:
                 # dist_to_ref_line = -coef_ref_line*3
                 # dist_to_ref_line = -coef_ref_line*0
 
+            # ------- penalty for surrounding agents as a whole -----
+            surrounding_collision_penalty = 0
+            if pre_total_possible_conflict < cur_total_possible_conflict:
+                surrounding_collision_penalty = 2
+            # ------- end of reward for surrounding agents as a whole ----
+
             # ----- start of near drone penalty ----------------
-            near_drone_penalty_coef = 10
+            # near_drone_penalty_coef = 10
+            # # near_drone_penalty_coef = 5
+            # # near_drone_penalty_coef = 1
+            # # near_drone_penalty_coef = 3
+            # # near_drone_penalty_coef = 0
+            # # dist_to_penalty_upperbound = 6
+            # dist_to_penalty_upperbound = 10
+            # dist_to_penalty_lowerbound = 2.5
+            # # assume when at lowerbound, y = 1
+            # c_drone = 1 + (dist_to_penalty_lowerbound / (dist_to_penalty_upperbound - dist_to_penalty_lowerbound))
+            # m_drone = (0 - 1) / (dist_to_penalty_upperbound - dist_to_penalty_lowerbound)
+            # if nearest_neigh_key is not None:
+            #     if shortest_neigh_dist >= dist_to_penalty_lowerbound and shortest_neigh_dist <= dist_to_penalty_upperbound:
+            #         near_drone_penalty = near_drone_penalty_coef * (m_drone * shortest_neigh_dist + c_drone)
+            #     else:
+            #         near_drone_penalty = near_drone_penalty_coef * 0
+            # else:
+            #     near_drone_penalty = near_drone_penalty_coef * 0
+            # -----end of near drone penalty ----------------
+
+            # ----- start of SUM near drone penalty ----------------
+            # near_drone_penalty_coef = 10
+            near_drone_penalty_coef = 1
             # near_drone_penalty_coef = 5
             # near_drone_penalty_coef = 1
             # near_drone_penalty_coef = 3
             # near_drone_penalty_coef = 0
             # dist_to_penalty_upperbound = 6
-            dist_to_penalty_upperbound = 10
+            # dist_to_penalty_upperbound = 10
+            dist_to_penalty_upperbound = 20
             dist_to_penalty_lowerbound = 2.5
             # assume when at lowerbound, y = 1
+            near_drone_penalty = 0  # initialize
             c_drone = 1 + (dist_to_penalty_lowerbound / (dist_to_penalty_upperbound - dist_to_penalty_lowerbound))
             m_drone = (0 - 1) / (dist_to_penalty_upperbound - dist_to_penalty_lowerbound)
-            if nearest_neigh_key is not None:
-                if shortest_neigh_dist >= dist_to_penalty_lowerbound and shortest_neigh_dist <= dist_to_penalty_upperbound:
-                    near_drone_penalty = near_drone_penalty_coef * (m_drone * shortest_neigh_dist + c_drone)
-                else:
-                    near_drone_penalty = near_drone_penalty_coef * 0
+            if len(all_neigh_dist) == 0:
+                near_drone_penalty = near_drone_penalty + near_drone_penalty_coef * 0
             else:
-                near_drone_penalty = near_drone_penalty_coef * 0
-            # -----end of near drone penalty ----------------
+                for individual_nei_dist in all_neigh_dist:
+                    if individual_nei_dist >= dist_to_penalty_lowerbound and individual_nei_dist <= dist_to_penalty_upperbound:
+                        near_drone_penalty = near_drone_penalty + (near_drone_penalty_coef * (m_drone * shortest_neigh_dist + c_drone))
+                    else:
+                        near_drone_penalty = near_drone_penalty + near_drone_penalty_coef * 0
+            # -----end of near SUM drone penalty ----------------
 
             # small_step_penalty_coef = 5
             small_step_penalty_coef = 0
@@ -2317,8 +2461,8 @@ class env_simulator:
 
             # the distance is based on the minimum of the detected distance to surrounding buildings.
             # near_building_penalty_coef = 1
-            near_building_penalty_coef = 3
-            # near_building_penalty_coef = 0
+            # near_building_penalty_coef = 3
+            near_building_penalty_coef = 0
             # near_building_penalty = near_building_penalty_coef*((1-(1/(1+math.exp(turningPtConst-min_dist))))*
             #
             #                                                     (1-(min_dist/turningPtConst)**2))  # value from 0 ~ 1.
@@ -2362,13 +2506,13 @@ class env_simulator:
                 # done.append(False)
                 reward.append(np.array(rew))
             # # crash into buildings or crash with other neighbors
-            elif collide_building == 1:
-                # done.append(True)
-                done.append(True)
-                bound_building_check[1] = True
-                rew = rew - crash_penalty_wall - small_step_penalty - near_building_penalty
-                # rew = rew - big_crash_penalty_wall
-                reward.append(np.array(rew))
+            # elif collide_building == 1:
+            #     # done.append(True)
+            #     done.append(True)
+            #     bound_building_check[1] = True
+            #     rew = rew - crash_penalty_wall - small_step_penalty - near_building_penalty
+            #     # rew = rew - big_crash_penalty_wall
+            #     reward.append(np.array(rew))
             # # ---------- Termination only during collision to wall on the 3rd time -----------------------
             # elif drone_obj.collide_wall_count >0:
             #     if drone_obj.collide_wall_count == 1:
@@ -2390,6 +2534,9 @@ class env_simulator:
                 bound_building_check[2] = True
                 rew = rew - crash_penalty_wall - small_step_penalty - near_drone_penalty
                 reward.append(np.array(rew))
+                # check if the collision is due to the nearest drone.
+                if collision_drones[-1] == nearest_neigh_key:
+                    bound_building_check[3] = True
             elif not goal_cur_intru_intersect.is_empty:  # reached goal?
                 # --------------- with way point -----------------------
                 check_goal[drone_idx] = True
@@ -2421,7 +2568,8 @@ class env_simulator:
                 # else:
                 #     rew = rew + move_after_reach
                 rew = rew + dist_to_ref_line + dist_to_goal - \
-                      small_step_penalty + near_goal_reward - near_building_penalty + seg_reward - survival_penalty - near_drone_penalty
+                      small_step_penalty + near_goal_reward - near_building_penalty + seg_reward - \
+                      survival_penalty - near_drone_penalty - surrounding_collision_penalty
                 # we remove the above termination condition
                 done.append(False)
                 step_reward = np.array(rew)

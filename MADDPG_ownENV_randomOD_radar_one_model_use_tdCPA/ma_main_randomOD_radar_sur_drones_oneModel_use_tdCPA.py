@@ -116,8 +116,8 @@ def main(args):
         # actor_dim = [6, 18, 6]  # dim host, maximum dim grid, dim other drones
         # actor_dim = [8, 18, 6]  # dim host, maximum dim grid, dim other drones
         # actor_dim = [10, 18, 6]  # dim host, maximum dim grid, dim other drones
-        actor_dim = [18, 18, 6]  # dim host, maximum dim grid, dim other drones
-        # actor_dim = [16, 18, 6]  # dim host, maximum dim grid, dim other drones
+        # actor_dim = [18, 18, 6]  # dim host, maximum dim grid, dim other drones
+        actor_dim = [16, 18, 6]  # dim host, maximum dim grid, dim other drones
         # actor_dim = [14, 18, 6]  # dim host, maximum dim grid, dim other drones
         # actor_dim = [11, 18, 6]  # dim host, maximum dim grid, dim other drones
         # actor_dim = [12, 18, 6]  # dim host, maximum dim grid, dim other drones
@@ -125,8 +125,8 @@ def main(args):
         # critic_dim = [6, 18, 6]
         # critic_dim = [8, 18, 6]
         # critic_dim = [10, 18, 6]
-        critic_dim = [18, 18, 6]
-        # critic_dim = [16, 18, 6]
+        # critic_dim = [18, 18, 6]
+        critic_dim = [16, 18, 6]
         # critic_dim = [14, 18, 6]
         # critic_dim = [11, 18, 6]
         # critic_dim = [12, 18, 6]
@@ -154,8 +154,8 @@ def main(args):
     ini_Nsigma = largest_Nsigma
 
     # max_spd = 15
-    max_spd = 10
-    # max_spd = 5
+    # max_spd = 10
+    max_spd = 5
     env.create_world(total_agentNum, n_actions, GAMMA, TAU, UPDATE_EVERY, largest_Nsigma, smallest_Nsigma, ini_Nsigma, max_xy, max_spd, acc_range)
 
     # --------- my own -----------
@@ -191,6 +191,8 @@ def main(args):
     all_steps_used = 0
     crash_to_bound = 0
     crash_to_building = 0
+    crash_to_drone = 0
+    crash_due_to_nearest = 0
     episode_goal_found = [False] * n_agents
     dummy_xy = (None, None)  # this is a dummy tuple of xy, is not useful during normal training, it is only useful when generating reward map
     if args.mode == "eval":
@@ -198,11 +200,11 @@ def main(args):
         # args.max_episodes = 5  # only evaluate one episode during evaluation mode.
         args.max_episodes = 100
         # args.max_episodes = 250
-        # args.max_episodes = 20
-        pre_fix = r'D:\MADDPG_2nd_jp\120324_10_59_00\interval_record_eps'
+        # args.max_episodes = 25
+        pre_fix = r'D:\MADDPG_2nd_jp\130324_17_24_10\interval_record_eps'
         # episode_to_check = str(10000)
         # pre_fix = r'F:\OneDrive_NTU_PhD\OneDrive - Nanyang Technological University\DDPG_2ndJournal\dim_8_transfer_learning'
-        episode_to_check = str(32000)
+        episode_to_check = str(24000)
         # using one model, so we load all the same
         load_filepath_0 = pre_fix + '\episode_' + episode_to_check + '_actor_net.pth'
         load_filepath_1 = pre_fix + '\episode_' + episode_to_check + '_actor_net.pth'
@@ -581,6 +583,64 @@ def main(args):
                                 # print(" agent %s, a_loss %3.2f c_loss %3.2f" % (idx, a_loss[idx].item(), c_loss[idx].item()))
                                 wandb.log({'agent' + str(idx) + 'actor_loss': float(a_loss[idx].item()),
                                            'agent' + str(idx) + 'critic_loss': float(c_loss[idx].item())}, step=episode)
+                    if True in done_aft_action and step < args.episode_length:
+                        collision_count = collision_count + 1
+                        if bound_building_check[0] == True:  # collide due to boundary
+                            crash_to_bound = crash_to_bound + 1
+                        elif bound_building_check[1] == True:  # collide due to building
+                            crash_to_building = crash_to_building + 1
+                        elif bound_building_check[2] == True:  # collide due to drones
+                            crash_to_drone = crash_to_drone + 1
+                            # save_gif(env, trajectory_eachPlay, pre_fix, episode_to_check, episode)
+                            if bound_building_check[3] == True:
+                                crash_due_to_nearest = crash_due_to_nearest + 1
+                        else:
+                            pass
+                    else:  # no collision -> no True in done_aft_action, and all steps used
+                        all_steps_used = all_steps_used + 1
+
+                    if True in episode_goal_found:
+                        # Count the number of reach cases
+                        num_true = sum(episode_goal_found)
+                        # Determine the number of True values and print the appropriate response
+                        if num_true == 1:
+                            # print("There is one True value in the list.")
+                            one_drone_reach = one_drone_reach + 1
+                        elif num_true == 2:
+                            # print("There are two True values in the list.")
+                            two_drone_reach = two_drone_reach + 1
+                        else:  # all 3 reaches goal
+                            all_drone_reach = all_drone_reach + 1
+                            # print("There are no True values in the list.")
+                    if episode % 100 == 0:  # every 100 episode we record the training performance (without evaluation)
+
+                        print("collision count for last 100 episode is {}, {}%".format(collision_count,
+                                                                        round(collision_count / 100 * 100,
+                                                                              2)))
+                        print("Collision due to bound is {}".format(crash_to_bound))
+                        print("Collision due to building is {}".format(crash_to_building))
+                        print("Collision due to drone is {}, among them, caused by nearest drone is {}".format(
+                            crash_to_drone, crash_due_to_nearest))
+                        print("all steps used count is {}, {}%".format(all_steps_used,
+                                                                       round(all_steps_used / 100 * 100,
+                                                                             2)))
+                        print("One goal reached count is {}, {}%".format(one_drone_reach, round(
+                            one_drone_reach / args.max_episodes * 100, 2)))
+                        print("Two goal reached count is {}, {}%".format(two_drone_reach, round(
+                            two_drone_reach / args.max_episodes * 100, 2)))
+                        print("All goal reached count is {}, {}%".format(all_drone_reach, round(
+                            all_drone_reach / args.max_episodes * 100, 2)))
+
+                        collision_count = 0
+                        one_drone_reach = 0
+                        two_drone_reach = 0
+                        all_drone_reach = 0
+                        all_steps_used = 0
+                        crash_to_bound = 0
+                        crash_to_building = 0
+                        crash_to_drone = 0
+                        crash_due_to_nearest = 0
+
                     if episode % args.save_interval == 0 and args.mode == "train":
                         save_model = time.time()
                         # save the models at a predefined interval
@@ -794,6 +854,11 @@ def main(args):
                             crash_to_bound = crash_to_bound + 1
                         elif bound_building_check[1] == True:  # collide due to building
                             crash_to_building = crash_to_building + 1
+                        elif bound_building_check[2] == True:  # collide due to drones
+                            crash_to_drone = crash_to_drone + 1
+                            # save_gif(env, trajectory_eachPlay, pre_fix, episode_to_check, episode)
+                            if bound_building_check[3] == True:
+                                crash_due_to_nearest = crash_due_to_nearest + 1
                         else:
                             pass
 
@@ -838,6 +903,7 @@ def main(args):
         print("total collision count is {}, {}%".format(collision_count, round(collision_count/args.max_episodes*100,2)))
         print("Collision due to bound is {}".format(crash_to_bound))
         print("Collision due to building is {}".format(crash_to_building))
+        print("Collision due to drone is {}, among them, caused by nearest drone is {}".format(crash_to_drone, crash_due_to_nearest))
         print("all steps used count is {}, {}%".format(all_steps_used, round(all_steps_used/args.max_episodes*100,2)))
         print("One goal reached count is {}, {}%".format(one_drone_reach, round(one_drone_reach/args.max_episodes*100,2)))
         print("Two goal reached count is {}, {}%".format(two_drone_reach, round(two_drone_reach/args.max_episodes*100,2)))

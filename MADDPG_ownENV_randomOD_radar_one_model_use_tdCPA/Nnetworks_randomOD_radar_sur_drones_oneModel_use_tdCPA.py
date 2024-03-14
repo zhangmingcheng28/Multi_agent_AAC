@@ -158,7 +158,8 @@ class ActorNetwork_TwoPortion(nn.Module):
         # ignore radar
         self.own_fc = nn.Sequential(nn.Linear(actor_dim[0], 128), nn.ReLU())
         self.hidden = nn.Sequential(nn.Linear(128, 128), nn.ReLU())
-        self.act_out = nn.Sequential(nn.Linear(128, n_actions), nn.Tanh())
+        # self.act_out = nn.Sequential(nn.Linear(128, n_actions), nn.Tanh())
+        self.act_out = nn.Sequential(nn.Linear(128, n_actions))
 
     def forward(self, cur_state):
         # own_obs = self.own_fc(cur_state[0])
