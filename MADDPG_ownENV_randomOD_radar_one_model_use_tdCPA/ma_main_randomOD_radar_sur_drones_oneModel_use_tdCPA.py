@@ -41,7 +41,7 @@ else:
     device = torch.device('cpu')
     print('Using CPU')
 
-# device = torch.device('cpu')
+device = torch.device('cpu')
 #
 
 def main(args):
@@ -98,8 +98,9 @@ def main(args):
     eps_start, eps_end, eps_period, eps, env, \
     agent_grid_obs, BUFFER_SIZE, BATCH_SIZE, GAMMA, TAU, UPDATE_EVERY, seed_used, max_xy = initialize_parameters()
     # total_agentNum = len(pd.read_excel(env.agentConfig))
-    total_agentNum = 3
-    # total_agentNum = 8
+    # total_agentNum = 3
+    # total_agentNum = 5
+    total_agentNum = 8
     # max_nei_num = 5
     # create world
     # actor_dim = [6+(total_agentNum-1)*2, 10, 6]  # dim host, maximum dim grid, dim other drones
@@ -117,7 +118,9 @@ def main(args):
         # actor_dim = [8, 18, 6]  # dim host, maximum dim grid, dim other drones
         # actor_dim = [10, 18, 6]  # dim host, maximum dim grid, dim other drones
         # actor_dim = [18, 18, 6]  # dim host, maximum dim grid, dim other drones
-        actor_dim = [16, 18, 6]  # dim host, maximum dim grid, dim other drones
+        # actor_dim = [16, 18, 6]  # dim host, maximum dim grid, dim other drones
+        # actor_dim = [8+(total_agentNum-1)*4, 18, 6]  # dim host, maximum dim grid, dim other drones
+        actor_dim = [6+(total_agentNum-1)*4, 18, 6]  # dim host, maximum dim grid, dim other drones
         # actor_dim = [14, 18, 6]  # dim host, maximum dim grid, dim other drones
         # actor_dim = [11, 18, 6]  # dim host, maximum dim grid, dim other drones
         # actor_dim = [12, 18, 6]  # dim host, maximum dim grid, dim other drones
@@ -126,7 +129,9 @@ def main(args):
         # critic_dim = [8, 18, 6]
         # critic_dim = [10, 18, 6]
         # critic_dim = [18, 18, 6]
-        critic_dim = [16, 18, 6]
+        # critic_dim = [16, 18, 6]
+        # critic_dim = [8+(total_agentNum-1)*4, 18, 6]  # dim host, maximum dim grid, dim other drones
+        critic_dim = [6+(total_agentNum-1)*4, 18, 6]  # dim host, maximum dim grid, dim other drones
         # critic_dim = [14, 18, 6]
         # critic_dim = [11, 18, 6]
         # critic_dim = [12, 18, 6]
@@ -142,6 +147,7 @@ def main(args):
     # critic_dim = [16, 9, 6]
     n_actions = 2
     acc_max = 8
+    # acc_max = 30
     acc_range = [-acc_max, acc_max]  # NOTE this we need to change
 
     actorNet_lr = 0.001
@@ -201,10 +207,10 @@ def main(args):
         args.max_episodes = 100
         # args.max_episodes = 250
         # args.max_episodes = 25
-        pre_fix = r'D:\MADDPG_2nd_jp\130324_17_24_10\interval_record_eps'
+        pre_fix = r'D:\MADDPG_2nd_jp\160324_20_00_46\interval_record_eps'
         # episode_to_check = str(10000)
         # pre_fix = r'F:\OneDrive_NTU_PhD\OneDrive - Nanyang Technological University\DDPG_2ndJournal\dim_8_transfer_learning'
-        episode_to_check = str(24000)
+        episode_to_check = str(12000)
         # using one model, so we load all the same
         load_filepath_0 = pre_fix + '\episode_' + episode_to_check + '_actor_net.pth'
         load_filepath_1 = pre_fix + '\episode_' + episode_to_check + '_actor_net.pth'
@@ -224,6 +230,7 @@ def main(args):
             model.load_model([load_filepath_0, load_filepath_1, load_filepath_2])
             print("training start with transfer learning (pre-loaded actor model)")
     # while episode < args.max_episodes:
+    steps_before_collide = []
     while episode < args.max_episodes:  # start of an episode
 
         # ------------ my own env.reset() ------------ #
@@ -672,6 +679,7 @@ def main(args):
                     #
                     break  # this is to break out from "while True:", which is one play
             elif args.mode == "eval":
+
                 step_reward_record = [None] * n_agents
                 # show_step_by_step = True
                 show_step_by_step = False
@@ -850,6 +858,8 @@ def main(args):
                             save_gif(env, trajectory_eachPlay, pre_fix, episode_to_check, episode)
                             saved_gif = True  # once current episode saved, no need to save one more time.
                         collision_count = collision_count + 1
+                        # print("Episode {}, {} steps before collision".format(episode, step))
+                        steps_before_collide.append(step)
                         if bound_building_check[0] == True:  # collide due to boundary
                             crash_to_bound = crash_to_bound + 1
                         elif bound_building_check[1] == True:  # collide due to building
@@ -909,6 +919,13 @@ def main(args):
         print("Two goal reached count is {}, {}%".format(two_drone_reach, round(two_drone_reach/args.max_episodes*100,2)))
         print("All goal reached count is {}, {}%".format(all_drone_reach, round(all_drone_reach/args.max_episodes*100,2)))
     print(f'training finishes, time spent: {datetime.timedelta(seconds=int(time.time() - training_start_time))}')
+    os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
+    matplotlib.use('TkAgg')
+    plot2 = plt.plot(steps_before_collide)
+    plt.grid(linestyle='-.')
+    plt.xlabel('episodes')
+    plt.ylabel('steps taken')
+    plt.show()
     if use_wanDB:
         wandb.finish()
 
