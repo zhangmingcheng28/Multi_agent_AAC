@@ -1357,6 +1357,9 @@ class env_simulator:
             norm_other_agents = []
             p1_other_agents = []
             p1_norm_other_agents = []
+            # p2_just_euclidean_delta = []
+            p2_just_neighbour = []
+            p2_norm_just_neighbour = []
             # filling term for no surrounding agent detected
             pre_total_possible_conflict = 0  # total possible conflict between the host drone and the current neighbour
             cur_total_possible_conflict = 0  # total possible conflict between the host drone and the current neighbour
@@ -1370,6 +1373,7 @@ class env_simulator:
 
                         delta_host_x = self.all_agents[other_agentIdx].pos[0] - agent.pos[0]
                         delta_host_y = self.all_agents[other_agentIdx].pos[1] - agent.pos[1]
+                        euclidean_dist = np.linalg.norm(self.all_agents[other_agentIdx].pos - agent.pos)
                         norm_delta_pos = self.normalizer.scale_pos([delta_host_x, delta_host_y])
                         cur_neigh_vx = self.all_agents[other_agentIdx].vel[0]
                         cur_neigh_vy = self.all_agents[other_agentIdx].vel[1]
@@ -1389,8 +1393,10 @@ class env_simulator:
                             agent.pre_vel, self.all_agents[other_agentIdx].protectiveBound, agent.protectiveBound,
                             pre_total_possible_conflict)
                         # ---------------------------
-                        p1_surround_agent = np.array([delta_host_x, delta_host_y, cur_neigh_vx, cur_neigh_vy])
-                        p1_norm_surround_agent = np.concatenate([norm_delta_pos, norm_neigh_vel], axis=0)
+                        # p1_surround_agent = np.array([delta_host_x, delta_host_y, cur_neigh_vx, cur_neigh_vy])
+                        p1_surround_agent = np.array([delta_host_x, delta_host_y, euclidean_dist, cur_neigh_vx, cur_neigh_vy])
+                        # p1_norm_surround_agent = np.concatenate([norm_delta_pos, norm_neigh_vel], axis=0)
+                        p1_norm_surround_agent = np.concatenate([norm_delta_pos, np.array([euclidean_dist]), norm_neigh_vel], axis=0)
 
                         surround_agent = np.array([[other_agent[0] - agent.pos[0],
                                                    other_agent[1] - agent.pos[1],
@@ -1412,6 +1418,9 @@ class env_simulator:
                         norm_other_agents.append(norm_surround_agent)
                         p1_other_agents.append(p1_surround_agent)
                         p1_norm_other_agents.append(p1_norm_surround_agent)
+                        # p2_just_euclidean_delta.append(euclidean_dist)
+                        p2_just_neighbour.append(p1_surround_agent)
+                        p2_norm_just_neighbour.append(p1_norm_surround_agent)
 
                 overall_state_p3.append(other_agents)
                 norm_overall_state_p3.append(norm_other_agents)
@@ -1423,12 +1432,17 @@ class env_simulator:
             filling_required = max_neigh_count - len(agent.surroundingNeighbor)
             # filling_value = -2
             filling_value = 0
+            # filling_dim = 5
             filling_dim = 4
             for _ in range(filling_required):
                 p1_other_agents.append(np.array([filling_value]*filling_dim))
                 p1_norm_other_agents.append(np.array([filling_value]*filling_dim))
             all_other_agents = np.concatenate(p1_other_agents)
             norm_all_other_agents = np.concatenate(p1_norm_other_agents)
+
+            all_neigh_agents = np.concatenate(p2_just_neighbour)
+            norm_all_neigh_agents = np.concatenate(p2_norm_just_neighbour)
+
             # agent_own = np.array([agent.pos[0], agent.pos[1], agent.vel[0], agent.vel[1], x_error, y_error,
             #                       agent.goal[-1][0]-agent.pos[0], agent.goal[-1][1]-agent.pos[1],
             #                       tcpa, d_tcpa, pre_total_possible_conflict, cur_total_possible_conflict])
@@ -1448,7 +1462,8 @@ class env_simulator:
             #                       agent.goal[-1][0]-agent.pos[0], agent.goal[-1][1]-agent.pos[1],
             #                       pre_total_possible_conflict, cur_total_possible_conflict])
 
-            agent_own = np.concatenate((self_obs, all_other_agents), axis=0)
+            # agent_own = np.concatenate((self_obs, all_other_agents), axis=0)
+            agent_own = self_obs
 
             # norm_agent_own = np.concatenate([norm_pos, norm_vel, norm_cross, norm_deltaG,
             #                                  (tcpa, d_tcpa, pre_total_possible_conflict, cur_total_possible_conflict)], axis=0)
@@ -1464,10 +1479,12 @@ class env_simulator:
             # norm_self_obs = np.concatenate([norm_vel, norm_deltaG,
             #                                  (pre_total_possible_conflict, cur_total_possible_conflict)], axis=0)
 
-            norm_agent_own = np.concatenate((norm_self_obs, norm_all_other_agents), axis=0)
+            # norm_agent_own = np.concatenate((norm_self_obs, norm_all_other_agents), axis=0)
+            norm_agent_own = norm_self_obs
 
             overall_state_p1.append(agent_own)
-            overall_state_p2.append(agent.observableSpace)
+            # overall_state_p2.append(agent.observableSpace)
+            overall_state_p2.append(all_neigh_agents)
 
             # distances_list = [dist_element[0] for dist_element in agent.observableSpace]
             # mini_index = find_index_of_min_first_element(agent.observableSpace)
@@ -1475,7 +1492,8 @@ class env_simulator:
             # overall_state_p2.append(distances_list)
 
             norm_overall_state_p1.append(norm_agent_own)
-            norm_overall_state_p2.append(agent.observableSpace)
+            # norm_overall_state_p2.append(agent.observableSpace)
+            norm_overall_state_p2.append(norm_all_neigh_agents)
             # norm_overall_state_p2.append(distances_list)
 
         overall.append(overall_state_p1)

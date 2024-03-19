@@ -45,7 +45,6 @@ device = torch.device('cpu')
 #
 
 def main(args):
-
     if args.mode == "train":
         today = datetime.date.today()
         current_date = today.strftime("%d%m%y")
@@ -66,8 +65,8 @@ def main(args):
         # initialize_excel_file(excel_file_path_time)
         # ------------ end of this portion is to save using excel instead of pickle -----------
 
-    # use_wanDB = False
-    use_wanDB = True
+    use_wanDB = False
+    # use_wanDB = True
 
     # get_evaluation_status = True  # have figure output
     get_evaluation_status = False  # no figure output, mainly obtain collision rate
@@ -80,6 +79,9 @@ def main(args):
 
     # transfer_learning = True
     transfer_learning = False
+
+    use_GRU_flag = True
+    # use_GRU_flag = False
 
     if use_wanDB:
         wandb.login(key="efb76db851374f93228250eda60639c70a93d1ec")
@@ -98,9 +100,9 @@ def main(args):
     eps_start, eps_end, eps_period, eps, env, \
     agent_grid_obs, BUFFER_SIZE, BATCH_SIZE, GAMMA, TAU, UPDATE_EVERY, seed_used, max_xy = initialize_parameters()
     # total_agentNum = len(pd.read_excel(env.agentConfig))
-    # total_agentNum = 3
+    total_agentNum = 3
     # total_agentNum = 5
-    total_agentNum = 8
+    # total_agentNum = 8
     # max_nei_num = 5
     # create world
     # actor_dim = [6+(total_agentNum-1)*2, 10, 6]  # dim host, maximum dim grid, dim other drones
@@ -120,7 +122,9 @@ def main(args):
         # actor_dim = [18, 18, 6]  # dim host, maximum dim grid, dim other drones
         # actor_dim = [16, 18, 6]  # dim host, maximum dim grid, dim other drones
         # actor_dim = [8+(total_agentNum-1)*4, 18, 6]  # dim host, maximum dim grid, dim other drones
-        actor_dim = [6+(total_agentNum-1)*4, 18, 6]  # dim host, maximum dim grid, dim other drones
+        # actor_dim = [6+(total_agentNum-1)*5, 18, 6]  # dim host, maximum dim grid, dim other drones
+        # actor_dim = [6+(total_agentNum-1)*4, (total_agentNum-1)*1, 6]  # dim host, maximum dim grid, dim other drones
+        actor_dim = [6, (total_agentNum-1)*5, 6]  # dim host, maximum dim grid, dim other drones
         # actor_dim = [14, 18, 6]  # dim host, maximum dim grid, dim other drones
         # actor_dim = [11, 18, 6]  # dim host, maximum dim grid, dim other drones
         # actor_dim = [12, 18, 6]  # dim host, maximum dim grid, dim other drones
@@ -131,7 +135,9 @@ def main(args):
         # critic_dim = [18, 18, 6]
         # critic_dim = [16, 18, 6]
         # critic_dim = [8+(total_agentNum-1)*4, 18, 6]  # dim host, maximum dim grid, dim other drones
-        critic_dim = [6+(total_agentNum-1)*4, 18, 6]  # dim host, maximum dim grid, dim other drones
+        # critic_dim = [6+(total_agentNum-1)*5, 18, 6]  # dim host, maximum dim grid, dim other drones
+        # critic_dim = [6+(total_agentNum-1)*4, (total_agentNum-1)*1, 6]  # dim host, maximum dim grid, dim other drones
+        critic_dim = [6, (total_agentNum-1)*5, 6]  # dim host, maximum dim grid, dim other drones
         # critic_dim = [14, 18, 6]
         # critic_dim = [11, 18, 6]
         # critic_dim = [12, 18, 6]
@@ -171,7 +177,7 @@ def main(args):
     torch.manual_seed(args.seed)  # this is the seed
 
     if args.algo == "maddpg":
-        model = MADDPG(actor_dim, critic_dim, n_actions, actor_hidden_state, gru_history_length, n_agents, args, criticNet_lr, actorNet_lr, GAMMA, TAU, full_observable_critic_flag)
+        model = MADDPG(actor_dim, critic_dim, n_actions, actor_hidden_state, gru_history_length, n_agents, args, criticNet_lr, actorNet_lr, GAMMA, TAU, full_observable_critic_flag, use_GRU_flag)
 
     episode = 0
     total_step = 0
@@ -207,10 +213,10 @@ def main(args):
         args.max_episodes = 100
         # args.max_episodes = 250
         # args.max_episodes = 25
-        pre_fix = r'D:\MADDPG_2nd_jp\160324_20_00_46\interval_record_eps'
+        pre_fix = r'D:\MADDPG_2nd_jp\180324_16_14_39\interval_record_eps'
         # episode_to_check = str(10000)
         # pre_fix = r'F:\OneDrive_NTU_PhD\OneDrive - Nanyang Technological University\DDPG_2ndJournal\dim_8_transfer_learning'
-        episode_to_check = str(12000)
+        episode_to_check = str(15000)
         # using one model, so we load all the same
         load_filepath_0 = pre_fix + '\episode_' + episode_to_check + '_actor_net.pth'
         load_filepath_1 = pre_fix + '\episode_' + episode_to_check + '_actor_net.pth'
@@ -271,10 +277,10 @@ def main(args):
                 generate_reward_map = False
                 # populate gru history
                 gru_history.append(np.array(norm_cur_state[0]))
-
+                
                 step_obtain_action_time_start = time.time()
                 # action, step_noise_val = model.choose_action(norm_cur_state, total_step, episode, step, eps_end, noise_start_level, gru_history, noisy=False) # noisy is false because we are using stochastic policy
-                action, step_noise_val, cur_actor_hiddens, next_actor_hiddens = model.choose_action(norm_cur_state, total_step, episode, step, eps_end, noise_start_level, cur_actor_hiddens, noisy=noise_flag)  # noisy is false because we are using stochastic policy
+                action, step_noise_val, cur_actor_hiddens, next_actor_hiddens = model.choose_action(norm_cur_state, total_step, episode, step, eps_end, noise_start_level, cur_actor_hiddens, noisy=noise_flag, use_GRU_flag=use_GRU_flag)  # noisy is false because we are using stochastic policy
 
                 generate_action_time = (time.time() - step_obtain_action_time_start)*1000
                 # print("current step obtain action time used is {} milliseconds".format(generate_action_time))
@@ -446,7 +452,7 @@ def main(args):
                     accum_reward = accum_reward + sum(reward_aft_action)
 
                 step_update_time_start = time.time()
-                c_loss, a_loss, single_eps_critic_cal_record = model.update_myown(episode, total_step, UPDATE_EVERY, single_eps_critic_cal_record, transfer_learning, wandb, full_observable_critic_flag)  # last working learning framework
+                c_loss, a_loss, single_eps_critic_cal_record = model.update_myown(episode, total_step, UPDATE_EVERY, single_eps_critic_cal_record, transfer_learning, wandb, full_observable_critic_flag, use_GRU_flag)  # last working learning framework
                 update_time_used = (time.time() - step_update_time_start)*1000
                 # print("current step update time used is {} milliseconds".format(update_time_used))
                 cur_state = next_state
@@ -816,12 +822,10 @@ def main(args):
                     # nearest_buildingPoly_mat = shapelypoly_to_matpoly(nearest_buildingPoly, True, 'g', 'k')
                     # ax.add_patch(nearest_buildingPoly_mat)
 
-
                     # plt.axvline(x=self.bound[0], c="green")
                     # plt.axvline(x=self.bound[1], c="green")
                     # plt.axhline(y=self.bound[2], c="green")
                     # plt.axhline(y=self.bound[3], c="green")
-
 
                     plt.xlabel("X axis")
                     plt.ylabel("Y axis")
@@ -914,14 +918,15 @@ def main(args):
         print("Collision due to bound is {}".format(crash_to_bound))
         print("Collision due to building is {}".format(crash_to_building))
         print("Collision due to drone is {}, among them, caused by nearest drone is {}".format(crash_to_drone, crash_due_to_nearest))
-        print("all steps used count is {}, {}%".format(all_steps_used, round(all_steps_used/args.max_episodes*100,2)))
-        print("One goal reached count is {}, {}%".format(one_drone_reach, round(one_drone_reach/args.max_episodes*100,2)))
-        print("Two goal reached count is {}, {}%".format(two_drone_reach, round(two_drone_reach/args.max_episodes*100,2)))
-        print("All goal reached count is {}, {}%".format(all_drone_reach, round(all_drone_reach/args.max_episodes*100,2)))
+        print("all steps used count is {}, {}%".format(all_steps_used, round(all_steps_used/100*100, 2)))
+        print("One goal reached count is {}, {}%".format(one_drone_reach, round(one_drone_reach/100*100, 2)))
+        print("Two goal reached count is {}, {}%".format(two_drone_reach, round(two_drone_reach/100*100, 2)))
+        print("All goal reached count is {}, {}%".format(all_drone_reach, round(all_drone_reach/100*100, 2)))
     print(f'training finishes, time spent: {datetime.timedelta(seconds=int(time.time() - training_start_time))}')
     os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
     matplotlib.use('TkAgg')
-    plot2 = plt.plot(steps_before_collide)
+    # plot2 = plt.plot(steps_before_collide)
+    plot2 = plt.scatter(range(len(steps_before_collide)), steps_before_collide)
     plt.grid(linestyle='-.')
     plt.xlabel('episodes')
     plt.ylabel('steps taken')
