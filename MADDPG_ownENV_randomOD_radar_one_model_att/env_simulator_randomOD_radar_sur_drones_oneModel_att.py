@@ -1438,9 +1438,12 @@ class env_simulator:
             #                       agent.goal[-1][0]-agent.pos[0], agent.goal[-1][1]-agent.pos[1],
             #                       pre_total_possible_conflict, cur_total_possible_conflict])
 
+            # self_obs = np.array([agent.pos[0], agent.pos[1], agent.vel[0], agent.vel[1],
+            #                       agent.goal[-1][0]-agent.pos[0], agent.goal[-1][1]-agent.pos[1],
+            #                       pre_total_possible_conflict, cur_total_possible_conflict])
+
             self_obs = np.array([agent.pos[0], agent.pos[1], agent.vel[0], agent.vel[1],
-                                  agent.goal[-1][0]-agent.pos[0], agent.goal[-1][1]-agent.pos[1],
-                                  pre_total_possible_conflict, cur_total_possible_conflict])
+                                  agent.goal[-1][0]-agent.pos[0], agent.goal[-1][1]-agent.pos[1]])
 
             # self_obs = np.array([agent.vel[0], agent.vel[1],
             #                       agent.goal[-1][0]-agent.pos[0], agent.goal[-1][1]-agent.pos[1],
@@ -1454,8 +1457,11 @@ class env_simulator:
             # norm_self_obs = np.concatenate([norm_pos, norm_vel, norm_cross, norm_deltaG,
             #                                  (pre_total_possible_conflict, cur_total_possible_conflict)], axis=0)
 
-            norm_self_obs = np.concatenate([norm_pos, norm_vel, norm_deltaG,
-                                             (pre_total_possible_conflict, cur_total_possible_conflict)], axis=0)
+            # norm_self_obs = np.concatenate([norm_pos, norm_vel, norm_deltaG,
+            #                                  (pre_total_possible_conflict, cur_total_possible_conflict)], axis=0)
+
+            norm_self_obs = np.concatenate([norm_pos, norm_vel, norm_deltaG], axis=0)
+
 
             # norm_self_obs = np.concatenate([norm_vel, norm_deltaG,
             #                                  (pre_total_possible_conflict, cur_total_possible_conflict)], axis=0)
@@ -2378,8 +2384,8 @@ class env_simulator:
 
             # ------- penalty for surrounding agents as a whole -----
             surrounding_collision_penalty = 0
-            if pre_total_possible_conflict < cur_total_possible_conflict:
-                surrounding_collision_penalty = 2
+            # if pre_total_possible_conflict < cur_total_possible_conflict:
+            #     surrounding_collision_penalty = 2
             # ------- end of reward for surrounding agents as a whole ----
 
             # ----- start of near drone penalty ----------------
@@ -2411,8 +2417,8 @@ class env_simulator:
             # near_drone_penalty_coef = 3
             # near_drone_penalty_coef = 0
             # dist_to_penalty_upperbound = 6
-            # dist_to_penalty_upperbound = 10
-            dist_to_penalty_upperbound = 20
+            dist_to_penalty_upperbound = 10
+            # dist_to_penalty_upperbound = 20
             dist_to_penalty_lowerbound = 2.5
             # assume when at lowerbound, y = 1
             near_drone_penalty = 0  # initialize

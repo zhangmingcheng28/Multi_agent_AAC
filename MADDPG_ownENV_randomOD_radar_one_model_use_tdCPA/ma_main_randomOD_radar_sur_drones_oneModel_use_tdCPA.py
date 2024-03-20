@@ -41,7 +41,7 @@ else:
     device = torch.device('cpu')
     print('Using CPU')
 
-device = torch.device('cpu')
+# device = torch.device('cpu')
 #
 
 def main(args):
@@ -213,10 +213,10 @@ def main(args):
         args.max_episodes = 100
         # args.max_episodes = 250
         # args.max_episodes = 25
-        pre_fix = r'D:\MADDPG_2nd_jp\180324_16_14_39\interval_record_eps'
+        pre_fix = r'D:\MADDPG_2nd_jp\190324_15_34_24\interval_record_eps'
         # episode_to_check = str(10000)
         # pre_fix = r'F:\OneDrive_NTU_PhD\OneDrive - Nanyang Technological University\DDPG_2ndJournal\dim_8_transfer_learning'
-        episode_to_check = str(15000)
+        episode_to_check = str(14000)
         # using one model, so we load all the same
         load_filepath_0 = pre_fix + '\episode_' + episode_to_check + '_actor_net.pth'
         load_filepath_1 = pre_fix + '\episode_' + episode_to_check + '_actor_net.pth'
@@ -697,7 +697,7 @@ def main(args):
 
                 # action, step_noise_val = model.choose_action(norm_cur_state, total_step, episode, step, eps_end, noise_start_level, gru_history, noisy=False) # noisy is false because we are using stochastic policy
                 action, step_noise_val, cur_actor_hiddens, \
-                next_actor_hiddens = model.choose_action(norm_cur_state, total_step, episode, step, eps_end, noise_start_level, cur_actor_hiddens, noisy=noise_flag)  # noisy is false because we are using stochastic policy
+                next_actor_hiddens = model.choose_action(norm_cur_state, total_step, episode, step, eps_end, noise_start_level, cur_actor_hiddens, noisy=noise_flag, use_GRU_flag=use_GRU_flag)  # noisy is false because we are using stochastic policy
 
 
                 # action = model.choose_action(cur_state, episode, noisy=False)
@@ -940,7 +940,7 @@ if __name__ == '__main__':
     parser.add_argument('--scenario', default="simple_spread", type=str)
     parser.add_argument('--max_episodes', default=35000, type=int)  # run for a total of 50000 episodes
     parser.add_argument('--algo', default="maddpg", type=str, help="commnet/bicnet/maddpg")
-    parser.add_argument('--mode', default="train", type=str, help="train/eval")
+    parser.add_argument('--mode', default="eval", type=str, help="train/eval")
     # parser.add_argument('--episode_length', default=150, type=int)  # maximum play per episode
     parser.add_argument('--episode_length', default=50, type=int)  # maximum play per episode
     # parser.add_argument('--episode_length', default=100, type=int)  # maximum play per episode

@@ -216,8 +216,10 @@ class ActorNetwork_GRU_TwoPortion(nn.Module):
         own_obs = self.own_fc(cur_state[0])
         own_grid = self.own_grid(cur_state[1])
         h_in = history_hidden_state.reshape(-1, self.rnn_hidden_dim)
-        h_out = self.gru_cell(own_grid, h_in)
-        merge_obs_grid = torch.cat((own_obs, h_out), dim=1)
+        h_out = self.gru_cell(own_grid, h_in)  # gru apply to 2nd portion, neigh
+        # h_out = self.gru_cell(own_obs, h_in)  # gru apply to 1st portion, own_obs
+        merge_obs_grid = torch.cat((own_obs, h_out), dim=1)  # gru apply to 2nd portion, neigh
+        # merge_obs_grid = torch.cat((own_grid, h_out), dim=1)  # gru apply to 1st portion, own_obs
         merge_feature = self.merge_feature(merge_obs_grid)
         out_action = self.act_out(merge_feature)
         return out_action, h_out
@@ -597,8 +599,12 @@ class critic_single_GRU_TwoPortion(nn.Module):
         own_obsWaction = self.SA_fc(obsWaction)
         own_grid = self.SA_grid(single_state[1])
         h_in = history_hidden_state.reshape(-1, self.rnn_hidden_dim)
-        h_out = self.gru_cell(own_grid, h_in)
-        merge_obs_Hgrid = torch.cat((own_obsWaction, h_out), dim=1)
+        # gru apply to 2nd portion
+        # h_out = self.gru_cell(own_grid, h_in)
+        # merge_obs_Hgrid = torch.cat((own_obsWaction, h_out), dim=1)
+        # gru apply to 1st portion
+        h_out = self.gru_cell(own_obsWaction, h_in)
+        merge_obs_Hgrid = torch.cat((own_grid, h_out), dim=1)
         q = self.own_fc_outlay(merge_obs_Hgrid)
 
         return q, h_out

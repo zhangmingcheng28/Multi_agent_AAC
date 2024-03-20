@@ -677,14 +677,19 @@ class critic_combine_ignore_radar(nn.Module):
         self.o1a1 = nn.Sequential(nn.Linear(critic_obs[0]+n_actions, 128), nn.ReLU())
         self.o2a2 = nn.Sequential(nn.Linear(critic_obs[0]+n_actions, 128), nn.ReLU())
         self.o3a3 = nn.Sequential(nn.Linear(critic_obs[0]+n_actions, 128), nn.ReLU())
-        self.combine_agents_fea = nn.Sequential(nn.Linear(128+128+128, 256), nn.ReLU())
+        self.o4a4 = nn.Sequential(nn.Linear(critic_obs[0]+n_actions, 128), nn.ReLU())
+        self.o5a5 = nn.Sequential(nn.Linear(critic_obs[0]+n_actions, 128), nn.ReLU())
+        self.o6a6 = nn.Sequential(nn.Linear(critic_obs[0]+n_actions, 128), nn.ReLU())
+        self.o7a7 = nn.Sequential(nn.Linear(critic_obs[0]+n_actions, 128), nn.ReLU())
+        self.o8a8 = nn.Sequential(nn.Linear(critic_obs[0]+n_actions, 128), nn.ReLU())
+        self.combine_agents_fea = nn.Sequential(nn.Linear(128+128+128+128+128+128+128+128, 256), nn.ReLU())
         self.out_feature_q = nn.Sequential(nn.Linear(256, 1))
         # end of v1_yc_ignore_radar #
 
     def forward(self, combine_state, combine_action):
 
         # ---- yc_v1_ignore_radar -----
-        for agent_idx in range(3):
+        for agent_idx in range(8):
             # agent_obs = torch.cat((combine_state[0][:, agent_idx,:], combine_state[1][:, agent_idx,:]), dim=1)
             agent_obs = combine_state[0][:, agent_idx,:]
             if isinstance(combine_action, list):
@@ -698,8 +703,21 @@ class critic_combine_ignore_radar(nn.Module):
                 o2a2_fea = self.o2a2(obsWact)
             elif agent_idx == 2:
                 o3a3_fea = self.o3a3(obsWact)
+            elif agent_idx == 3:
+                o4a4_fea = self.o4a4(obsWact)
+            elif agent_idx == 4:
+                o5a5_fea = self.o5a5(obsWact)
+            elif agent_idx == 5:
+                o6a6_fea = self.o6a6(obsWact)
+            elif agent_idx == 6:
+                o7a7_fea = self.o7a7(obsWact)
+            elif agent_idx == 7:
+                o8a8_fea = self.o8a8(obsWact)
 
-        merge_all_agent = torch.cat((o1a1_fea, o2a2_fea, o3a3_fea), dim=1)
+
+
+        # merge_all_agent = torch.cat((o1a1_fea, o2a2_fea, o3a3_fea), dim=1)
+        merge_all_agent = torch.cat((o1a1_fea, o2a2_fea, o3a3_fea, o4a4_fea, o5a5_fea, o6a6_fea, o7a7_fea, o8a8_fea), dim=1)
         merge_feature = self.combine_agents_fea(merge_all_agent)
         q = self.out_feature_q(merge_feature)
         # --- end of yc_v1_ignore_radar ---
