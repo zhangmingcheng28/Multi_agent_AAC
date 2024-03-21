@@ -2337,14 +2337,14 @@ class env_simulator:
             # before_dist_hg = np.linalg.norm(drone_obj.pre_pos - next_wp)  # distance to goal before action
             after_dist_hg = np.linalg.norm(drone_obj.pos - drone_obj.goal[-1])  # distance to goal after action
             # after_dist_hg = np.linalg.norm(drone_obj.pos - next_wp)  # distance to goal after action
-            # dist_to_goal = dist_to_goal_coeff * (before_dist_hg - after_dist_hg)
-            # dist_to_goal = dist_to_goal / drone_obj.maxSpeed  # perform a normalization
+            dist_to_goal = dist_to_goal_coeff * (before_dist_hg - after_dist_hg)
+            dist_to_goal = dist_to_goal / drone_obj.maxSpeed  # perform a normalization
             # ---- end of leading to goal reward V4 ----
 
             # ----- v4 accumulative ---
-            one_drone_dist_to_goal = dist_to_goal_coeff * (before_dist_hg - after_dist_hg)  # (before_dist_hg - after_dist_hg) -max_vel - max_vel
-            one_drone_dist_to_goal = one_drone_dist_to_goal / drone_obj.maxSpeed  # perform a normalization
-            dist_to_goal = dist_to_goal + one_drone_dist_to_goal
+            # one_drone_dist_to_goal = dist_to_goal_coeff * (before_dist_hg - after_dist_hg)  # (before_dist_hg - after_dist_hg) -max_vel - max_vel
+            # one_drone_dist_to_goal = one_drone_dist_to_goal / drone_obj.maxSpeed  # perform a normalization
+            # dist_to_goal = dist_to_goal + one_drone_dist_to_goal
             # ------ end of v4 accumulative----
             
             
