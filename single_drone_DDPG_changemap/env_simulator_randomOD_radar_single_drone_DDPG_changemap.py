@@ -87,11 +87,11 @@ class env_simulator:
         # config OU_noise
         self.OU_noise = OUNoise(n_actions, largest_Nsigma, smallest_Nsigma, ini_Nsigma)
         self.all_agents = {}
-        os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
-        matplotlib.use('TkAgg')
-        plt.ion()
+        # os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
+        # matplotlib.use('TkAgg')
+        # plt.ion()
         for map_idx in self.world_map_2D_polyList_collection.keys():
-            fig, ax = plt.subplots(1, 1)
+            # fig, ax = plt.subplots(1, 1)
             self.allbuildingSTR_collection[map_idx] = STRtree(self.world_map_2D_polyList_collection[map_idx][0][0]) # [0][0] -> occupied grid poly, [0][1] -> non occupied grid poly
             worldGrid_polyCombine = []
             worldGrid_polyCombine.append(self.world_map_2D_polyList_collection[map_idx][0][0] +
@@ -181,28 +181,22 @@ class env_simulator:
             # draw occupied_poly
             for one_poly in self.world_map_2D_polyList_collection[map_idx][0][0]:
                 one_poly_mat = shapelypoly_to_matpoly(one_poly, True, 'white', 'grey')
-                ax.add_patch(one_poly_mat)
+                # ax.add_patch(one_poly_mat)
             # draw non-occupied_poly
             for zero_poly in self.world_map_2D_polyList_collection[map_idx][0][1]:
                 zero_poly_mat = shapelypoly_to_matpoly(zero_poly, False, 'y')
-                ax.add_patch(zero_poly_mat)
+                # ax.add_patch(zero_poly_mat)
 
             # show building obstacles
             for poly in self.buildingPolygons:
                 matp_poly = shapelypoly_to_matpoly(poly, False, 'red')  # the 3rd parameter is the edge color
-                ax.add_patch(matp_poly)
+                # ax.add_patch(matp_poly)
 
-            ax.set_xlim(self.bound_collection[map_idx][0:2])
-            ax.set_ylim(self.bound_collection[map_idx][2:4])
-        #     plt.xlabel("X axis")
-        #     plt.ylabel("Y axis")
-        #     # plt.axis('equal') # when we use set_x/ylim, we cannot use this line, or else, will always show the entire map
-            plt.draw()
-            plt.pause(0.001)
-            plt.savefig(f'figure_{map_idx}.png')
-        #
-        # plt.ioff()  # Turn off interactive mode
-        # plt.show()
+            # ax.set_xlim(self.bound_collection[map_idx][0:2])
+            # ax.set_ylim(self.bound_collection[map_idx][2:4])
+            # plt.draw()
+            # plt.pause(0.001)
+            # plt.savefig(f'figure_{map_idx}.png')
 
         for agent_i in range(total_agentNum):
             agent = Agent(n_actions, agent_i, gamma, tau, total_agentNum, max_spd, acc_range)
@@ -219,6 +213,11 @@ class env_simulator:
         # make sure we clear the previous geo-fence at each episode
         self.geo_fence_area = []
 
+        self.normalizer = NormalizeData([self.bound_collection[random_map_idx][0],
+                                         self.bound_collection[random_map_idx][1]],
+                                        [self.bound_collection[random_map_idx][2],
+                                         self.bound_collection[random_map_idx][3]],
+                                        self.all_agents[0].maxSpeed, self.all_agents[0].acceleration_range)
 
         # reset the drone index to 0,1,2, ensure all index reset at starting of a new episode
         # keys = list(self.all_agents.keys())
@@ -259,7 +258,7 @@ class env_simulator:
                     if all(np.linalg.norm(np.array(random_start_pos)-point) > self.all_agents[agentIdx].protectiveBound*2 for point in start_pos_memory):
                         break
 
-            random_end_pos = random.choice(self.target_pool[random_target_index])
+            random_end_pos = random.choice(self.target_pool_collection[random_map_idx][random_target_index])
             dist_between_se = np.linalg.norm(np.array(random_end_pos) - np.array(random_start_pos))
 
             # while dist_between_se >= 100:  # the distance between start & end point is more than a threshold, we reset SE pairs.
@@ -274,9 +273,9 @@ class env_simulator:
 
             host_current_circle = Point(np.array(random_start_pos)[0], np.array(random_start_pos)[1]).buffer(self.all_agents[agentIdx].protectiveBound)
 
-            possiblePoly = self.allbuildingSTR.query(host_current_circle)
+            possiblePoly = self.allbuildingSTR_collection[random_map_idx].query(host_current_circle)
             for element in possiblePoly:
-                if self.allbuildingSTR.geometries.take(element).intersection(host_current_circle):
+                if self.allbuildingSTR_collection[random_map_idx].geometries.take(element).intersection(host_current_circle):
                     any_collision = 1
                     print("Initial start point {} collision with buildings".format(np.array(random_start_pos)))
                     break
@@ -325,19 +324,13 @@ class env_simulator:
             refinedPath.append(outPath[-1])
 
             # load the to goal, but remove/exclude the 1st point, which is the initial position
-            self.all_agents[agentIdx].goal = [[(points[0] + math.ceil(self.bound[0] / self.gridlength)) * self.gridlength,
-                                               (points[1] + math.ceil(self.bound[2] / self.gridlength)) * self.gridlength]
-                                              for points in refinedPath if not np.array_equal(np.array([(points[0] + math.ceil(self.bound[0] / self.gridlength)) * self.gridlength,
-                                                                                                        (points[1] + math.ceil(self.bound[2] / self.gridlength)) * self.gridlength]),
-                                                                                              self.all_agents[agentIdx].ini_pos)]  # if not np.array_equal(np.array(points), self.all_agents[agentIdx].ini_pos)
-
+            self.all_agents[agentIdx].goal = [self.cropped_coord_match_actual_coord[random_map_idx][points]
+                                              for points in refinedPath if not np.array_equal(np.array(self.cropped_coord_match_actual_coord[random_map_idx][points]),self.all_agents[agentIdx].ini_pos)]  # if not np.array_equal(np.array(points), self.all_agents[agentIdx].ini_pos)
             # populate removable way point list
             self.all_agents[agentIdx].waypoints = deepcopy(self.all_agents[agentIdx].goal)
 
             # load the to goal but we include the initial position
-            goalPt_withini = [[(points[0] + math.ceil(self.bound[0] / self.gridlength)) * self.gridlength,
-                                               (points[1] + math.ceil(self.bound[2] / self.gridlength)) * self.gridlength]
-                                              for points in refinedPath]
+            goalPt_withini = [self.cropped_coord_match_actual_coord[random_map_idx][points] for points in refinedPath]
 
             self.all_agents[agentIdx].ref_line = LineString(goalPt_withini)
             # ---------------- end of using random initialized agent position for traffic flow ---------
@@ -367,7 +360,6 @@ class env_simulator:
 
             # ----------------end of initialize normalized velocity, but based on normalized map. map pos_x & pos_y are normalized to [-1, 1]---------------
 
-            self.all_agents[agentIdx].observableSpace = self.current_observable_space(self.all_agents[agentIdx])
 
             cur_circle = Point(self.all_agents[agentIdx].pos[0],
                                self.all_agents[agentIdx].pos[1]).buffer(self.all_agents[agentIdx].protectiveBound,
@@ -386,7 +378,7 @@ class env_simulator:
 
         # overall_state, norm_overall_state = self.cur_state_norm_state_fully_observable(agentRefer_dict)
         # print('time used is {}'.format(time.time() - start_time))
-        overall_state, norm_overall_state, polygons_list, prob_display = self.cur_state_norm_state_v3(agentRefer_dict)
+        overall_state, norm_overall_state, polygons_list, prob_display = self.cur_state_norm_state_v3(agentRefer_dict, random_map_idx)
 
         # we set up geo-fence area here
         for _ in range(1):  # we create 1 centre points for generate temporary geo-fence
@@ -438,7 +430,7 @@ class env_simulator:
                 # plot self_circle of the drone
                 self_circle = Point(agent.pos[0], agent.pos[1]).buffer(agent.protectiveBound, cap_style='round')
                 grid_mat_Scir = shapelypoly_to_matpoly(self_circle, False, 'k')
-                # ax.add_patch(grid_mat_Scir)
+                ax.add_patch(grid_mat_Scir)
 
                 # plot drone's detection range
                 detec_circle = Point(agent.pos[0], agent.pos[1]).buffer(agent.detectionRange / 2, cap_style='round')
@@ -459,11 +451,11 @@ class env_simulator:
                 plt.text(agent.goal[-1][0], agent.goal[-1][1], agent.agent_name)
 
             # draw occupied_poly
-            for one_poly in self.world_map_2D_polyList[0][0]:
+            for one_poly in self.world_map_2D_polyList_collection[random_map_idx][0][0]:
                 one_poly_mat = shapelypoly_to_matpoly(one_poly, True, 'y', 'b')
                 # ax.add_patch(one_poly_mat)
             # draw non-occupied_poly
-            for zero_poly in self.world_map_2D_polyList[0][1]:
+            for zero_poly in self.world_map_2D_polyList_collection[random_map_idx][0][1]:
                 zero_poly_mat = shapelypoly_to_matpoly(zero_poly, False, 'y')
                 ax.add_patch(zero_poly_mat)
 
@@ -866,7 +858,7 @@ class env_simulator:
         norm_overall.append(norm_overall_state_p2)
         return overall, norm_overall
 
-    def cur_state_norm_state_v3(self, agentRefer_dict):
+    def cur_state_norm_state_v3(self, agentRefer_dict, random_map_idx):
         overall = []
         norm_overall = []
         # prepare for output states
@@ -910,8 +902,8 @@ class env_simulator:
 
             # ------------ start of create radar ------------- #
             drone_ctr = Point(agent.pos)
-            nearest_buildingPoly_idx = self.allbuildingSTR.nearest(drone_ctr)
-            nearest_buildingPoly = self.world_map_2D_polyList[0][0][nearest_buildingPoly_idx]
+            nearest_buildingPoly_idx = self.allbuildingSTR_collection[random_map_idx].nearest(drone_ctr)
+            nearest_buildingPoly = self.world_map_2D_polyList_collection[random_map_idx][0][0][nearest_buildingPoly_idx]
             dist_nearest = drone_ctr.distance(nearest_buildingPoly)
 
             # Re-calculate the 20 equally spaced points around the circle
@@ -931,8 +923,8 @@ class env_simulator:
             #     Polygon([(-3, -1), (-3, -3), (-1, -3), (-1, -1)]),
             #     Polygon([(-4, 2), (-4, 4), (-2, 4), (-2, 2)])
             # ]
-            polygons_list_wBound = self.list_of_occupied_grid_wBound
-            polygons_tree_wBound = self.allbuildingSTR_wBound
+            polygons_list_wBound = self.list_of_occupied_grid_wBound_collection[random_map_idx]
+            polygons_tree_wBound = self.allbuildingSTR_wBound_collection[random_map_idx]
 
             distances = []
             intersection_point_list = []
@@ -1772,7 +1764,7 @@ class env_simulator:
         # return reward, done, check_goal, step_reward_record, agent_filled
         return reward, done, check_goal, step_reward_record
 
-    def ss_reward(self, current_ts, step_reward_record, eps_status_holder, step_collision_record, xy, full_observable_critic_flag, args, prob_display):
+    def ss_reward(self, current_ts, step_reward_record, eps_status_holder, step_collision_record, xy, full_observable_critic_flag, args, prob_display, random_map_idx):
         bound_building_check = [False] * 3
         reward, done = [], []
         agent_to_remove = []
@@ -1789,10 +1781,11 @@ class env_simulator:
         potential_conflict_count = 0
         final_goal_toadd = 0
         fixed_domino_reward = 1
-        x_left_bound = LineString([(self.bound[0], -9999), (self.bound[0], 9999)])
-        x_right_bound = LineString([(self.bound[1], -9999), (self.bound[1], 9999)])
-        y_bottom_bound = LineString([(-9999, self.bound[2]), (9999, self.bound[2])])
-        y_top_bound = LineString([(-9999, self.bound[3]), (9999, self.bound[3])])
+        x_left_bound = LineString([(self.bound_collection[random_map_idx][0], -9999), (self.bound_collection[random_map_idx][0], 9999)])
+        x_right_bound = LineString([(self.bound_collection[random_map_idx][1], -9999), (self.bound_collection[random_map_idx][1], 9999)])
+        y_bottom_bound = LineString([(-9999, self.bound_collection[random_map_idx][2]), (9999, self.bound_collection[random_map_idx][2])])
+        y_top_bound = LineString([(-9999, self.bound_collection[random_map_idx][3]), (9999, self.bound_collection[random_map_idx][3])])
+
 
         for drone_idx, drone_obj in self.all_agents.items():
             if xy[0] is not None and xy[1] is not None and drone_idx > 0:
@@ -1858,13 +1851,13 @@ class env_simulator:
             # -------- check collision with building V1-------------
             start_of_v1_time = time.time()
             v1_decision = 0
-            possiblePoly = self.allbuildingSTR.query(host_current_circle)
+            possiblePoly = self.allbuildingSTR_collection[random_map_idx].query(host_current_circle)
             for element in possiblePoly:
-                if self.allbuildingSTR.geometries.take(element).intersection(host_current_circle):
+                if self.allbuildingSTR_collection[random_map_idx].geometries.take(element).intersection(host_current_circle):
                     collide_building = 1
                     v1_decision = collide_building
                     drone_obj.collide_wall_count = drone_obj.collide_wall_count + 1
-                    # print("drone_{} crash into building when moving from {} to {} at time step {}".format(drone_idx, self.all_agents[drone_idx].pre_pos, self.all_agents[drone_idx].pos, current_ts))
+                    print("drone_{} crash into building when moving from {} to {} at time step {}".format(drone_idx, self.all_agents[drone_idx].pre_pos, self.all_agents[drone_idx].pos, current_ts))
                     break
             end_v1_time = (time.time() - start_of_v1_time)*1000*1000
             # print("check building collision V1 time used is {} micro".format(end_v1_time))
@@ -2290,7 +2283,7 @@ class env_simulator:
             status_holder[drone_idx].append([cur_dist_to_goal] + cur_step_reward)
         return status_holder
 
-    def step(self, actions, current_ts):
+    def step(self, actions, current_ts, random_map_idx):
         next_combine_state = []
         agentCoorKD_list_update = []
         agentRefer_dict = {}  # A dictionary to use agent's current pos as key, their agent name (idx) as value
@@ -2380,7 +2373,7 @@ class env_simulator:
 
         # next_state, next_state_norm = self.cur_state_norm_state_fully_observable(agentRefer_dict)
         # start_acceleration_time = time.time()
-        next_state, next_state_norm, polygons_list, prob_display = self.cur_state_norm_state_v3(agentRefer_dict)
+        next_state, next_state_norm, polygons_list, prob_display = self.cur_state_norm_state_v3(agentRefer_dict, random_map_idx)
         # print("obtain_current_state, time used {} milliseconds".format(
         #     (time.time() - start_acceleration_time) * 1000))
 

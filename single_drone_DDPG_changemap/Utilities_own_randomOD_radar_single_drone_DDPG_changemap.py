@@ -90,24 +90,24 @@ def append_to_excel(file_path, data):
     wb.save(file_path)
 
 
-def animate(frame_num, ax, env, trajectory_eachPlay):
+def animate(frame_num, ax, env, trajectory_eachPlay, random_map_idx):
     ax.clear()
     plt.axis('equal')
-    plt.xlim(env.bound[0], env.bound[1])
-    plt.ylim(env.bound[2], env.bound[3])
-    plt.axvline(x=env.bound[0], c="green")
-    plt.axvline(x=env.bound[1], c="green")
-    plt.axhline(y=env.bound[2], c="green")
-    plt.axhline(y=env.bound[3], c="green")
+    plt.xlim(env.bound_collection[random_map_idx][0], env.bound_collection[random_map_idx][1])
+    plt.ylim(env.bound_collection[random_map_idx][2], env.bound_collection[random_map_idx][3])
+    plt.axvline(x=env.bound_collection[random_map_idx][0], c="green")
+    plt.axvline(x=env.bound_collection[random_map_idx][1], c="green")
+    plt.axhline(y=env.bound_collection[random_map_idx][2], c="green")
+    plt.axhline(y=env.bound_collection[random_map_idx][3], c="green")
     plt.xlabel("X axis")
     plt.ylabel("Y axis")
 
     # draw occupied_poly
-    for one_poly in env.world_map_2D_polyList[0][0]:
+    for one_poly in env.world_map_2D_polyList_collection[random_map_idx][0][0]:
         one_poly_mat = shapelypoly_to_matpoly(one_poly, True, 'y', 'b')
         ax.add_patch(one_poly_mat)
     # draw non-occupied_poly
-    for zero_poly in env.world_map_2D_polyList[0][1]:
+    for zero_poly in env.world_map_2D_polyList_collection[random_map_idx][0][1]:
         zero_poly_mat = shapelypoly_to_matpoly(zero_poly, False, 'y')
         # ax.add_patch(zero_poly_mat)
 
@@ -165,27 +165,27 @@ def get_history_tensor(history, sequence_length, input_size):
     return history_tensor.unsqueeze(0)
 
 
-def save_gif(env, trajectory_eachPlay, pre_fix, episode_to_check, episode):
+def save_gif(env, trajectory_eachPlay, pre_fix, episode_to_check, episode, random_map_idx):
     os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
     matplotlib.use('TkAgg')
     fig, ax = plt.subplots(1, 1)
 
     plt.axis('equal')
-    plt.xlim(env.bound[0], env.bound[1])
-    plt.ylim(env.bound[2], env.bound[3])
-    plt.axvline(x=env.bound[0], c="green")
-    plt.axvline(x=env.bound[1], c="green")
-    plt.axhline(y=env.bound[2], c="green")
-    plt.axhline(y=env.bound[3], c="green")
+    plt.xlim(env.bound_collection[random_map_idx][0], env.bound_collection[random_map_idx][1])
+    plt.ylim(env.bound_collection[random_map_idx][2], env.bound_collection[random_map_idx][3])
+    plt.axvline(x=env.bound_collection[random_map_idx][0], c="green")
+    plt.axvline(x=env.bound_collection[random_map_idx][1], c="green")
+    plt.axhline(y=env.bound_collection[random_map_idx][2], c="green")
+    plt.axhline(y=env.bound_collection[random_map_idx][3], c="green")
     plt.xlabel("X axis")
     plt.ylabel("Y axis")
 
     # draw occupied_poly
-    for one_poly in env.world_map_2D_polyList[0][0]:
+    for one_poly in env.world_map_2D_polyList_collection[random_map_idx][0][0]:
         one_poly_mat = shapelypoly_to_matpoly(one_poly, True, 'y', 'b')
         ax.add_patch(one_poly_mat)
     # draw non-occupied_poly
-    for zero_poly in env.world_map_2D_polyList[0][1]:
+    for zero_poly in env.world_map_2D_polyList_collection[random_map_idx][0][1]:
         zero_poly_mat = shapelypoly_to_matpoly(zero_poly, False, 'y')
         # ax.add_patch(zero_poly_mat)
 
@@ -217,7 +217,7 @@ def save_gif(env, trajectory_eachPlay, pre_fix, episode_to_check, episode):
         plt.text(agent.goal[-1][0], agent.goal[-1][1], agent.agent_name)
 
     # Create animation
-    ani = animation.FuncAnimation(fig, animate, fargs=(ax, env, trajectory_eachPlay), frames=len(trajectory_eachPlay),
+    ani = animation.FuncAnimation(fig, animate, fargs=(ax, env, trajectory_eachPlay, random_map_idx), frames=len(trajectory_eachPlay),
                                   interval=300, blit=False)
     # Save as GIF
     gif_path = pre_fix + '\episode_' + episode_to_check + 'simulation_num_' + str(episode) + '.gif'

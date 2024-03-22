@@ -817,6 +817,7 @@ def main(args):
                         #         # print(" agent %s, a_loss %3.2f c_loss %3.2f" % (idx, a_loss[idx].item(), c_loss[idx].item()))
                         #         wandb.log({'agent' + str(idx) + 'actor_loss': float(a_loss[idx].item())})
                         #         wandb.log({'agent' + str(idx) + 'critic_loss': float(c_loss[idx].item())})
+
                     if episode % args.save_interval == 0 and args.mode == "train":
                         save_model = time.time()
                         # save the models at a predefined interval
@@ -1157,6 +1158,7 @@ def main(args):
                         else:  # all 3 reaches goal
                             all_drone_reach = all_drone_reach + 1
                             # print("There are no True values in the list.")
+
                     break
 
     if args.mode == "train":  # only save pickle at end of training to save computational time.

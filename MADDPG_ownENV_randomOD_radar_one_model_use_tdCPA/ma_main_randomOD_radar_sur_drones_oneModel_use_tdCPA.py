@@ -186,10 +186,11 @@ def main(args):
     eps_check_collision = []
     eps_noise_record = []
     episode_critic_loss_cal_record = []
-    eps_end = 500  # at eps = eps_end, the eps value drops to lowest value which is 0.03 (this value is fixed)
+    # eps_end = 500  # at eps = eps_end, the eps value drops to lowest value which is 0.03 (this value is fixed)
     # eps_end = 5000  # at eps = eps_end, the eps value drops to lowest value which is 0.03 (this value is fixed)
     # eps_end = round(args.max_episodes / 2)  # at eps = eps_end, the eps value drops to lowest value which is 0.03 (this value is fixed)
     # eps_end = 8000  # at eps = eps_end, the eps value drops to lowest value which is 0.03 (this value is fixed)
+    eps_end = 1000  # at eps = eps_end, the eps value drops to lowest value which is 0.03 (this value is fixed)
     noise_start_level = 1
     training_start_time = time.time()
 
@@ -213,10 +214,10 @@ def main(args):
         args.max_episodes = 100
         # args.max_episodes = 250
         # args.max_episodes = 25
-        pre_fix = r'D:\MADDPG_2nd_jp\210324_15_35_45\interval_record_eps'
+        pre_fix = r'D:\MADDPG_2nd_jp\210324_20_02_28\interval_record_eps'
         # episode_to_check = str(10000)
         # pre_fix = r'F:\OneDrive_NTU_PhD\OneDrive - Nanyang Technological University\DDPG_2ndJournal\dim_8_transfer_learning'
-        episode_to_check = str(1000)
+        episode_to_check = str(2000)
         # using one model, so we load all the same
         load_filepath_0 = pre_fix + '\episode_' + episode_to_check + '_actor_net.pth'
         load_filepath_1 = pre_fix + '\episode_' + episode_to_check + '_actor_net.pth'
@@ -444,8 +445,8 @@ def main(args):
                         one_agent_next_obs.append(one_agent_one_portion)
 
                     for i in range(len(one_agent_next_obs)):
-                        # if done_tensor[i] == 1:
-                        #     continue
+                        if done_tensor[i] == 1:
+                            continue
                         model.memory.push(one_agent_obs[i], ac_tensor[i,:], one_agent_next_obs[i], rw_tensor[i], done_tensor[i], history_tensor[:,i,:],
                                           cur_actor_hiddens[i,:], next_actor_hiddens[i,:])
                     # ------- end of push to memory one by one ----------
@@ -946,7 +947,7 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--scenario', default="simple_spread", type=str)
-    parser.add_argument('--max_episodes', default=1000, type=int)  # run for a total of 50000 episodes
+    parser.add_argument('--max_episodes', default=2000, type=int)  # run for a total of 50000 episodes
     parser.add_argument('--algo', default="maddpg", type=str, help="commnet/bicnet/maddpg")
     parser.add_argument('--mode', default="train", type=str, help="train/eval")
     # parser.add_argument('--episode_length', default=150, type=int)  # maximum play per episode
