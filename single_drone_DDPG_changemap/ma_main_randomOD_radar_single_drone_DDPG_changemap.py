@@ -187,11 +187,11 @@ def main(args):
     dummy_xy = (None, None)  # this is a dummy tuple of xy, is not useful during normal training, it is only useful when generating reward map
     if args.mode == "eval":
         # args.max_episodes = 10  # only evaluate one episode during evaluation mode.
-        # args.max_episodes = 5  # only evaluate one episode during evaluation mode.
-        args.max_episodes = 100
+        args.max_episodes = 5  # only evaluate one episode during evaluation mode.
+        # args.max_episodes = 100
         # args.max_episodes = 20
-        pre_fix = r'D:\MADDPG_2nd_jp\090324_11_22_41\interval_record_eps'
-        episode_to_check = str(35000)
+        pre_fix = r'D:\MADDPG_2nd_jp\210324_17_58_11\interval_record_eps'
+        episode_to_check = str(18000)
         load_filepath_0 = pre_fix + '\episode_' + episode_to_check + '_agent_0actor_net.pth'
         load_filepath_1 = pre_fix + '\episode_' + episode_to_check + '_agent_1actor_net.pth'
         load_filepath_2 = pre_fix + '\episode_' + episode_to_check + '_agent_2actor_net.pth'
@@ -209,12 +209,13 @@ def main(args):
         episode_start_time = time.time()
         episode += 1
         eps_reset_start_time = time.time()
-        random_map_idx = random.randrange(len(env.world_map_2D_collection))
+        # random_map_idx = random.randrange(len(env.world_map_2D_collection))
+        random_map_idx = 3  # this value is the previous fixed environment
         cur_state, norm_cur_state = env.reset_world(total_agentNum, random_map_idx, show=0)  # random map choose here
         eps_reset_time_used = (time.time()-eps_reset_start_time)*1000
         # print("current episode {} reset time used is {} milliseconds".format(episode, eps_reset_time_used))  # need to + 1 here, or else will misrecord as the previous episode
         step_collision_record = [[] for _ in range(total_agentNum)]  # reset at each episode, so that we can record down collision at each step for each agent.
-        eps_status_holder = [None] * n_agents
+        eps_status_holder = [{} for _ in range(n_agents)]
         episode_decision = [False] * 3
         agents_added = []
         eps_reward = []
@@ -708,10 +709,10 @@ def main(args):
                 # show states in text
                 for agentIdx, agent in env.all_agents.items():
                     print("drone {}, next WP is {}, deviation from ref line is {}, ref_line_reward is {}, "
-                          "dist to next goal is {}, dist_goal_reward is {}, velocity is {}, step {} reward is {}"
-                          .format(agentIdx, agent.goal[0], eps_status_holder[agentIdx][-1][2],
-                                  eps_status_holder[agentIdx][-1][3], eps_status_holder[agentIdx][-1][0],
-                                  eps_status_holder[agentIdx][-1][1], eps_status_holder[agentIdx][-1][6], step,
+                          "actual dist to goal is {}, dist_goal_reward is {}, velocity is {}, step {} reward is {}"
+                          .format(agentIdx, agent.goal[-1], eps_status_holder[agentIdx]['deviation_to_ref_line'],
+                                  eps_status_holder[agentIdx]['deviation_to_ref_line_reward'], eps_status_holder[agentIdx]['Euclidean_dist_to_goal'],
+                                  eps_status_holder[agentIdx]['goal_leading_reward'], eps_status_holder[agentIdx]['current_drone_speed'], step,
                                   reward_aft_action[agentIdx]))
 
                 # if show_step_by_step:
@@ -841,7 +842,7 @@ def main(args):
 
                         # ---------- new save as gif ----------------------- #
                         else:
-                            save_gif(env, trajectory_eachPlay, pre_fix, episode_to_check, episode)
+                            save_gif(env, trajectory_eachPlay, pre_fix, episode_to_check, episode, random_map_idx)
 
                     if any([agent.collision for agent_idx, agent in env.all_agents.items()]) and step < args.episode_length:
                         # save_gif(env, trajectory_eachPlay, pre_fix, episode_to_check, episode)  # check for collision case

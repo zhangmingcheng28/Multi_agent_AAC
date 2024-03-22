@@ -560,7 +560,7 @@ class NormalizeData:
         x, y = pos_c[0], pos_c[1]
         x_normalized = 2 * ((x - self.dis_min_x) / (self.dis_max_x - self.dis_min_x)) - 1
         y_normalized = 2 * ((y - self.dis_min_y) / (self.dis_max_y - self.dis_min_y)) - 1
-        return x_normalized, y_normalized
+        return np.array([x_normalized, y_normalized])
 
     def scale_pos(self, pos_c):  # NOTE: this method is essentially same as min-max normalize approach, but we need this appraoch to calculate x & y scale
         x_normalized = self.normalize_min + (pos_c[0] - self.dis_min_x) * self.x_scale

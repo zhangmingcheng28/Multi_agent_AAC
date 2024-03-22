@@ -1281,7 +1281,8 @@ class env_simulator:
 
             # ------- end if find nearest neighbour ------
 
-            norm_pos = self.normalizer.scale_pos([agent.pos[0], agent.pos[1]])
+            # norm_pos = self.normalizer.scale_pos([agent.pos[0], agent.pos[1]])
+            norm_pos = self.normalizer.nmlz_pos([agent.pos[0], agent.pos[1]])
 
             # norm_vel = self.normalizer.norm_scale([agent.vel[0], agent.vel[1]])  # normalization using scale
             norm_vel = self.normalizer.nmlz_vel([agent.vel[0], agent.vel[1]])  # normalization using min_max
@@ -1289,7 +1290,7 @@ class env_simulator:
             norm_acc = self.normalizer.norm_scale([agent.acc[0], agent.acc[1]])
 
             norm_G = self.normalizer.nmlz_pos([agent.goal[-1][0], agent.goal[-1][1]])
-            norm_deltaG = norm_G - norm_pos
+            norm_deltaG = norm_G - norm_pos  # drone's position relative to goal, so is like treat goal as the origin.
 
             norm_seg = self.normalizer.nmlz_pos([agent.goal[0][0], agent.goal[0][1]])
             norm_delta_segG = norm_seg - norm_pos
@@ -1374,7 +1375,10 @@ class env_simulator:
                         delta_host_x = self.all_agents[other_agentIdx].pos[0] - agent.pos[0]
                         delta_host_y = self.all_agents[other_agentIdx].pos[1] - agent.pos[1]
                         euclidean_dist = np.linalg.norm(self.all_agents[other_agentIdx].pos - agent.pos)
-                        norm_delta_pos = self.normalizer.scale_pos([delta_host_x, delta_host_y])
+                        # norm_delta_pos = self.normalizer.scale_pos([delta_host_x, delta_host_y])
+                        norm_nei_pos = self.normalizer.nmlz_pos([self.all_agents[other_agentIdx].pos[0],
+                                                                 self.all_agents[other_agentIdx].pos[1]])
+                        norm_delta_pos = norm_pos - norm_nei_pos # neigh's position relative to host drone. Host drone as origin.
                         cur_neigh_vx = self.all_agents[other_agentIdx].vel[0]
                         cur_neigh_vy = self.all_agents[other_agentIdx].vel[1]
                         norm_neigh_vel = self.normalizer.nmlz_vel([cur_neigh_vx, cur_neigh_vy])  # normalization using min_max

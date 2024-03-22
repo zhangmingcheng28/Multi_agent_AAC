@@ -1065,10 +1065,11 @@ class env_simulator:
 
             rest_compu_time = time.time()
 
-            norm_pos = self.normalizer.scale_pos([agent.pos[0], agent.pos[1]])
+            # norm_pos = self.normalizer.scale_pos([agent.pos[0], agent.pos[1]])
+            norm_pos = self.normalizer.nmlz_pos([agent.pos[0], agent.pos[1]])
 
-            norm_vel = self.normalizer.scale_vel([agent.vel[0], agent.vel[1]])
-            # norm_vel = self.normalizer.nmlz_vel([agent.vel[0], agent.vel[1]])
+            # norm_vel = self.normalizer.scale_vel([agent.vel[0], agent.vel[1]])
+            norm_vel = self.normalizer.nmlz_vel([agent.vel[0], agent.vel[1]])
 
             norm_G = self.normalizer.nmlz_pos([agent.goal[-1][0], agent.goal[-1][1]])
             norm_deltaG = norm_G - norm_pos
@@ -2190,7 +2191,7 @@ class env_simulator:
             # print("current drone {} actual distance to goal is {}, current reward to gaol is {}, current ref line reward is {}, current step reward is {}".format(drone_idx, actual_after_dist_hg, dist_to_goal, dist_to_ref_line, rew))
 
             # record status of each step.
-            eps_status_holder = self.display_one_eps_status(eps_status_holder, drone_idx, after_dist_hg, [dist_to_goal, cross_err_distance, dist_to_ref_line, near_building_penalty, small_step_penalty, np.linalg.norm(drone_obj.vel), near_goal_reward, seg_reward])
+            eps_status_holder = self.display_one_eps_status(eps_status_holder, drone_idx, actual_after_dist_hg, [dist_to_goal, cross_err_distance, dist_to_ref_line, near_building_penalty, small_step_penalty, np.linalg.norm(drone_obj.vel), near_goal_reward, seg_reward])
             # overall_status_record[2].append()  # 3rd is accumulated reward till that step for each agent
 
         if full_observable_critic_flag:
@@ -2277,10 +2278,21 @@ class env_simulator:
         return reward, done, check_goal, step_reward_record, eps_status_holder, step_collision_record, bound_building_check
 
     def display_one_eps_status(self, status_holder, drone_idx, cur_dist_to_goal, cur_step_reward):
-        if status_holder[drone_idx] == None:
-            status_holder[drone_idx] = [[cur_dist_to_goal] + cur_step_reward]
-        else:
-            status_holder[drone_idx].append([cur_dist_to_goal] + cur_step_reward)
+        status_holder[drone_idx]['Euclidean_dist_to_goal'] = cur_dist_to_goal
+        status_holder[drone_idx]['goal_leading_reward'] = cur_step_reward[0]
+        status_holder[drone_idx]['deviation_to_ref_line'] = cur_step_reward[1]
+        status_holder[drone_idx]['deviation_to_ref_line_reward'] = cur_step_reward[2]
+        status_holder[drone_idx]['near_building_penalty'] = cur_step_reward[3]
+        status_holder[drone_idx]['small_step_penalty'] = cur_step_reward[4]
+        status_holder[drone_idx]['current_drone_speed'] = cur_step_reward[5]
+        status_holder[drone_idx]['addition_near_goal_reward'] = cur_step_reward[6]
+        status_holder[drone_idx]['segment_reward'] = cur_step_reward[7]
+
+
+        # if status_holder[drone_idx] == None:
+        #     status_holder[drone_idx] = [[cur_dist_to_goal] + cur_step_reward]
+        # else:
+        #     status_holder[drone_idx].append([cur_dist_to_goal] + cur_step_reward)
         return status_holder
 
     def step(self, actions, current_ts, random_map_idx):
