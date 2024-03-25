@@ -237,6 +237,45 @@ class ActorNetwork_ATT(nn.Module):
         return out_action
 
 
+class ActorNetwork_ATT_wRadar(nn.Module):
+    def __init__(self, actor_dim, n_actions):
+        super(ActorNetwork_ATT_wRadar, self).__init__()
+        self.own_fc = nn.Sequential(nn.Linear(actor_dim[0], 64), nn.ReLU())
+        self.own_full_nei = nn.Sequential(nn.Linear(actor_dim[1], 64), nn.ReLU())
+        self.own_grid = nn.Sequential(nn.Linear(actor_dim[2], 64), nn.ReLU())
+        self.merge_feature = nn.Sequential(nn.Linear(64+64+64, 256), nn.ReLU())
+        self.act_out = nn.Sequential(nn.Linear(256, n_actions), nn.Tanh())
+        # attention
+        self.k = nn.Linear(64, 64, bias=False)
+        self.q = nn.Linear(64, 64, bias=False)
+        self.v = nn.Linear(64, 64, bias=False)
+
+    def forward(self, cur_state):
+        if len(cur_state[1].shape) == 2:
+            cur_state[1] = cur_state[1].unsqueeze(1)  # insert an one dimension at middle, because we want batch size always at 0th dimension
+        own_obs = self.own_fc(cur_state[0])
+        own_nei = self.own_full_nei(cur_state[1])
+        own_radar = self.own_grid(cur_state[2])
+        # mask attention embedding
+        q = self.q(own_obs)
+        k = self.k(own_nei)
+        v = self.v(own_nei)
+        mask = cur_state[1].mean(axis=2, keepdim=True).bool()
+        score = torch.bmm(k, q.unsqueeze(axis=2))
+        score_mask = score.clone()  # clone操作很必要
+        score_mask[~mask] = float('-inf')  # 不然赋值操作后会无法计算梯度
+
+        alpha = F.softmax(score_mask / np.sqrt(k.size(-1)), dim=1)  # we use dim=1 here because we need to get attention of each sequence in K towards all hidden vector of q in each batch.
+        alpha_mask = alpha.clone()
+        alpha_mask[~mask] = 0
+        v_att = torch.sum(v * alpha_mask, axis=1)
+
+        merge_obs_grid = torch.cat((own_obs, v_att, own_radar), dim=1)
+        merge_feature = self.merge_feature(merge_obs_grid)
+        out_action = self.act_out(merge_feature)
+        return out_action
+
+
 class ActorNetwork_GRU_TwoPortion(nn.Module):
     def __init__(self, actor_dim, n_actions, actor_hidden_state_size):  # actor_obs consists of three parts 0 = own, 1 = own grid, 2 = surrounding drones
         super(ActorNetwork_GRU_TwoPortion, self).__init__()

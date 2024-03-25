@@ -858,10 +858,12 @@ class env_simulator:
         # prepare for output states
         overall_state_p1 = []
         overall_state_p2 = []
+        overall_state_p2_radar = []
         overall_state_p3 = []
         # prepare normalized output states
         norm_overall_state_p1 = []
         norm_overall_state_p2 = []
+        norm_overall_state_p2_radar = []
         norm_overall_state_p3 = []
 
         # record surrounding grids for all drones
@@ -1506,7 +1508,9 @@ class env_simulator:
 
             overall_state_p1.append(agent_own)
             # overall_state_p2.append(agent.observableSpace)
+            overall_state_p2_radar.append(agent.observableSpace)
             overall_state_p2.append(all_neigh_agents)
+
 
             # distances_list = [dist_element[0] for dist_element in agent.observableSpace]
             # mini_index = find_index_of_min_first_element(agent.observableSpace)
@@ -1515,17 +1519,21 @@ class env_simulator:
 
             norm_overall_state_p1.append(norm_agent_own)
             # norm_overall_state_p2.append(agent.observableSpace)
+            norm_overall_state_p2_radar.append(agent.observableSpace)
             norm_overall_state_p2.append(norm_all_neigh_agents)
+
             # norm_overall_state_p2.append(distances_list)
 
         overall.append(overall_state_p1)
         overall.append(overall_state_p2)
+        overall.append(overall_state_p2_radar)
         overall.append(overall_state_p3)
         for list_ in overall_state_p3:
             if len(list_) == 0:
                 print("check")
         norm_overall.append(norm_overall_state_p1)
         norm_overall.append(norm_overall_state_p2)
+        norm_overall.append(norm_overall_state_p2_radar)
         norm_overall.append(norm_overall_state_p3)
         # print("rest compute time is {} milliseconds".format((time.time() - rest_compu_time) * 1000))
         return overall, norm_overall, polygons_list_wBound, all_agent_st_pos, all_agent_ed_pos, all_agent_intersection_point_list, all_agent_line_collection, all_agent_mini_intersection_list

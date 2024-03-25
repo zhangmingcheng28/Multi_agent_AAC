@@ -1,5 +1,5 @@
 # from Nnetworks_MADDPGv3 import CriticNetwork_0724, ActorNetwork
-from Nnetworks_randomOD_radar_sur_drones_oneModel_use_tdCPA import ActorNetwork_ATT, critic_single_GRU_TwoPortion, ActorNetwork_GRU_TwoPortion, critic_combine_TwoPortion, ActorNetwork, Stocha_actor, GRU_actor, GRUCELL_actor, CriticNetwork_woGru, CriticNetwork_wGru, critic_single_obs_wGRU, ActorNetwork_TwoPortion, critic_single_TwoPortion, ActorNetwork_OnePortion, critic_single_OnePortion
+from Nnetworks_randomOD_radar_sur_drones_oneModel_use_tdCPA import *
 import torch
 from copy import deepcopy
 from torch.optim import Adam
@@ -30,7 +30,8 @@ def hard_update(target, source):
 
 class MADDPG:
     def __init__(self, actor_dim, critic_dim, dim_act, actor_hidden_state_size, gru_history_length, n_agents,
-                 args, cr_lr, ac_lr, gamma, tau, full_observable_critic_flag, use_GRU_flag, use_single_portion_selfATT):
+                 args, cr_lr, ac_lr, gamma, tau, full_observable_critic_flag, use_GRU_flag, use_single_portion_selfATT,
+                 use_selfATT_with_radar):
         self.args = args
         self.mode = args.mode
         self.actors = []
@@ -46,6 +47,8 @@ class MADDPG:
             self.actors = ActorNetwork_GRU_TwoPortion(actor_dim, dim_act, actor_hidden_state_size)
         elif use_single_portion_selfATT:
             self.actors = ActorNetwork_ATT(actor_dim, dim_act)
+        elif use_selfATT_with_radar:
+            self.actors = ActorNetwork_ATT_wRadar(actor_dim, dim_act)
         else:
             self.actors = ActorNetwork_TwoPortion(actor_dim, dim_act)
         # end of only construct one-model
@@ -64,6 +67,9 @@ class MADDPG:
                 self.critics = critic_single_GRU_TwoPortion(critic_dim, n_agents, dim_act, gru_history_length,
                                                         actor_hidden_state_size)
             elif use_single_portion_selfATT:
+                self.critics = critic_single_TwoPortion(critic_dim, n_agents, dim_act, gru_history_length,
+                                                        actor_hidden_state_size)
+            elif use_selfATT_with_radar:
                 self.critics = critic_single_TwoPortion(critic_dim, n_agents, dim_act, gru_history_length,
                                                         actor_hidden_state_size)
             else:
@@ -227,7 +233,7 @@ class MADDPG:
 
         return c_loss, a_loss
 
-    def update_myown(self, i_episode, total_step_count, UPDATE_EVERY, single_eps_critic_cal_record, transfer_learning, wandb=None, full_observable_critic_flag=False, use_GRU_flag=False):
+    def update_myown(self, i_episode, total_step_count, UPDATE_EVERY, single_eps_critic_cal_record, transfer_learning, use_selfATT_with_radar, wandb=None, full_observable_critic_flag=False, use_GRU_flag=False):
 
         self.train_num = i_episode
 
@@ -262,6 +268,7 @@ class MADDPG:
             # stack tensors only once
             stacked_elem_0 = torch.stack([elem[0] for elem in batch.states]).to(device)
             stacked_elem_1 = torch.stack([elem[1] for elem in batch.states]).to(device)
+            stacked_elem_2 = torch.stack([elem[2] for elem in batch.states]).to(device)
             if full_observable_critic_flag == True:
                 # stacked_elem_0_combine = stacked_elem_0.view(self.batch_size, -1)  # own_state only
                 stacked_elem_0_combine = stacked_elem_0  # own_state only
@@ -275,6 +282,7 @@ class MADDPG:
             # for next state
             next_stacked_elem_0 = torch.stack([elem[0] for elem in batch.next_states]).to(device)
             next_stacked_elem_1 = torch.stack([elem[1] for elem in batch.next_states]).to(device)
+            next_stacked_elem_2 = torch.stack([elem[2] for elem in batch.next_states]).to(device)
             if full_observable_critic_flag == True:
                 # next_stacked_elem_0_combine = next_stacked_elem_0.view(self.batch_size, -1)
                 next_stacked_elem_0_combine = next_stacked_elem_0
@@ -289,7 +297,8 @@ class MADDPG:
             # whole_ownState = stacked_elem_0_combine  # own_state only
 
             # non_final_next_states_actorin = [next_stacked_elem_0]  # 2 portion available
-            non_final_next_states_actorin = [next_stacked_elem_0, next_stacked_elem_1]  # 2 portion available
+            # non_final_next_states_actorin = [next_stacked_elem_0, next_stacked_elem_1]  # 2 portion available
+            non_final_next_states_actorin = [next_stacked_elem_0, next_stacked_elem_1, next_stacked_elem_2]
 
             # configured for target Q
 
@@ -304,6 +313,10 @@ class MADDPG:
             if use_GRU_flag:
                 non_final_next_actions = self.actors_target(
                     [non_final_next_states_actorin[0], non_final_next_states_actorin[1]], agents_next_hidden_state)[0]
+            elif use_selfATT_with_radar:
+                non_final_next_actions = self.actors_target([non_final_next_states_actorin[0],
+                                                             non_final_next_states_actorin[1],
+                                                             non_final_next_states_actorin[2]])
             else:
                 non_final_next_actions = self.actors_target([non_final_next_states_actorin[0], non_final_next_states_actorin[1]])
             # end of using one model
@@ -321,6 +334,8 @@ class MADDPG:
                 # using one model
                 if use_GRU_flag:
                     current_Q = self.critics([stacked_elem_0, stacked_elem_1], action_batch, agents_cur_hidden_state)[0]
+                elif use_selfATT_with_radar:
+                    current_Q = self.critics([stacked_elem_0, stacked_elem_1, stacked_elem_2], action_batch)
                 else:
                     current_Q = self.critics([stacked_elem_0, stacked_elem_1], action_batch)
 
@@ -447,10 +462,11 @@ class MADDPG:
                 wandb.log({name: float(param.grad.norm())})
                 # wandb.log({'agent' + str(idx): wandb.Histogram(param.grad.cpu().detach().numpy())})
 
-    def choose_action(self, state, cur_total_step, cur_episode, step, mini_noise_eps, noise_start_level, actor_hiddens, noisy=True, use_GRU_flag=False):
+    def choose_action(self, state, cur_total_step, cur_episode, step, mini_noise_eps, noise_start_level, actor_hiddens, use_selfATT_with_radar, noisy=True, use_GRU_flag=False):
         # ------------- MADDPG_test_181123_10_10_54 version noise -------------------
         obs = torch.from_numpy(np.stack(state[0])).float().to(device)
-        obs_grid = torch.from_numpy(np.stack(state[1])).float().to(device)
+        obs_full_nei = torch.from_numpy(np.stack(state[1])).float().to(device)
+        obs_grid = torch.from_numpy(np.stack(state[2])).float().to(device)
         noise_value = np.zeros(2)
 
         # if len(gru_history) < self.args.gru_history_length:
@@ -481,6 +497,7 @@ class MADDPG:
             # sb_grid = obs_grid[i].detach()
             # sb_surAgent = all_obs_surAgent[i].detach()
             sb = obs[i]
+            sb_full_nei = obs_full_nei[i]
             sb_grid = obs_grid[i]
             # sb_surAgent = all_obs_surAgent[i]
             # act = self.actors[i]([sb.unsqueeze(0), sb_grid.unsqueeze(0), sb_surAgent.unsqueeze(0)]).squeeze()
@@ -491,8 +508,10 @@ class MADDPG:
             # using one model
             if use_GRU_flag:
                 act, hn = self.actors([sb.unsqueeze(0), sb_grid.unsqueeze(0)], gru_history_input[:, i, :])
+            elif use_selfATT_with_radar:
+                act = self.actors([sb.unsqueeze(0), sb_full_nei.unsqueeze(0), sb_grid.unsqueeze(0)])
             else:
-                act = self.actors([sb.unsqueeze(0), sb_grid.unsqueeze(0)])
+                act = self.actors([sb.unsqueeze(0), sb_full_nei.unsqueeze(0)])
             # act = self.actors([sb.unsqueeze(0), sb_grid.unsqueeze(0)])
             if noisy:
                 noise_value = np.random.randn(2) * self.var[i]

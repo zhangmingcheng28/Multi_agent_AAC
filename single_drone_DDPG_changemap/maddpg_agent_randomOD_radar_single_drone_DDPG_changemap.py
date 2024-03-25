@@ -34,6 +34,7 @@ class MADDPG:
         self.mode = args.mode
         self.actors = []
         self.critics = []
+
         # original
         # self.actors = [Actor(dim_obs, dim_act) for _ in range(n_agents)]
         # self.critics = [Critic(n_agents, dim_obs, dim_act) for _ in range(n_agents)]
@@ -584,6 +585,7 @@ class MADDPG:
             # act = self.actors[i]([sb.unsqueeze(0), sb_surAgent.unsqueeze(0)]).squeeze()
             # act, hn = self.actors[i](sb.unsqueeze(0), gru_history_input[:,:,i,:])
             # act, hn = self.actors[i](sb.unsqueeze(0), gru_history_input[:, i, :])
+            self.actors[i].eval()
             if use_GRU_flag:
                 act, hn = self.actors[i]([sb.unsqueeze(0), sb_grid.unsqueeze(0)], gru_history_input[:, i, :])
             else:
@@ -599,6 +601,7 @@ class MADDPG:
                 act_hn[i, :] = hn
             else:
                 act_hn[i, :] = torch.zeros(1, self.n_actions)
+            self.actors[i].train()
         self.steps_done += 1
         # ------------- end of MADDPG_test_181123_10_10_54 version noise -------------------
 

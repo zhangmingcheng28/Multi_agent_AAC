@@ -140,6 +140,7 @@ class TD3(object):
             # act = self.actors[i]([sb.unsqueeze(0), sb_surAgent.unsqueeze(0)]).squeeze()
             # act, hn = self.actors[i](sb.unsqueeze(0), gru_history_input[:,:,i,:])
             # act, hn = self.actors[i](sb.unsqueeze(0), gru_history_input[:, i, :])
+            self.actors[i].eval()
             if use_GRU_flag:
                 act, hn = self.actors[i]([sb.unsqueeze(0), sb_grid.unsqueeze(0)], gru_history_input[:, i, :])
             else:
@@ -155,6 +156,7 @@ class TD3(object):
                 act_hn[i, :] = hn
             else:
                 act_hn[i, :] = torch.zeros(1, self.n_actions)
+        self.actors[i].train()
         self.total_steps += 1
         # ------------- end of MADDPG_test_181123_10_10_54 version noise -------------------
 
