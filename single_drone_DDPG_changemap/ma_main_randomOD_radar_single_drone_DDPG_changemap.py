@@ -134,8 +134,10 @@ def main(args):
     n_actions = 2
     acc_range = [-4, 4]  # NOTE this we need to change
 
-    actorNet_lr = 0.001
-    criticNet_lr = 0.001
+    # actorNet_lr = 0.001
+    actorNet_lr = 0.001/10
+    # criticNet_lr = 0.001
+    criticNet_lr = 0.001/10
 
     # noise parameter ini
     largest_Nsigma = 0.5
@@ -187,11 +189,11 @@ def main(args):
     dummy_xy = (None, None)  # this is a dummy tuple of xy, is not useful during normal training, it is only useful when generating reward map
     if args.mode == "eval":
         # args.max_episodes = 10  # only evaluate one episode during evaluation mode.
-        args.max_episodes = 5  # only evaluate one episode during evaluation mode.
-        # args.max_episodes = 100
+        # args.max_episodes = 5  # only evaluate one episode during evaluation mode.
+        args.max_episodes = 100
         # args.max_episodes = 20
-        pre_fix = r'D:\MADDPG_2nd_jp\210324_17_58_11\interval_record_eps'
-        episode_to_check = str(18000)
+        pre_fix = r'D:\MADDPG_2nd_jp\220324_14_38_44\interval_record_eps'
+        episode_to_check = str(35000)
         load_filepath_0 = pre_fix + '\episode_' + episode_to_check + '_agent_0actor_net.pth'
         load_filepath_1 = pre_fix + '\episode_' + episode_to_check + '_agent_1actor_net.pth'
         load_filepath_2 = pre_fix + '\episode_' + episode_to_check + '_agent_2actor_net.pth'
@@ -209,8 +211,8 @@ def main(args):
         episode_start_time = time.time()
         episode += 1
         eps_reset_start_time = time.time()
-        # random_map_idx = random.randrange(len(env.world_map_2D_collection))
-        random_map_idx = 3  # this value is the previous fixed environment
+        random_map_idx = random.randrange(len(env.world_map_2D_collection))
+        # random_map_idx = 3  # this value is the previous fixed environment
         cur_state, norm_cur_state = env.reset_world(total_agentNum, random_map_idx, show=0)  # random map choose here
         eps_reset_time_used = (time.time()-eps_reset_start_time)*1000
         # print("current episode {} reset time used is {} milliseconds".format(episode, eps_reset_time_used))  # need to + 1 here, or else will misrecord as the previous episode

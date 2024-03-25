@@ -41,8 +41,8 @@ class MADDPG:
         # self.actors = [Stocha_actor(actor_dim, dim_act) for _ in range(n_agents)]  # use stochastic policy
         # self.actors = [ActorNetwork_TwoPortion(actor_dim, dim_act) for _ in range(n_agents)]  # use deterministic policy
         # only construct one-model
-        self.actors = ActorNetwork_TwoPortion(actor_dim, dim_act)
-        # self.actors = ActorNetwork_ATT_TwoPortion(actor_dim, dim_act)
+        # self.actors = ActorNetwork_TwoPortion(actor_dim, dim_act)
+        self.actors = ActorNetwork_ATT_TwoPortion(actor_dim, dim_act)
         # end of only construct one-model
         # self.actors = [ActorNetwork_OnePortion(actor_dim, dim_act) for _ in range(n_agents)]  # use deterministic policy
         # self.actors = [GRUCELL_actor(actor_dim, dim_act, actor_hidden_state_size) for _ in range(n_agents)]  # use deterministic with GRU module policy

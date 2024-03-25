@@ -9,6 +9,7 @@
 import copy
 import jps
 from jps_straight import jps_find_path
+from collections import OrderedDict
 from shapely.ops import nearest_points
 import rtree
 from shapely.strtree import STRtree
@@ -755,21 +756,38 @@ class env_simulator:
         overall_state, norm_overall_state = self.cur_state_norm_state_fully_observable(agentRefer_dict)  # update agent's surrounding is inside here
         return overall_state, norm_overall_state
 
-    def get_current_agent_nei(self, cur_agent, agentRefer_dict):
+    def get_current_agent_nei(self, cur_agent, agentRefer_dict, queue):
         # identify neighbors (use distance)
         point_to_search = cur_agent.pos
         # subtract a small value to exclude point at exactly "search_distance"
         # search_distance = (cur_agent.detectionRange / 2) + cur_agent.protectiveBound - 1e-6
         search_distance = 10000
-        # indices_from_KDtree = self.cur_allAgentCoor_KD.query_ball_point(point_to_search, search_distance)
-        for agent_idx, agent in self.all_agents.items():  # loop through all agent to confirm its neighbour
-            if agent.agent_name == cur_agent.agent_name:  # skip the current querying agent
+        distance_neigh_agent_list = []
+        for agent_idx, agent in self.all_agents.items():
+            if agent.agent_name == cur_agent.agent_name:
                 continue
-            cur_ts_dist = np.linalg.norm(agent.pos-cur_agent.pos)
-            if cur_ts_dist <= search_distance:
-                cur_agent.surroundingNeighbor[agent_idx] = np.array([agent.pos[0], agent.pos[1],
-                                                                     agent.vel[0], agent.vel[1],
-                                                                     agent.protectiveBound])
+            # get neigh distance
+            cur_ts_dist = np.linalg.norm(agent.pos - cur_agent.pos)
+            if cur_ts_dist < search_distance:
+                if queue:
+                    distance_neigh_agent_list.append(
+                        (cur_ts_dist, agent_idx, np.array([
+                            agent.pos[0], agent.pos[1],
+                            agent.vel[0], agent.vel[1],
+                            agent.protectiveBound
+                        ]))
+                    )
+                    # Sort the list by distance
+                    distance_neigh_agent_list.sort(key=lambda x: x[0])
+
+                    # Create a new ordered dictionary with sorted items
+                    cur_agent.surroundingNeighbor = OrderedDict(
+                        (neigh_agent_data[1], neigh_agent_data[2]) for neigh_agent_data in distance_neigh_agent_list
+                    )
+                else:
+                    cur_agent.surroundingNeighbor[agent_idx] = np.array([agent.pos[0], agent.pos[1],
+                                                                         agent.vel[0], agent.vel[1],
+                                                                         agent.protectiveBound])
         return cur_agent.surroundingNeighbor
 
     def cur_state_norm_state_v2(self, agentRefer_dict):
@@ -873,7 +891,7 @@ class env_simulator:
             #
             # identify neighbors (use distance)
             # obs_nei_time = time.time()
-            agent.surroundingNeighbor = self.get_current_agent_nei(agent, agentRefer_dict)
+            agent.surroundingNeighbor = self.get_current_agent_nei(agent, agentRefer_dict, queue=True)
             # print("generate nei time is {} milliseconds".format((time.time() - obs_nei_time) * 1000))
 
             # # ------------ start of create radar (with UAV detection) ------------- #

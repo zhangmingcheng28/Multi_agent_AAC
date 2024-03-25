@@ -222,9 +222,9 @@ class GRUCELL_actor_TwoPortion(nn.Module):
         self.own_grid = nn.Sequential(nn.Linear(actor_dim[1], 64), nn.ReLU())
         self.rnn_hidden_dim = actor_hidden_state_size
         self.gru_cell = nn.GRUCell(64, actor_hidden_state_size)
-        self.outlay = nn.Sequential(nn.Linear(64+64, n_actions), nn.Tanh())
-        # self.outlay = nn.Sequential(nn.Linear(64+64, 128), nn.ReLU(),
-        #                             nn.Linear(64+64, n_actions), nn.Tanh())
+        # self.outlay = nn.Sequential(nn.Linear(64+64, n_actions), nn.Tanh())
+        self.outlay = nn.Sequential(nn.Linear(64+64, 128), nn.ReLU(),
+                                    nn.Linear(64+64, n_actions), nn.Tanh())
         # v2
         # self.own_fc = nn.Sequential(nn.Linear(actor_dim[0], 64), nn.ReLU())
         # self.own_grid = nn.Sequential(nn.Linear(actor_dim[1], 64), nn.ReLU())
