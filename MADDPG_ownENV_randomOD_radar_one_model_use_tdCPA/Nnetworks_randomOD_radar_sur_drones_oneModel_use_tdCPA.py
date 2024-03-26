@@ -221,16 +221,9 @@ class ActorNetwork_ATT(nn.Module):
         q = self.q(own_obs)
         k = self.k(own_nei)
         v = self.v(own_nei)
-        mask = cur_state[1].mean(axis=2, keepdim=True).bool()
         score = torch.bmm(k, q.unsqueeze(axis=2))
-        score_mask = score.clone()  # clone操作很必要
-        score_mask[~mask] = float('-inf')  # 不然赋值操作后会无法计算梯度
-
-        alpha = F.softmax(score_mask / np.sqrt(k.size(-1)), dim=1)  # we use dim=1 here because we need to get attention of each sequence in K towards all hidden vector of q in each batch.
-        alpha_mask = alpha.clone()
-        alpha_mask[~mask] = 0
-        v_att = torch.sum(v * alpha_mask, axis=1)
-
+        alpha = F.softmax(score / np.sqrt(k.size(-1)), dim=1)
+        v_att = torch.sum(v * alpha, axis=1)
         merge_obs_grid = torch.cat((own_obs, v_att), dim=1)
         merge_feature = self.merge_feature(merge_obs_grid)
         out_action = self.act_out(merge_feature)
