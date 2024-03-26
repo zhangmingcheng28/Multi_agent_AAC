@@ -65,8 +65,8 @@ def main(args):
         # initialize_excel_file(excel_file_path_time)
         # ------------ end of this portion is to save using excel instead of pickle -----------
 
-    use_wanDB = False
-    # use_wanDB = True
+    # use_wanDB = False
+    use_wanDB = True
 
     # get_evaluation_status = True  # have figure output
     get_evaluation_status = False  # no figure output, mainly obtain collision rate
@@ -84,11 +84,11 @@ def main(args):
     use_GRU_flag = False
 
     # Neural network config, this config only apply to one portion state space, 6+nx5
-    # use_single_portion_selfATT = True
-    use_single_portion_selfATT = False
+    use_single_portion_selfATT = True
+    # use_single_portion_selfATT = False
 
-    use_selfATT_with_radar = True
-    # use_selfATT_with_radar = False
+    # use_selfATT_with_radar = True
+    use_selfATT_with_radar = False
 
     if use_wanDB:
         wandb.login(key="efb76db851374f93228250eda60639c70a93d1ec")
@@ -459,8 +459,8 @@ def main(args):
                         one_agent_next_obs.append(one_agent_one_portion)
 
                     for i in range(len(one_agent_next_obs)):
-                        if done_tensor[i] == 1:
-                            continue
+                        # if done_tensor[i] == 1:
+                        #     continue
                         model.memory.push(one_agent_obs[i], ac_tensor[i,:], one_agent_next_obs[i], rw_tensor[i], done_tensor[i], history_tensor[:,i,:],
                                           cur_actor_hiddens[i,:], next_actor_hiddens[i,:])
                     # ------- end of push to memory one by one ----------
@@ -963,13 +963,13 @@ if __name__ == '__main__':
     parser.add_argument('--scenario', default="simple_spread", type=str)
     parser.add_argument('--max_episodes', default=4000, type=int)  # run for a total of 50000 episodes
     parser.add_argument('--algo', default="maddpg", type=str, help="commnet/bicnet/maddpg")
-    parser.add_argument('--mode', default="eval", type=str, help="train/eval")
+    parser.add_argument('--mode', default="train", type=str, help="train/eval")
     # parser.add_argument('--episode_length', default=150, type=int)  # maximum play per episode
     parser.add_argument('--episode_length', default=50, type=int)  # maximum play per episode
     # parser.add_argument('--episode_length', default=100, type=int)  # maximum play per episode
     parser.add_argument('--memory_length', default=int(1e5), type=int)
     parser.add_argument('--seed', default=777, type=int)  # may choose to use 3407
-    parser.add_argument('--batch_size', default=512, type=int)  # original 512
+    parser.add_argument('--batch_size', default=12, type=int)  # original 512
     # parser.add_argument('--batch_size', default=1536, type=int)  # original 512
     parser.add_argument('--render_flag', default=False, type=bool)
     parser.add_argument('--ou_theta', default=0.15, type=float)
