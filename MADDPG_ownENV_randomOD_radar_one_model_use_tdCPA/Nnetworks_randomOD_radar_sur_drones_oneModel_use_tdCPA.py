@@ -663,6 +663,27 @@ class critic_single_TwoPortion(nn.Module):
         return q
 
 
+class critic_single_TwoPortion_wRadar(nn.Module):
+    def __init__(self, critic_obs, n_agents, n_actions, single_history, hidden_state_size):
+        super(critic_single_TwoPortion_wRadar, self).__init__()
+        self.SA_fc = nn.Sequential(nn.Linear(critic_obs[0]+n_actions, 64), nn.ReLU())
+        self.S_all_nei = nn.Sequential(nn.Linear(critic_obs[1], 64), nn.ReLU())
+        self.S_radar = nn.Sequential(nn.Linear(critic_obs[2], 64), nn.ReLU())
+        self.merge_fc_grid = nn.Sequential(nn.Linear(64+64+64, 512), nn.ReLU())
+        self.out_feature_q = nn.Sequential(nn.Linear(512, 1))
+
+    def forward(self, single_state, single_action):
+        obsWaction = torch.cat((single_state[0], single_action), dim=1)
+        own_obsWaction = self.SA_fc(obsWaction)
+        own_full_neigh = self.S_all_nei(single_state[1])
+        own_radar = self.S_radar(single_state[2])
+        merge_obs_grid = torch.cat((own_obsWaction, own_full_neigh, own_radar), dim=1)
+        merge_feature = self.merge_fc_grid(merge_obs_grid)
+        q = self.out_feature_q(merge_feature)
+        return q
+
+
+
 class critic_single_GRU_TwoPortion(nn.Module):
     def __init__(self, critic_obs, n_agents, n_actions, single_history, hidden_state_size):
         super(critic_single_GRU_TwoPortion, self).__init__()

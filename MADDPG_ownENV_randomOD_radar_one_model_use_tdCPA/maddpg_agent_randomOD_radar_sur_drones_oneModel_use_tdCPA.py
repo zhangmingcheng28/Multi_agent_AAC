@@ -70,7 +70,7 @@ class MADDPG:
                 self.critics = critic_single_TwoPortion(critic_dim, n_agents, dim_act, gru_history_length,
                                                         actor_hidden_state_size)
             elif use_selfATT_with_radar:
-                self.critics = critic_single_TwoPortion(critic_dim, n_agents, dim_act, gru_history_length,
+                self.critics = critic_single_TwoPortion_wRadar(critic_dim, n_agents, dim_act, gru_history_length,
                                                         actor_hidden_state_size)
             else:
                 self.critics = critic_single_TwoPortion(critic_dim, n_agents, dim_act, gru_history_length, actor_hidden_state_size)
@@ -358,6 +358,9 @@ class MADDPG:
                     if use_GRU_flag:
                         next_target_critic_value = self.critics_target([next_stacked_elem_0, next_stacked_elem_1],
                             non_final_next_actions, agents_next_hidden_state)[0].squeeze()
+                    elif use_selfATT_with_radar:
+                        next_target_critic_value = self.critics_target([next_stacked_elem_0, next_stacked_elem_1, next_stacked_elem_2],
+                            non_final_next_actions).squeeze()
                     else:
                         next_target_critic_value = self.critics_target([next_stacked_elem_0, next_stacked_elem_1],
                             non_final_next_actions).squeeze()
@@ -396,6 +399,8 @@ class MADDPG:
             # action_i = self.actors[agent]([stacked_elem_0[:,agent,:], stacked_elem_1[:,agent,:]])
             if use_GRU_flag:
                 action_i = self.actors([stacked_elem_0, stacked_elem_1], agents_cur_hidden_state)[0]
+            elif use_selfATT_with_radar:
+                action_i = self.actors([stacked_elem_0, stacked_elem_1, stacked_elem_2])
             else:
                 action_i = self.actors([stacked_elem_0, stacked_elem_1])
             ac = action_batch.clone()
@@ -416,6 +421,8 @@ class MADDPG:
                 #                                      ac[:, agent, :]).mean()
                 if use_GRU_flag:
                     actor_loss = - self.critics([stacked_elem_0, stacked_elem_1], ac, agents_cur_hidden_state)[0].mean()
+                elif use_selfATT_with_radar:
+                    actor_loss = - self.critics([stacked_elem_0, stacked_elem_1, stacked_elem_2], ac).mean()
                 else:
                     actor_loss = - self.critics([stacked_elem_0, stacked_elem_1], ac).mean()
 
