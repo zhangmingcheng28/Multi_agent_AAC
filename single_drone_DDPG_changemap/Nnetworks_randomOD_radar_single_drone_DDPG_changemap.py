@@ -218,18 +218,18 @@ class GRUCELL_actor_TwoPortion(nn.Module):
         # self.gru_cell = nn.GRUCell(64+64, actor_hidden_state_size)
         # self.outlay = nn.Sequential(nn.Linear(64, n_actions), nn.Tanh())
         # V1.1
-        # self.own_fc = nn.Sequential(nn.Linear(actor_dim[0], 64), nn.ReLU())
-        self.own_fc = nn.Sequential(nn.Linear(actor_dim[0], 64), nn.BatchNorm1d(64), nn.ReLU())
-        # self.own_grid = nn.Sequential(nn.Linear(actor_dim[1], 64), nn.ReLU())
-        self.own_grid = nn.Sequential(nn.Linear(actor_dim[1], 64), nn.BatchNorm1d(64), nn.ReLU())
+        self.own_fc = nn.Sequential(nn.Linear(actor_dim[0], 64), nn.ReLU())
+        # self.own_fc = nn.Sequential(nn.Linear(actor_dim[0], 64), nn.BatchNorm1d(64), nn.ReLU())
+        self.own_grid = nn.Sequential(nn.Linear(actor_dim[1], 64), nn.ReLU())
+        # self.own_grid = nn.Sequential(nn.Linear(actor_dim[1], 64), nn.BatchNorm1d(64), nn.ReLU())
         self.rnn_hidden_dim = actor_hidden_state_size
         self.gru_cell = nn.GRUCell(64, actor_hidden_state_size)
         # self.outlay = nn.Sequential(nn.Linear(64+64, n_actions), nn.Tanh())
-        self.outlay = nn.Sequential(nn.Linear(64+64, 128), nn.ReLU(),
-                                    nn.Linear(64+64, n_actions), nn.Tanh())
         # self.outlay = nn.Sequential(nn.Linear(64+64, 128), nn.ReLU(),
-        #                             nn.Linear(128, 128), nn.ReLU(),
         #                             nn.Linear(64+64, n_actions), nn.Tanh())
+        self.outlay = nn.Sequential(nn.Linear(64+64, 128), nn.ReLU(),
+                                    nn.Linear(128, 128), nn.ReLU(),
+                                    nn.Linear(64+64, n_actions), nn.Tanh())
         # v2
         # self.own_fc = nn.Sequential(nn.Linear(actor_dim[0], 64), nn.ReLU())
         # self.own_grid = nn.Sequential(nn.Linear(actor_dim[1], 64), nn.ReLU())
@@ -264,6 +264,72 @@ class GRUCELL_actor_TwoPortion(nn.Module):
         # obs_Wgrid_fea = self.fc_Wgrid(obs_Wgrid)  # 128
         # combine_feature = torch.cat((h_out, obs_Wgrid_fea), dim=1)
         # action_out = self.outlay(combine_feature)
+        return action_out, h_out
+
+
+class GRUCELL_actor_TwoPortion_wATT(nn.Module):
+    def __init__(self, actor_dim, n_actions, actor_hidden_state_size):
+        super(GRUCELL_actor_TwoPortion_wATT, self).__init__()
+
+        self.own_fc = nn.Sequential(nn.Linear(actor_dim[0], 64), nn.BatchNorm1d(64), nn.ReLU())
+        self.own_grid = nn.Sequential(nn.Linear(actor_dim[1], 64), nn.BatchNorm1d(64), nn.ReLU())
+        self.rnn_hidden_dim = actor_hidden_state_size
+        self.gru_cell = nn.GRUCell(64, actor_hidden_state_size)
+        self.outlay = nn.Sequential(nn.Linear(64+128, 256), nn.ReLU(),
+                                    nn.Linear(256, 256), nn.ReLU(),
+                                    nn.Linear(256, n_actions), nn.Tanh())
+        # attention
+        self.k = nn.Linear(128, 128, bias=False)
+        self.q = nn.Linear(64, 128, bias=False)
+        self.v = nn.Linear(128, 128, bias=False)
+
+    def forward(self, cur_state, history_hidden_state):
+        own_obs = self.own_fc(cur_state[0])
+        own_grid = self.own_grid(cur_state[1])
+        h_in = history_hidden_state.reshape(-1, self.rnn_hidden_dim)
+        h_out = self.gru_cell(own_grid, h_in)
+        merge_obs_H_grid = torch.cat((own_obs, h_out), dim=1)
+        # mask attention embedding
+        q = self.q(own_obs)
+        k = self.k(merge_obs_H_grid)
+        v = self.v(merge_obs_H_grid)
+        score = torch.bmm(k.unsqueeze(axis=1), q.unsqueeze(axis=2))
+        alpha = F.softmax(score / np.sqrt(k.size(-1)), dim=1)  # we use dim=1 here because we need to get attention of each sequence in K towards all hidden vector of q in each batch.
+        v_att = torch.sum(v * alpha, axis=1)
+        final_merge = torch.cat((own_obs, v_att), dim=1)
+        action_out = self.outlay(final_merge)
+        return action_out, h_out
+
+
+class GRUCELL_actor_TwoPortion_wATT_v2(nn.Module):
+    def __init__(self, actor_dim, n_actions, actor_hidden_state_size):
+        super(GRUCELL_actor_TwoPortion_wATT_v2, self).__init__()
+
+        self.own_fc = nn.Sequential(nn.Linear(actor_dim[0], 64), nn.BatchNorm1d(64), nn.ReLU())
+        self.own_grid = nn.Sequential(nn.Linear(actor_dim[1], 64), nn.BatchNorm1d(64), nn.ReLU())
+        self.rnn_hidden_dim = actor_hidden_state_size
+        self.gru_cell = nn.GRUCell(64, actor_hidden_state_size)
+        self.outlay = nn.Sequential(nn.Linear(64, 64), nn.ReLU(),
+                                    nn.Linear(64, 64), nn.ReLU(),
+                                    nn.Linear(64, n_actions), nn.Tanh())
+        # attention
+        self.k = nn.Linear(64, 64, bias=False)
+        self.q = nn.Linear(64, 64, bias=False)
+        self.v = nn.Linear(64, 64, bias=False)
+
+    def forward(self, cur_state, history_hidden_state):
+        own_obs = self.own_fc(cur_state[0])
+        own_grid = self.own_grid(cur_state[1])
+        #attention embedding
+        q = self.q(own_obs)
+        k = self.k(own_grid)
+        v = self.v(own_grid)
+        score = torch.bmm(k.unsqueeze(axis=1), q.unsqueeze(axis=2))
+        alpha = F.softmax(score / np.sqrt(k.size(-1)), dim=1)  # we use dim=1 here because we need to get attention of each sequence in K towards all hidden vector of q in each batch.
+        v_att = torch.sum(v * alpha, axis=1)
+        h_in = history_hidden_state.reshape(-1, self.rnn_hidden_dim)
+        h_out = self.gru_cell(v_att, h_in)
+        action_out = self.outlay(h_out)
         return action_out, h_out
 
 
