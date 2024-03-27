@@ -357,8 +357,11 @@ def compute_projected_velocity(vehicle_velocity, reference_path, vehicle_positio
         # Calculate the tangent vector (unit vector) of the segment
         tangent_vector = (segment_end - segment_start) / np.linalg.norm(segment_end - segment_start)
 
-        # Project the vehicle's velocity onto the tangent vector
-        projected_velocity = np.dot(vehicle_velocity, tangent_vector) * tangent_vector
+        # # Project the vehicle's velocity onto the tangent vector
+        # projected_velocity = np.dot(vehicle_velocity, tangent_vector) * tangent_vector
+
+        # output dot value only.
+        projected_velocity = np.dot(vehicle_velocity, tangent_vector)  # this is a scalar value.
     else:
         # If it's not a turning point, just find the index of the closest segment
         distance_along_line = reference_path.project(closest_point)
@@ -374,7 +377,11 @@ def compute_projected_velocity(vehicle_velocity, reference_path, vehicle_positio
         # Compute the tangent vector as before
         tangent_vector = (segment_end - segment_start) / np.linalg.norm(segment_end - segment_start)
         # Project the vehicle's velocity onto the tangent vector
-        projected_velocity = np.dot(vehicle_velocity, tangent_vector) * tangent_vector
+        # projected_velocity = np.dot(vehicle_velocity, tangent_vector) * tangent_vector
+
+        # output dot value only.
+        projected_velocity = np.dot(vehicle_velocity, tangent_vector)  # this is a scalar value.
+
     return projected_velocity
 
 

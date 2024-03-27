@@ -305,8 +305,10 @@ class GRUCELL_actor_TwoPortion_wATT_v2(nn.Module):
     def __init__(self, actor_dim, n_actions, actor_hidden_state_size):
         super(GRUCELL_actor_TwoPortion_wATT_v2, self).__init__()
 
-        self.own_fc = nn.Sequential(nn.Linear(actor_dim[0], 64), nn.BatchNorm1d(64), nn.ReLU())
-        self.own_grid = nn.Sequential(nn.Linear(actor_dim[1], 64), nn.BatchNorm1d(64), nn.ReLU())
+        # self.own_fc = nn.Sequential(nn.Linear(actor_dim[0], 64), nn.BatchNorm1d(64), nn.ReLU())
+        self.own_fc = nn.Sequential(nn.Linear(actor_dim[0], 64), nn.ReLU())
+        # self.own_grid = nn.Sequential(nn.Linear(actor_dim[1], 64), nn.BatchNorm1d(64), nn.ReLU())
+        self.own_grid = nn.Sequential(nn.Linear(actor_dim[1], 64), nn.ReLU())
         self.rnn_hidden_dim = actor_hidden_state_size
         self.gru_cell = nn.GRUCell(64, actor_hidden_state_size)
         self.outlay = nn.Sequential(nn.Linear(64, 64), nn.ReLU(),
@@ -330,6 +332,7 @@ class GRUCELL_actor_TwoPortion_wATT_v2(nn.Module):
         h_in = history_hidden_state.reshape(-1, self.rnn_hidden_dim)
         h_out = self.gru_cell(v_att, h_in)
         action_out = self.outlay(h_out)
+        # action_out = self.outlay(v_att)
         return action_out, h_out
 
 
@@ -599,6 +602,7 @@ class critic_single_obs_wGRU_TwoPortion(nn.Module):
         # combine_feature = torch.cat((h_out, obs_Wgrid_fea, single_action), dim=1)  # 128+256+2
         # q = self.own_fc_outlay(combine_feature)
         return q, h_out
+
 
 class critic_single_obs_wGRU_TwoPortion_TD3(nn.Module):
     def __init__(self, critic_obs, n_agents, n_actions, single_history, hidden_state_size):

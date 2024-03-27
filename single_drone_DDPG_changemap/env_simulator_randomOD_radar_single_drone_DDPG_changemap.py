@@ -2299,7 +2299,6 @@ class env_simulator:
         y_bottom_bound = LineString([(-9999, self.bound_collection[random_map_idx][2]), (9999, self.bound_collection[random_map_idx][2])])
         y_top_bound = LineString([(-9999, self.bound_collection[random_map_idx][3]), (9999, self.bound_collection[random_map_idx][3])])
 
-
         for drone_idx, drone_obj in self.all_agents.items():
             if xy[0] is not None and xy[1] is not None and drone_idx > 0:
                 continue
@@ -2334,7 +2333,6 @@ class env_simulator:
             else:
                 host_refline = LineString([self.all_agents[drone_idx].ini_pos, self.all_agents[drone_idx].goal[0]])
 
-            cross_track_deviation = curPoint.distance(host_refline)  # THIS IS WRONG
             # cross_track_deviation_x = abs(cross_track_deviation*math.cos(drone_obj.heading))
             # cross_track_deviation_y = abs(cross_track_deviation*math.sin(drone_obj.heading))
             # norm_cross_track_deviation_x = cross_track_deviation_x * self.normalizer.x_scale
@@ -2473,11 +2471,14 @@ class env_simulator:
             # dist_to_goal = dist_to_goal_coeff * (before_dist_hg - after_dist_hg)  # (before_dist_hg - after_dist_hg) -max_vel - max_vel
 
             # ---- v2 leading to goal reward, based on compute_projected_velocity ---
-            pro_vel_coef = 0.5
-            projected_velocity = compute_projected_velocity(drone_obj.vel, drone_obj.ref_line, Point(drone_obj.pos))
+            pro_vel_coef = 1
+            projected_velocity = compute_projected_velocity(drone_obj.vel, drone_obj.ref_line, Point(drone_obj.pos))  # scalar value range is [-v_max, v_max]
             # get the norm as the projected_velocity.
-            pro_vel_rd = pro_vel_coef * np.linalg.norm(projected_velocity)
-            dist_to_goal = pro_vel_rd
+            pro_vel_rd = projected_velocity / drone_obj.maxSpeed 
+            dist_to_goal = pro_vel_coef * pro_vel_rd
+            if pro_vel_rd < -1 or pro_vel_rd > 1:
+                print("reward exceed bound")
+
             # ---- end of v2 leading to goal reward, based on compute_projected_velocity ---
 
             # dist_left = total_length_to_end_of_line(drone_obj.pos, drone_obj.ref_line)  # V1
@@ -2492,8 +2493,8 @@ class env_simulator:
             # else:
             #     dist_to_goal = 0
 
-            if dist_to_goal >= drone_obj.maxSpeed:
-                print("dist_to_goal reward out of range")
+            # if projected_velocity > drone_obj.maxSpeed:
+            #     print("dist_to_goal reward out of range")
 
             # ------- small segment reward ------------
             # dist_to_seg_coeff = 10
@@ -2519,22 +2520,21 @@ class env_simulator:
             # dist_to_goal = 0
             # coef_ref_line = 0.5
             # coef_ref_line = -10
-            # coef_ref_line = 3
+            coef_ref_line = 3
             # coef_ref_line = 5
             # coef_ref_line = 3.5
             # coef_ref_line = 2
-            coef_ref_line = 0
+            # coef_ref_line = 0
 
             norm_cross_track_deviation_x = x_error * self.normalizer.x_scale
             norm_cross_track_deviation_y = y_error * self.normalizer.y_scale
             # dist_to_ref_line = coef_ref_line*math.sqrt(norm_cross_track_deviation_x ** 2 +
             #                                            norm_cross_track_deviation_y ** 2)
 
-            # cross_track_threshold = 5
+            cross_track_threshold = 5
             # cross_track_threshold = 15*math.sqrt(2)
-            cross_track_threshold = 2.5+5+2.5
+            # cross_track_threshold = 2.5+5+2.5
             # cross_track_threshold = drone_obj.protectiveBound
-
             if cross_err_distance <= cross_track_threshold:
                 # linear increase in reward
                 m = (0 - 1) / (cross_track_threshold - 0)
@@ -2542,10 +2542,11 @@ class env_simulator:
                 # dist_to_ref_line = (coef_ref_line*(m * cross_err_distance + 1)) + coef_ref_line  # 0~1*coef_ref_line, with a fixed reward
             else:
                 # dist_to_ref_line = -coef_ref_line*0.6
-                dist_to_ref_line = -coef_ref_line*0  # we don't have penalty if cross-track deviation too much
+                # dist_to_ref_line = -coef_ref_line*0  # we don't have penalty if cross-track deviation too much
+                dist_to_ref_line = -coef_ref_line*1  # penalty for too much deviation
 
-            small_step_penalty_coef = 3
-            # # small_step_penalty_coef = 0
+            # small_step_penalty_coef = 3
+            small_step_penalty_coef = 0
             spd_penalty_threshold = 2*drone_obj.protectiveBound
             small_step_penalty_val = (spd_penalty_threshold -
                                   np.clip(np.linalg.norm(drone_obj.vel), 0, spd_penalty_threshold))*\
@@ -2570,8 +2571,8 @@ class env_simulator:
 
             # the distance is based on the minimum of the detected distance to surrounding buildings.
             # near_building_penalty_coef = 1
-            # near_building_penalty_coef = 3
-            near_building_penalty_coef = 0
+            near_building_penalty_coef = 3
+            # near_building_penalty_coef = 0
             # near_building_penalty = near_building_penalty_coef*((1-(1/(1+math.exp(turningPtConst-min_dist))))*
             #
             #                                                     (1-(min_dist/turningPtConst)**2))  # value from 0 ~ 1.
@@ -2613,14 +2614,14 @@ class env_simulator:
                 # done.append(False)
                 reward.append(np.array(rew))
             # # crash into buildings or crash with other neighbors
-            # elif collide_building == 1:
-            #     # done.append(True)
-            #     done.append(True)
-            #     drone_obj.collision = True
-            #     bound_building_check[1] = True
-            #     rew = rew - crash_penalty_wall
-            #     # rew = rew - big_crash_penalty_wall
-            #     reward.append(np.array(rew))
+            elif collide_building == 1:
+                # done.append(True)
+                done.append(True)
+                drone_obj.collision = True
+                bound_building_check[1] = True
+                rew = rew - crash_penalty_wall
+                # rew = rew - big_crash_penalty_wall
+                reward.append(np.array(rew))
             # # ---------- Termination only during collision to wall on the 3rd time -----------------------
             # elif drone_obj.collide_wall_count >0:
             #     if drone_obj.collide_wall_count == 1:
@@ -2636,12 +2637,12 @@ class env_simulator:
             #         rew = rew - dist_to_ref_line - crash_penalty_wall - dist_to_goal - small_step_penalty + near_goal_reward - 20
             #         reward.append(np.array(rew))
             # # ----------End of termination only during collision to wall on the 3rd time -----------------------
-            # elif collide_geo_fence == 1:
-            #     done.append(True)
-            #     bound_building_check[1] = True
-            #     drone_obj.collision = True
-            #     rew = rew - crash_penalty_wall
-            #     reward.append(np.array(rew))
+            elif collide_geo_fence == 1:
+                done.append(True)
+                bound_building_check[1] = True
+                drone_obj.collision = True
+                rew = rew - crash_penalty_wall
+                reward.append(np.array(rew))
             elif len(collision_drones) > 0:
                 done.append(True)
                 # done.append(False)

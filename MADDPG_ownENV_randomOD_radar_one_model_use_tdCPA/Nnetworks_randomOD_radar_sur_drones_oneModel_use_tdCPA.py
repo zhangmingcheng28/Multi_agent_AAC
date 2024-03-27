@@ -269,6 +269,27 @@ class ActorNetwork_ATT_wRadar(nn.Module):
         return out_action
 
 
+class ActorNetwork_allnei_wRadar(nn.Module):
+    def __init__(self, actor_dim, n_actions):
+        super(ActorNetwork_allnei_wRadar, self).__init__()
+        self.own_fc = nn.Sequential(nn.Linear(actor_dim[0], 64), nn.ReLU())
+        self.own_full_nei = nn.Sequential(nn.Linear(actor_dim[1], 64), nn.ReLU())
+        self.own_grid = nn.Sequential(nn.Linear(actor_dim[2], 64), nn.ReLU())
+        self.merge_feature = nn.Sequential(nn.Linear(64+64+64, 256), nn.ReLU())
+        self.act_out = nn.Sequential(nn.Linear(256, 256), nn.ReLU(),
+                                     nn.Linear(256, n_actions), nn.Tanh())
+
+    def forward(self, cur_state):
+        own_obs = self.own_fc(cur_state[0])
+        own_nei = self.own_full_nei(cur_state[1])
+        own_radar = self.own_grid(cur_state[2])
+        merge_obs_grid = torch.cat((own_obs, own_nei, own_radar), dim=1)
+        merge_feature = self.merge_feature(merge_obs_grid)
+        out_action = self.act_out(merge_feature)
+        return out_action
+
+
+
 class ActorNetwork_GRU_TwoPortion(nn.Module):
     def __init__(self, actor_dim, n_actions, actor_hidden_state_size):  # actor_obs consists of three parts 0 = own, 1 = own grid, 2 = surrounding drones
         super(ActorNetwork_GRU_TwoPortion, self).__init__()

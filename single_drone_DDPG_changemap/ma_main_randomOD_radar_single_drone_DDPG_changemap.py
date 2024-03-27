@@ -68,11 +68,11 @@ def main(args):
         # initialize_excel_file(excel_file_path_time)
         # ------------ end of this portion is to save using excel instead of pickle -----------
 
-    # use_wanDB = False
-    use_wanDB = True
+    use_wanDB = False
+    # use_wanDB = True
 
-    # get_evaluation_status = True  # have figure output
-    get_evaluation_status = False  # no figure output, mainly obtain collision rate
+    get_evaluation_status = True  # have figure output
+    # get_evaluation_status = False  # no figure output, mainly obtain collision rate
 
     # simply_view_evaluation = True  # don't save gif
     simply_view_evaluation = False  # save gif
@@ -83,8 +83,8 @@ def main(args):
     use_GRU_flag = True
     # use_GRU_flag = False
 
-    use_attention_flag = True
-    # use_attention_flag = False
+    # use_attention_flag = True
+    use_attention_flag = False
 
     if use_wanDB:
         wandb.login(key="efb76db851374f93228250eda60639c70a93d1ec")
@@ -172,7 +172,9 @@ def main(args):
     episode_critic_loss_cal_record = []
     # eps_end = 3000  # at eps = eps_end, the eps value drops to the lowest value which is 0.03 (this value is fixed)
     # eps_end = 17000  # at eps = eps_end, the eps value drops to the lowest value which is 0.03 (this value is fixed)
-    eps_end = 5000  # at eps = eps_end, the eps value drops to the lowest value which is 0.03 (this value is fixed)
+    # eps_end = 5000  # at eps = eps_end, the eps value drops to the lowest value which is 0.03 (this value is fixed)
+    # eps_end = 2500  # at eps = eps_end, the eps value drops to the lowest value which is 0.03 (this value is fixed)
+    eps_end = 1500  # at eps = eps_end, the eps value drops to the lowest value which is 0.03 (this value is fixed)
     # noise_start_level = 1
     noise_start_level = 0.5
     training_start_time = time.time()
@@ -193,10 +195,10 @@ def main(args):
     if args.mode == "eval":
         # args.max_episodes = 10  # only evaluate one episode during evaluation mode.
         # args.max_episodes = 5  # only evaluate one episode during evaluation mode.
-        args.max_episodes = 100
-        # args.max_episodes = 20
-        pre_fix = r'D:\MADDPG_2nd_jp\250324_16_43_58\interval_record_eps'
-        episode_to_check = str(35000)
+        # args.max_episodes = 100
+        args.max_episodes = 20
+        pre_fix = r'D:\MADDPG_2nd_jp\270324_16_20_40\interval_record_eps'
+        episode_to_check = str(2000)
         load_filepath_0 = pre_fix + '\episode_' + episode_to_check + '_agent_0actor_net.pth'
         load_filepath_1 = pre_fix + '\episode_' + episode_to_check + '_agent_1actor_net.pth'
         load_filepath_2 = pre_fix + '\episode_' + episode_to_check + '_agent_2actor_net.pth'
@@ -214,8 +216,8 @@ def main(args):
         episode_start_time = time.time()
         episode += 1
         eps_reset_start_time = time.time()
-        random_map_idx = random.randrange(len(env.world_map_2D_collection))
-        # random_map_idx = 3  # this value is the previous fixed environment
+        # random_map_idx = random.randrange(len(env.world_map_2D_collection))
+        random_map_idx = 3  # this value is the previous fixed environment
         cur_state, norm_cur_state = env.reset_world(total_agentNum, random_map_idx, show=0)  # random map choose here
         eps_reset_time_used = (time.time()-eps_reset_start_time)*1000
         # print("current episode {} reset time used is {} milliseconds".format(episode, eps_reset_time_used))  # need to + 1 here, or else will misrecord as the previous episode
@@ -272,7 +274,7 @@ def main(args):
                 # reward_aft_action, done_aft_action, check_goal, step_reward_record, status_holder, \
                 # step_collision_record, bound_building_check = env.ss_reward(step, step_reward_record, eps_status_holder, step_collision_record, dummy_xy, full_observable_critic_flag, args, prob_display, random_map_idx)   # remove reached agent here
                 reward_aft_action, done_aft_action, check_goal, step_reward_record, status_holder, \
-                step_collision_record, bound_building_check = env.ss_reward(step, step_reward_record, eps_status_holder, step_collision_record, dummy_xy, full_observable_critic_flag, args, prob_display, random_map_idx)   # remove reached agent here
+                step_collision_record, bound_building_check = env.ss_reward_v2(step, step_reward_record, eps_status_holder, step_collision_record, dummy_xy, full_observable_critic_flag, args, prob_display, random_map_idx)   # remove reached agent here
                 reward_generation_time = (time.time() - one_step_reward_start)*1000
                 # print("current step reward time used is {} milliseconds".format(reward_generation_time))
 
@@ -601,8 +603,10 @@ def main(args):
                 # for a_idx, action_ele in enumerate(action):
                 #     action[a_idx] = [-0.3535, 0.3535]
                 next_state, norm_next_state, polygons_list, prob_display = env.step(action, step, random_map_idx)  # no heading update here
+                # reward_aft_action, done_aft_action, check_goal, step_reward_record, eps_status_holder, \
+                # step_collision_record, bound_building_check = env.ss_reward(step, step_reward_record, eps_status_holder, step_collision_record, dummy_xy, full_observable_critic_flag, args, prob_display, random_map_idx)
                 reward_aft_action, done_aft_action, check_goal, step_reward_record, eps_status_holder, \
-                step_collision_record, bound_building_check = env.ss_reward(step, step_reward_record, eps_status_holder, step_collision_record, dummy_xy, full_observable_critic_flag, args, prob_display, random_map_idx)
+                step_collision_record, bound_building_check = env.ss_reward_v2(step, step_reward_record, eps_status_holder, step_collision_record, dummy_xy, full_observable_critic_flag, args, prob_display, random_map_idx)
                 # reward_aft_action, done_aft_action, check_goal, step_reward_record = env.get_step_reward_5_v3(step, step_reward_record)
 
                 # # ---------- start of generate reward map ----------
@@ -923,9 +927,9 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--scenario', default="simple_spread", type=str)
-    parser.add_argument('--max_episodes', default=35000, type=int)  # run for a total of 50000 episodes
+    parser.add_argument('--max_episodes', default=3000, type=int)  # run for a total of 50000 episodes
     parser.add_argument('--algo', default="maddpg", type=str, help="commnet/bicnet/maddpg/TD3")
-    parser.add_argument('--mode', default="train", type=str, help="train/eval")
+    parser.add_argument('--mode', default="eval", type=str, help="train/eval")
     parser.add_argument('--episode_length', default=150, type=int)  # maximum play per episode
     parser.add_argument('--memory_length', default=int(1e5), type=int)
     parser.add_argument('--seed', default=777, type=int)  # may choose to use 3407
