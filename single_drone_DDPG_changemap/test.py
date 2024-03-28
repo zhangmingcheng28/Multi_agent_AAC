@@ -203,3 +203,61 @@ from matplotlib.pyplot import figure
 # ax.plot(y_coords, x_coords, color="black")
 #
 # plt.show()
+import random
+from shapely.geometry import LineString, Point, Polygon
+from shapely.ops import nearest_points
+import matplotlib.pyplot as plt
+
+os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
+matplotlib.use('TkAgg')
+# Generate the data again due to the previous issue
+# Create a random line
+line_start = (random.uniform(0, 10), random.uniform(0, 10))
+line_end = (random.uniform(0, 10), random.uniform(0, 10))
+line = LineString([line_start, line_end])
+
+# Scatter 5 points around the line
+scatter_points = []
+buffer_distance = 1.0  # Define a buffer distance to spread points around the line
+for _ in range(5):
+    # Find a random point along the line
+    random_point_on_line = line.interpolate(random.uniform(0, line.length), normalized=True)
+    # Buffer the point to a random position within a certain distance
+    angle = random.uniform(0, 2 * np.pi)
+    offset = (buffer_distance * np.cos(angle), buffer_distance * np.sin(angle))
+    scatter_point = Point(random_point_on_line.x + offset[0], random_point_on_line.y + offset[1])
+    scatter_points.append(scatter_point)
+# Find the nearest point on the line from these scatter points
+# nearest_points = [line.interpolate(line.project(point)) for point in scatter_points]
+# nearest_point = min(nearest_points, key=lambda point: line.distance(point))
+
+nearest_points_list = []
+for point in scatter_points:
+    nearest_pt = nearest_points(point, line)[1]
+    nearest_points_list.append(nearest_pt)
+
+# Plotting the line and the points
+x, y = line.xy
+plt.plot(x, y, 'b', linewidth=3, label='Reference Line')
+
+# Scatter points
+scatter_x = [point.x for point in scatter_points]
+scatter_y = [point.y for point in scatter_points]
+plt.scatter(scatter_x, scatter_y, color='red', zorder=5, label='Scatter Points')
+
+# Nearest points on the line
+nearest_x = [point.x for point in nearest_points_list]
+nearest_y = [point.y for point in nearest_points_list]
+plt.scatter(nearest_x, nearest_y, color='green', zorder=5, label='Nearest Points on Line')
+
+# # Highlight the single nearest point
+# plt.scatter(nearest_point.x, nearest_point.y, color='yellow', edgecolor='black',
+#             zorder=10, label='Single Nearest Point', s=100)
+
+plt.xlabel('X-coordinate')
+plt.ylabel('Y-coordinate')
+plt.title('Scatter Points and Nearest Points on the Reference Line')
+plt.legend()
+plt.axis('equal')
+plt.grid(True)
+plt.show()

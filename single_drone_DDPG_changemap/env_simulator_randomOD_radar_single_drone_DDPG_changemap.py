@@ -1948,7 +1948,7 @@ class env_simulator:
             # dist_to_goal_coeff = 0
             # dist_to_goal_coeff = 3
 
-            cross_err_distance, x_error, y_error = self.cross_track_error(host_current_point,
+            cross_err_distance, x_error, y_error, nearest_pt = self.cross_track_error(host_current_point,
                                                                           drone_obj.ref_line)  # deviation from the reference line, cross track error
             x_norm, y_norm = self.normalizer.nmlz_pos(drone_obj.pos)
             tx_norm, ty_norm = self.normalizer.nmlz_pos(drone_obj.goal[-1])
@@ -2458,7 +2458,7 @@ class env_simulator:
             # dist_to_goal_coeff = 0
             # dist_to_goal_coeff = 3
 
-            cross_err_distance, x_error, y_error = self.cross_track_error(host_current_point,
+            cross_err_distance, x_error, y_error, nearest_pt = self.cross_track_error(host_current_point,
                                                                           drone_obj.ref_line)  # deviation from the reference line, cross track error
             x_norm, y_norm = self.normalizer.nmlz_pos(drone_obj.pos)
             tx_norm, ty_norm = self.normalizer.nmlz_pos(drone_obj.goal[-1])
@@ -2471,15 +2471,23 @@ class env_simulator:
             # dist_to_goal = dist_to_goal_coeff * (before_dist_hg - after_dist_hg)  # (before_dist_hg - after_dist_hg) -max_vel - max_vel
 
             # ---- v2 leading to goal reward, based on compute_projected_velocity ---
-            pro_vel_coef = 1
-            projected_velocity = compute_projected_velocity(drone_obj.vel, drone_obj.ref_line, Point(drone_obj.pos))  # scalar value range is [-v_max, v_max]
-            # get the norm as the projected_velocity.
-            pro_vel_rd = projected_velocity / drone_obj.maxSpeed 
-            dist_to_goal = pro_vel_coef * pro_vel_rd
-            if pro_vel_rd < -1 or pro_vel_rd > 1:
-                print("reward exceed bound")
-
+            # projected_velocity = compute_projected_velocity(drone_obj.vel, drone_obj.ref_line, Point(drone_obj.pos))  # scalar value range is [-v_max, v_max]
+            # # get the norm as the projected_velocity.
+            # pro_vel_rd = projected_velocity / drone_obj.maxSpeed
+            # dist_to_goal = dist_to_goal_coeff * pro_vel_rd
+            # if pro_vel_rd < -1 or pro_vel_rd > 1:
+            #     print("reward exceed bound")
             # ---- end of v2 leading to goal reward, based on compute_projected_velocity ---
+
+            # ---- v3 leading to goal reward, based on effective distance travelled ---
+            projected_velocity = compute_projected_velocity(drone_obj.vel, drone_obj.ref_line, Point(drone_obj.pos))  # scalar value range is [-v_max, v_max]
+            direction_coeff = projected_velocity / drone_obj.maxSpeed
+            dist_travelled = np.linalg.norm(drone_obj.pos - drone_obj.pre_pos)
+            ref_line_length = drone_obj.ref_line.length
+            effective_distance_travelled_per_step = direction_coeff * dist_travelled
+            dist_to_goal = dist_to_goal_coeff * (1 - (ref_line_length - effective_distance_travelled_per_step)/ref_line_length)
+            # ---- end of v3 leading to goal reward, based on effective distance travelled ---
+
 
             # dist_left = total_length_to_end_of_line(drone_obj.pos, drone_obj.ref_line)  # V1
             # dist_left = total_length_to_end_of_line_without_cross(drone_obj.pos, drone_obj.ref_line)  # V1.1
@@ -2545,8 +2553,8 @@ class env_simulator:
                 # dist_to_ref_line = -coef_ref_line*0  # we don't have penalty if cross-track deviation too much
                 dist_to_ref_line = -coef_ref_line*1  # penalty for too much deviation
 
-            # small_step_penalty_coef = 3
-            small_step_penalty_coef = 0
+            small_step_penalty_coef = 3
+            # small_step_penalty_coef = 0
             spd_penalty_threshold = 2*drone_obj.protectiveBound
             small_step_penalty_val = (spd_penalty_threshold -
                                   np.clip(np.linalg.norm(drone_obj.vel), 0, spd_penalty_threshold))*\
@@ -2705,7 +2713,7 @@ class env_simulator:
             # print("current drone {} actual distance to goal is {}, current reward to gaol is {}, current ref line reward is {}, current step reward is {}".format(drone_idx, actual_after_dist_hg, dist_to_goal, dist_to_ref_line, rew))
 
             # record status of each step.
-            eps_status_holder = self.display_one_eps_status(eps_status_holder, drone_idx, actual_after_dist_hg, [dist_to_goal, cross_err_distance, dist_to_ref_line, near_building_penalty, small_step_penalty, np.linalg.norm(drone_obj.vel), near_goal_reward, seg_reward])
+            eps_status_holder = self.display_one_eps_status(eps_status_holder, drone_idx, actual_after_dist_hg, [dist_to_goal, cross_err_distance, dist_to_ref_line, near_building_penalty, small_step_penalty, np.linalg.norm(drone_obj.vel), near_goal_reward, seg_reward, nearest_pt, drone_obj.observableSpace])
             # overall_status_record[2].append()  # 3rd is accumulated reward till that step for each agent
 
         if full_observable_critic_flag:
@@ -2791,7 +2799,6 @@ class env_simulator:
 
         return reward, done, check_goal, step_reward_record, eps_status_holder, step_collision_record, bound_building_check
 
-
     def display_one_eps_status(self, status_holder, drone_idx, cur_dist_to_goal, cur_step_reward):
         status_holder[drone_idx]['Euclidean_dist_to_goal'] = cur_dist_to_goal
         status_holder[drone_idx]['goal_leading_reward'] = cur_step_reward[0]
@@ -2802,7 +2809,8 @@ class env_simulator:
         status_holder[drone_idx]['current_drone_speed'] = cur_step_reward[5]
         status_holder[drone_idx]['addition_near_goal_reward'] = cur_step_reward[6]
         status_holder[drone_idx]['segment_reward'] = cur_step_reward[7]
-
+        status_holder[drone_idx]['neareset_point'] = cur_step_reward[8]
+        status_holder[drone_idx]['A'+str(drone_idx)+'_observable space'] = cur_step_reward[9]
 
         # if status_holder[drone_idx] == None:
         #     status_holder[drone_idx] = [[cur_dist_to_goal] + cur_step_reward]
@@ -3394,7 +3402,7 @@ class env_simulator:
         x_error = abs(point.x - nearest_pt.x)
         y_error = abs(point.y - nearest_pt.y)
 
-        return distance, x_error, y_error
+        return distance, x_error, y_error, nearest_pt
 
     def save_model_actor_net(self, file_path):
         if not os.path.exists(file_path):

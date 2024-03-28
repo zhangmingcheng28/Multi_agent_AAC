@@ -227,7 +227,7 @@ def save_gif(env, trajectory_eachPlay, pre_fix, episode_to_check, episode, rando
     plt.close(fig)
 
 
-def view_static_traj(env, trajectory_eachPlay):
+def view_static_traj(env, trajectory_eachPlay, random_map_idx):
     os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
     matplotlib.use('TkAgg')
     fig, ax = plt.subplots(1, 1)
@@ -271,14 +271,26 @@ def view_static_traj(env, trajectory_eachPlay):
 
     # draw trajectory in current episode
     for trajectory_idx, trajectory_val in enumerate(trajectory_eachPlay):  # each time step
+        if trajectory_idx == 10:
+            break
         for agentIDX, each_agent_traj in enumerate(trajectory_val):  # for each agent's motion in a time step
             # if agentIDX != 0:
             #     continue
             x, y = each_agent_traj[0], each_agent_traj[1]
             plt.plot(x, y, 'o', color='r')
+            #
+            # plot the nearest point on line from the drone's position
+            nearest_pt = each_agent_traj[3]['neareset_point']
+            plt.scatter(nearest_pt.x, nearest_pt.y, color='g')
+            plt.text(nearest_pt.x, nearest_pt.y, 'A' + str(agentIDX) + '_' + str(nearest_pt.x)+','+str(nearest_pt.y))
+
+            # plot the shortest radar prob
+            shortest_distance_element = min(each_agent_traj[3]['A0_observable space'], key=lambda x: x[0])
+            if shortest_distance_element[0] < 15:
+                plt.plot([x, shortest_distance_element[2].x], [y, shortest_distance_element[2].y], linestyle='dashed', color='b')
 
             # plt.text(x-1, y-1, str(round(float(reward_each_agent[trajectory_idx][agentIDX]),2)))
-            plt.text(x - 1, y - 1, 'agent_' + str(agentIDX) + '_' + str(each_agent_traj[2].round(3)))
+            plt.text(x - 1, y - 1, 'agent' + str(agentIDX) + '_' + str(each_agent_traj[2].round(3)))
             # plt.text(x - 1, y - 1, 'agent_' + str(agentIDX) + '_' + str(each_agent_traj[2]))
             self_circle = Point(x, y).buffer(env.all_agents[0].protectiveBound, cap_style='round')
             grid_mat_Scir = shapelypoly_to_matpoly(self_circle, False, 'k')
@@ -290,11 +302,11 @@ def view_static_traj(env, trajectory_eachPlay):
         ax.add_patch(fence_poly)
 
     # draw occupied_poly
-    for one_poly in env.world_map_2D_polyList[0][0]:
+    for one_poly in env.world_map_2D_polyList_collection[random_map_idx][0][0]:
         one_poly_mat = shapelypoly_to_matpoly(one_poly, True, 'y', 'b')
         ax.add_patch(one_poly_mat)
     # draw non-occupied_poly
-    for zero_poly in env.world_map_2D_polyList[0][1]:
+    for zero_poly in env.world_map_2D_polyList_collection[random_map_idx][0][1]:
         zero_poly_mat = shapelypoly_to_matpoly(zero_poly, False, 'y')
         # ax.add_patch(zero_poly_mat)
 
@@ -304,12 +316,12 @@ def view_static_traj(env, trajectory_eachPlay):
         ax.add_patch(matp_poly)
 
     plt.axis('equal')
-    plt.xlim(env.bound[0], env.bound[1])
-    plt.ylim(env.bound[2], env.bound[3])
-    plt.axvline(x=env.bound[0], c="green")
-    plt.axvline(x=env.bound[1], c="green")
-    plt.axhline(y=env.bound[2], c="green")
-    plt.axhline(y=env.bound[3], c="green")
+    plt.xlim(env.bound_collection[random_map_idx][0], env.bound_collection[random_map_idx][1])
+    plt.ylim(env.bound_collection[random_map_idx][2], env.bound_collection[random_map_idx][3])
+    plt.axvline(x=env.bound_collection[random_map_idx][0], c="green")
+    plt.axvline(x=env.bound_collection[random_map_idx][1], c="green")
+    plt.axhline(y=env.bound_collection[random_map_idx][2], c="green")
+    plt.axhline(y=env.bound_collection[random_map_idx][3], c="green")
     plt.xlabel("X axis")
     plt.ylabel("Y axis")
     plt.show()
@@ -407,6 +419,7 @@ def total_length_to_end_of_line(initial_point, linestring):
    # Sum the distances to get the total distance
    total_distance = distance_to_line + distance_to_end_of_line
    return total_distance
+
 
 def sort_polygons(polygons):  # this sorting is left to right, but bottom to top. so, 0th is below 2nd. [[2,3],[0,1]]
     boxes = [polygon.bounds for polygon in polygons]
