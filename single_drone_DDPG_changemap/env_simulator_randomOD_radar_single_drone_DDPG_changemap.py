@@ -1019,7 +1019,7 @@ class env_simulator:
                                 if distance < min_distance:
                                     min_distance = distance
                                     min_intersection_pt = nearest_point
-                        else:  # possible intersection is not a polygon but a LineString
+                        else:  # possible intersection is not a polygon but a LineString, meaning it is a boundary line
                             if line.intersects(polygons_list_wBound[polygon_idx]):
                                 intersection = line.intersection(polygons_list_wBound[polygon_idx])
                                 if intersection.geom_type == 'Point':
@@ -2573,6 +2573,7 @@ class env_simulator:
             # penalty for any buildings are getting too near to the host agent
             # turningPtConst = drone_obj.detectionRange/2-drone_obj.protectiveBound  # this one should be 12.5
             dist_array = np.array([dist_info[0] for dist_info in drone_obj.observableSpace])
+            ascending_array = np.sort(dist_array)
             min_index = np.argmin(dist_array)
             min_dist = dist_array[min_index]
             # radar_status = drone_obj.observableSpace[min_index][-1]  # radar status for now not required
@@ -2581,9 +2582,8 @@ class env_simulator:
             # near_building_penalty_coef = 1
             near_building_penalty_coef = 3
             # near_building_penalty_coef = 0
-            # near_building_penalty = near_building_penalty_coef*((1-(1/(1+math.exp(turningPtConst-min_dist))))*
-            #
-            #                                                     (1-(min_dist/turningPtConst)**2))  # value from 0 ~ 1.
+
+            near_building_penalty = 0  # initialize
             # turningPtConst = 12.5
             turningPtConst = 5
             if turningPtConst == 12.5:
@@ -2591,13 +2591,23 @@ class env_simulator:
             elif turningPtConst == 5:
                 c = 2
             # # linear building penalty
-            # makesure only when min_dist is >=0 and <= turningPtConst, then we activate this penalty
-            m = (0-1)/(turningPtConst-drone_obj.protectiveBound)  # we must consider drone's circle, because when min_distance is less than drone's radius, it is consider collision.
-            if min_dist>=drone_obj.protectiveBound and min_dist<=turningPtConst:
-                near_building_penalty = near_building_penalty_coef*(m*min_dist+c)  # at each step, penalty from 3 to 0.
-                # near_building_penalty = near_building_penalty_coef*(m*min_dist+c) + pro_vel_rd  # at each step, penalty from 3 to 0.
-            else:
-                near_building_penalty = 0  # if min_dist is outside of the bound, other parts of the reward will be taking care.
+            # # makesure only when min_dist is >=0 and <= turningPtConst, then we activate this penalty
+            # m = (0-1)/(turningPtConst-drone_obj.protectiveBound)  # we must consider drone's circle, because when min_distance is less than drone's radius, it is consider collision.
+            # if min_dist>=drone_obj.protectiveBound and min_dist<=turningPtConst:
+            #     near_building_penalty = near_building_penalty_coef*(m*min_dist+c)  # at each step, penalty from 3 to 0.
+            #     # near_building_penalty = near_building_penalty_coef*(m*min_dist+c) + pro_vel_rd  # at each step, penalty from 3 to 0.
+            # else:
+            #     near_building_penalty = 0  # if min_dist is outside of the bound, other parts of the reward will be taking care.
+
+            for dist_idx, dist in enumerate(ascending_array):
+                # # linear building penalty
+                # makesure only when min_dist is >=0 and <= turningPtConst, then we activate this penalty
+                m = (0-1)/(turningPtConst-drone_obj.protectiveBound)  # we must consider drone's circle, because when min_distance is less than drone's radius, it is consider collision.
+                if dist>=drone_obj.protectiveBound and dist<=turningPtConst:  # only when min_dist is between 2.5~5, this penalty is working.
+                    near_building_penalty = near_building_penalty + near_building_penalty_coef*(m*dist+c)  # at each step, penalty from 3 to 0.
+                else:
+                    near_building_penalty = near_building_penalty + 0  # if min_dist is outside of the bound, other parts of the reward will be taking care.
+
 
             # if min_dist < drone_obj.protectiveBound:
             #     print("check for collision")

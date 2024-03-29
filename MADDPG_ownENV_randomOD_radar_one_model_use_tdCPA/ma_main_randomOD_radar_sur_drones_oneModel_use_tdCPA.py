@@ -65,8 +65,8 @@ def main(args):
         # initialize_excel_file(excel_file_path_time)
         # ------------ end of this portion is to save using excel instead of pickle -----------
 
-    # use_wanDB = False
-    use_wanDB = True
+    use_wanDB = False
+    # use_wanDB = True
 
     # get_evaluation_status = True  # have figure output
     get_evaluation_status = False  # no figure output, mainly obtain collision rate
@@ -129,8 +129,10 @@ def main(args):
             actor_dim = [6, (total_agentNum - 1) * 5, 18, 6]
             critic_dim = [6, (total_agentNum - 1) * 5, 18, 6]
         elif use_allNeigh_wRadar:
-            actor_dim = [6, (total_agentNum - 1) * 5, 18, 6]
-            critic_dim = [6, (total_agentNum - 1) * 5, 18, 6]
+            # actor_dim = [6, (total_agentNum - 1) * 5, 18, 6]
+            actor_dim = [6, (total_agentNum - 1) * 5, 36, 6]
+            # critic_dim = [6, (total_agentNum - 1) * 5, 18, 6]
+            critic_dim = [6, (total_agentNum - 1) * 5, 36, 6]
         else:
             # actor_dim = [6, 18, 6]  # dim host, maximum dim grid, dim other drones
             # actor_dim = [8, 18, 6]  # dim host, maximum dim grid, dim other drones
@@ -234,10 +236,10 @@ def main(args):
         args.max_episodes = 100
         # args.max_episodes = 250
         # args.max_episodes = 25
-        pre_fix = r'D:\MADDPG_2nd_jp\260324_09_35_26\interval_record_eps'
+        pre_fix = r'D:\MADDPG_2nd_jp\280324_16_28_09\interval_record_eps'
         # episode_to_check = str(10000)
         # pre_fix = r'F:\OneDrive_NTU_PhD\OneDrive - Nanyang Technological University\DDPG_2ndJournal\dim_8_transfer_learning'
-        episode_to_check = str(17000)
+        episode_to_check = str(8000)
         # using one model, so we load all the same
         load_filepath_0 = pre_fix + '\episode_' + episode_to_check + '_actor_net.pth'
         load_filepath_1 = pre_fix + '\episode_' + episode_to_check + '_actor_net.pth'
