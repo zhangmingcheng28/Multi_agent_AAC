@@ -1765,11 +1765,12 @@ class env_simulator:
         # return reward, done, check_goal, step_reward_record, agent_filled
         return reward, done, check_goal, step_reward_record
 
-    def ss_reward(self, current_ts, step_reward_record, eps_status_holder, step_collision_record, xy, full_observable_critic_flag, args, prob_display, random_map_idx):
+    def ss_reward(self, current_ts, step_reward_record, step_collision_record, xy, full_observable_critic_flag, args, prob_display, random_map_idx):
         bound_building_check = [False] * 3
         reward, done = [], []
         agent_to_remove = []
         one_step_reward = []
+        eps_status_holder = [{} for _ in range(len(self.all_agents))]
         check_goal = [False] * len(self.all_agents)
         reward_record_idx = 0  # this is used as a list index, increase with for loop. No need go with agent index, this index is also shared by done checking
         # crash_penalty_wall = 5
@@ -2277,8 +2278,9 @@ class env_simulator:
 
         return reward, done, check_goal, step_reward_record, eps_status_holder, step_collision_record, bound_building_check
 
-    def ss_reward_v2(self, current_ts, step_reward_record, eps_status_holder, step_collision_record, xy, full_observable_critic_flag, args, prob_display, random_map_idx):
+    def ss_reward_v2(self, current_ts, step_reward_record, step_collision_record, xy, full_observable_critic_flag, args, prob_display, random_map_idx):
         bound_building_check = [False] * 3
+        eps_status_holder = [{} for _ in range(len(self.all_agents))]
         reward, done = [], []
         agent_to_remove = []
         one_step_reward = []
@@ -2481,7 +2483,7 @@ class env_simulator:
 
             # ---- v3 leading to goal reward, based on effective distance travelled ---
             projected_velocity = compute_projected_velocity(drone_obj.vel, drone_obj.ref_line, Point(drone_obj.pos))  # scalar value range is [-v_max, v_max]
-            direction_coeff = projected_velocity / drone_obj.maxSpeed
+            direction_coeff = projected_velocity / drone_obj.maxSpeed  # 0-1
             dist_travelled = np.linalg.norm(drone_obj.pos - drone_obj.pre_pos)
             ref_line_length = drone_obj.ref_line.length
             effective_distance_travelled_per_step = direction_coeff * dist_travelled
@@ -2573,10 +2575,25 @@ class env_simulator:
             # penalty for any buildings are getting too near to the host agent
             # turningPtConst = drone_obj.detectionRange/2-drone_obj.protectiveBound  # this one should be 12.5
             dist_array = np.array([dist_info[0] for dist_info in drone_obj.observableSpace])
+            heading_dist_array = []
+            for dist_info in drone_obj.observableSpace:
+                angle = math.atan2((dist_info[2].y - drone_obj.pos[1]), (dist_info[2].x - drone_obj.pos[0]))
+                if round(angle, 8) == round(-20 * math.pi / 180, 8) or \
+                        round(angle, 8) == round(0 * math.pi / 180, 8) or \
+                        round(angle, 8) == round(20 * math.pi / 180, 8):
+                    heading_dist_array.append(dist_info[0])
+
             ascending_array = np.sort(dist_array)
             min_index = np.argmin(dist_array)
             min_dist = dist_array[min_index]
             # radar_status = drone_obj.observableSpace[min_index][-1]  # radar status for now not required
+
+            # start of no obstruction reward
+            no_obstruction_reward_coef = 1
+            no_obstruction_reward = 0
+            for heading_dist in heading_dist_array:
+                if heading_dist >= 7:
+                    no_obstruction_reward = no_obstruction_reward + no_obstruction_reward_coef*(heading_dist / 15)
 
             # the distance is based on the minimum of the detected distance to surrounding buildings.
             # near_building_penalty_coef = 1
@@ -2607,7 +2624,6 @@ class env_simulator:
                     near_building_penalty = near_building_penalty + near_building_penalty_coef*(m*dist+c)  # at each step, penalty from 3 to 0.
                 else:
                     near_building_penalty = near_building_penalty + 0  # if min_dist is outside of the bound, other parts of the reward will be taking care.
-
 
             # if min_dist < drone_obj.protectiveBound:
             #     print("check for collision")
@@ -2701,7 +2717,8 @@ class env_simulator:
                         # print("drone {} has reached a WP on step {}, claim additional {} points of reward"
                         #       .format(drone_idx, current_ts, coef_ref_line))
                 rew = rew + dist_to_ref_line + dist_to_goal - \
-                      small_step_penalty + near_goal_reward - near_building_penalty + seg_reward + survival_penalty
+                      small_step_penalty + near_goal_reward - near_building_penalty + seg_reward + survival_penalty + \
+                      no_obstruction_reward
                 # we remove the above termination condition
                 # if current_ts >= args.episode_length:
                 #     done.append(True)
@@ -2723,7 +2740,7 @@ class env_simulator:
             # print("current drone {} actual distance to goal is {}, current reward to gaol is {}, current ref line reward is {}, current step reward is {}".format(drone_idx, actual_after_dist_hg, dist_to_goal, dist_to_ref_line, rew))
 
             # record status of each step.
-            eps_status_holder = self.display_one_eps_status(eps_status_holder, drone_idx, actual_after_dist_hg, [dist_to_goal, cross_err_distance, dist_to_ref_line, near_building_penalty, small_step_penalty, np.linalg.norm(drone_obj.vel), near_goal_reward, seg_reward, nearest_pt, drone_obj.observableSpace])
+            eps_status_holder = self.display_one_eps_status(eps_status_holder, drone_idx, actual_after_dist_hg, [dist_to_goal, cross_err_distance, dist_to_ref_line, near_building_penalty, small_step_penalty, np.linalg.norm(drone_obj.vel), near_goal_reward, seg_reward, nearest_pt, drone_obj.observableSpace, drone_obj])
             # overall_status_record[2].append()  # 3rd is accumulated reward till that step for each agent
 
         if full_observable_critic_flag:
@@ -2821,6 +2838,7 @@ class env_simulator:
         status_holder[drone_idx]['segment_reward'] = cur_step_reward[7]
         status_holder[drone_idx]['neareset_point'] = cur_step_reward[8]
         status_holder[drone_idx]['A'+str(drone_idx)+'_observable space'] = cur_step_reward[9]
+        status_holder[drone_idx]['A'+str(drone_idx)+'object'] = cur_step_reward[10]
 
         # if status_holder[drone_idx] == None:
         #     status_holder[drone_idx] = [[cur_dist_to_goal] + cur_step_reward]

@@ -271,8 +271,8 @@ def view_static_traj(env, trajectory_eachPlay, random_map_idx):
 
     # draw trajectory in current episode
     for trajectory_idx, trajectory_val in enumerate(trajectory_eachPlay):  # each time step
-        if trajectory_idx == 10:
-            break
+        # if trajectory_idx == 10:
+        #     break
         for agentIDX, each_agent_traj in enumerate(trajectory_val):  # for each agent's motion in a time step
             # if agentIDX != 0:
             #     continue
