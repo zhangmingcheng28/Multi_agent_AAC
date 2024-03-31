@@ -278,7 +278,14 @@ def view_static_traj(env, trajectory_eachPlay, random_map_idx):
             #     continue
             x, y = each_agent_traj[0], each_agent_traj[1]
             plt.plot(x, y, 'o', color='r')
-            #
+
+            # plot the heading of the current drone
+            heading_radians = each_agent_traj[3]['A0_heading']
+            arrow_length = 2.5
+            arrow_end_x = x + arrow_length * np.cos(heading_radians)
+            arrow_end_y = y + arrow_length * np.sin(heading_radians)
+            ax.annotate('', xy=(arrow_end_x, arrow_end_y), xytext=(x, y),
+                        arrowprops=dict(arrowstyle='->', lw=2, color='blue'))
             # plot the nearest point on line from the drone's position
             nearest_pt = each_agent_traj[3]['neareset_point']
             plt.scatter(nearest_pt.x, nearest_pt.y, color='g')

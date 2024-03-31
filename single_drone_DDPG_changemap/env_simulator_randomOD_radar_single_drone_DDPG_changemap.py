@@ -2490,6 +2490,11 @@ class env_simulator:
             dist_to_goal = dist_to_goal_coeff * (1 - (ref_line_length - effective_distance_travelled_per_step)/ref_line_length)
             # ---- end of v3 leading to goal reward, based on effective distance travelled ---
 
+            # V4 this is the leading to goal plus cross-track error reward
+
+
+            # end of V4
+
 
             # dist_left = total_length_to_end_of_line(drone_obj.pos, drone_obj.ref_line)  # V1
             # dist_left = total_length_to_end_of_line_without_cross(drone_obj.pos, drone_obj.ref_line)  # V1.1
@@ -2541,10 +2546,13 @@ class env_simulator:
             # dist_to_ref_line = coef_ref_line*math.sqrt(norm_cross_track_deviation_x ** 2 +
             #                                            norm_cross_track_deviation_y ** 2)
 
+            cross_termination = 0
             cross_track_threshold = 5
             # cross_track_threshold = 15*math.sqrt(2)
             # cross_track_threshold = 2.5+5+2.5
             # cross_track_threshold = drone_obj.protectiveBound
+            if cross_err_distance >= 7:
+                cross_termination = 1
             if cross_err_distance <= cross_track_threshold:
                 # linear increase in reward
                 m = (0 - 1) / (cross_track_threshold - 0)
@@ -2647,6 +2655,12 @@ class env_simulator:
                 drone_obj.collision = True
                 # done.append(False)
                 reward.append(np.array(rew))
+            elif cross_termination == 1:
+                done.append(True)
+                drone_obj.collision = True
+                bound_building_check[1] = True
+                rew = rew - crash_penalty_wall
+                reward.append(np.array(rew))
             # # crash into buildings or crash with other neighbors
             elif collide_building == 1:
                 # done.append(True)
@@ -2740,7 +2754,7 @@ class env_simulator:
             # print("current drone {} actual distance to goal is {}, current reward to gaol is {}, current ref line reward is {}, current step reward is {}".format(drone_idx, actual_after_dist_hg, dist_to_goal, dist_to_ref_line, rew))
 
             # record status of each step.
-            eps_status_holder = self.display_one_eps_status(eps_status_holder, drone_idx, actual_after_dist_hg, [dist_to_goal, cross_err_distance, dist_to_ref_line, near_building_penalty, small_step_penalty, np.linalg.norm(drone_obj.vel), near_goal_reward, seg_reward, nearest_pt, drone_obj.observableSpace, drone_obj])
+            eps_status_holder = self.display_one_eps_status(eps_status_holder, drone_idx, actual_after_dist_hg, [dist_to_goal, cross_err_distance, dist_to_ref_line, near_building_penalty, small_step_penalty, np.linalg.norm(drone_obj.vel), near_goal_reward, seg_reward, nearest_pt, drone_obj.observableSpace, drone_obj.heading])
             # overall_status_record[2].append()  # 3rd is accumulated reward till that step for each agent
 
         if full_observable_critic_flag:
@@ -2838,7 +2852,7 @@ class env_simulator:
         status_holder[drone_idx]['segment_reward'] = cur_step_reward[7]
         status_holder[drone_idx]['neareset_point'] = cur_step_reward[8]
         status_holder[drone_idx]['A'+str(drone_idx)+'_observable space'] = cur_step_reward[9]
-        status_holder[drone_idx]['A'+str(drone_idx)+'object'] = cur_step_reward[10]
+        status_holder[drone_idx]['A'+str(drone_idx)+'_heading'] = cur_step_reward[10]
 
         # if status_holder[drone_idx] == None:
         #     status_holder[drone_idx] = [[cur_dist_to_goal] + cur_step_reward]
@@ -2915,8 +2929,9 @@ class env_simulator:
             self.all_agents[drone_idx].acc = np.array([ax, ay])
 
             counterCheck_heading = math.atan2(delta_y, delta_x)
-            if abs(next_heading - counterCheck_heading) > 1e-3 :
+            if abs(next_heading - counterCheck_heading) > 1e-3:
                 print("debug, heading different")
+            self.all_agents[drone_idx].heading = counterCheck_heading
             # ------------- end of acceleration in x and acceleration in y state transition control ---------------#
 
             self.all_agents[drone_idx].pos = np.array([self.all_agents[drone_idx].pos[0] + delta_x,
