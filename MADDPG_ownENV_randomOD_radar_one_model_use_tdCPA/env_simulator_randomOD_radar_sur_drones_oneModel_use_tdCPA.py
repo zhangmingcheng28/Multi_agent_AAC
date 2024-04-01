@@ -1472,6 +1472,7 @@ class env_simulator:
             pre_tcpa = -10
             d_tcpa = -10
             pre_d_tcpa = -10
+            include_neigh_count = 0
             if len(agent.surroundingNeighbor) > 0:  # meaning there is surrounding neighbors around the current agent
                 for other_agentIdx, other_agent in agent.surroundingNeighbor.items():
                     if other_agentIdx != agent_idx:
@@ -1529,7 +1530,9 @@ class env_simulator:
                         # p2_just_euclidean_delta.append(euclidean_dist)
                         p2_just_neighbour.append(p1_surround_agent)
                         p2_norm_just_neighbour.append(p1_norm_surround_agent)
-
+                        include_neigh_count = include_neigh_count + 1
+                        # if include_neigh_count > 1:  # only include 2 nearest agents
+                        #     break
                 overall_state_p3.append(other_agents)
                 norm_overall_state_p3.append(norm_other_agents)
             else:

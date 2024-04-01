@@ -146,6 +146,24 @@ def animate(frame_num, ax, env, trajectory_eachPlay, random_map_idx):
         # plt.text(x-1, y-1, 'agent_'+str(a_idx)+'_'+str(round(float(frame_num), 2)))
         plt.text(x-1, y-1, 'agent_'+str(a_idx)+'_'+str(agent[2]))
 
+        # plot the heading of the current drone
+        heading_radians = agent[3]['A0_heading']
+        arrow_length = 2.5
+        arrow_end_x = x + arrow_length * np.cos(heading_radians)
+        arrow_end_y = y + arrow_length * np.sin(heading_radians)
+        ax.annotate('', xy=(arrow_end_x, arrow_end_y), xytext=(x, y),
+                    arrowprops=dict(arrowstyle='->', lw=2, color='blue'))
+        # plot the nearest point on line from the drone's position
+        nearest_pt = agent[3]['neareset_point']
+        plt.scatter(nearest_pt.x, nearest_pt.y, color='g')
+        # plt.text(nearest_pt.x, nearest_pt.y, 'A' + str(a_idx) + '_' + str(nearest_pt.x) + ',' + str(nearest_pt.y))
+
+        # plot the shortest radar prob
+        shortest_distance_element = min(agent[3]['A0_observable space'], key=lambda x: x[0])
+        if shortest_distance_element[0] < 15:
+            plt.plot([x, shortest_distance_element[2].x], [y, shortest_distance_element[2].y], linestyle='dashed',
+                     color='b')
+
         self_circle = Point(x, y).buffer(env.all_agents[0].protectiveBound, cap_style='round')
         grid_mat_Scir = shapelypoly_to_matpoly(self_circle, False, 'k')
         ax.add_patch(grid_mat_Scir)
