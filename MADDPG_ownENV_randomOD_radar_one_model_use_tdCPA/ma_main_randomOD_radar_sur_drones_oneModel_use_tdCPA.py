@@ -130,11 +130,11 @@ def main(args):
             critic_dim = [6, (total_agentNum - 1) * 5, 18, 6]
         elif use_allNeigh_wRadar:
             # actor_dim = [6, (total_agentNum - 1) * 5, 18, 6]
-            # actor_dim = [6, (total_agentNum - 1) * 5, 36, 6]
-            actor_dim = [6, 2 * 5, 36, 6]
+            actor_dim = [6, (total_agentNum - 1) * 5, 36, 6]
+            # actor_dim = [6, 2 * 5, 36, 6]
             # critic_dim = [6, (total_agentNum - 1) * 5, 18, 6]
-            # critic_dim = [6, (total_agentNum - 1) * 5, 36, 6]
-            critic_dim = [6, 2 * 5, 36, 6]
+            critic_dim = [6, (total_agentNum - 1) * 5, 36, 6]
+            # critic_dim = [6, 2 * 5, 36, 6]
         else:
             # actor_dim = [6, 18, 6]  # dim host, maximum dim grid, dim other drones
             # actor_dim = [8, 18, 6]  # dim host, maximum dim grid, dim other drones
@@ -734,11 +734,7 @@ def main(args):
                 action, step_noise_val, cur_actor_hiddens, \
                 next_actor_hiddens = model.choose_action(norm_cur_state, total_step, episode, step, eps_end, noise_start_level, cur_actor_hiddens, use_allNeigh_wRadar, use_selfATT_with_radar, noisy=noise_flag, use_GRU_flag=use_GRU_flag)  # noisy is false because we are using stochastic policy
 
-
-                # action = model.choose_action(cur_state, episode, noisy=False)
-                # action = env.get_actions_noCR()  # only update heading, don't update any other attribute
-                # for a_idx, action_ele in enumerate(action):
-                #     action[a_idx] = [-0.3535, 0.3535]
+                # nearest_two_drones =
                 next_state, norm_next_state, polygons_list, all_agent_st_points, all_agent_ed_points, all_agent_intersection_point_list, all_agent_line_collection, all_agent_mini_intersection_list = env.step(action, step, acc_max)  # no heading update here
                 reward_aft_action, done_aft_action, check_goal, step_reward_record, eps_status_holder, step_collision_record, bound_building_check = env.ss_reward(step, step_reward_record, eps_status_holder, step_collision_record, dummy_xy, full_observable_critic_flag, args)
                 # reward_aft_action, done_aft_action, check_goal, step_reward_record = env.get_step_reward_5_v3(step, step_reward_record)
@@ -952,7 +948,8 @@ def main(args):
         print("total collision count is {}, {}%".format(collision_count, round(collision_count/args.max_episodes*100,2)))
         print("Collision due to bound is {}".format(crash_to_bound))
         print("Collision due to building is {}".format(crash_to_building))
-        print("Collision due to drone is {}, among them, caused by nearest drone is {}".format(crash_to_drone, crash_due_to_nearest))
+        # print("Collision due to drone is {}, among them, caused by nearest drone is {}".format(crash_to_drone, crash_due_to_nearest))
+        print("Collision due to drone is {}, among them, caused by any of previous two nearest drone is {}".format(crash_to_drone, crash_due_to_nearest))
         print("all steps used count is {}, {}%".format(all_steps_used, round(all_steps_used/100*100, 2)))
         print("One goal reached count is {}, {}%".format(one_drone_reach, round(one_drone_reach/100*100, 2)))
         print("Two goal reached count is {}, {}%".format(two_drone_reach, round(two_drone_reach/100*100, 2)))

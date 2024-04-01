@@ -2365,8 +2365,20 @@ class env_simulator:
                     shortest_neigh_dist = euclidean_dist_diff
                     nearest_neigh_key = neigh_keys
                 if np.linalg.norm(diff_dist_vec) <= drone_obj.protectiveBound * 2:
-                    print("drone_{} collide with drone_{} at time step {}".format(drone_idx, neigh_keys, current_ts))
+                    print("host drone_{} collide with drone_{} at time step {}".format(drone_idx, neigh_keys, current_ts))
                     collision_drones.append(neigh_keys)
+
+            # loop over all previous step neighbour, check if the collision at current step, is done by the drones that is previous within the closest two neighbors
+            neigh_count = 0
+            flag_previous_nearest_two = 0
+            for neigh_keys in self.all_agents[drone_idx].pre_surroundingNeighbor:
+                for collided_drone_keys in collision_drones:
+                    if collided_drone_keys == neigh_keys:
+                        flag_previous_nearest_two = 1
+                        break
+                neigh_count = neigh_count + 1
+                if neigh_count > 1:
+                    break
 
             # check whether current actions leads to a collision with any buildings in the airspace
 
@@ -2704,7 +2716,9 @@ class env_simulator:
                 rew = rew - crash_penalty_wall
                 reward.append(np.array(rew))
                 # check if the collision is due to the nearest drone.
-                if collision_drones[-1] == nearest_neigh_key:
+                # if collision_drones[-1] == nearest_neigh_key:
+                # check if the collision is due to the previous nearest two drone.
+                if flag_previous_nearest_two:
                     bound_building_check[3] = True
             elif not goal_cur_intru_intersect.is_empty:  # reached goal?
                 # --------------- with way point -----------------------
