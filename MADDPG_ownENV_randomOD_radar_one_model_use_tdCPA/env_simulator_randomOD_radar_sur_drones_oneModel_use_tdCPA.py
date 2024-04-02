@@ -1531,8 +1531,8 @@ class env_simulator:
                         p2_just_neighbour.append(p1_surround_agent)
                         p2_norm_just_neighbour.append(p1_norm_surround_agent)
                         include_neigh_count = include_neigh_count + 1
-                        # if include_neigh_count > 1:  # only include 2 nearest agents
-                        #     break
+                        if include_neigh_count > 0:  # only include 2 nearest agents
+                            break
                 overall_state_p3.append(other_agents)
                 norm_overall_state_p3.append(norm_other_agents)
             else:
@@ -2791,8 +2791,8 @@ class env_simulator:
             # print("current drone {} actual distance to goal is {}, current reward to gaol is {}, current ref line reward is {}, current step reward is {}".format(drone_idx, actual_after_dist_hg, dist_to_goal, dist_to_ref_line, rew))
 
             # record status of each step.
-            eps_status_holder = self.display_one_eps_status(eps_status_holder, drone_idx, after_dist_hg,
-                                                            [dist_to_goal, cross_err_distance, dist_to_ref_line,
+            eps_status_holder = self.display_one_eps_status(eps_status_holder, drone_idx, np.array(after_dist_hg),
+                                                            [np.array(dist_to_goal), cross_err_distance, dist_to_ref_line,
                                                              np.array(near_building_penalty), small_step_penalty,
                                                              np.linalg.norm(drone_obj.vel), near_goal_reward,
                                                              seg_reward, nearest_pt, drone_obj.observableSpace,

@@ -65,14 +65,14 @@ def main(args):
         # initialize_excel_file(excel_file_path_time)
         # ------------ end of this portion is to save using excel instead of pickle -----------
 
-    use_wanDB = False
-    # use_wanDB = True
+    # use_wanDB = False
+    use_wanDB = True
 
-    get_evaluation_status = True  # have figure output
-    # get_evaluation_status = False  # no figure output, mainly obtain collision rate
+    # get_evaluation_status = True  # have figure output
+    get_evaluation_status = False  # no figure output, mainly obtain collision rate
 
-    simply_view_evaluation = True  # don't save gif
-    # simply_view_evaluation = False  # save gif
+    # simply_view_evaluation = True  # don't save gif
+    simply_view_evaluation = False  # save gif
 
     # full_observable_critic_flag = True
     full_observable_critic_flag = False
@@ -131,10 +131,12 @@ def main(args):
             critic_dim = [6, (total_agentNum - 1) * 5, 18, 6]
         elif use_allNeigh_wRadar:
             # actor_dim = [6, (total_agentNum - 1) * 5, 18, 6]
-            actor_dim = [6, (total_agentNum - 1) * 5, 36, 6]
+            # actor_dim = [6, (total_agentNum - 1) * 5, 36, 6]
+            actor_dim = [6, 1 * 5, 36, 6]
             # actor_dim = [6, 2 * 5, 36, 6]
             # critic_dim = [6, (total_agentNum - 1) * 5, 18, 6]
-            critic_dim = [6, (total_agentNum - 1) * 5, 36, 6]
+            # critic_dim = [6, (total_agentNum - 1) * 5, 36, 6]
+            critic_dim = [6, 1 * 5, 36, 6]
             # critic_dim = [6, 2 * 5, 36, 6]
         else:
             # actor_dim = [6, 18, 6]  # dim host, maximum dim grid, dim other drones
@@ -214,10 +216,10 @@ def main(args):
     # eps_end = 500  # at eps = eps_end, the eps value drops to lowest value which is 0.03 (this value is fixed)
     # eps_end = 5000  # at eps = eps_end, the eps value drops to lowest value which is 0.03 (this value is fixed)
     # eps_end = round(args.max_episodes / 2)  # at eps = eps_end, the eps value drops to lowest value which is 0.03 (this value is fixed)
-    # eps_end = 8000  # at eps = eps_end, the eps value drops to lowest value which is 0.03 (this value is fixed)
+    eps_end = 8000  # at eps = eps_end, the eps value drops to lowest value which is 0.03 (this value is fixed)
     # eps_end = 2500  # at eps = eps_end, the eps value drops to lowest value which is 0.03 (this value is fixed)
     # eps_end = 4500  # at eps = eps_end, the eps value drops to lowest value which is 0.03 (this value is fixed)
-    eps_end = 1000  # at eps = eps_end, the eps value drops to lowest value which is 0.03 (this value is fixed)
+    # eps_end = 1000  # at eps = eps_end, the eps value drops to lowest value which is 0.03 (this value is fixed)
     # eps_end = 2000  # at eps = eps_end, the eps value drops to lowest value which is 0.03 (this value is fixed)
     noise_start_level = 1
     training_start_time = time.time()
@@ -244,14 +246,14 @@ def main(args):
     if args.mode == "eval":
         # args.max_episodes = 10  # only evaluate one episode during evaluation mode.
         # args.max_episodes = 5  # only evaluate one episode during evaluation mode.
-        # args.max_episodes = 100
-        args.max_episodes = 1
+        args.max_episodes = 100
+        # args.max_episodes = 1
         # args.max_episodes = 250
         # args.max_episodes = 25
-        pre_fix = r'D:\MADDPG_2nd_jp\010424_20_56_56\interval_record_eps'
+        pre_fix = r'D:\MADDPG_2nd_jp\020424_17_42_03\interval_record_eps'
         # episode_to_check = str(10000)
         # pre_fix = r'F:\OneDrive_NTU_PhD\OneDrive - Nanyang Technological University\DDPG_2ndJournal\dim_8_transfer_learning'
-        episode_to_check = str(5000)
+        episode_to_check = str(2000)
         # using one model, so we load all the same
         load_filepath_0 = pre_fix + '\episode_' + episode_to_check + '_actor_net.pth'
         load_filepath_1 = pre_fix + '\episode_' + episode_to_check + '_actor_net.pth'
@@ -300,7 +302,7 @@ def main(args):
 
         trajectory_eachPlay = []
 
-        while True:  # start of an step
+        while True:  # start of a step
             if args.mode == "train":
                 step_start_time = time.time()
                 step_reward_record = [None] * n_agents
@@ -920,18 +922,18 @@ def main(args):
                             pass
 
                     else:  # no collision -> no True in done_aft_action, and all steps used
-                        for each_agent in env.all_agents.values():
-                            if each_agent.bound_collision == True:
-                                collision_count = collision_count + 1
-                                crash_to_bound = crash_to_bound + 1
-                            elif each_agent.building_collision == True:
-                                collision_count = collision_count + 1
-                                crash_to_building = crash_to_building + 1
-                            elif each_agent.drone_collision == True:
-                                collision_count = collision_count + 1
-                                crash_to_drone = crash_to_drone + 1
-                            else:
-                                pass
+                        # for each_agent in env.all_agents.values():
+                        #     if each_agent.bound_collision == True:
+                        #         collision_count = collision_count + 1
+                        #         crash_to_bound = crash_to_bound + 1
+                        #     elif each_agent.building_collision == True:
+                        #         collision_count = collision_count + 1
+                        #         crash_to_building = crash_to_building + 1
+                        #     elif each_agent.drone_collision == True:
+                        #         collision_count = collision_count + 1
+                        #         crash_to_drone = crash_to_drone + 1
+                        #     else:
+                        #         pass
                         all_steps_used = all_steps_used + 1
 
                     if True in episode_goal_found:
@@ -1009,7 +1011,7 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--scenario', default="simple_spread", type=str)
-    parser.add_argument('--max_episodes', default=2000, type=int)  # run for a total of 50000 episodes
+    parser.add_argument('--max_episodes', default=35000, type=int)  # run for a total of 50000 episodes
     parser.add_argument('--algo', default="maddpg", type=str, help="commnet/bicnet/maddpg")
     parser.add_argument('--mode', default="train", type=str, help="train/eval")
     # parser.add_argument('--episode_length', default=150, type=int)  # maximum play per episode
