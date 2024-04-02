@@ -50,6 +50,9 @@ class Agent:
         self.removed_goal = None
         self.update_count = 0
         self.reach_target = False
+        self.bound_collision = False
+        self.building_collision = False
+        self.drone_collision = False
         self.collide_wall_count = 0
 
     def choose_actions(self, observation):

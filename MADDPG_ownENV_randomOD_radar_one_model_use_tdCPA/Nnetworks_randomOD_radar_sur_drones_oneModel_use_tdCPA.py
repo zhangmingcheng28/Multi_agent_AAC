@@ -275,10 +275,19 @@ class ActorNetwork_allnei_wRadar(nn.Module):
         self.own_fc = nn.Sequential(nn.Linear(actor_dim[0], 64), nn.ReLU())
         self.own_full_nei = nn.Sequential(nn.Linear(actor_dim[1], 64), nn.ReLU())
         self.own_grid = nn.Sequential(nn.Linear(actor_dim[2], 64), nn.ReLU())
-        self.merge_feature = nn.Sequential(nn.Linear(64+64+64, 256), nn.ReLU(),
-                                           nn.Linear(256, 256), nn.ReLU())
-        self.act_out = nn.Sequential(nn.Linear(256, 256), nn.ReLU(),
-                                     nn.Linear(256, n_actions), nn.Tanh())
+        self.merge_feature = nn.Sequential(nn.Linear(64+64+64, 512), nn.ReLU(),
+                                           nn.Linear(512, 512), nn.ReLU(),
+                                           nn.Linear(512, 512), nn.ReLU())
+        self.act_out = nn.Sequential(nn.Linear(512, 512), nn.ReLU(),
+                                     nn.Linear(512, n_actions), nn.Tanh())
+        # self.own_fc = nn.Sequential(nn.Linear(actor_dim[0], 256), nn.ReLU())
+        # self.own_full_nei = nn.Sequential(nn.Linear(actor_dim[1], 256), nn.ReLU())
+        # self.own_grid = nn.Sequential(nn.Linear(actor_dim[2], 256), nn.ReLU())
+        # self.merge_feature = nn.Sequential(nn.Linear(256+256+256, 1024), nn.ReLU())
+        #                                    # nn.Linear(512, 512), nn.ReLU(),
+        #                                    # nn.Linear(512, 512), nn.ReLU())
+        # self.act_out = nn.Sequential(nn.Linear(1024, 1024), nn.ReLU(),
+        #                              nn.Linear(512, n_actions), nn.Tanh())
 
     def forward(self, cur_state):
         own_obs = self.own_fc(cur_state[0])

@@ -252,7 +252,7 @@ def view_static_traj(env, trajectory_eachPlay):
         detec_circle = Point(agent.ini_pos[0],
                              agent.ini_pos[1]).buffer(agent.detectionRange / 2, cap_style='round')
         detec_circle_mat = shapelypoly_to_matpoly(detec_circle, inFill=False, Edgecolor='g')
-        ax.add_patch(detec_circle_mat)
+        # ax.add_patch(detec_circle_mat)
 
         # link individual drone's starting position with its goal
         ini = agent.ini_pos
@@ -270,7 +270,14 @@ def view_static_traj(env, trajectory_eachPlay):
         plt.text(agent.goal[-1][0], agent.goal[-1][1], agent.agent_name)
 
     # draw trajectory in current episode
+    frame_to_show = [len(trajectory_eachPlay)-1, len(trajectory_eachPlay)-2, len(trajectory_eachPlay)-3]
     for trajectory_idx, trajectory_val in enumerate(trajectory_eachPlay):  # each time step
+        # if trajectory_idx != len(trajectory_eachPlay)-1 or \
+        #         trajectory_idx != len(trajectory_eachPlay)-2 or \
+        #         trajectory_idx != len(trajectory_eachPlay)-3:  # only show last frame
+        #     continue
+        if trajectory_idx not in frame_to_show:
+            continue
         for agentIDX, each_agent_traj in enumerate(trajectory_val):  # for each agent's motion in a time step
             # if agentIDX != 0:
             #     continue
@@ -278,7 +285,10 @@ def view_static_traj(env, trajectory_eachPlay):
             plt.plot(x, y, 'o', color='r')
 
             # plt.text(x-1, y-1, str(round(float(reward_each_agent[trajectory_idx][agentIDX]),2)))
-            plt.text(x - 1, y - 1, 'U_' + str(agentIDX) + '_' + str(each_agent_traj[2].round(3)))
+            plt.text(x - 1, y - 1, 'A' + str(agentIDX) + '_' + 'step'+str(trajectory_idx) + '_' +
+                     'GL_'+str(each_agent_traj[3]['goal_leading_reward'].round(3)) +
+                     'BP_'+str(each_agent_traj[3]['near_building_penalty'].round(3)) +
+                     'DP_'+str(each_agent_traj[3]['near_drone_penalty'].round(3)) + 'sum_'+str(each_agent_traj[2]))
             # plt.text(x - 1, y - 1, 'agent_' + str(agentIDX) + '_' + str(each_agent_traj[2]))
             self_circle = Point(x, y).buffer(env.all_agents[0].protectiveBound, cap_style='round')
             grid_mat_Scir = shapelypoly_to_matpoly(self_circle, False, 'k')

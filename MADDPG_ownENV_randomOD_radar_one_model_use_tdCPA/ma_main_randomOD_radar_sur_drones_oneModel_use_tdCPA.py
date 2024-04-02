@@ -41,8 +41,8 @@ else:
     device = torch.device('cpu')
     print('Using CPU')
 
-device = torch.device('cpu')
-#
+# device = torch.device('cpu')
+
 
 def main(args):
     if args.mode == "train":
@@ -68,11 +68,11 @@ def main(args):
     use_wanDB = False
     # use_wanDB = True
 
-    # get_evaluation_status = True  # have figure output
-    get_evaluation_status = False  # no figure output, mainly obtain collision rate
+    get_evaluation_status = True  # have figure output
+    # get_evaluation_status = False  # no figure output, mainly obtain collision rate
 
-    # simply_view_evaluation = True  # don't save gif
-    simply_view_evaluation = False  # save gif
+    simply_view_evaluation = True  # don't save gif
+    # simply_view_evaluation = False  # save gif
 
     # full_observable_critic_flag = True
     full_observable_critic_flag = False
@@ -112,6 +112,7 @@ def main(args):
     # total_agentNum = 3
     # total_agentNum = 5
     total_agentNum = 8
+    # total_agentNum = 1
     # max_nei_num = 5
     # create world
     # actor_dim = [6+(total_agentNum-1)*2, 10, 6]  # dim host, maximum dim grid, dim other drones
@@ -213,9 +214,10 @@ def main(args):
     # eps_end = 500  # at eps = eps_end, the eps value drops to lowest value which is 0.03 (this value is fixed)
     # eps_end = 5000  # at eps = eps_end, the eps value drops to lowest value which is 0.03 (this value is fixed)
     # eps_end = round(args.max_episodes / 2)  # at eps = eps_end, the eps value drops to lowest value which is 0.03 (this value is fixed)
-    eps_end = 8000  # at eps = eps_end, the eps value drops to lowest value which is 0.03 (this value is fixed)
+    # eps_end = 8000  # at eps = eps_end, the eps value drops to lowest value which is 0.03 (this value is fixed)
     # eps_end = 2500  # at eps = eps_end, the eps value drops to lowest value which is 0.03 (this value is fixed)
-    # eps_end = 1000  # at eps = eps_end, the eps value drops to lowest value which is 0.03 (this value is fixed)
+    # eps_end = 4500  # at eps = eps_end, the eps value drops to lowest value which is 0.03 (this value is fixed)
+    eps_end = 1000  # at eps = eps_end, the eps value drops to lowest value which is 0.03 (this value is fixed)
     # eps_end = 2000  # at eps = eps_end, the eps value drops to lowest value which is 0.03 (this value is fixed)
     noise_start_level = 1
     training_start_time = time.time()
@@ -226,6 +228,11 @@ def main(args):
     collision_count = 0
     one_drone_reach = 0
     two_drone_reach = 0
+    three_drone_reach = 0
+    four_drone_reach = 0
+    five_drone_reach = 0
+    six_drone_reach = 0
+    seven_drone_reach = 0
     all_drone_reach = 0
     all_steps_used = 0
     crash_to_bound = 0
@@ -237,13 +244,14 @@ def main(args):
     if args.mode == "eval":
         # args.max_episodes = 10  # only evaluate one episode during evaluation mode.
         # args.max_episodes = 5  # only evaluate one episode during evaluation mode.
-        args.max_episodes = 100
+        # args.max_episodes = 100
+        args.max_episodes = 1
         # args.max_episodes = 250
         # args.max_episodes = 25
-        pre_fix = r'D:\MADDPG_2nd_jp\310324_18_12_57\interval_record_eps'
+        pre_fix = r'D:\MADDPG_2nd_jp\010424_20_56_56\interval_record_eps'
         # episode_to_check = str(10000)
         # pre_fix = r'F:\OneDrive_NTU_PhD\OneDrive - Nanyang Technological University\DDPG_2ndJournal\dim_8_transfer_learning'
-        episode_to_check = str(13000)
+        episode_to_check = str(5000)
         # using one model, so we load all the same
         load_filepath_0 = pre_fix + '\episode_' + episode_to_check + '_actor_net.pth'
         load_filepath_1 = pre_fix + '\episode_' + episode_to_check + '_actor_net.pth'
@@ -274,7 +282,6 @@ def main(args):
         eps_reset_time_used = (time.time()-eps_reset_start_time)*1000
         # print("current episode {} reset time used is {} milliseconds".format(episode, eps_reset_time_used))  # need to + 1 here, or else will misrecord as the previous episode
         step_collision_record = [[] for _ in range(total_agentNum)]  # reset at each episode, so that we can record down collision at each step for each agent.
-        eps_status_holder = [None] * n_agents
         episode_decision = [False] * 3
         agents_added = []
         eps_reward = []
@@ -323,7 +330,7 @@ def main(args):
                 # reward_aft_action, done_aft_action, check_goal, step_reward_record = env.get_step_reward_5_v3(step, step_reward_record)   # remove reached agent here
 
                 one_step_reward_start = time.time()
-                reward_aft_action, done_aft_action, check_goal, step_reward_record, status_holder, step_collision_record, bound_building_check = env.ss_reward(step, step_reward_record, eps_status_holder, step_collision_record, dummy_xy, full_observable_critic_flag, args)   # remove reached agent here
+                reward_aft_action, done_aft_action, check_goal, step_reward_record, status_holder, step_collision_record, bound_building_check = env.ss_reward(step, step_reward_record, step_collision_record, dummy_xy, full_observable_critic_flag, args)   # remove reached agent here
                 reward_generation_time = (time.time() - one_step_reward_start)*1000
                 # print("current step reward time used is {} milliseconds".format(reward_generation_time))
 
@@ -343,7 +350,7 @@ def main(args):
                             y_val = Y[i, j]  # Y-coordinate at (i, j)
                             pos_to_test = (x_val, y_val)
                             reward_aft_action, done_aft_action, check_goal, step_reward_record, eps_status_holder, step_collision_record, bound_building_check = env.ss_reward(
-                                step, step_reward_record, eps_status_holder, step_collision_record, pos_to_test)
+                                step, step_reward_record, step_collision_record, pos_to_test)
                             Z[i, j] = reward_aft_action[0]
                             text = plt.text(x_val, y_val, round(Z[i, j], 1),
                                            ha="center", va="center", color="r")
@@ -473,8 +480,8 @@ def main(args):
                     for i in range(len(one_agent_next_obs)):
                         # if done_tensor[i] == 1:
                         #     continue
-                        model.memory.push(one_agent_obs[i], ac_tensor[i,:], one_agent_next_obs[i], rw_tensor[i], done_tensor[i], history_tensor[:,i,:],
-                                          cur_actor_hiddens[i,:], next_actor_hiddens[i,:])
+                        model.memory.push(one_agent_obs[i], ac_tensor[i, :], one_agent_next_obs[i], rw_tensor[i], done_tensor[i], history_tensor[:,i,:],
+                                          cur_actor_hiddens[i, :], next_actor_hiddens[i,:])
                     # ------- end of push to memory one by one ----------
 
                 # accum_reward = accum_reward + reward_aft_action[0]  # we just take the first agent's reward, because we are using a joint reward, so all agents obtain the same reward.
@@ -682,6 +689,11 @@ def main(args):
                         collision_count = 0
                         one_drone_reach = 0
                         two_drone_reach = 0
+                        three_drone_reach = 0
+                        four_drone_reach = 0
+                        five_drone_reach = 0
+                        six_drone_reach = 0
+                        seven_drone_reach = 0
                         all_drone_reach = 0
                         all_steps_used = 0
                         crash_to_bound = 0
@@ -736,7 +748,7 @@ def main(args):
 
                 # nearest_two_drones =
                 next_state, norm_next_state, polygons_list, all_agent_st_points, all_agent_ed_points, all_agent_intersection_point_list, all_agent_line_collection, all_agent_mini_intersection_list = env.step(action, step, acc_max)  # no heading update here
-                reward_aft_action, done_aft_action, check_goal, step_reward_record, eps_status_holder, step_collision_record, bound_building_check = env.ss_reward(step, step_reward_record, eps_status_holder, step_collision_record, dummy_xy, full_observable_critic_flag, args)
+                reward_aft_action, done_aft_action, check_goal, step_reward_record, eps_status_holder, step_collision_record, bound_building_check = env.ss_reward(step, step_reward_record, step_collision_record, dummy_xy, full_observable_critic_flag, args)
                 # reward_aft_action, done_aft_action, check_goal, step_reward_record = env.get_step_reward_5_v3(step, step_reward_record)
 
                 step += 1
@@ -747,16 +759,16 @@ def main(args):
                 traj_step_list = []
                 for each_agent_idx, each_agent in env.all_agents.items():
                     # traj_step_list.append([each_agent.pos[0], each_agent.pos[1], reward_aft_action[each_agent_idx]])
-                    traj_step_list.append([each_agent.pos[0], each_agent.pos[1], np.array(step_reward_record[each_agent_idx][1])])
+                    traj_step_list.append([each_agent.pos[0], each_agent.pos[1], np.array(step_reward_record[each_agent_idx][1]), eps_status_holder[each_agent_idx]])
                 trajectory_eachPlay.append(traj_step_list)
                 accum_reward = accum_reward + sum(reward_aft_action)
                 # show states in text
                 for agentIdx, agent in env.all_agents.items():
                     print("drone {}, next WP is {}, deviation from ref line is {}, ref_line_reward is {}, "
-                          "dist to next goal is {}, dist_goal_reward is {}, velocity is {}, , small step penalty is {}, step {} reward is {}"
-                          .format(agentIdx, agent.waypoints[0], eps_status_holder[agentIdx][-1][2],
-                                  eps_status_holder[agentIdx][-1][3], eps_status_holder[agentIdx][-1][0],
-                                  eps_status_holder[agentIdx][-1][1], eps_status_holder[agentIdx][-1][6], eps_status_holder[agentIdx][-1][5], step,
+                          "actual dist to goal is {}, dist_goal_reward is {}, velocity is {}, step {} reward is {}"
+                          .format(agentIdx, agent.goal[-1], eps_status_holder[agentIdx]['deviation_to_ref_line'],
+                                  eps_status_holder[agentIdx]['deviation_to_ref_line_reward'], eps_status_holder[agentIdx]['Euclidean_dist_to_goal'],
+                                  eps_status_holder[agentIdx]['goal_leading_reward'], eps_status_holder[agentIdx]['current_drone_speed'], step,
                                   reward_aft_action[agentIdx]))
 
                 if show_step_by_step:
@@ -908,6 +920,18 @@ def main(args):
                             pass
 
                     else:  # no collision -> no True in done_aft_action, and all steps used
+                        for each_agent in env.all_agents.values():
+                            if each_agent.bound_collision == True:
+                                collision_count = collision_count + 1
+                                crash_to_bound = crash_to_bound + 1
+                            elif each_agent.building_collision == True:
+                                collision_count = collision_count + 1
+                                crash_to_building = crash_to_building + 1
+                            elif each_agent.drone_collision == True:
+                                collision_count = collision_count + 1
+                                crash_to_drone = crash_to_drone + 1
+                            else:
+                                pass
                         all_steps_used = all_steps_used + 1
 
                     if True in episode_goal_found:
@@ -926,6 +950,16 @@ def main(args):
                                 saved_gif = True  # once current episode saved, no need to save one more time.
                             # print("There are two True values in the list.")
                             two_drone_reach = two_drone_reach + 1
+                        elif num_true == 3:
+                            three_drone_reach = three_drone_reach + 1
+                        elif num_true == 4:
+                            four_drone_reach = four_drone_reach + 1
+                        elif num_true == 5:
+                            five_drone_reach = five_drone_reach + 1
+                        elif num_true == 6:
+                            six_drone_reach = six_drone_reach + 1
+                        elif num_true == 7:
+                            seven_drone_reach = seven_drone_reach + 1
                         else:  # all 3 reaches goal
                             all_drone_reach = all_drone_reach + 1
                             # print("There are no True values in the list.")
@@ -953,6 +987,11 @@ def main(args):
         print("all steps used count is {}, {}%".format(all_steps_used, round(all_steps_used/100*100, 2)))
         print("One goal reached count is {}, {}%".format(one_drone_reach, round(one_drone_reach/100*100, 2)))
         print("Two goal reached count is {}, {}%".format(two_drone_reach, round(two_drone_reach/100*100, 2)))
+        print("Three goal reached count is {}, {}%".format(three_drone_reach, round(three_drone_reach/100*100, 2)))
+        print("Four goal reached count is {}, {}%".format(four_drone_reach, round(four_drone_reach/100*100, 2)))
+        print("Five goal reached count is {}, {}%".format(five_drone_reach, round(five_drone_reach/100*100, 2)))
+        print("Six goal reached count is {}, {}%".format(six_drone_reach, round(six_drone_reach/100*100, 2)))
+        print("Seven goal reached count is {}, {}%".format(seven_drone_reach, round(seven_drone_reach/100*100, 2)))
         print("All goal reached count is {}, {}%".format(all_drone_reach, round(all_drone_reach/100*100, 2)))
     print(f'training finishes, time spent: {datetime.timedelta(seconds=int(time.time() - training_start_time))}')
     os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
@@ -970,7 +1009,7 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--scenario', default="simple_spread", type=str)
-    parser.add_argument('--max_episodes', default=35000, type=int)  # run for a total of 50000 episodes
+    parser.add_argument('--max_episodes', default=2000, type=int)  # run for a total of 50000 episodes
     parser.add_argument('--algo', default="maddpg", type=str, help="commnet/bicnet/maddpg")
     parser.add_argument('--mode', default="eval", type=str, help="train/eval")
     # parser.add_argument('--episode_length', default=150, type=int)  # maximum play per episode
