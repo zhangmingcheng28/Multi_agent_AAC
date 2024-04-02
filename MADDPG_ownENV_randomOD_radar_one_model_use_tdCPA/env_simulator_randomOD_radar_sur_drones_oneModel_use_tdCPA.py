@@ -2464,13 +2464,22 @@ class env_simulator:
             # dist_to_goal = dist_to_goal_coeff * math.sqrt(((x_norm-tx_norm)**2 + (y_norm-ty_norm)**2))  # 0~2.828 at each step
 
             # ---- leading to goal reward V4 ---- 
-            before_dist_hg = np.linalg.norm(drone_obj.pre_pos - drone_obj.goal[-1])  # distance to goal before action
-            # before_dist_hg = np.linalg.norm(drone_obj.pre_pos - next_wp)  # distance to goal before action
-            after_dist_hg = np.linalg.norm(drone_obj.pos - drone_obj.goal[-1])  # distance to goal after action
-            # after_dist_hg = np.linalg.norm(drone_obj.pos - next_wp)  # distance to goal after action
-            dist_to_goal = dist_to_goal_coeff * (before_dist_hg - after_dist_hg)
-            dist_to_goal = dist_to_goal / drone_obj.maxSpeed  # perform a normalization
+            # before_dist_hg = np.linalg.norm(drone_obj.pre_pos - drone_obj.goal[-1])  # distance to goal before action
+            # # before_dist_hg = np.linalg.norm(drone_obj.pre_pos - next_wp)  # distance to goal before action
+            # after_dist_hg = np.linalg.norm(drone_obj.pos - drone_obj.goal[-1])  # distance to goal after action
+            # # after_dist_hg = np.linalg.norm(drone_obj.pos - next_wp)  # distance to goal after action
+            # dist_to_goal = dist_to_goal_coeff * (before_dist_hg - after_dist_hg)
+            # dist_to_goal = dist_to_goal / drone_obj.maxSpeed  # perform a normalization
             # ---- end of leading to goal reward V4 ----
+
+            # ---- V5 euclidean distance ----
+            dist_away = np.linalg.norm(drone_obj.ini_pos - drone_obj.goal[-1])
+            after_dist_hg = np.linalg.norm(drone_obj.pos - drone_obj.goal[-1])  # distance to goal after action
+            if after_dist_hg > dist_away:
+                dist_to_goal = dist_to_goal_coeff * 0
+            else:
+                dist_to_goal = dist_to_goal_coeff * (1-after_dist_hg/dist_away)
+            # ---- end of V5 -------
 
             # ----- v4 accumulative ---
             # one_drone_dist_to_goal = dist_to_goal_coeff * (before_dist_hg - after_dist_hg)  # (before_dist_hg - after_dist_hg) -max_vel - max_vel
@@ -2776,7 +2785,7 @@ class env_simulator:
                 #     print("check")
             # if rew < 0.1 and rew >= 0:
             #     print("check")
-            step_reward_record[drone_idx] = [dist_to_ref_line, step_reward]
+            step_reward_record[drone_idx] = [dist_to_ref_line, rew]
 
             # print("current drone {} actual distance to goal is {}, current reward is {}".format(drone_idx, actual_after_dist_hg, reward[-1]))
             # print("current drone {} actual distance to goal is {}, current reward to gaol is {}, current ref line reward is {}, current step reward is {}".format(drone_idx, actual_after_dist_hg, dist_to_goal, dist_to_ref_line, rew))

@@ -289,14 +289,16 @@ def view_static_traj(env, trajectory_eachPlay, random_map_idx):
 
     # draw trajectory in current episode
     for trajectory_idx, trajectory_val in enumerate(trajectory_eachPlay):  # each time step
-        # if trajectory_idx == 10:
+        # if trajectory_idx == 1:
         #     break
         for agentIDX, each_agent_traj in enumerate(trajectory_val):  # for each agent's motion in a time step
             # if agentIDX != 0:
             #     continue
             x, y = each_agent_traj[0], each_agent_traj[1]
             plt.plot(x, y, 'o', color='r')
-
+            # detec_circle = Point(x, y).buffer(15, cap_style='round')
+            # detec_circle_mat = shapelypoly_to_matpoly(detec_circle, inFill=False, Edgecolor='purple')
+            # ax.add_patch(detec_circle_mat)
             # plot the heading of the current drone
             heading_radians = each_agent_traj[3]['A0_heading']
             arrow_length = 2.5

@@ -14,6 +14,8 @@ import rtree
 from shapely.strtree import STRtree
 from scipy.interpolate import interp1d
 from shapely.geometry import LineString, Point, Polygon
+from skspatial.objects import LineSegment
+from skspatial.objects import Circle
 from scipy.spatial import KDTree
 import random
 import itertools
@@ -206,6 +208,7 @@ class env_simulator:
 
     def reset_world(self, total_agentNum, random_map_idx, show):  # set initialize position and observation for all agents
         self.global_time = 0.0
+        # self.time_step = 0.1
         self.time_step = 0.5
         # reset OU_noise as well
         self.OU_noise.reset()
@@ -378,7 +381,6 @@ class env_simulator:
 
         # overall_state, norm_overall_state = self.cur_state_norm_state_fully_observable(agentRefer_dict)
         # print('time used is {}'.format(time.time() - start_time))
-        overall_state, norm_overall_state, polygons_list, prob_display = self.cur_state_norm_state_v3(agentRefer_dict, random_map_idx)
 
         # we set up geo-fence area here
         for _ in range(1):  # we create 1 centre points for generate temporary geo-fence
@@ -417,7 +419,7 @@ class env_simulator:
             circle_centre = Point(random_point_x, random_point_y)
             geo_fence = circle_centre.buffer(5)
             self.geo_fence_area.append(geo_fence)
-
+        overall_state, norm_overall_state, polygons_list, prob_display = self.cur_state_norm_state_v3(agentRefer_dict, random_map_idx)
         if show:
             os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
             matplotlib.use('TkAgg')
@@ -900,32 +902,13 @@ class env_simulator:
             agent.surroundingNeighbor = self.get_current_agent_nei(agent, agentRefer_dict)
             # print("generate nei time is {} milliseconds".format((time.time() - obs_nei_time) * 1000))
 
-            # ------------ start of create radar ------------- #
+            #region ------------ start of create radar on geo-fence only ------------- #
             drone_ctr = Point(agent.pos)
-            nearest_buildingPoly_idx = self.allbuildingSTR_collection[random_map_idx].nearest(drone_ctr)
-            nearest_buildingPoly = self.world_map_2D_polyList_collection[random_map_idx][0][0][nearest_buildingPoly_idx]
-            dist_nearest = drone_ctr.distance(nearest_buildingPoly)
-
-            # Re-calculate the 20 equally spaced points around the circle
-            st_points = {degree: Point(drone_ctr.x + math.cos(math.radians(degree)) * agent.protectiveBound,
-                                         drone_ctr.y + math.sin(math.radians(degree)) * agent.protectiveBound)
-                           for degree in range(0, 360, 20)}
-            # use centre point as start point
             st_points = {degree: drone_ctr for degree in range(0, 360, 20)}
             all_agent_st_pos.append(st_points)
-
-            # radar_dist = (agent.detectionRange / 2) - agent.protectiveBound
             radar_dist = (agent.detectionRange / 2)
-            # Re-define the polygons and build the STRtree again
-            # polygons_list = [
-            #     Polygon([(1, 1), (1, 3), (3, 3), (3, 1)]),
-            #     Polygon([(2, -1), (2, -3), (4, -3), (4, -1)]),
-            #     Polygon([(-3, -1), (-3, -3), (-1, -3), (-1, -1)]),
-            #     Polygon([(-4, 2), (-4, 4), (-2, 4), (-2, 2)])
-            # ]
             polygons_list_wBound = self.list_of_occupied_grid_wBound_collection[random_map_idx]
             polygons_tree_wBound = self.allbuildingSTR_wBound_collection[random_map_idx]
-
             distances = []
             intersection_point_list = []
             mini_intersection_list = []
@@ -945,6 +928,7 @@ class env_simulator:
                 end_point = Point(end_x, end_y)
                 ed_points[point_deg] = end_point
                 min_intersection_pt = end_point  # initialize the min_intersection_pt
+                drone_nearest_pt = end_point
 
                 # Create the LineString from the start point to the end point
                 line = LineString([point_pos, end_point])
@@ -997,71 +981,180 @@ class env_simulator:
                         if drone_distance < drone_min_dist:
                             drone_min_dist = drone_distance
                             drone_nearest_pt = drone_perimeter_point
-                # ------------ end of radar check surrounding geo-fence collision -------------------------
-
-                # If there are intersecting polygons, find the nearest intersection point
-                if len(intersecting_polygons) != 0:  # check if a list is empty
-                    building_nearest_flag = 1
-                    # Initialize the minimum distance to be the length of the line segment
-                    for polygon_idx in intersecting_polygons:
-                        # Check if the line intersects with the building polygon's boundary
-                        if polygons_list_wBound[polygon_idx].geom_type == "Polygon":
-                            if line.intersects(polygons_list_wBound[polygon_idx]):
-                                intersection_point = line.intersection(polygons_list_wBound[polygon_idx].boundary)
-                                if intersection_point.type == 'MultiPoint':
-                                    nearest_point = min(intersection_point.geoms,
-                                                        key=lambda point: drone_ctr.distance(point))
-                                else:
-                                    nearest_point = intersection_point
-                                intersection_point_list.append(nearest_point)
-                                distance = drone_ctr.distance(nearest_point)
-                                # min_distance = min(min_distance, distance)
-                                if distance < min_distance:
-                                    min_distance = distance
-                                    min_intersection_pt = nearest_point
-                        else:  # possible intersection is not a polygon but a LineString, meaning it is a boundary line
-                            if line.intersects(polygons_list_wBound[polygon_idx]):
-                                intersection = line.intersection(polygons_list_wBound[polygon_idx])
-                                if intersection.geom_type == 'Point':
-                                    intersection_distance = intersection.distance(drone_ctr)
-                                    if intersection_distance < min_distance:
-                                        min_distance = intersection_distance
-                                        min_intersection_pt = intersection
-                                # If it's a line of intersection, add each end points of the intersection line
-                                elif intersection.geom_type == 'LineString':
-                                    for point in intersection.coords:  # loop through both end of the intersection line
-                                        one_end_of_intersection_line = Point(point)
-                                        intersection_distance = one_end_of_intersection_line.distance(drone_ctr)
-                                        if intersection_distance < min_distance:
-                                            min_distance = intersection_distance
-                                            min_intersection_pt = one_end_of_intersection_line
-                                intersection_point_list.append(min_intersection_pt)
-
-                    # make sure each look there are only one minimum intersection point
-                    distances.append([min_distance, building_nearest_flag, min_intersection_pt])
-                    mini_intersection_list.append(min_intersection_pt)
-                else:
-                    # If no intersections, the distance is the length of the line segment
-                    distances.append([line.length, building_nearest_flag, min_intersection_pt])
-                # ------ end of check intersection on polygon or boundaries ------
-
-                # Now we compare the minimum distance of intersection for both polygons and drones
-                # whichever is short, we will load into the last list.
-
-                if drone_min_dist < min_distance:   # one of the other drone is nearer to cur drone
-                    if len(mini_intersection_list) == 0:  # if no building polygon surrounding the host drone, mini_intersection_list will not be populated
-                        mini_intersection_list.append(drone_nearest_pt)
+                        distances.append([drone_min_dist, drone_nearest_flag, drone_nearest_pt])
                     else:
-                        mini_intersection_list[-1] = drone_nearest_pt
-                    # replace the minimum distance and minimum intersection point
-                    distances[-1] = [drone_min_dist, drone_nearest_flag, drone_nearest_pt]
-
+                        # If no intersections, the distance is the length of the line segment
+                        distances.append([line.length, drone_nearest_flag, drone_nearest_pt])
             all_agent_ed_pos.append(ed_points)
             all_agent_intersection_point_list.append(intersection_point_list)  # this is to save all intersection point for each agent
             all_agent_line_collection.append(line_collection)
-            all_agent_mini_intersection_list.append(mini_intersection_list)  # this is only used when radar include other drone in its detection
+            all_agent_mini_intersection_list.append(mini_intersection_list)
             self.all_agents[agentIdx].observableSpace = distances
-            # ------------- end of create radar --------------- #
+            #endregion ------------ end of create radar on geo-fence only ------------- #
+
+            #region ------------ start of create radar both geo-fence and obstacles ------------- #
+            # drone_ctr = Point(agent.pos)
+            # nearest_buildingPoly_idx = self.allbuildingSTR_collection[random_map_idx].nearest(drone_ctr)
+            # nearest_buildingPoly = self.world_map_2D_polyList_collection[random_map_idx][0][0][nearest_buildingPoly_idx]
+            # dist_nearest = drone_ctr.distance(nearest_buildingPoly)
+            #
+            # # Re-calculate the 20 equally spaced points around the circle
+            # st_points = {degree: Point(drone_ctr.x + math.cos(math.radians(degree)) * agent.protectiveBound,
+            #                              drone_ctr.y + math.sin(math.radians(degree)) * agent.protectiveBound)
+            #                for degree in range(0, 360, 20)}
+            # # use centre point as start point
+            # st_points = {degree: drone_ctr for degree in range(0, 360, 20)}
+            # all_agent_st_pos.append(st_points)
+            #
+            # # radar_dist = (agent.detectionRange / 2) - agent.protectiveBound
+            # radar_dist = (agent.detectionRange / 2)
+            # # Re-define the polygons and build the STRtree again
+            # # polygons_list = [
+            # #     Polygon([(1, 1), (1, 3), (3, 3), (3, 1)]),
+            # #     Polygon([(2, -1), (2, -3), (4, -3), (4, -1)]),
+            # #     Polygon([(-3, -1), (-3, -3), (-1, -3), (-1, -1)]),
+            # #     Polygon([(-4, 2), (-4, 4), (-2, 4), (-2, 2)])
+            # # ]
+            # polygons_list_wBound = self.list_of_occupied_grid_wBound_collection[random_map_idx]
+            # polygons_tree_wBound = self.allbuildingSTR_wBound_collection[random_map_idx]
+            #
+            # distances = []
+            # intersection_point_list = []
+            # mini_intersection_list = []
+            # ed_points = {}
+            # line_collection = []
+            # for point_deg, point_pos in st_points.items():
+            #     drone_nearest_flag = -1
+            #     building_nearest_flag = -1
+            #     # Create a line segment from the circle's center to the point on the perimeter
+            #     # end_x = point_pos.x + radar_dist * math.cos(math.radians(point_deg))
+            #     # end_y = point_pos.y + radar_dist * math.sin(math.radians(point_deg))
+            #
+            #     # Create a line segment from the circle's center
+            #     end_x = drone_ctr.x + radar_dist * math.cos(math.radians(point_deg))
+            #     end_y = drone_ctr.y + radar_dist * math.sin(math.radians(point_deg))
+            #
+            #     end_point = Point(end_x, end_y)
+            #     ed_points[point_deg] = end_point
+            #     min_intersection_pt = end_point  # initialize the min_intersection_pt
+            #
+            #     # Create the LineString from the start point to the end point
+            #     line = LineString([point_pos, end_point])
+            #     line_collection.append(line)
+            #     # Query the STRtree for polygons that intersect with the line segment
+            #     intersecting_polygons = polygons_tree_wBound.query(line)
+            #
+            #     drone_min_dist = line.length
+            #     min_distance = line.length
+            #
+            #     # get radar distance from host drone to geo-fence circle, and decide the minimum intersection distance from cur host drone to other drone
+            #     for geo_fence in self.geo_fence_area:
+            #         # Check if the LineString intersects with the circle
+            #         if line.intersects(geo_fence):
+            #             drone_nearest_flag = 0
+            #             # Find the intersection point(s)
+            #             intersection = line.intersection(geo_fence)
+            #             # The intersection could be a Point or a MultiPoint
+            #             # If it's a MultiPoint, we'll calculate the distance to the first intersection
+            #             if intersection.geom_type == 'MultiPoint':
+            #                 # Calculate distance from the starting point of the LineString to each intersection point
+            #                 drone_perimeter_point = min(intersection.geoms, key=lambda point: drone_ctr.distance(point))
+            #
+            #             elif intersection.geom_type == 'Point':
+            #                 # Calculate the distance from the start of the LineString to the intersection point
+            #                 drone_perimeter_point = intersection
+            #             elif intersection.geom_type in ['LineString', 'MultiLineString']:
+            #                 # The intersection is a line (or part of the line lies on the circle's edge)
+            #                 # Find the nearest point on this "intersection line" to the start of the original line
+            #                 drone_perimeter_point = nearest_points(drone_ctr, intersection)[1]
+            #             elif intersection.geom_type == 'GeometryCollection':
+            #                 complex_min_dist = math.inf
+            #                 for geom in intersection:
+            #                     if geom.geom_type == 'Point':
+            #                         dist = drone_ctr.distance(geom)
+            #                         if dist < complex_min_dist:
+            #                             complex_min_dist = dist
+            #                             drone_perimeter_point = geom
+            #                     elif geom.geom_type == 'LineString':
+            #                         nearest_geom_point = nearest_points(drone_ctr, geom)[1]
+            #                         dist = drone_ctr.distance(nearest_geom_point)
+            #                         if dist < complex_min_dist:
+            #                             complex_min_dist = dist
+            #                             drone_perimeter_point = nearest_geom_point
+            #             else:
+            #                 raise ValueError(
+            #                     "Intersection is not a point or multipoint, which is unexpected for LineString and Polygon intersection.")
+            #             intersection_point_list.append(drone_perimeter_point)
+            #             drone_distance = drone_ctr.distance(drone_perimeter_point)
+            #             if drone_distance < drone_min_dist:
+            #                 drone_min_dist = drone_distance
+            #                 drone_nearest_pt = drone_perimeter_point
+            #
+            #     # ------------ end of radar check surrounding geo-fence collision -------------------------
+            #
+            #     # If there are intersecting polygons, find the nearest intersection point
+            #     if len(intersecting_polygons) != 0:  # check if a list is empty
+            #         building_nearest_flag = 1
+            #         # Initialize the minimum distance to be the length of the line segment
+            #         for polygon_idx in intersecting_polygons:
+            #             # Check if the line intersects with the building polygon's boundary
+            #             if polygons_list_wBound[polygon_idx].geom_type == "Polygon":
+            #                 if line.intersects(polygons_list_wBound[polygon_idx]):
+            #                     intersection_point = line.intersection(polygons_list_wBound[polygon_idx].boundary)
+            #                     if intersection_point.type == 'MultiPoint':
+            #                         nearest_point = min(intersection_point.geoms,
+            #                                             key=lambda point: drone_ctr.distance(point))
+            #                     else:
+            #                         nearest_point = intersection_point
+            #                     intersection_point_list.append(nearest_point)
+            #                     distance = drone_ctr.distance(nearest_point)
+            #                     # min_distance = min(min_distance, distance)
+            #                     if distance < min_distance:
+            #                         min_distance = distance
+            #                         min_intersection_pt = nearest_point
+            #             else:  # possible intersection is not a polygon but a LineString, meaning it is a boundary line
+            #                 if line.intersects(polygons_list_wBound[polygon_idx]):
+            #                     intersection = line.intersection(polygons_list_wBound[polygon_idx])
+            #                     if intersection.geom_type == 'Point':
+            #                         intersection_distance = intersection.distance(drone_ctr)
+            #                         if intersection_distance < min_distance:
+            #                             min_distance = intersection_distance
+            #                             min_intersection_pt = intersection
+            #                     # If it's a line of intersection, add each end points of the intersection line
+            #                     elif intersection.geom_type == 'LineString':
+            #                         for point in intersection.coords:  # loop through both end of the intersection line
+            #                             one_end_of_intersection_line = Point(point)
+            #                             intersection_distance = one_end_of_intersection_line.distance(drone_ctr)
+            #                             if intersection_distance < min_distance:
+            #                                 min_distance = intersection_distance
+            #                                 min_intersection_pt = one_end_of_intersection_line
+            #                     intersection_point_list.append(min_intersection_pt)
+            #
+            #         # make sure each look there are only one minimum intersection point
+            #         distances.append([min_distance, building_nearest_flag, min_intersection_pt])
+            #         mini_intersection_list.append(min_intersection_pt)
+            #     else:
+            #         # If no intersections, the distance is the length of the line segment
+            #         distances.append([line.length, building_nearest_flag, min_intersection_pt])
+            #     # ------ end of check intersection on polygon or boundaries ------
+            #
+            #     # Now we compare the minimum distance of intersection for both polygons and drones
+            #     # whichever is short, we will load into the last list.
+            #
+            #     if drone_min_dist < min_distance:   # one of the other drone is nearer to cur drone
+            #         if len(mini_intersection_list) == 0:  # if no building polygon surrounding the host drone, mini_intersection_list will not be populated
+            #             mini_intersection_list.append(drone_nearest_pt)
+            #         else:
+            #             mini_intersection_list[-1] = drone_nearest_pt
+            #         # replace the minimum distance and minimum intersection point
+            #         distances[-1] = [drone_min_dist, drone_nearest_flag, drone_nearest_pt]
+            #
+            # all_agent_ed_pos.append(ed_points)
+            # all_agent_intersection_point_list.append(intersection_point_list)  # this is to save all intersection point for each agent
+            # all_agent_line_collection.append(line_collection)
+            # all_agent_mini_intersection_list.append(mini_intersection_list)  # this is only used when radar include other drone in its detection
+            # self.all_agents[agentIdx].observableSpace = distances
+            #endregion ------------- end of create radar on both building and geo-fence --------------- #
 
             rest_compu_time = time.time()
 
@@ -2356,7 +2449,9 @@ class env_simulator:
             # check collision with geo-fence
             for geo_fence in self.geo_fence_area:
                 dist_difference = np.linalg.norm(drone_obj.pos - np.array(geo_fence.centroid.coords[0]))
-                if dist_difference <= 5 + drone_obj.protectiveBound:  # 5 is the radius of the geo-fence circle
+                # if dist_difference <= 5 + drone_obj.protectiveBound:  # 5 is the radius of the geo-fence circle
+                #     collide_geo_fence = 1
+                if geo_fence.overlaps(host_current_circle):
                     collide_geo_fence = 1
                     break
 
@@ -2366,7 +2461,7 @@ class env_simulator:
             v1_decision = 0
             possiblePoly = self.allbuildingSTR_collection[random_map_idx].query(host_current_circle)
             for element in possiblePoly:
-                if self.allbuildingSTR_collection[random_map_idx].geometries.take(element).intersection(host_current_circle):
+                if self.allbuildingSTR_collection[random_map_idx].geometries.take(element).overlaps(host_current_circle):
                     collide_building = 1
                     v1_decision = collide_building
                     drone_obj.collide_wall_count = drone_obj.collide_wall_count + 1
@@ -2460,8 +2555,25 @@ class env_simulator:
             # dist_to_goal_coeff = 0
             # dist_to_goal_coeff = 3
 
-            cross_err_distance, x_error, y_error, nearest_pt = self.cross_track_error(host_current_point,
-                                                                          drone_obj.ref_line)  # deviation from the reference line, cross track error
+            # obtain the intersection point between the drone's detection circle and the ref-line
+            host_drone_detection_circle = Point(self.all_agents[drone_idx].pos[0], self.all_agents[drone_idx].pos[1]).\
+                buffer(self.all_agents[drone_idx].detectionRange / 2, cap_style='round')
+            intersection_points = host_drone_detection_circle.boundary.intersection(drone_obj.ref_line)
+
+            # # Check if there are two intersection points and find the nearest to the ref line's end
+            # if intersection_points.geom_type == 'MultiPoint':
+            #     # There are two intersection points, find the closest to the ref line's end
+            #     end_point = drone_obj.ref_line.coords[-1]
+            #     end_point_obj = Point(end_point)
+            #     nearest_pt = min(intersection_points.geoms, key=lambda p: p.distance(end_point_obj))
+            # else:
+            #     # There is only one intersection point or none
+            #     nearest_pt = intersection_points
+            nearest_pt = nearest_points(drone_obj.ref_line, curPoint)[0]
+            # nearest_pt = drone_obj.ref_line.interpolate(drone_obj.ref_line.project(curPoint))
+            cross_err_distance, x_error, y_error = self.cross_track_error_point(curPoint, nearest_pt)
+            # cross_err_distance, x_error, y_error, nearest_pt = self.cross_track_error(nearest_point,
+            #                                                               drone_obj.ref_line)  # deviation from the reference line, cross track error
             x_norm, y_norm = self.normalizer.nmlz_pos(drone_obj.pos)
             tx_norm, ty_norm = self.normalizer.nmlz_pos(drone_obj.goal[-1])
             # dist_to_goal = dist_to_goal_coeff * math.sqrt(((x_norm-tx_norm)**2 + (y_norm-ty_norm)**2))  # 0~2.828 at each step
@@ -2551,12 +2663,13 @@ class env_simulator:
             # cross_track_threshold = 15*math.sqrt(2)
             # cross_track_threshold = 2.5+5+2.5
             # cross_track_threshold = drone_obj.protectiveBound
-            if cross_err_distance >= 7:
+            if cross_err_distance >= 10:
                 cross_termination = 1
             if cross_err_distance <= cross_track_threshold:
                 # linear increase in reward
                 m = (0 - 1) / (cross_track_threshold - 0)
-                dist_to_ref_line = coef_ref_line*(m * cross_err_distance + 1)  # 0~1*coef_ref_line
+                # dist_to_ref_line = coef_ref_line*(m * cross_err_distance + 1)  # 0~1*coef_ref_line
+                dist_to_ref_line = -coef_ref_line*(m * cross_err_distance + 1)  # 0~1*coef_ref_line
                 # dist_to_ref_line = (coef_ref_line*(m * cross_err_distance + 1)) + coef_ref_line  # 0~1*coef_ref_line, with a fixed reward
             else:
                 # dist_to_ref_line = -coef_ref_line*0.6
@@ -2774,9 +2887,8 @@ class env_simulator:
         #              color='y')
         #     plt.plot(agent.goal[-1][0], agent.goal[-1][1], marker='*', color='y', markersize=10)
         #     plt.text(agent.pos[0], agent.pos[1], agent.agent_name)
-        #     plt.text(agent.pos[0] + 5, agent.pos[1], str(reward[agentIdx]))
-        #     plt.text(agent.pos[0] + 5, agent.pos[1] - 1, str(eps_status_holder[agentIdx][-1][1]))  # dist_to_goal (goal leading reward)
-        #     plt.text(agent.pos[0] + 5, agent.pos[1] - 2, str(eps_status_holder[agentIdx][-1][2]))  # cross_err_distance
+        #     plt.plot(nearest_pt.x, nearest_pt.y, marker='*', color='r', markersize=10)
+        #
         #     # plot self_circle of the drone
         #     self_circle = Point(agent.pos[0], agent.pos[1]).buffer(agent.protectiveBound, cap_style='round')
         #     grid_mat_Scir = shapelypoly_to_matpoly(self_circle, False, 'k')
@@ -2784,19 +2896,8 @@ class env_simulator:
         #
         #     # plot drone's detection range
         #     detec_circle = Point(agent.pos[0], agent.pos[1]).buffer(agent.detectionRange / 2, cap_style='round')
-        #     detec_circle_mat = shapelypoly_to_matpoly(detec_circle, False, 'r')
-        #     # ax.add_patch(detec_circle_mat)
-        #
-        #     # plot drone's range sensor
-        #     for line_to_plot in prob_display[3][agentIdx]:
-        #         prob_x, prob_y = line_to_plot.xy
-        #         plt.plot(prob_x, prob_y, 'green')
-        #     # plot drone's range sensor
-        #     for info_Pt in drone_obj.observableSpace:
-        #         x_coor = [drone_obj.pos[0], info_Pt[2].x]
-        #         y_coor = [drone_obj.pos[1], info_Pt[2].y]
-        #         plt.plot(x_coor, y_coor, 'green')
-        #         plt.text(info_Pt[2].x, info_Pt[2].y, str(round(info_Pt[0], 2)))
+        #     detec_circle_mat = shapelypoly_to_matpoly(detec_circle, False, 'purple')
+        #     ax.add_patch(detec_circle_mat)
         #
         #     # ini = agent.ini_pos
         #     # for wp in agent.ref_line.coords:
@@ -2805,21 +2906,6 @@ class env_simulator:
         #     ref_x, ref_y = agent.ref_line.xy
         #     plt.plot(ref_x, ref_y, marker='o')  # 'o' adds markers at the points
         #
-        #
-        # # draw occupied_poly
-        # for one_poly in self.world_map_2D_polyList[0][0]:
-        #     one_poly_mat = shapelypoly_to_matpoly(one_poly, True, 'y', 'b')
-        #     ax.add_patch(one_poly_mat)
-        # # draw non-occupied_poly
-        # for zero_poly in self.world_map_2D_polyList[0][1]:
-        #     zero_poly_mat = shapelypoly_to_matpoly(zero_poly, False, 'y')
-        #     ax.add_patch(zero_poly_mat)
-        #
-        # # show building obstacles
-        # for poly in self.buildingPolygons:
-        #     matp_poly = shapelypoly_to_matpoly(poly, False, 'red')  # the 3rd parameter is the edge color
-        #     # ax.add_patch(matp_poly)
-        #
         #     # show geo-fence
         # for geo_fence in self.geo_fence_area:
         #     fence_poly = shapelypoly_to_matpoly(geo_fence, False, 'red')  # the 3rd parameter is the edge color
@@ -2827,7 +2913,10 @@ class env_simulator:
         # # # show the nearest building obstacles
         # # nearest_buildingPoly_mat = shapelypoly_to_matpoly(nearest_buildingPoly, True, 'g', 'k')
         # # ax.add_patch(nearest_buildingPoly_mat)
-        #
+        # # draw occupied_poly
+        # for one_poly in self.world_map_2D_polyList_collection[random_map_idx][0][0]:
+        #     one_poly_mat = shapelypoly_to_matpoly(one_poly, True, 'y', 'b')
+        #     ax.add_patch(one_poly_mat)
         # # plt.axvline(x=self.bound[0], c="green")
         # # plt.axvline(x=self.bound[1], c="green")
         # # plt.axhline(y=self.bound[2], c="green")
@@ -2836,7 +2925,7 @@ class env_simulator:
         # plt.xlabel("X axis")
         # plt.ylabel("Y axis")
         # plt.axis('equal')
-        # # plt.show()
+        # plt.show()
 
         return reward, done, check_goal, step_reward_record, eps_status_holder, step_collision_record, bound_building_check
 
@@ -3446,6 +3535,16 @@ class env_simulator:
         y_error = abs(point.y - nearest_pt.y)
 
         return distance, x_error, y_error, nearest_pt
+
+    def cross_track_error_point(self, pointA, pointB):
+        # Calculate the cross-track distance
+        distance = pointA.distance(pointB)
+
+        # Calculate the x and y components of the cross-track error
+        x_error = abs(pointA.x - pointB.x)
+        y_error = abs(pointA.y - pointB.y)
+
+        return distance, x_error, y_error
 
     def save_model_actor_net(self, file_path):
         if not os.path.exists(file_path):
