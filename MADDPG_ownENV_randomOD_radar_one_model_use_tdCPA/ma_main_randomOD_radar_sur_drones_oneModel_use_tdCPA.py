@@ -134,12 +134,12 @@ def main(args):
             critic_dim = [6, (total_agentNum - 1) * 5, 18, 6]
         elif use_allNeigh_wRadar:
             # actor_dim = [6, (total_agentNum - 1) * 5, 18, 6]
-            actor_dim = [6, (total_agentNum - 1) * 5, 36, 6]
-            # actor_dim = [6, 1 * 5, 36, 6]
+            # actor_dim = [6, (total_agentNum - 1) * 5, 36, 6]
+            actor_dim = [6, 1 * 5, 36, 6]
             # actor_dim = [6, 2 * 5, 36, 6]
             # critic_dim = [6, (total_agentNum - 1) * 5, 18, 6]
-            critic_dim = [6, (total_agentNum - 1) * 5, 36, 6]
-            # critic_dim = [6, 1 * 5, 36, 6]
+            # critic_dim = [6, (total_agentNum - 1) * 5, 36, 6]
+            critic_dim = [6, 1 * 5, 36, 6]
             # critic_dim = [6, 2 * 5, 36, 6]
         else:
             # actor_dim = [6, 18, 6]  # dim host, maximum dim grid, dim other drones
@@ -256,10 +256,10 @@ def main(args):
         # args.max_episodes = 1
         # args.max_episodes = 250
         # args.max_episodes = 25
-        pre_fix = r'D:\MADDPG_2nd_jp\020424_20_55_26\interval_record_eps'
+        pre_fix = r'D:\MADDPG_2nd_jp\020424_20_02_43\interval_record_eps'
         # episode_to_check = str(10000)
         # pre_fix = r'F:\OneDrive_NTU_PhD\OneDrive - Nanyang Technological University\DDPG_2ndJournal\dim_8_transfer_learning'
-        episode_to_check = str(20000)
+        episode_to_check = str(8000)
         # using one model, so we load all the same
         load_filepath_0 = pre_fix + '\episode_' + episode_to_check + '_actor_net.pth'
         load_filepath_1 = pre_fix + '\episode_' + episode_to_check + '_actor_net.pth'
@@ -986,12 +986,6 @@ def main(args):
                                 sorties_reached = sorties_reached + 1
                             else:
                                 idle_drone = idle_drone + 1
-                            print("Total collision {}".format(collision_count))
-                            print("Collision to bound {}".format(crash_to_bound))
-                            print("Collision to building {}".format(crash_to_building))
-                            print("Collision to drone {}".format(crash_to_drone))
-                            print("Destination reached {}".format(sorties_reached))
-                            print("Idle UAV {}".format(idle_drone))
                     break
 
     if args.mode == "train":  # only save pickle at end of training to save computational time.
@@ -1008,20 +1002,28 @@ def main(args):
             write = csv.writer(f)
             write.writerows([score_history])
     else:
-        print("total collision count is {}, {}%".format(collision_count, round(collision_count/args.max_episodes*100,2)))
-        print("Collision due to bound is {}".format(crash_to_bound))
-        print("Collision due to building is {}".format(crash_to_building))
-        # print("Collision due to drone is {}, among them, caused by nearest drone is {}".format(crash_to_drone, crash_due_to_nearest))
-        print("Collision due to drone is {}, among them, caused by any of previous two nearest drone is {}".format(crash_to_drone, crash_due_to_nearest))
-        print("all steps used count is {}, {}%".format(all_steps_used, round(all_steps_used/100*100, 2)))
-        print("One goal reached count is {}, {}%".format(one_drone_reach, round(one_drone_reach/100*100, 2)))
-        print("Two goal reached count is {}, {}%".format(two_drone_reach, round(two_drone_reach/100*100, 2)))
-        print("Three goal reached count is {}, {}%".format(three_drone_reach, round(three_drone_reach/100*100, 2)))
-        print("Four goal reached count is {}, {}%".format(four_drone_reach, round(four_drone_reach/100*100, 2)))
-        print("Five goal reached count is {}, {}%".format(five_drone_reach, round(five_drone_reach/100*100, 2)))
-        print("Six goal reached count is {}, {}%".format(six_drone_reach, round(six_drone_reach/100*100, 2)))
-        print("Seven goal reached count is {}, {}%".format(seven_drone_reach, round(seven_drone_reach/100*100, 2)))
-        print("All goal reached count is {}, {}%".format(all_drone_reach, round(all_drone_reach/100*100, 2)))
+        if evaluation_by_episode:
+            print("total collision count is {}, {}%".format(collision_count, round(collision_count/args.max_episodes*100,2)))
+            print("Collision due to bound is {}".format(crash_to_bound))
+            print("Collision due to building is {}".format(crash_to_building))
+            # print("Collision due to drone is {}, among them, caused by nearest drone is {}".format(crash_to_drone, crash_due_to_nearest))
+            print("Collision due to drone is {}, among them, caused by any of previous two nearest drone is {}".format(crash_to_drone, crash_due_to_nearest))
+            print("all steps used count is {}, {}%".format(all_steps_used, round(all_steps_used/100*100, 2)))
+            print("One goal reached count is {}, {}%".format(one_drone_reach, round(one_drone_reach/100*100, 2)))
+            print("Two goal reached count is {}, {}%".format(two_drone_reach, round(two_drone_reach/100*100, 2)))
+            print("Three goal reached count is {}, {}%".format(three_drone_reach, round(three_drone_reach/100*100, 2)))
+            print("Four goal reached count is {}, {}%".format(four_drone_reach, round(four_drone_reach/100*100, 2)))
+            print("Five goal reached count is {}, {}%".format(five_drone_reach, round(five_drone_reach/100*100, 2)))
+            print("Six goal reached count is {}, {}%".format(six_drone_reach, round(six_drone_reach/100*100, 2)))
+            print("Seven goal reached count is {}, {}%".format(seven_drone_reach, round(seven_drone_reach/100*100, 2)))
+            print("All goal reached count is {}, {}%".format(all_drone_reach, round(all_drone_reach/100*100, 2)))
+        else:
+            print("Total collision {}".format(collision_count))
+            print("Collision to bound {}".format(crash_to_bound))
+            print("Collision to building {}".format(crash_to_building))
+            print("Collision to drone {}".format(crash_to_drone))
+            print("Destination reached {}".format(sorties_reached))
+            print("Idle UAV {}".format(idle_drone))
     print(f'training finishes, time spent: {datetime.timedelta(seconds=int(time.time() - training_start_time))}')
     os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
     matplotlib.use('TkAgg')
@@ -1040,7 +1042,7 @@ if __name__ == '__main__':
     parser.add_argument('--scenario', default="simple_spread", type=str)
     parser.add_argument('--max_episodes', default=20000, type=int)  # run for a total of 50000 episodes
     parser.add_argument('--algo', default="maddpg", type=str, help="commnet/bicnet/maddpg")
-    parser.add_argument('--mode', default="train", type=str, help="train/eval")
+    parser.add_argument('--mode', default="eval", type=str, help="train/eval")
     # parser.add_argument('--episode_length', default=150, type=int)  # maximum play per episode
     parser.add_argument('--episode_length', default=50, type=int)  # maximum play per episode
     # parser.add_argument('--episode_length', default=100, type=int)  # maximum play per episode
