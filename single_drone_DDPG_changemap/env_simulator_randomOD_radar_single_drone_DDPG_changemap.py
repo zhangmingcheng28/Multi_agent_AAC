@@ -2669,7 +2669,7 @@ class env_simulator:
                 # linear increase in reward
                 m = (0 - 1) / (cross_track_threshold - 0)
                 # dist_to_ref_line = coef_ref_line*(m * cross_err_distance + 1)  # 0~1*coef_ref_line
-                dist_to_ref_line = -coef_ref_line*(m * cross_err_distance + 1)  # 0~1*coef_ref_line
+                dist_to_ref_line = coef_ref_line*(m * cross_err_distance - 1)  # 0~1*coef_ref_line
                 # dist_to_ref_line = (coef_ref_line*(m * cross_err_distance + 1)) + coef_ref_line  # 0~1*coef_ref_line, with a fixed reward
             else:
                 # dist_to_ref_line = -coef_ref_line*0.6
@@ -2768,12 +2768,12 @@ class env_simulator:
                 drone_obj.collision = True
                 # done.append(False)
                 reward.append(np.array(rew))
-            elif cross_termination == 1:
-                done.append(True)
-                drone_obj.collision = True
-                bound_building_check[1] = True
-                rew = rew - crash_penalty_wall
-                reward.append(np.array(rew))
+            # elif cross_termination == 1:
+            #     done.append(True)
+            #     drone_obj.collision = True
+            #     bound_building_check[1] = True
+            #     rew = rew - crash_penalty_wall
+            #     reward.append(np.array(rew))
             # # crash into buildings or crash with other neighbors
             elif collide_building == 1:
                 # done.append(True)

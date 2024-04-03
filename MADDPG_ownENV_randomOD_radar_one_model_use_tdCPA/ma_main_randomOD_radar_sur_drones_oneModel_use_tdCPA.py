@@ -65,8 +65,11 @@ def main(args):
         # initialize_excel_file(excel_file_path_time)
         # ------------ end of this portion is to save using excel instead of pickle -----------
 
-    # use_wanDB = False
-    use_wanDB = True
+    use_wanDB = False
+    # use_wanDB = True
+
+    # evaluation_by_episode = True
+    evaluation_by_episode = False
 
     # get_evaluation_status = True  # have figure output
     get_evaluation_status = False  # no figure output, mainly obtain collision rate
@@ -131,12 +134,12 @@ def main(args):
             critic_dim = [6, (total_agentNum - 1) * 5, 18, 6]
         elif use_allNeigh_wRadar:
             # actor_dim = [6, (total_agentNum - 1) * 5, 18, 6]
-            # actor_dim = [6, (total_agentNum - 1) * 5, 36, 6]
-            actor_dim = [6, 1 * 5, 36, 6]
+            actor_dim = [6, (total_agentNum - 1) * 5, 36, 6]
+            # actor_dim = [6, 1 * 5, 36, 6]
             # actor_dim = [6, 2 * 5, 36, 6]
             # critic_dim = [6, (total_agentNum - 1) * 5, 18, 6]
-            # critic_dim = [6, (total_agentNum - 1) * 5, 36, 6]
-            critic_dim = [6, 1 * 5, 36, 6]
+            critic_dim = [6, (total_agentNum - 1) * 5, 36, 6]
+            # critic_dim = [6, 1 * 5, 36, 6]
             # critic_dim = [6, 2 * 5, 36, 6]
         else:
             # actor_dim = [6, 18, 6]  # dim host, maximum dim grid, dim other drones
@@ -216,7 +219,8 @@ def main(args):
     # eps_end = 500  # at eps = eps_end, the eps value drops to lowest value which is 0.03 (this value is fixed)
     # eps_end = 5000  # at eps = eps_end, the eps value drops to lowest value which is 0.03 (this value is fixed)
     # eps_end = round(args.max_episodes / 2)  # at eps = eps_end, the eps value drops to lowest value which is 0.03 (this value is fixed)
-    eps_end = 8000  # at eps = eps_end, the eps value drops to lowest value which is 0.03 (this value is fixed)
+    # eps_end = 8000  # at eps = eps_end, the eps value drops to lowest value which is 0.03 (this value is fixed)
+    eps_end = 10000  # at eps = eps_end, the eps value drops to lowest value which is 0.03 (this value is fixed)
     # eps_end = 2500  # at eps = eps_end, the eps value drops to lowest value which is 0.03 (this value is fixed)
     # eps_end = 4500  # at eps = eps_end, the eps value drops to lowest value which is 0.03 (this value is fixed)
     # eps_end = 1000  # at eps = eps_end, the eps value drops to lowest value which is 0.03 (this value is fixed)
@@ -237,6 +241,8 @@ def main(args):
     seven_drone_reach = 0
     all_drone_reach = 0
     all_steps_used = 0
+    sorties_reached = 0
+    idle_drone = 0
     crash_to_bound = 0
     crash_to_building = 0
     crash_to_drone = 0
@@ -250,10 +256,10 @@ def main(args):
         # args.max_episodes = 1
         # args.max_episodes = 250
         # args.max_episodes = 25
-        pre_fix = r'D:\MADDPG_2nd_jp\020424_17_42_03\interval_record_eps'
+        pre_fix = r'D:\MADDPG_2nd_jp\020424_20_55_26\interval_record_eps'
         # episode_to_check = str(10000)
         # pre_fix = r'F:\OneDrive_NTU_PhD\OneDrive - Nanyang Technological University\DDPG_2ndJournal\dim_8_transfer_learning'
-        episode_to_check = str(2000)
+        episode_to_check = str(20000)
         # using one model, so we load all the same
         load_filepath_0 = pre_fix + '\episode_' + episode_to_check + '_actor_net.pth'
         load_filepath_1 = pre_fix + '\episode_' + episode_to_check + '_actor_net.pth'
@@ -324,7 +330,7 @@ def main(args):
                 # action = model.choose_action(cur_state, episode, noisy=True)
 
                 one_step_transition_start = time.time()
-                next_state, norm_next_state, polygons_list, all_agent_st_points, all_agent_ed_points, all_agent_intersection_point_list, all_agent_line_collection, all_agent_mini_intersection_list = env.step(action, step, acc_max)
+                next_state, norm_next_state, polygons_list, all_agent_st_points, all_agent_ed_points, all_agent_intersection_point_list, all_agent_line_collection, all_agent_mini_intersection_list = env.step(action, step, acc_max, args, evaluation_by_episode)
                 step_transition_time = (time.time() - one_step_transition_start)*1000
                 # print("current step transition time used is {} milliseconds".format(step_transition_time))
 
@@ -332,7 +338,7 @@ def main(args):
                 # reward_aft_action, done_aft_action, check_goal, step_reward_record = env.get_step_reward_5_v3(step, step_reward_record)   # remove reached agent here
 
                 one_step_reward_start = time.time()
-                reward_aft_action, done_aft_action, check_goal, step_reward_record, status_holder, step_collision_record, bound_building_check = env.ss_reward(step, step_reward_record, step_collision_record, dummy_xy, full_observable_critic_flag, args)   # remove reached agent here
+                reward_aft_action, done_aft_action, check_goal, step_reward_record, status_holder, step_collision_record, bound_building_check = env.ss_reward(step, step_reward_record, step_collision_record, dummy_xy, full_observable_critic_flag, args, evaluation_by_episode)   # remove reached agent here
                 reward_generation_time = (time.time() - one_step_reward_start)*1000
                 # print("current step reward time used is {} milliseconds".format(reward_generation_time))
 
@@ -749,8 +755,8 @@ def main(args):
                 next_actor_hiddens = model.choose_action(norm_cur_state, total_step, episode, step, eps_end, noise_start_level, cur_actor_hiddens, use_allNeigh_wRadar, use_selfATT_with_radar, noisy=noise_flag, use_GRU_flag=use_GRU_flag)  # noisy is false because we are using stochastic policy
 
                 # nearest_two_drones =
-                next_state, norm_next_state, polygons_list, all_agent_st_points, all_agent_ed_points, all_agent_intersection_point_list, all_agent_line_collection, all_agent_mini_intersection_list = env.step(action, step, acc_max)  # no heading update here
-                reward_aft_action, done_aft_action, check_goal, step_reward_record, eps_status_holder, step_collision_record, bound_building_check = env.ss_reward(step, step_reward_record, step_collision_record, dummy_xy, full_observable_critic_flag, args)
+                next_state, norm_next_state, polygons_list, all_agent_st_points, all_agent_ed_points, all_agent_intersection_point_list, all_agent_line_collection, all_agent_mini_intersection_list = env.step(action, step, acc_max, args, evaluation_by_episode)  # no heading update here
+                reward_aft_action, done_aft_action, check_goal, step_reward_record, eps_status_holder, step_collision_record, bound_building_check = env.ss_reward(step, step_reward_record, step_collision_record, dummy_xy, full_observable_critic_flag, args, evaluation_by_episode)
                 # reward_aft_action, done_aft_action, check_goal, step_reward_record = env.get_step_reward_5_v3(step, step_reward_record)
 
                 step += 1
@@ -901,70 +907,91 @@ def main(args):
                         # ---------- new save as gif ----------------------- #
                         else:
                             save_gif(env, trajectory_eachPlay, pre_fix, episode_to_check, episode)
-
-                    if True in done_aft_action and step < args.episode_length:
-                        if saved_gif == False:
-                            save_gif(env, trajectory_eachPlay, pre_fix, episode_to_check, episode)
-                            saved_gif = True  # once current episode saved, no need to save one more time.
-                        collision_count = collision_count + 1
-                        # print("Episode {}, {} steps before collision".format(episode, step))
-                        steps_before_collide.append(step)
-                        if bound_building_check[0] == True:  # collide due to boundary
-                            crash_to_bound = crash_to_bound + 1
-                        elif bound_building_check[1] == True:  # collide due to building
-                            crash_to_building = crash_to_building + 1
-                        elif bound_building_check[2] == True:  # collide due to drones
-                            crash_to_drone = crash_to_drone + 1
-                            # save_gif(env, trajectory_eachPlay, pre_fix, episode_to_check, episode)
-                            if bound_building_check[3] == True:
-                                crash_due_to_nearest = crash_due_to_nearest + 1
-                        else:
-                            pass
-
-                    else:  # no collision -> no True in done_aft_action, and all steps used
-                        # for each_agent in env.all_agents.values():
-                        #     if each_agent.bound_collision == True:
-                        #         collision_count = collision_count + 1
-                        #         crash_to_bound = crash_to_bound + 1
-                        #     elif each_agent.building_collision == True:
-                        #         collision_count = collision_count + 1
-                        #         crash_to_building = crash_to_building + 1
-                        #     elif each_agent.drone_collision == True:
-                        #         collision_count = collision_count + 1
-                        #         crash_to_drone = crash_to_drone + 1
-                        #     else:
-                        #         pass
-                        all_steps_used = all_steps_used + 1
-
-                    if True in episode_goal_found:
-                        # Count the number of reach cases
-                        num_true = sum(episode_goal_found)
-                        # Determine the number of True values and print the appropriate response
-                        if num_true == 1:
+                    if evaluation_by_episode:
+                        if True in done_aft_action and step < args.episode_length:
                             if saved_gif == False:
                                 save_gif(env, trajectory_eachPlay, pre_fix, episode_to_check, episode)
                                 saved_gif = True  # once current episode saved, no need to save one more time.
-                            # print("There is one True value in the list.")
-                            one_drone_reach = one_drone_reach + 1
-                        elif num_true == 2:
-                            if saved_gif == False:
-                                save_gif(env, trajectory_eachPlay, pre_fix, episode_to_check, episode)
-                                saved_gif = True  # once current episode saved, no need to save one more time.
-                            # print("There are two True values in the list.")
-                            two_drone_reach = two_drone_reach + 1
-                        elif num_true == 3:
-                            three_drone_reach = three_drone_reach + 1
-                        elif num_true == 4:
-                            four_drone_reach = four_drone_reach + 1
-                        elif num_true == 5:
-                            five_drone_reach = five_drone_reach + 1
-                        elif num_true == 6:
-                            six_drone_reach = six_drone_reach + 1
-                        elif num_true == 7:
-                            seven_drone_reach = seven_drone_reach + 1
-                        else:  # all 3 reaches goal
-                            all_drone_reach = all_drone_reach + 1
-                            # print("There are no True values in the list.")
+                            collision_count = collision_count + 1
+                            # print("Episode {}, {} steps before collision".format(episode, step))
+                            steps_before_collide.append(step)
+                            if bound_building_check[0] == True:  # collide due to boundary
+                                crash_to_bound = crash_to_bound + 1
+                            elif bound_building_check[1] == True:  # collide due to building
+                                crash_to_building = crash_to_building + 1
+                            elif bound_building_check[2] == True:  # collide due to drones
+                                crash_to_drone = crash_to_drone + 1
+                                # save_gif(env, trajectory_eachPlay, pre_fix, episode_to_check, episode)
+                                if bound_building_check[3] == True:
+                                    crash_due_to_nearest = crash_due_to_nearest + 1
+                            else:
+                                pass
+
+                        else:  # no collision -> no True in done_aft_action, and all steps used
+                            # for each_agent in env.all_agents.values():
+                            #     if each_agent.bound_collision == True:
+                            #         collision_count = collision_count + 1
+                            #         crash_to_bound = crash_to_bound + 1
+                            #     elif each_agent.building_collision == True:
+                            #         collision_count = collision_count + 1
+                            #         crash_to_building = crash_to_building + 1
+                            #     elif each_agent.drone_collision == True:
+                            #         collision_count = collision_count + 1
+                            #         crash_to_drone = crash_to_drone + 1
+                            #     else:
+                            #         pass
+                            all_steps_used = all_steps_used + 1
+
+                        if True in episode_goal_found:
+                            # Count the number of reach cases
+                            num_true = sum(episode_goal_found)
+                            # Determine the number of True values and print the appropriate response
+                            if num_true == 1:
+                                if saved_gif == False:
+                                    save_gif(env, trajectory_eachPlay, pre_fix, episode_to_check, episode)
+                                    saved_gif = True  # once current episode saved, no need to save one more time.
+                                # print("There is one True value in the list.")
+                                one_drone_reach = one_drone_reach + 1
+                            elif num_true == 2:
+                                if saved_gif == False:
+                                    save_gif(env, trajectory_eachPlay, pre_fix, episode_to_check, episode)
+                                    saved_gif = True  # once current episode saved, no need to save one more time.
+                                # print("There are two True values in the list.")
+                                two_drone_reach = two_drone_reach + 1
+                            elif num_true == 3:
+                                three_drone_reach = three_drone_reach + 1
+                            elif num_true == 4:
+                                four_drone_reach = four_drone_reach + 1
+                            elif num_true == 5:
+                                five_drone_reach = five_drone_reach + 1
+                            elif num_true == 6:
+                                six_drone_reach = six_drone_reach + 1
+                            elif num_true == 7:
+                                seven_drone_reach = seven_drone_reach + 1
+                            else:  # all 3 reaches goal
+                                all_drone_reach = all_drone_reach + 1
+                                # print("There are no True values in the list.")
+                    else:  # evaluation by sorties, for each episode loop over all agent's status in current episode
+                        for each_agent in env.all_agents.values():
+                            if each_agent.bound_collision == True:
+                                collision_count = collision_count + 1
+                                crash_to_bound = crash_to_bound + 1
+                            elif each_agent.building_collision == True:
+                                collision_count = collision_count + 1
+                                crash_to_building = crash_to_building + 1
+                            elif each_agent.drone_collision == True:
+                                collision_count = collision_count + 1
+                                crash_to_drone = crash_to_drone + 1
+                            elif each_agent.reach_target == True:
+                                sorties_reached = sorties_reached + 1
+                            else:
+                                idle_drone = idle_drone + 1
+                            print("Total collision {}".format(collision_count))
+                            print("Collision to bound {}".format(crash_to_bound))
+                            print("Collision to building {}".format(crash_to_building))
+                            print("Collision to drone {}".format(crash_to_drone))
+                            print("Destination reached {}".format(sorties_reached))
+                            print("Idle UAV {}".format(idle_drone))
                     break
 
     if args.mode == "train":  # only save pickle at end of training to save computational time.
@@ -1011,7 +1038,7 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--scenario', default="simple_spread", type=str)
-    parser.add_argument('--max_episodes', default=35000, type=int)  # run for a total of 50000 episodes
+    parser.add_argument('--max_episodes', default=20000, type=int)  # run for a total of 50000 episodes
     parser.add_argument('--algo', default="maddpg", type=str, help="commnet/bicnet/maddpg")
     parser.add_argument('--mode', default="train", type=str, help="train/eval")
     # parser.add_argument('--episode_length', default=150, type=int)  # maximum play per episode

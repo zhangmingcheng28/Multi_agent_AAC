@@ -1531,8 +1531,8 @@ class env_simulator:
                         p2_just_neighbour.append(p1_surround_agent)
                         p2_norm_just_neighbour.append(p1_norm_surround_agent)
                         include_neigh_count = include_neigh_count + 1
-                        if include_neigh_count > 0:  # only include 2 nearest agents
-                            break
+                        # if include_neigh_count > 0:  # only include 2 nearest agents
+                        #     break
                 overall_state_p3.append(other_agents)
                 norm_overall_state_p3.append(norm_other_agents)
             else:
@@ -2235,7 +2235,7 @@ class env_simulator:
         # return reward, done, check_goal, step_reward_record, agent_filled
         return reward, done, check_goal, step_reward_record
 
-    def ss_reward(self, current_ts, step_reward_record, step_collision_record, xy, full_observable_critic_flag, args):
+    def ss_reward(self, current_ts, step_reward_record, step_collision_record, xy, full_observable_critic_flag, args, evaluation_by_episode):
         bound_building_check = [False] * 4
         eps_status_holder = [{} for _ in range(len(self.all_agents))]
         reward, done = [], []
@@ -2352,9 +2352,9 @@ class env_simulator:
                 # when there is no intersection between two geometries, "RuntimeWarning" will appear
                 # RuntimeWarning is, "invalid value encountered in intersection"
                 neigh_goal_intersect = cur_nei_circle.intersection(cur_nei_tar_circle)
-
-                if not neigh_goal_intersect.is_empty:  # current neigh has reached their goal
-                    continue  # straight away pass this neigh which has already reached.
+                if args.mode == 'eval' and evaluation_by_episode == False:
+                    if not neigh_goal_intersect.is_empty:  # current neigh has reached their goal
+                        continue  # straight away pass this neigh which has already reached.
 
                 # ---- end of make nei invis when nei has reached their goal ----
 
@@ -2366,9 +2366,15 @@ class env_simulator:
                     shortest_neigh_dist = euclidean_dist_diff
                     nearest_neigh_key = neigh_keys
                 if np.linalg.norm(diff_dist_vec) <= drone_obj.protectiveBound * 2:
-                    print("host drone_{} collide with drone_{} at time step {}".format(drone_idx, neigh_keys, current_ts))
-                    collision_drones.append(neigh_keys)
-                    drone_obj.drone_collision = True
+                    if args.mode == 'eval' and evaluation_by_episode == False:
+                        if self.all_agents[neigh_keys].drone_collision == True \
+                                or self.all_agents[neigh_keys].building_collision == True \
+                                or self.all_agents[neigh_keys].bound_collision == True:
+                            continue  # pass this neigh if this neigh is at its terminal condition
+                    else:
+                        print("host drone_{} collide with drone_{} at time step {}".format(drone_idx, neigh_keys, current_ts))
+                        collision_drones.append(neigh_keys)
+                        drone_obj.drone_collision = True
             # loop over all previous step neighbour, check if the collision at current step, is done by the drones that is previous within the closest two neighbors
             neigh_count = 0
             flag_previous_nearest_two = 0
@@ -2597,9 +2603,16 @@ class env_simulator:
             else:
                 for individual_nei_dist in all_neigh_dist:
                     if individual_nei_dist >= dist_to_penalty_lowerbound and individual_nei_dist <= dist_to_penalty_upperbound:
-                        near_drone_penalty = near_drone_penalty + (near_drone_penalty_coef * (m_drone * shortest_neigh_dist + c_drone))
+                        # normalize distance to 0-1
+                        norm_ind_nei_dist = individual_nei_dist-dist_to_penalty_lowerbound / (dist_to_penalty_upperbound-dist_to_penalty_lowerbound)
+                        near_drone_penalty = near_drone_penalty + (norm_ind_nei_dist-1)**2
                     else:
                         near_drone_penalty = near_drone_penalty + near_drone_penalty_coef * 0
+
+                    # if individual_nei_dist >= dist_to_penalty_lowerbound and individual_nei_dist <= dist_to_penalty_upperbound:
+                    #     near_drone_penalty = near_drone_penalty + (near_drone_penalty_coef * (m_drone * individual_nei_dist + c_drone))
+                    # else:
+                    #     near_drone_penalty = near_drone_penalty + near_drone_penalty_coef * 0
             # -----end of near SUM drone penalty ----------------
 
             # ----- start of V2 near drone penalty ----------------
@@ -2692,19 +2705,21 @@ class env_simulator:
             # must use "host_passed_volume", or else, we unable to confirm whether the host's circle is at left or right of the boundary lines
             if x_left_bound.intersects(host_passed_volume) or x_right_bound.intersects(host_passed_volume) or y_bottom_bound.intersects(host_passed_volume) or y_top_bound.intersects(host_passed_volume):
                 print("drone_{} has crash into boundary at time step {}".format(drone_idx, current_ts))
-                rew = rew - crash_penalty_wall
                 drone_obj.bound_collision = True
-                # if drone_obj.bound_collision == False:
-                #     done.append(True)
-                done.append(True)
+                rew = rew - crash_penalty_wall
+                if args.mode == 'eval' and evaluation_by_episode == False:
+                    done.append(False)
+                else:  # during training or evaluation by episode is TRUE
+                    done.append(True)
                 bound_building_check[0] = True
                 # done.append(False)
                 reward.append(np.array(rew))
             # # crash into buildings or crash with other neighbors
             elif collide_building == 1:
-                done.append(True)
-                # if drone_obj.building_collision == False:
-                #     done.append(True)
+                if args.mode == 'eval' and evaluation_by_episode == False:
+                    done.append(False)
+                else:  # during training or evaluation by episode is TRUE
+                    done.append(True)
                 bound_building_check[1] = True
                 rew = rew - crash_penalty_wall
                 # rew = rew - big_crash_penalty_wall
@@ -2725,9 +2740,10 @@ class env_simulator:
             #         reward.append(np.array(rew))
             # # ----------End of termination only during collision to wall on the 3rd time -----------------------
             elif len(collision_drones) > 0:
-                # if drone_obj.drone_collision == False:
-                #     done.append(True)
-                done.append(True)
+                if args.mode == 'eval' and evaluation_by_episode == False:
+                    done.append(False)
+                else:  # during training or evaluation by episode is TRUE
+                    done.append(True)
                 # done.append(False)
                 bound_building_check[2] = True
                 rew = rew - crash_penalty_wall
@@ -2739,9 +2755,9 @@ class env_simulator:
                     bound_building_check[3] = True
             elif not goal_cur_intru_intersect.is_empty:  # reached goal?
                 # --------------- with way point -----------------------
+                drone_obj.reach_target = True
                 check_goal[drone_idx] = True
-                if drone_obj.reach_target == False:  # never reach before, if a drone has reached its target, we don't change this flag
-                    drone_obj.reach_target = True
+
                 # print("drone_{} has reached its final goal at time step {}".format(drone_idx, current_ts))
                 agent_to_remove.append(drone_idx)  # NOTE: drone_idx is the key value.
                 rew = rew + reach_target + near_goal_reward
@@ -2837,7 +2853,7 @@ class env_simulator:
         status_holder[drone_idx]['near_drone_penalty'] = cur_step_reward[11]
         return status_holder
 
-    def step(self, actions, current_ts, acc_max):
+    def step(self, actions, current_ts, acc_max, args, evaluation_by_episode):
         next_combine_state = []
         agentCoorKD_list_update = []
         agentRefer_dict = {}  # A dictionary to use agent's current pos as key, their agent name (idx) as value
@@ -2850,7 +2866,6 @@ class env_simulator:
         # for drone_idx, drone_act in actions.items():  # this is for evaluation with default action
         count = 1
         for drone_idx_obj, drone_act in zip(self.all_agents.items(), actions):
-
             drone_idx = drone_idx_obj[0]
             drone_obj = drone_idx_obj[1]
             # let current neighbor become neighbor recorded before action
@@ -2864,8 +2879,12 @@ class env_simulator:
             self.all_agents[drone_idx].pre_acc = deepcopy(self.all_agents[drone_idx].acc)
             # print("deepcopy done, time used {} milliseconds".format((time.time()-start_deepcopy_time)*1000))
 
-            # if self.all_agents[drone_idx].reach_target == True or self.all_agents[drone_idx].collision == True:
-            #     continue  # we make the drone don't move.
+            if args.mode == 'eval' and evaluation_by_episode == False:
+                if self.all_agents[drone_idx].reach_target == True \
+                        or self.all_agents[drone_idx].bound_collision == True \
+                        or self.all_agents[drone_idx].building_collision == True \
+                        or self.all_agents[drone_idx].drone_collision == True:
+                    continue  # we make the drone don't move.
 
             # --------------- speed & heading angle control for training -------------------- #
             # raw_speed, raw_heading_angle = drone_act[0], drone_act[1]
