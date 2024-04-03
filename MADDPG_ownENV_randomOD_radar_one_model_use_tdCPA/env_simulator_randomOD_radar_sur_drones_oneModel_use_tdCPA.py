@@ -2692,10 +2692,19 @@ class env_simulator:
                 # # linear building penalty
                 # makesure only when min_dist is >=0 and <= turningPtConst, then we activate this penalty
                 m = (0-1)/(turningPtConst-drone_obj.protectiveBound)  # we must consider drone's circle, because when min_distance is less than drone's radius, it is consider collision.
-                if dist>=drone_obj.protectiveBound and dist<=turningPtConst:  # only when min_dist is between 2.5~5, this penalty is working.
-                    near_building_penalty = near_building_penalty + near_building_penalty_coef*(m*dist+c)  # at each step, penalty from 3 to 0.
+                # if dist>=drone_obj.protectiveBound and dist<=turningPtConst:  # only when min_dist is between 2.5~5, this penalty is working.
+                #     near_building_penalty = near_building_penalty + near_building_penalty_coef*(m*dist+c)  # at each step, penalty from 3 to 0.
+                # else:
+                #     near_building_penalty = near_building_penalty + 0.0  # if min_dist is outside of the bound, other parts of the reward will be taking care.
+                # non-linear building penalty
+                if dist >= drone_obj.protectiveBound and dist <= turningPtConst:
+                    norm_ind_nei_dist = dist - drone_obj.protectiveBound / (
+                                turningPtConst - drone_obj.protectiveBound)
+                    near_building_penalty = near_building_penalty + (norm_ind_nei_dist - 1) ** 2
                 else:
-                    near_building_penalty = near_building_penalty + 0.0  # if min_dist is outside of the bound, other parts of the reward will be taking care.
+                    near_building_penalty = near_building_penalty + 0.0
+
+
 
             # if min_dist < drone_obj.protectiveBound:
             #     print("check for collision")

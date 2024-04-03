@@ -68,8 +68,8 @@ def main(args):
         # initialize_excel_file(excel_file_path_time)
         # ------------ end of this portion is to save using excel instead of pickle -----------
 
-    use_wanDB = False
-    # use_wanDB = True
+    # use_wanDB = False
+    use_wanDB = True
 
     get_evaluation_status = True  # have figure output
     # get_evaluation_status = False  # no figure output, mainly obtain collision rate
@@ -115,14 +115,14 @@ def main(args):
         critic_dim = [ea_dim * total_agentNum for ea_dim in actor_dim]
     else:
         # actor_dim = [6, 9, 6]  # dim host, maximum dim grid, dim other drones
-        actor_dim = [6, 18, 6]  # dim host, maximum dim grid, dim other drones
-        # actor_dim = [8, 18, 6]  # dim host, maximum dim grid, dim other drones
+        # actor_dim = [6, 18, 6]  # dim host, maximum dim grid, dim other drones
+        actor_dim = [8, 18, 6]  # dim host, maximum dim grid, dim other drones
         # actor_dim = [4, 18, 4]  # dim host, maximum dim grid, dim other drones
         # actor_dim = [9, 9, 9]  # dim host, maximum dim grid, dim other drones
         # actor_dim = [16, 9, 6]  # dim host, maximum dim grid, dim other drones
         # critic_dim = [6, 9, 6]
-        critic_dim = [6, 18, 6]
-        # critic_dim = [8, 18, 6]
+        # critic_dim = [6, 18, 6]
+        critic_dim = [8, 18, 6]
         # critic_dim = [4, 18, 4]
 
     actor_hidden_state = 64
@@ -198,8 +198,8 @@ def main(args):
         # args.max_episodes = 5  # only evaluate one episode during evaluation mode.
         # args.max_episodes = 100
         # args.max_episodes = 20
-        args.max_episodes = 10
-        pre_fix = r'D:\MADDPG_2nd_jp\020424_18_46_21\interval_record_eps'
+        args.max_episodes = 1
+        pre_fix = r'D:\MADDPG_2nd_jp\030424_14_40_55\interval_record_eps'
         episode_to_check = str(1000)
         load_filepath_0 = pre_fix + '\episode_' + episode_to_check + '_agent_0actor_net.pth'
         load_filepath_1 = pre_fix + '\episode_' + episode_to_check + '_agent_1actor_net.pth'
@@ -930,7 +930,7 @@ if __name__ == '__main__':
     parser.add_argument('--scenario', default="simple_spread", type=str)
     parser.add_argument('--max_episodes', default=3000, type=int)  # run for a total of 50000 episodes
     parser.add_argument('--algo', default="maddpg", type=str, help="commnet/bicnet/maddpg/TD3")
-    parser.add_argument('--mode', default="eval", type=str, help="train/eval")
+    parser.add_argument('--mode', default="train", type=str, help="train/eval")
     parser.add_argument('--episode_length', default=100, type=int)  # maximum play per episode
     parser.add_argument('--memory_length', default=int(1e5), type=int)
     parser.add_argument('--seed', default=777, type=int)  # may choose to use 3407

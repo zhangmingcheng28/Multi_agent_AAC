@@ -1157,7 +1157,8 @@ class env_simulator:
             #endregion ------------- end of create radar on both building and geo-fence --------------- #
 
             rest_compu_time = time.time()
-
+            nearest_pt = nearest_points(agent.ref_line, Point(agent.pos))[0]
+            cross_err_distance, x_error, y_error = self.cross_track_error_point(Point(agent.pos), nearest_pt)
             # norm_pos = self.normalizer.scale_pos([agent.pos[0], agent.pos[1]])
             norm_pos = self.normalizer.nmlz_pos([agent.pos[0], agent.pos[1]])
 
@@ -1170,8 +1171,12 @@ class env_simulator:
             norm_seg = self.normalizer.nmlz_pos([agent.goal[0][0], agent.goal[0][1]])
             norm_delta_segG = norm_seg - norm_pos
 
+            # agent_own = np.array([agent.pos[0], agent.pos[1], agent.vel[0], agent.vel[1],
+            #                       agent.goal[-1][0]-agent.pos[0], agent.goal[-1][1]-agent.pos[1]])
+
             agent_own = np.array([agent.pos[0], agent.pos[1], agent.vel[0], agent.vel[1],
-                                  agent.goal[-1][0]-agent.pos[0], agent.goal[-1][1]-agent.pos[1]])
+                                  agent.goal[-1][0]-agent.pos[0], agent.goal[-1][1]-agent.pos[1],
+                                  cross_err_distance, agent.heading])
 
             # agent_own = np.array([agent.pos[0], agent.pos[1], agent.vel[0], agent.vel[1],
             #                       agent.goal[-1][0]-agent.pos[0], agent.goal[-1][1]-agent.pos[1],
@@ -1180,7 +1185,8 @@ class env_simulator:
             # agent_own = np.array([agent.vel[0], agent.vel[1],
             #                       agent.goal[-1][0]-agent.pos[0], agent.goal[-1][1]-agent.pos[1]])
 
-            norm_agent_own = np.concatenate([norm_pos, norm_vel, norm_deltaG], axis=0)
+            # norm_agent_own = np.concatenate([norm_pos, norm_vel, norm_deltaG], axis=0)
+            norm_agent_own = np.concatenate([norm_pos, norm_vel, norm_deltaG, np.array([cross_err_distance, agent.heading])], axis=0)
             # norm_agent_own = np.concatenate([norm_pos, norm_vel, norm_deltaG, norm_delta_segG], axis=0)
             # norm_agent_own = np.concatenate([norm_vel, norm_deltaG], axis=0)
 
@@ -2594,23 +2600,28 @@ class env_simulator:
             # ---- end of v2 leading to goal reward, based on compute_projected_velocity ---
 
             # ---- v3 leading to goal reward, based on effective distance travelled ---
-            projected_velocity = compute_projected_velocity(drone_obj.vel, drone_obj.ref_line, Point(drone_obj.pos))  # scalar value range is [-v_max, v_max]
-            direction_coeff = projected_velocity / drone_obj.maxSpeed  # 0-1
-            dist_travelled = np.linalg.norm(drone_obj.pos - drone_obj.pre_pos)
-            ref_line_length = drone_obj.ref_line.length
-            effective_distance_travelled_per_step = direction_coeff * dist_travelled
-            dist_to_goal = dist_to_goal_coeff * (1 - (ref_line_length - effective_distance_travelled_per_step)/ref_line_length)
+            # projected_velocity = compute_projected_velocity(drone_obj.vel, drone_obj.ref_line, Point(drone_obj.pos))  # scalar value range is [-v_max, v_max]
+            # direction_coeff = projected_velocity / drone_obj.maxSpeed  # 0-1
+            # dist_travelled = np.linalg.norm(drone_obj.pos - drone_obj.pre_pos)
+            # ref_line_length = drone_obj.ref_line.length
+            # effective_distance_travelled_per_step = direction_coeff * dist_travelled
+            # dist_to_goal = dist_to_goal_coeff * (1 - (ref_line_length - effective_distance_travelled_per_step)/ref_line_length)
             # ---- end of v3 leading to goal reward, based on effective distance travelled ---
-
-            # V4 this is the leading to goal plus cross-track error reward
-
-
-            # end of V4
 
 
             # dist_left = total_length_to_end_of_line(drone_obj.pos, drone_obj.ref_line)  # V1
-            # dist_left = total_length_to_end_of_line_without_cross(drone_obj.pos, drone_obj.ref_line)  # V1.1
-            # dist_to_goal = dist_to_goal_coeff * (1 - (dist_left / drone_obj.ref_line.length))
+
+            # V1.1.
+            dist_left = total_length_to_end_of_line_without_cross(drone_obj.pos, drone_obj.ref_line)
+            dist_to_goal = dist_to_goal_coeff * (1 - (dist_left / drone_obj.ref_line.length))
+
+            # v1.2.
+            # dist_left = total_length_to_end_of_line_without_cross(drone_obj.pos, drone_obj.ref_line)
+            # if cross_err_distance >= 10 or dist_left > drone_obj.ref_line.length:
+            #     dist_to_goal = dist_to_goal_coeff * 0
+            # else:
+            #     dist_to_goal = dist_to_goal_coeff * (1 - (dist_left / drone_obj.ref_line.length))
+            # end of v1.2
 
             # dist_to_goal = dist_to_goal_coeff * pro_vel_rd
             # if cross_err_distance <= 5:
@@ -2647,11 +2658,11 @@ class env_simulator:
             # dist_to_goal = 0
             # coef_ref_line = 0.5
             # coef_ref_line = -10
-            coef_ref_line = 3
+            # coef_ref_line = 3
             # coef_ref_line = 5
             # coef_ref_line = 3.5
             # coef_ref_line = 2
-            # coef_ref_line = 0
+            coef_ref_line = 0
 
             norm_cross_track_deviation_x = x_error * self.normalizer.x_scale
             norm_cross_track_deviation_y = y_error * self.normalizer.y_scale
@@ -2665,16 +2676,19 @@ class env_simulator:
             # cross_track_threshold = drone_obj.protectiveBound
             if cross_err_distance >= 10:
                 cross_termination = 1
-            if cross_err_distance <= cross_track_threshold:
-                # linear increase in reward
-                m = (0 - 1) / (cross_track_threshold - 0)
-                # dist_to_ref_line = coef_ref_line*(m * cross_err_distance + 1)  # 0~1*coef_ref_line
-                dist_to_ref_line = coef_ref_line*(m * cross_err_distance - 1)  # 0~1*coef_ref_line
-                # dist_to_ref_line = (coef_ref_line*(m * cross_err_distance + 1)) + coef_ref_line  # 0~1*coef_ref_line, with a fixed reward
-            else:
-                # dist_to_ref_line = -coef_ref_line*0.6
-                # dist_to_ref_line = -coef_ref_line*0  # we don't have penalty if cross-track deviation too much
-                dist_to_ref_line = -coef_ref_line*1  # penalty for too much deviation
+            # if cross_err_distance <= cross_track_threshold:
+            #     # linear increase in reward
+            #     m = (0 - 1) / (cross_track_threshold - 0)
+            #     # dist_to_ref_line = coef_ref_line*(m * cross_err_distance + 1)  # 0~1*coef_ref_line
+            #     dist_to_ref_line = coef_ref_line*(m * cross_err_distance)
+            #     # dist_to_ref_line = (coef_ref_line*(m * cross_err_distance + 1)) + coef_ref_line  # 0~1*coef_ref_line, with a fixed reward
+            # else:
+            #     # dist_to_ref_line = -coef_ref_line*0.6
+            #     # dist_to_ref_line = -coef_ref_line*0  # we don't have penalty if cross-track deviation too much
+            #     dist_to_ref_line = -coef_ref_line*1  # penalty for too much deviation
+
+            m = (0 - 1) / (cross_track_threshold - 0)
+            dist_to_ref_line = coef_ref_line * (m * cross_err_distance)
 
             small_step_penalty_coef = 3
             # small_step_penalty_coef = 0
