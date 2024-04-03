@@ -1533,8 +1533,8 @@ class env_simulator:
                         p2_just_neighbour.append(p1_surround_agent)
                         p2_norm_just_neighbour.append(p1_norm_surround_agent)
                         include_neigh_count = include_neigh_count + 1
-                        if include_neigh_count > 0:  # only include 2 nearest agents
-                            break
+                        # if include_neigh_count > 0:  # only include 2 nearest agents
+                        #     break
                 overall_state_p3.append(other_agents)
                 norm_overall_state_p3.append(norm_other_agents)
             else:
@@ -2610,16 +2610,17 @@ class env_simulator:
                 near_drone_penalty = near_drone_penalty + near_drone_penalty_coef * 0
             else:
                 for individual_nei_dist in all_neigh_dist:
-                    # if individual_nei_dist >= dist_to_penalty_lowerbound and individual_nei_dist <= dist_to_penalty_upperbound:
-                    #     # normalize distance to 0-1
-                    #     norm_ind_nei_dist = individual_nei_dist-dist_to_penalty_lowerbound / (dist_to_penalty_upperbound-dist_to_penalty_lowerbound)
-                    #     near_drone_penalty = near_drone_penalty + (norm_ind_nei_dist-1)**2
-                    # else:
-                    #     near_drone_penalty = near_drone_penalty + near_drone_penalty_coef * 0
                     if individual_nei_dist >= dist_to_penalty_lowerbound and individual_nei_dist <= dist_to_penalty_upperbound:
-                        near_drone_penalty = near_drone_penalty + (near_drone_penalty_coef * (m_drone * individual_nei_dist + c_drone))
+                        # normalize distance to 0-1
+                        norm_ind_nei_dist = individual_nei_dist-dist_to_penalty_lowerbound / (dist_to_penalty_upperbound-dist_to_penalty_lowerbound)
+                        near_drone_penalty = near_drone_penalty + (norm_ind_nei_dist-1)**2
                     else:
                         near_drone_penalty = near_drone_penalty + near_drone_penalty_coef * 0
+
+                    # if individual_nei_dist >= dist_to_penalty_lowerbound and individual_nei_dist <= dist_to_penalty_upperbound:
+                    #     near_drone_penalty = near_drone_penalty + (near_drone_penalty_coef * (m_drone * individual_nei_dist + c_drone))
+                    # else:
+                    #     near_drone_penalty = near_drone_penalty + near_drone_penalty_coef * 0
             # -----end of near SUM drone penalty ----------------
 
             # ----- start of V2 near drone penalty ----------------
