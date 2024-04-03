@@ -65,8 +65,8 @@ def main(args):
         # initialize_excel_file(excel_file_path_time)
         # ------------ end of this portion is to save using excel instead of pickle -----------
 
-    use_wanDB = False
-    # use_wanDB = True
+    # use_wanDB = False
+    use_wanDB = True
 
     # evaluation_by_episode = True
     evaluation_by_episode = False
@@ -133,12 +133,12 @@ def main(args):
             actor_dim = [6, (total_agentNum - 1) * 5, 18, 6]
             critic_dim = [6, (total_agentNum - 1) * 5, 18, 6]
         elif use_allNeigh_wRadar:
-            # actor_dim = [6, (total_agentNum - 1) * 5, 18, 6]
-            actor_dim = [6, (total_agentNum - 1) * 5, 36, 6]
+            actor_dim = [6, (total_agentNum - 1) * 5, 18, 6]
+            # actor_dim = [6, (total_agentNum - 1) * 5, 36, 6]
             # actor_dim = [6, 1 * 5, 36, 6]
             # actor_dim = [6, 2 * 5, 36, 6]
-            # critic_dim = [6, (total_agentNum - 1) * 5, 18, 6]
-            critic_dim = [6, (total_agentNum - 1) * 5, 36, 6]
+            critic_dim = [6, (total_agentNum - 1) * 5, 18, 6]
+            # critic_dim = [6, (total_agentNum - 1) * 5, 36, 6]
             # critic_dim = [6, 1 * 5, 36, 6]
             # critic_dim = [6, 2 * 5, 36, 6]
         else:

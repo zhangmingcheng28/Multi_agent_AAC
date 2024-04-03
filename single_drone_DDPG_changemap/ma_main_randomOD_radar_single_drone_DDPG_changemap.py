@@ -172,9 +172,9 @@ def main(args):
     episode_critic_loss_cal_record = []
     # eps_end = 3000  # at eps = eps_end, the eps value drops to the lowest value which is 0.03 (this value is fixed)
     # eps_end = 17000  # at eps = eps_end, the eps value drops to the lowest value which is 0.03 (this value is fixed)
-    # eps_end = 5000  # at eps = eps_end, the eps value drops to the lowest value which is 0.03 (this value is fixed)
+    eps_end = 5000  # at eps = eps_end, the eps value drops to the lowest value which is 0.03 (this value is fixed)
     # eps_end = 2500  # at eps = eps_end, the eps value drops to the lowest value which is 0.03 (this value is fixed)
-    eps_end = 1500  # at eps = eps_end, the eps value drops to the lowest value which is 0.03 (this value is fixed)
+    # eps_end = 1500  # at eps = eps_end, the eps value drops to the lowest value which is 0.03 (this value is fixed)
     # eps_end = 8000  # at eps = eps_end, the eps value drops to the lowest value which is 0.03 (this value is fixed)
     noise_start_level = 1
     # noise_start_level = 0.5
@@ -928,7 +928,7 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--scenario', default="simple_spread", type=str)
-    parser.add_argument('--max_episodes', default=3000, type=int)  # run for a total of 50000 episodes
+    parser.add_argument('--max_episodes', default=10000, type=int)  # run for a total of 50000 episodes
     parser.add_argument('--algo', default="maddpg", type=str, help="commnet/bicnet/maddpg/TD3")
     parser.add_argument('--mode', default="train", type=str, help="train/eval")
     parser.add_argument('--episode_length', default=100, type=int)  # maximum play per episode
