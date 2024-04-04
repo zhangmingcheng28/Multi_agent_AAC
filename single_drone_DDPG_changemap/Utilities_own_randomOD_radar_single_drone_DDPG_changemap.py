@@ -141,7 +141,8 @@ def animate(frame_num, ax, env, trajectory_eachPlay, random_map_idx):
 
     for a_idx, agent in enumerate(trajectory_eachPlay[frame_num]):
         x, y = agent[0], agent[1]
-        plt.plot(x, y, 'o', color='r')
+        # plot drone's own protective circle without filling
+        # plt.plot(x, y, 'o', color='r')
 
         # plt.text(x-1, y-1, 'agent_'+str(a_idx)+'_'+str(round(float(frame_num), 2)))
         plt.text(x-1, y-1, 'agent_'+str(a_idx)+'_'+str(agent[2]))
@@ -155,8 +156,15 @@ def animate(frame_num, ax, env, trajectory_eachPlay, random_map_idx):
                     arrowprops=dict(arrowstyle='->', lw=2, color='blue'))
         # plot the nearest point on line from the drone's position
         nearest_pt = agent[3]['neareset_point']
+        nearest_dist = agent[3]['deviation_to_ref_line']
+        nearest_dist_rw = agent[3]['deviation_to_ref_line_reward']
         plt.scatter(nearest_pt.x, nearest_pt.y, color='g')
-        # plt.text(nearest_pt.x, nearest_pt.y, 'A' + str(a_idx) + '_' + str(nearest_pt.x) + ',' + str(nearest_pt.y))
+        plt.text(nearest_pt.x, nearest_pt.y, str(nearest_dist) + '_' + str(nearest_dist_rw))
+
+        # plot the drone's detection range
+        detec_circle = Point(x, y).buffer(30 / 2, cap_style='round')
+        detec_circle_mat = shapelypoly_to_matpoly(detec_circle, inFill=False, Edgecolor='g')
+        ax.add_patch(detec_circle_mat)
 
         # plot the shortest radar prob
         shortest_distance_element = min(agent[3]['A0_observable space'], key=lambda x: x[0])
@@ -289,8 +297,8 @@ def view_static_traj(env, trajectory_eachPlay, random_map_idx):
 
     # draw trajectory in current episode
     for trajectory_idx, trajectory_val in enumerate(trajectory_eachPlay):  # each time step
-        if trajectory_idx >= 10:
-            break
+        # if trajectory_idx >= 10:
+        #     break
         for agentIDX, each_agent_traj in enumerate(trajectory_val):  # for each agent's motion in a time step
             # if agentIDX != 0:
             #     continue
@@ -311,7 +319,7 @@ def view_static_traj(env, trajectory_eachPlay, random_map_idx):
             nearest_dist = each_agent_traj[3]['deviation_to_ref_line']
             nearest_dist_rw = each_agent_traj[3]['deviation_to_ref_line_reward']
             plt.scatter(nearest_pt.x, nearest_pt.y, color='g')
-            plt.text(nearest_pt.x, nearest_pt.y, str(nearest_dist)+'_'+str(nearest_dist_rw))
+            plt.text(nearest_pt.x, nearest_pt.y, str(round(nearest_dist, 3))+'_'+str(round(nearest_dist_rw, 3)))
 
             # plot the shortest radar prob
             shortest_distance_element = min(each_agent_traj[3]['A0_observable space'], key=lambda x: x[0])

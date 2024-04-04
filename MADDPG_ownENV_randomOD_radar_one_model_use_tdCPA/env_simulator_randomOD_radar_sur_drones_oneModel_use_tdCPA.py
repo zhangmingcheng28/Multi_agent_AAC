@@ -2630,7 +2630,7 @@ class env_simulator:
             nearest_drone_dist = min(all_neigh_dist)
             if nearest_drone_dist >= dist_to_penalty_lowerbound and nearest_drone_dist <= dist_to_penalty_upperbound:
                 # normalize distance to 0-1
-                norm_ind_nei_dist = nearest_drone_dist - dist_to_penalty_lowerbound / (
+                norm_ind_nei_dist = (nearest_drone_dist - dist_to_penalty_lowerbound) / (
                             dist_to_penalty_upperbound - dist_to_penalty_lowerbound)
                 near_drone_penalty = (norm_ind_nei_dist - 1) ** 2
             else:
@@ -2711,14 +2711,12 @@ class env_simulator:
                 #     near_building_penalty = near_building_penalty + 0.0  # if min_dist is outside of the bound, other parts of the reward will be taking care.
                 # non-linear building penalty
                 if dist >= drone_obj.protectiveBound and dist <= turningPtConst:
-                    norm_ind_nei_dist = dist - drone_obj.protectiveBound / (
+                    norm_ind_nei_dist = (dist - drone_obj.protectiveBound) / (
                                 turningPtConst - drone_obj.protectiveBound)
                     near_building_penalty = near_building_penalty + near_building_penalty_coef * \
                                             (1-norm_ind_nei_dist)**3
                 else:
                     near_building_penalty = near_building_penalty + 0.0
-
-
 
             # if min_dist < drone_obj.protectiveBound:
             #     print("check for collision")
