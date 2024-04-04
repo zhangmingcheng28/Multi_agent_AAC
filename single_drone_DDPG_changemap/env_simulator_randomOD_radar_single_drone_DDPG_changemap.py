@@ -1024,8 +1024,8 @@ class env_simulator:
             ed_points = {}
             line_collection = []
             for point_deg, point_pos in st_points.items():
-                drone_nearest_flag = -1
-                building_nearest_flag = -1
+                drone_nearest_flag = 0  # initialize flag
+                building_nearest_flag = 0
                 # Create a line segment from the circle's center to the point on the perimeter
                 # end_x = point_pos.x + radar_dist * math.cos(math.radians(point_deg))
                 # end_y = point_pos.y + radar_dist * math.sin(math.radians(point_deg))
@@ -1051,7 +1051,7 @@ class env_simulator:
                 for geo_fence in self.geo_fence_area:
                     # Check if the LineString intersects with the circle
                     if line.intersects(geo_fence):
-                        drone_nearest_flag = 0
+                        drone_nearest_flag = 1
                         # Find the intersection point(s)
                         intersection = line.intersection(geo_fence)
                         # The intersection could be a Point or a MultiPoint
@@ -1094,7 +1094,7 @@ class env_simulator:
 
                 # If there are intersecting polygons, find the nearest intersection point
                 if len(intersecting_polygons) != 0:  # check if a list is empty
-                    building_nearest_flag = 1
+                    # building_nearest_flag = 1
                     # Initialize the minimum distance to be the length of the line segment
                     for polygon_idx in intersecting_polygons:
                         # Check if the line intersects with the building polygon's boundary
@@ -2591,12 +2591,12 @@ class env_simulator:
             # dist_to_goal = dist_to_goal_coeff * (before_dist_hg - after_dist_hg)  # (before_dist_hg - after_dist_hg) -max_vel - max_vel
 
             # ---- v2 leading to goal reward, based on compute_projected_velocity ---
-            projected_velocity = compute_projected_velocity(drone_obj.vel, drone_obj.ref_line, Point(drone_obj.pos))  # scalar value range is [-v_max, v_max]
-            # get the norm as the projected_velocity.
-            pro_vel_rd = projected_velocity / drone_obj.maxSpeed
-            dist_to_goal = dist_to_goal_coeff * pro_vel_rd
-            if pro_vel_rd < -1 or pro_vel_rd > 1:
-                print("reward exceed bound")
+            # projected_velocity = compute_projected_velocity(drone_obj.vel, drone_obj.ref_line, Point(drone_obj.pos))  # scalar value range is [-v_max, v_max]
+            # # get the norm as the projected_velocity.
+            # pro_vel_rd = projected_velocity / drone_obj.maxSpeed
+            # dist_to_goal = dist_to_goal_coeff * pro_vel_rd
+            # if pro_vel_rd < -1 or pro_vel_rd > 1:
+            #     print("reward exceed bound")
             # ---- end of v2 leading to goal reward, based on compute_projected_velocity ---
 
             # ---- v3 leading to goal reward, based on effective distance travelled ---
@@ -2609,12 +2609,12 @@ class env_simulator:
             # ---- end of v3 leading to goal reward, based on effective distance travelled ---
 
             # V4 pure euclidean distance reward
-            # dist_away = np.linalg.norm(drone_obj.ini_pos - drone_obj.goal[-1])
-            # after_dist_hg = np.linalg.norm(drone_obj.pos - drone_obj.goal[-1])  # distance to goal after action
-            # if after_dist_hg > dist_away:
-            #     dist_to_goal = dist_to_goal_coeff * 0
-            # else:
-            #     dist_to_goal = dist_to_goal_coeff * (1-after_dist_hg/dist_away)
+            dist_away = np.linalg.norm(drone_obj.ini_pos - drone_obj.goal[-1])
+            after_dist_hg = np.linalg.norm(drone_obj.pos - drone_obj.goal[-1])  # distance to goal after action
+            if after_dist_hg > dist_away:
+                dist_to_goal = dist_to_goal_coeff * 0
+            else:
+                dist_to_goal = dist_to_goal_coeff * (1-after_dist_hg/dist_away)
             # end of V4
 
             # dist_left = total_length_to_end_of_line(drone_obj.pos, drone_obj.ref_line)  # V1
@@ -2685,19 +2685,20 @@ class env_simulator:
             # cross_track_threshold = drone_obj.protectiveBound
             if cross_err_distance >= 10:
                 cross_termination = 1
-            if cross_err_distance <= cross_track_threshold:
-                # linear increase in reward
-                m = (0 - 1) / (cross_track_threshold - 0)
-                # dist_to_ref_line = coef_ref_line*(m * cross_err_distance + 1)  # 0~1*coef_ref_line
-                dist_to_ref_line = coef_ref_line*(m * cross_err_distance)
-                # dist_to_ref_line = (coef_ref_line*(m * cross_err_distance + 1)) + coef_ref_line  # 0~1*coef_ref_line, with a fixed reward
-            else:
-                # dist_to_ref_line = -coef_ref_line*0.6
-                dist_to_ref_line = -coef_ref_line*0  # we don't have penalty if cross-track deviation too much
-                # dist_to_ref_line = -coef_ref_line*1  # penalty for too much deviation
+            # if cross_err_distance <= cross_track_threshold:
+            #     # linear increase in reward
+            #     m = (0 - 1) / (cross_track_threshold - 0)
+            #     dist_to_ref_line = coef_ref_line*(m * cross_err_distance + 1)  # 0~1*coef_ref_line
+            #     # dist_to_ref_line = coef_ref_line*(m * cross_err_distance)
+            #     # dist_to_ref_line = (coef_ref_line*(m * cross_err_distance + 1)) + coef_ref_line  # 0~1*coef_ref_line, with a fixed reward
+            # else:
+            #     # dist_to_ref_line = -coef_ref_line*0.6
+            #     dist_to_ref_line = -coef_ref_line*0  # we don't have penalty if cross-track deviation too much
+            #     # dist_to_ref_line = -coef_ref_line*1  # penalty for too much deviation
 
-            # m = (0 - 1) / (cross_track_threshold - 0)
-            # dist_to_ref_line = coef_ref_line * (m * cross_err_distance)
+            # linear increase in reward
+            m = (0 - 1) / (cross_track_threshold - 0)
+            dist_to_ref_line = coef_ref_line * (m * cross_err_distance + 1)  # 0~1*coef_ref_line
 
             small_step_penalty_coef = 3
             # small_step_penalty_coef = 0
@@ -2719,6 +2720,7 @@ class env_simulator:
             # penalty for any buildings are getting too near to the host agent
             # turningPtConst = drone_obj.detectionRange/2-drone_obj.protectiveBound  # this one should be 12.5
             dist_array = np.array([dist_info[0] for dist_info in drone_obj.observableSpace])
+            dist_array_geo_fence = np.array([dist_info[0] for dist_info in drone_obj.observableSpace if dist_info[1] == 1])
             heading_dist_array = []
             for dist_info in drone_obj.observableSpace:
                 angle = math.atan2((dist_info[2].y - drone_obj.pos[1]), (dist_info[2].x - drone_obj.pos[0]))
@@ -2727,7 +2729,7 @@ class env_simulator:
                         round(angle, 8) == round(20 * math.pi / 180, 8):
                     heading_dist_array.append(dist_info[0])
 
-            ascending_array = np.sort(dist_array)
+            ascending_array = np.sort(dist_array_geo_fence)
             min_index = np.argmin(dist_array)
             min_dist = dist_array[min_index]
             # radar_status = drone_obj.observableSpace[min_index][-1]  # radar status for now not required
@@ -2773,12 +2775,23 @@ class env_simulator:
             #         near_building_penalty = near_building_penalty + 0  # if min_dist is outside of the bound, other parts of the reward will be taking care.
             # end of V2
 
-            # V1.1. (shortest prob non-linear)
-            min_dist = ascending_array[0]
+            # V1.12. (shortest prob non-linear, only loop at geo-fence)
+            if len(ascending_array) > 0:
+                min_dist = ascending_array[0]
+            else:
+                min_dist = 15  # can be any number outside range
             if min_dist >= drone_obj.protectiveBound and min_dist <= turningPtConst:
                 near_building_penalty = 10*math.exp((5-2*min_dist)/5)
             else:
                 near_building_penalty = 0
+            # end of V1.12. (shortest prob non-linear, only loop at geo-fence)
+
+            # V1.1 (shortest prob non-linear, consider both geo-fence and building)
+            # min_dist = ascending_array[0]
+            # if min_dist >= drone_obj.protectiveBound and min_dist <= turningPtConst:
+            #     near_building_penalty = 10*math.exp((5-2*min_dist)/5)
+            # else:
+            #     near_building_penalty = 0
             # end of V1.1
 
             # if min_dist < drone_obj.protectiveBound:

@@ -68,14 +68,14 @@ def main(args):
         # initialize_excel_file(excel_file_path_time)
         # ------------ end of this portion is to save using excel instead of pickle -----------
 
-    use_wanDB = False
-    # use_wanDB = True
+    # use_wanDB = False
+    use_wanDB = True
 
-    # get_evaluation_status = True  # have figure output
-    get_evaluation_status = False  # no figure output, mainly obtain collision rate
+    get_evaluation_status = True  # have figure output
+    # get_evaluation_status = False  # no figure output, mainly obtain collision rate
 
-    # simply_view_evaluation = True  # don't save gif
-    simply_view_evaluation = False  # save gif
+    simply_view_evaluation = True  # don't save gif
+    # simply_view_evaluation = False  # save gif
     #
     # full_observable_critic_flag = True
     full_observable_critic_flag = False
@@ -196,11 +196,11 @@ def main(args):
     if args.mode == "eval":
         # args.max_episodes = 10  # only evaluate one episode during evaluation mode.
         # args.max_episodes = 5  # only evaluate one episode during evaluation mode.
-        args.max_episodes = 100
+        # args.max_episodes = 100
         # args.max_episodes = 20
-        # args.max_episodes = 1
-        pre_fix = r'D:\MADDPG_2nd_jp\030424_19_53_38\interval_record_eps'
-        episode_to_check = str(3000)
+        args.max_episodes = 1
+        pre_fix = r'D:\MADDPG_2nd_jp\040424_11_25_58\interval_record_eps'
+        episode_to_check = str(1000)
         load_filepath_0 = pre_fix + '\episode_' + episode_to_check + '_agent_0actor_net.pth'
         load_filepath_1 = pre_fix + '\episode_' + episode_to_check + '_agent_1actor_net.pth'
         load_filepath_2 = pre_fix + '\episode_' + episode_to_check + '_agent_2actor_net.pth'

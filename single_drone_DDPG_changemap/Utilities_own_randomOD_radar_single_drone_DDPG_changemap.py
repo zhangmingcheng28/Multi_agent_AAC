@@ -289,8 +289,8 @@ def view_static_traj(env, trajectory_eachPlay, random_map_idx):
 
     # draw trajectory in current episode
     for trajectory_idx, trajectory_val in enumerate(trajectory_eachPlay):  # each time step
-        # if trajectory_idx == 1:
-        #     break
+        if trajectory_idx >= 10:
+            break
         for agentIDX, each_agent_traj in enumerate(trajectory_val):  # for each agent's motion in a time step
             # if agentIDX != 0:
             #     continue
@@ -308,8 +308,10 @@ def view_static_traj(env, trajectory_eachPlay, random_map_idx):
                         arrowprops=dict(arrowstyle='->', lw=2, color='blue'))
             # plot the nearest point on line from the drone's position
             nearest_pt = each_agent_traj[3]['neareset_point']
+            nearest_dist = each_agent_traj[3]['deviation_to_ref_line']
+            nearest_dist_rw = each_agent_traj[3]['deviation_to_ref_line_reward']
             plt.scatter(nearest_pt.x, nearest_pt.y, color='g')
-            plt.text(nearest_pt.x, nearest_pt.y, 'A' + str(agentIDX) + '_' + str(nearest_pt.x)+','+str(nearest_pt.y))
+            plt.text(nearest_pt.x, nearest_pt.y, str(nearest_dist)+'_'+str(nearest_dist_rw))
 
             # plot the shortest radar prob
             shortest_distance_element = min(each_agent_traj[3]['A0_observable space'], key=lambda x: x[0])
