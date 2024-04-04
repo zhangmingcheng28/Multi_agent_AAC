@@ -2591,12 +2591,12 @@ class env_simulator:
             # dist_to_goal = dist_to_goal_coeff * (before_dist_hg - after_dist_hg)  # (before_dist_hg - after_dist_hg) -max_vel - max_vel
 
             # ---- v2 leading to goal reward, based on compute_projected_velocity ---
-            # projected_velocity = compute_projected_velocity(drone_obj.vel, drone_obj.ref_line, Point(drone_obj.pos))  # scalar value range is [-v_max, v_max]
+            projected_velocity = compute_projected_velocity(drone_obj.vel, drone_obj.ref_line, Point(drone_obj.pos))  # scalar value range is [-v_max, v_max]
             # get the norm as the projected_velocity.
-            # pro_vel_rd = projected_velocity / drone_obj.maxSpeed
-            # dist_to_goal = dist_to_goal_coeff * pro_vel_rd
-            # if pro_vel_rd < -1 or pro_vel_rd > 1:
-            #     print("reward exceed bound")
+            pro_vel_rd = projected_velocity / drone_obj.maxSpeed
+            dist_to_goal = dist_to_goal_coeff * pro_vel_rd
+            if pro_vel_rd < -1 or pro_vel_rd > 1:
+                print("reward exceed bound")
             # ---- end of v2 leading to goal reward, based on compute_projected_velocity ---
 
             # ---- v3 leading to goal reward, based on effective distance travelled ---
@@ -2609,12 +2609,12 @@ class env_simulator:
             # ---- end of v3 leading to goal reward, based on effective distance travelled ---
 
             # V4 pure euclidean distance reward
-            dist_away = np.linalg.norm(drone_obj.ini_pos - drone_obj.goal[-1])
-            after_dist_hg = np.linalg.norm(drone_obj.pos - drone_obj.goal[-1])  # distance to goal after action
-            if after_dist_hg > dist_away:
-                dist_to_goal = dist_to_goal_coeff * 0
-            else:
-                dist_to_goal = dist_to_goal_coeff * (1-after_dist_hg/dist_away)
+            # dist_away = np.linalg.norm(drone_obj.ini_pos - drone_obj.goal[-1])
+            # after_dist_hg = np.linalg.norm(drone_obj.pos - drone_obj.goal[-1])  # distance to goal after action
+            # if after_dist_hg > dist_away:
+            #     dist_to_goal = dist_to_goal_coeff * 0
+            # else:
+            #     dist_to_goal = dist_to_goal_coeff * (1-after_dist_hg/dist_away)
             # end of V4
 
             # dist_left = total_length_to_end_of_line(drone_obj.pos, drone_obj.ref_line)  # V1
@@ -2670,7 +2670,8 @@ class env_simulator:
             # coef_ref_line = 5
             # coef_ref_line = 3.5
             # coef_ref_line = 2
-            coef_ref_line = 0
+            # coef_ref_line = 0
+            coef_ref_line = 1
 
             norm_cross_track_deviation_x = x_error * self.normalizer.x_scale
             norm_cross_track_deviation_y = y_error * self.normalizer.y_scale
@@ -2684,19 +2685,19 @@ class env_simulator:
             # cross_track_threshold = drone_obj.protectiveBound
             if cross_err_distance >= 10:
                 cross_termination = 1
-            # if cross_err_distance <= cross_track_threshold:
-            #     # linear increase in reward
-            #     m = (0 - 1) / (cross_track_threshold - 0)
-            #     # dist_to_ref_line = coef_ref_line*(m * cross_err_distance + 1)  # 0~1*coef_ref_line
-            #     dist_to_ref_line = coef_ref_line*(m * cross_err_distance)
-            #     # dist_to_ref_line = (coef_ref_line*(m * cross_err_distance + 1)) + coef_ref_line  # 0~1*coef_ref_line, with a fixed reward
-            # else:
-            #     # dist_to_ref_line = -coef_ref_line*0.6
-            #     # dist_to_ref_line = -coef_ref_line*0  # we don't have penalty if cross-track deviation too much
-            #     dist_to_ref_line = -coef_ref_line*1  # penalty for too much deviation
+            if cross_err_distance <= cross_track_threshold:
+                # linear increase in reward
+                m = (0 - 1) / (cross_track_threshold - 0)
+                # dist_to_ref_line = coef_ref_line*(m * cross_err_distance + 1)  # 0~1*coef_ref_line
+                dist_to_ref_line = coef_ref_line*(m * cross_err_distance)
+                # dist_to_ref_line = (coef_ref_line*(m * cross_err_distance + 1)) + coef_ref_line  # 0~1*coef_ref_line, with a fixed reward
+            else:
+                # dist_to_ref_line = -coef_ref_line*0.6
+                dist_to_ref_line = -coef_ref_line*0  # we don't have penalty if cross-track deviation too much
+                # dist_to_ref_line = -coef_ref_line*1  # penalty for too much deviation
 
-            m = (0 - 1) / (cross_track_threshold - 0)
-            dist_to_ref_line = coef_ref_line * (m * cross_err_distance)
+            # m = (0 - 1) / (cross_track_threshold - 0)
+            # dist_to_ref_line = coef_ref_line * (m * cross_err_distance)
 
             small_step_penalty_coef = 3
             # small_step_penalty_coef = 0
@@ -2778,7 +2779,6 @@ class env_simulator:
                 near_building_penalty = 10*math.exp((5-2*min_dist)/5)
             else:
                 near_building_penalty = 0
-
             # end of V1.1
 
             # if min_dist < drone_obj.protectiveBound:
