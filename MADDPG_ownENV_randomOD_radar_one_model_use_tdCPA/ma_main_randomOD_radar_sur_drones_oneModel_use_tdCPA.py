@@ -133,12 +133,12 @@ def main(args):
             actor_dim = [6, (total_agentNum - 1) * 5, 18, 6]
             critic_dim = [6, (total_agentNum - 1) * 5, 18, 6]
         elif use_allNeigh_wRadar:
-            actor_dim = [6, (total_agentNum - 1) * 5, 18, 6]
-            # actor_dim = [6, (total_agentNum - 1) * 5, 36, 6]
+            # actor_dim = [6, (total_agentNum - 1) * 5, 18, 6]
+            actor_dim = [6, (total_agentNum - 1) * 5, 36, 6]
             # actor_dim = [6, 1 * 5, 36, 6]
             # actor_dim = [6, 2 * 5, 36, 6]
-            critic_dim = [6, (total_agentNum - 1) * 5, 18, 6]
-            # critic_dim = [6, (total_agentNum - 1) * 5, 36, 6]
+            # critic_dim = [6, (total_agentNum - 1) * 5, 18, 6]
+            critic_dim = [6, (total_agentNum - 1) * 5, 36, 6]
             # critic_dim = [6, 1 * 5, 36, 6]
             # critic_dim = [6, 2 * 5, 36, 6]
         else:
