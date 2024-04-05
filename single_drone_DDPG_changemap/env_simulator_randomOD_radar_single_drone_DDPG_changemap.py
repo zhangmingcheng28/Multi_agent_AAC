@@ -14,8 +14,8 @@ import rtree
 from shapely.strtree import STRtree
 from scipy.interpolate import interp1d
 from shapely.geometry import LineString, Point, Polygon
-from skspatial.objects import LineSegment
-from skspatial.objects import Circle
+# from skspatial.objects import LineSegment
+# from skspatial.objects import Circle
 from scipy.spatial import KDTree
 import random
 import itertools
@@ -2707,7 +2707,10 @@ class env_simulator:
             #     dist_to_ref_line = 0
 
             # cross track V4
-            dist_to_ref_line = ((15/(math.exp((cross_err_distance**2/5)+1.5)))**((cross_err_distance**2/5)+1.5))-1
+            if cross_err_distance >= 30:
+                dist_to_ref_line = -1  # add this to prevent python to have a math range error.
+            else:
+                dist_to_ref_line = ((15/(math.exp((cross_err_distance**2/5)+1.5)))**((cross_err_distance**2/5)+1.5))-1
 
             # end of cross track V4
 
