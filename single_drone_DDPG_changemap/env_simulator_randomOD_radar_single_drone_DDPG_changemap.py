@@ -2723,7 +2723,8 @@ class env_simulator:
             if detection_circle_refLine_intersect is not None:
                 POI = np.array([detection_circle_refLine_intersect.x, detection_circle_refLine_intersect.y])
                 tangent_vector = (POI - drone_obj.pos) / np.linalg.norm(POI - drone_obj.pos)
-                direction_reward = np.dot(drone_obj.vel, tangent_vector) # -1 ~ 1
+                vel_unit_vector = drone_obj.vel / (np.sqrt(drone_obj.vel[0]**2 + drone_obj.vel[1]**2))
+                direction_reward = np.dot(vel_unit_vector, tangent_vector)  # -1 ~ 1
                 dist_to_ref_line = coef_ref_line * direction_reward
             else:
                 dist_to_ref_line = -1
