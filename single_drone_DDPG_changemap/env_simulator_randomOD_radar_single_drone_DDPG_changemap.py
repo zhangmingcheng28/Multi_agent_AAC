@@ -2697,8 +2697,19 @@ class env_simulator:
             #     # dist_to_ref_line = -coef_ref_line*1  # penalty for too much deviation
 
             # linear increase in reward
-            m = (0 - 1) / (cross_track_threshold - 0)
-            dist_to_ref_line = coef_ref_line * (m * cross_err_distance + 1)  # 0~1*coef_ref_line
+            # m = (0 - 1) / (cross_track_threshold - 0)
+            # dist_to_ref_line = coef_ref_line * (m * cross_err_distance + 1)  # 0~1*coef_ref_line
+
+            # # if cross_err_distance <= 2.5:
+            # if cross_err_distance <= 10:
+            #     dist_to_ref_line = coef_ref_line * 3
+            # else:
+            #     dist_to_ref_line = 0
+
+            # cross track V4
+            dist_to_ref_line = ((15/(math.exp((cross_err_distance**2/5)+1.5)))**((cross_err_distance**2/5)+1.5))-1
+
+            # end of cross track V4
 
             small_step_penalty_coef = 3
             # small_step_penalty_coef = 0
@@ -2775,7 +2786,7 @@ class env_simulator:
             #         near_building_penalty = near_building_penalty + 0  # if min_dist is outside of the bound, other parts of the reward will be taking care.
             # end of V2
 
-            # V1.12. (shortest prob non-linear, only loop at geo-fence)
+            # V1.12. (shortest prob non-linear, only look at geo-fence)
             if len(ascending_array) > 0:
                 min_dist = ascending_array[0]
             else:
