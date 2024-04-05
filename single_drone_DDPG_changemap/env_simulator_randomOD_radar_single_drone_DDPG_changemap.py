@@ -2566,15 +2566,21 @@ class env_simulator:
                 buffer(self.all_agents[drone_idx].detectionRange / 2, cap_style='round')
             intersection_points = host_drone_detection_circle.boundary.intersection(drone_obj.ref_line)
 
-            # # Check if there are two intersection points and find the nearest to the ref line's end
-            # if intersection_points.geom_type == 'MultiPoint':
-            #     # There are two intersection points, find the closest to the ref line's end
-            #     end_point = drone_obj.ref_line.coords[-1]
-            #     end_point_obj = Point(end_point)
-            #     nearest_pt = min(intersection_points.geoms, key=lambda p: p.distance(end_point_obj))
-            # else:
-            #     # There is only one intersection point or none
-            #     nearest_pt = intersection_points
+            # Check if there are two intersection points and find the nearest to the ref line's end
+            if intersection_points.is_empty:
+                detection_circle_refLine_intersect = None
+            else:
+                if intersection_points.geom_type == 'MultiPoint':
+                    # There are two intersection points, find the closest to the ref line's end
+                    end_point = drone_obj.ref_line.coords[-1]
+                    end_point_obj = Point(end_point)
+                    detection_circle_refLine_intersect = min(intersection_points.geoms, key=lambda p: p.distance(end_point_obj))
+                else:
+                    # There is only one intersection point or none
+                    detection_circle_refLine_intersect = intersection_points
+            if np.linalg.norm(drone_obj.pos - drone_obj.goal[-1]) <= self.all_agents[drone_idx].detectionRange / 2:
+                detection_circle_refLine_intersect = Point(drone_obj.goal[-1])
+
             nearest_pt = nearest_points(drone_obj.ref_line, curPoint)[0]
             # nearest_pt = drone_obj.ref_line.interpolate(drone_obj.ref_line.project(curPoint))
             cross_err_distance, x_error, y_error = self.cross_track_error_point(curPoint, nearest_pt)
@@ -2707,12 +2713,21 @@ class env_simulator:
             #     dist_to_ref_line = 0
 
             # cross track V4
-            if cross_err_distance >= 30:
-                dist_to_ref_line = -1  # add this to prevent python to have a math range error.
-            else:
-                dist_to_ref_line = ((15/(math.exp((cross_err_distance**2/5)+1.5)))**((cross_err_distance**2/5)+1.5))-1
-
+            # if cross_err_distance >= 30:
+            #     dist_to_ref_line = -1  # add this to prevent python to have a math range error.
+            # else:
+            #     dist_to_ref_line = ((15/(math.exp((cross_err_distance**2/5)+1.5)))**((cross_err_distance**2/5)+1.5))-1
             # end of cross track V4
+
+            # cross track v5 (using heading angle)
+            if detection_circle_refLine_intersect is not None:
+                POI = np.array([detection_circle_refLine_intersect.x, detection_circle_refLine_intersect.y])
+                tangent_vector = (POI - drone_obj.pos) / np.linalg.norm(POI - drone_obj.pos)
+                direction_reward = np.dot(drone_obj.vel, tangent_vector) # -1 ~ 1
+                dist_to_ref_line = coef_ref_line * direction_reward
+            else:
+                dist_to_ref_line = -1
+            # cross track v5 (using heading angle)
 
             small_step_penalty_coef = 3
             # small_step_penalty_coef = 0
@@ -2960,6 +2975,17 @@ class env_simulator:
         #     detec_circle = Point(agent.pos[0], agent.pos[1]).buffer(agent.detectionRange / 2, cap_style='round')
         #     detec_circle_mat = shapelypoly_to_matpoly(detec_circle, False, 'purple')
         #     ax.add_patch(detec_circle_mat)
+        #
+        #     # show reference heading
+        #     arrow_length = 2.5
+        #     ax.annotate('', xy=(POI[0], POI[1]), xytext=(agent.pos[0], agent.pos[1]),
+        #                 arrowprops=dict(arrowstyle='->', lw=2, color='purple'))
+        #     # show current heading
+        #     heading_radians = agent.heading
+        #     arrow_end_x = agent.pos[0] + arrow_length * np.cos(heading_radians)
+        #     arrow_end_y = agent.pos[1] + arrow_length * np.sin(heading_radians)
+        #     ax.annotate('', xy=(arrow_end_x, arrow_end_y), xytext=(agent.pos[0], agent.pos[1]),
+        #                 arrowprops=dict(arrowstyle='->', lw=2, color='blue'))
         #
         #     # ini = agent.ini_pos
         #     # for wp in agent.ref_line.coords:
