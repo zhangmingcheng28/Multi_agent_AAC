@@ -642,9 +642,11 @@ class NormalizeData:
 
     def nmlz_acc(self, cur_acc):
         ax, ay = cur_acc[0], cur_acc[1]
-        ax_normalized = ((ax - self.acc_min) / (self.acc_max-self.acc_min)) * 2 - 1
-        ay_normalized = (ay - self.acc_min) / (self.acc_max-self.acc_min) * 2 - 1
-        return ax_normalized, ay_normalized
+        # ax_normalized = ((ax - self.acc_min) / (self.acc_max-self.acc_min)) * 2 - 1
+        # ay_normalized = (ay - self.acc_min) / (self.acc_max-self.acc_min) * 2 - 1
+        ax_normalized = ax / self.acc_max
+        ay_normalized = ay / self.acc_max
+        return np.array([ax_normalized, ay_normalized])
 
 
 def BetaNoise(action, noise_scale):
