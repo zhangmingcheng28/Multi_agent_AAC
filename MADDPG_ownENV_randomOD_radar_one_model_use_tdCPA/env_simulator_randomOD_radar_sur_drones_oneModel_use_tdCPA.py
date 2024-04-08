@@ -361,6 +361,7 @@ class env_simulator:
                 self.all_agents[agentIdx].ref_line_segments[(start_point, end_point)] = segment
 
             # heading in rad, must be goal_pos-intruder_pos, and y2-y1, x2-x1
+            # this is the initialized heading.
             self.all_agents[agentIdx].heading = math.atan2(self.all_agents[agentIdx].goal[0][1] -
                                                            self.all_agents[agentIdx].pos[1],
                                                            self.all_agents[agentIdx].goal[0][0] -
@@ -1479,6 +1480,8 @@ class env_simulator:
                 for other_agentIdx, other_agent in agent.surroundingNeighbor.items():
                     if other_agentIdx != agent_idx:
 
+                        nei_px = self.all_agents[other_agentIdx].pos[0]
+                        nei_py = self.all_agents[other_agentIdx].pos[1]
                         delta_host_x = self.all_agents[other_agentIdx].pos[0] - agent.pos[0]
                         delta_host_y = self.all_agents[other_agentIdx].pos[1] - agent.pos[1]
                         euclidean_dist = np.linalg.norm(self.all_agents[other_agentIdx].pos - agent.pos)
@@ -1486,6 +1489,12 @@ class env_simulator:
                         norm_nei_pos = self.normalizer.nmlz_pos([self.all_agents[other_agentIdx].pos[0],
                                                                  self.all_agents[other_agentIdx].pos[1]])
                         norm_delta_pos = norm_pos - norm_nei_pos # neigh's position relative to host drone. Host drone as origin.
+
+                        nei_goal_diff_x = self.all_agents[other_agentIdx].goal[-1][0]-agent.pos[0]
+                        nei_goal_diff_y = self.all_agents[other_agentIdx].goal[-1][1]-agent.pos[1]
+
+                        nei_heading = self.all_agents[other_agentIdx].heading
+
                         cur_neigh_vx = self.all_agents[other_agentIdx].vel[0]
                         cur_neigh_vy = self.all_agents[other_agentIdx].vel[1]
                         norm_neigh_vel = self.normalizer.nmlz_vel([cur_neigh_vx, cur_neigh_vy])  # normalization using min_max
@@ -1505,9 +1514,15 @@ class env_simulator:
                             pre_total_possible_conflict)
                         # ---------------------------
                         # p1_surround_agent = np.array([delta_host_x, delta_host_y, cur_neigh_vx, cur_neigh_vy])
-                        p1_surround_agent = np.array([delta_host_x, delta_host_y, euclidean_dist, cur_neigh_vx, cur_neigh_vy])
+                        # p1_surround_agent = np.array([delta_host_x, delta_host_y, euclidean_dist, cur_neigh_vx, cur_neigh_vy])
+                        p1_surround_agent = np.array([delta_host_x, delta_host_y, euclidean_dist, cur_neigh_vx, cur_neigh_vy, nei_heading])
+                        # p1_surround_agent = np.array([nei_px, nei_py, cur_neigh_vx, cur_neigh_vy, nei_goal_diff_x,
+                        #                               nei_goal_diff_y, nei_heading])
                         # p1_norm_surround_agent = np.concatenate([norm_delta_pos, norm_neigh_vel], axis=0)
+                        # p1_norm_surround_agent = np.concatenate([norm_delta_pos, np.array([euclidean_dist]), norm_neigh_vel], axis=0)
                         p1_norm_surround_agent = np.concatenate([norm_delta_pos, np.array([euclidean_dist]), norm_neigh_vel], axis=0)
+                        p1_norm_surround_agent = np.append(p1_norm_surround_agent, agent.heading)
+                        # p1_norm_surround_agent = np.concatenate([norm_nei_pos, norm_neigh_vel, ], axis=0)
 
                         surround_agent = np.array([[other_agent[0] - agent.pos[0],
                                                    other_agent[1] - agent.pos[1],
@@ -1568,8 +1583,11 @@ class env_simulator:
             #                       agent.goal[-1][0]-agent.pos[0], agent.goal[-1][1]-agent.pos[1],
             #                       pre_total_possible_conflict, cur_total_possible_conflict])
 
+            # self_obs = np.array([agent.pos[0], agent.pos[1], agent.vel[0], agent.vel[1],
+            #                       agent.goal[-1][0]-agent.pos[0], agent.goal[-1][1]-agent.pos[1]])
+
             self_obs = np.array([agent.pos[0], agent.pos[1], agent.vel[0], agent.vel[1],
-                                  agent.goal[-1][0]-agent.pos[0], agent.goal[-1][1]-agent.pos[1]])
+                                  agent.goal[-1][0]-agent.pos[0], agent.goal[-1][1]-agent.pos[1], agent.heading])
 
             # self_obs = np.array([agent.vel[0], agent.vel[1],
             #                       agent.goal[-1][0]-agent.pos[0], agent.goal[-1][1]-agent.pos[1],
@@ -1588,6 +1606,7 @@ class env_simulator:
             #                                  (pre_total_possible_conflict, cur_total_possible_conflict)], axis=0)
 
             norm_self_obs = np.concatenate([norm_pos, norm_vel, norm_deltaG], axis=0)
+            norm_self_obs = np.append(norm_self_obs, agent.heading)  # we have to do this because heading dim=1
 
             # norm_self_obs = np.concatenate([norm_vel, norm_deltaG,
             #                                  (pre_total_possible_conflict, cur_total_possible_conflict)], axis=0)
