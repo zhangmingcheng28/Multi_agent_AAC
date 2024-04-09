@@ -79,7 +79,7 @@ def main(args):
 
     # full_observable_critic_flag = True
     full_observable_critic_flag = False
-
+    #
     # transfer_learning = True
     transfer_learning = False
 
@@ -122,10 +122,12 @@ def main(args):
     # critic_dim = [6+(total_agentNum-1)*2, 10, 6]
     if full_observable_critic_flag:
         # actor_dim = [6, 18, 6]  # dim host, maximum dim grid, dim other drones
-        actor_dim = [8, 18, 6]  # dim host, maximum dim grid, dim other drones
+        # actor_dim = [8, 18, 6]  # dim host, maximum dim grid, dim other drones
+        actor_dim = [9, (total_agentNum - 1) * 8, 36, 6]  # dim host, maximum dim grid, dim other drones
         # actor_dim = [26, 18, 6]  # dim host, maximum dim grid, dim other drones
         # critic_dim = [6, 18, 6]
-        critic_dim = [8, 18, 6]
+        # critic_dim = [8, 18, 6]
+        critic_dim = [total_agentNum*9, total_agentNum*36, 6]
         # critic_dim = [26, 18, 6]
         # critic_dim = [ea_dim * total_agentNum for ea_dim in actor_dim]
     else:
@@ -342,7 +344,8 @@ def main(args):
                 # reward_aft_action, done_aft_action, check_goal, step_reward_record = env.get_step_reward_5_v3(step, step_reward_record)   # remove reached agent here
 
                 one_step_reward_start = time.time()
-                reward_aft_action, done_aft_action, check_goal, step_reward_record, status_holder, step_collision_record, bound_building_check = env.ss_reward(step, step_reward_record, step_collision_record, dummy_xy, full_observable_critic_flag, args, evaluation_by_episode)   # remove reached agent here
+                # reward_aft_action, done_aft_action, check_goal, step_reward_record, status_holder, step_collision_record, bound_building_check = env.ss_reward(step, step_reward_record, step_collision_record, dummy_xy, full_observable_critic_flag, args, evaluation_by_episode)   # remove reached agent here
+                reward_aft_action, done_aft_action, check_goal, step_reward_record, status_holder, step_collision_record, bound_building_check = env.ss_reward_Mar(step, step_reward_record, step_collision_record, dummy_xy, full_observable_critic_flag, args, evaluation_by_episode)   # remove reached agent here
                 reward_generation_time = (time.time() - one_step_reward_start)*1000
                 # print("current step reward time used is {} milliseconds".format(reward_generation_time))
 
@@ -760,7 +763,8 @@ def main(args):
 
                 # nearest_two_drones =
                 next_state, norm_next_state, polygons_list, all_agent_st_points, all_agent_ed_points, all_agent_intersection_point_list, all_agent_line_collection, all_agent_mini_intersection_list = env.step(action, step, acc_max, args, evaluation_by_episode)  # no heading update here
-                reward_aft_action, done_aft_action, check_goal, step_reward_record, eps_status_holder, step_collision_record, bound_building_check = env.ss_reward(step, step_reward_record, step_collision_record, dummy_xy, full_observable_critic_flag, args, evaluation_by_episode)
+                # reward_aft_action, done_aft_action, check_goal, step_reward_record, eps_status_holder, step_collision_record, bound_building_check = env.ss_reward(step, step_reward_record, step_collision_record, dummy_xy, full_observable_critic_flag, args, evaluation_by_episode)
+                reward_aft_action, done_aft_action, check_goal, step_reward_record, eps_status_holder, step_collision_record, bound_building_check = env.ss_reward_Mar(step, step_reward_record, step_collision_record, dummy_xy, full_observable_critic_flag, args, evaluation_by_episode)
                 # reward_aft_action, done_aft_action, check_goal, step_reward_record = env.get_step_reward_5_v3(step, step_reward_record)
 
                 step += 1
