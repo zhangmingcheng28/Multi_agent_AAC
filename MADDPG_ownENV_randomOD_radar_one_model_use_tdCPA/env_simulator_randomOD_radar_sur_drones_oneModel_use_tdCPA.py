@@ -2534,8 +2534,10 @@ class env_simulator:
             # ---- end of V5 -------
 
             # ---- v6 denominator is diagonal of the map ---
-            dist_away = 2*math.sqrt(2)
-            after_dist_hg = np.linalg.norm(drone_obj.pos - drone_obj.goal[-1])  # distance to goal after action
+            dist_away = 2*math.sqrt(2)  # maximum diagonal distance after normalization
+            norm_pos = self.normalizer.nmlz_pos(drone_obj.pos)
+            norm_goal = self.normalizer.nmlz_pos(drone_obj.goal[-1])
+            after_dist_hg = np.linalg.norm(norm_pos - norm_goal)  # distance to goal after action
             dist_to_goal = dist_to_goal_coeff * (1 - after_dist_hg / dist_away)
             # ---- end of v6 -----
 
@@ -2728,7 +2730,6 @@ class env_simulator:
                     if (norm_prob_delta_coord == [-2, -2]).all():
                         probe_dist.append(drone_obj.detectionRange/2)
                         continue
-                    norm_pos = self.normalizer.nmlz_pos(drone_obj.pos)
                     norm_intersection_obstacle = norm_pos - norm_prob_delta_coord
                     actual_prob_coord = self.normalizer.reverse_nmlz_pos(norm_intersection_obstacle)
                     dist = np.linalg.norm(actual_prob_coord - drone_obj.pos)

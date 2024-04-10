@@ -188,12 +188,12 @@ def main(args):
     # acc_max = 30
     acc_range = [-acc_max, acc_max]  # NOTE this we need to change
 
-    # actorNet_lr = 0.001/10
-    actorNet_lr = 0.0001/5
+    actorNet_lr = 0.001/10
+    # actorNet_lr = 0.0001/5
     # actorNet_lr = 0.0001/2
     # actorNet_lr = 0.001
-    # criticNet_lr = 0.001/10
-    criticNet_lr = 0.0001/5
+    criticNet_lr = 0.001/10
+    # criticNet_lr = 0.0001/5
     # criticNet_lr = 0.0001/2
     # criticNet_lr = 0.001
     # criticNet_lr = 0.0005
@@ -1057,6 +1057,7 @@ if __name__ == '__main__':
     parser.add_argument('--episode_length', default=50, type=int)  # maximum play per episode
     # parser.add_argument('--episode_length', default=100, type=int)  # maximum play per episode
     parser.add_argument('--memory_length', default=int(1e5), type=int)
+    # parser.add_argument('--memory_length', default=int(1e4), type=int)
     parser.add_argument('--seed', default=777, type=int)  # may choose to use 3407
     parser.add_argument('--batch_size', default=512, type=int)  # original 512
     # parser.add_argument('--batch_size', default=1536, type=int)  # original 512

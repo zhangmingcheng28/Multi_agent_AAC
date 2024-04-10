@@ -246,6 +246,7 @@ class MADDPG:
         self.train_num = i_episode
 
         if len(self.memory) <= self.batch_size:
+        # if len(self.memory) < self.memory.capacity:
         # if True:
             return None, None, single_eps_critic_cal_record
         # print("learning starts")
