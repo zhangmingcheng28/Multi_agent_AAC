@@ -2726,6 +2726,7 @@ class env_simulator:
                     # Access the current pair of elements, these elements are normalized difference position, is obtained using: norm_prob_delta_coord = norm_pos - norm_intersection_obstacle
                     norm_prob_delta_coord = drone_obj.observableSpace[i:i + 2]
                     if (norm_prob_delta_coord == [-2, -2]).all():
+                        probe_dist.append(drone_obj.detectionRange/2)
                         continue
                     norm_pos = self.normalizer.nmlz_pos(drone_obj.pos)
                     norm_intersection_obstacle = norm_pos - norm_prob_delta_coord
