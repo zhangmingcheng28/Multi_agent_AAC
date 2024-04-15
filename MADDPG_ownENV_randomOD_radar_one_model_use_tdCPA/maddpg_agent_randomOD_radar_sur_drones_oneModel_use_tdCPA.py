@@ -7,6 +7,7 @@ from memory_randomOD_radar_sur_drones_oneModel_use_tdCPA import ReplayMemory, Ex
 # from random_process_MADDPGv3_randomOD import OrnsteinUhlenbeckProcess
 from torch.autograd import Variable
 import os
+import pandas as pd
 import torch.nn as nn
 import time
 import numpy as np
@@ -412,7 +413,7 @@ class MADDPG:
                 action_i = self.actors([stacked_elem_0, stacked_elem_1, stacked_elem_2])
             else:
                 action_i = self.actors([stacked_elem_0, stacked_elem_1])
-            ac = action_batch.clone()
+            # ac = action_batch.clone()
 
             ac = action_i.squeeze(0)  # replace the actor from self.actors[agent] into action batch
             # combine_action_action_replaced = ac.view(self.batch_size, -1)
@@ -453,17 +454,265 @@ class MADDPG:
             c_loss.append(loss_Q)
             a_loss.append(actor_loss)
 
-        # if total_step_count % UPDATE_EVERY == 0:  # every "UPDATE_EVERY" step, do a soft update
-        #     for i in range(self.n_agents):
-        #         print("all agents NN update at total step {}".format(total_step_count))
-        #         soft_update(self.critics_target[i], self.critics[i], self.tau)
-        #         soft_update(self.actors_target[i], self.actors[i], self.tau)
-
         if i_episode % UPDATE_EVERY == 0:  # perform a soft update at each step of an episode.
             soft_update(self.critics_target, self.critics, self.tau)
             soft_update(self.actors_target, self.actors, self.tau)
 
         return c_loss, a_loss, single_eps_critic_cal_record
+
+    def update_myown_v2(self, i_episode, total_step_count, UPDATE_EVERY, single_eps_critic_cal_record, transfer_learning, use_allNeigh_wRadar, use_selfATT_with_radar, current_step, experience_replay_record, current_action, current_row, excel_file_path, writer, wandb=None, full_observable_critic_flag=False, use_GRU_flag=False):
+
+        self.train_num = i_episode
+
+        if len(self.memory) <= self.batch_size:
+        # if len(self.memory) < self.memory.capacity:
+        # if True:
+            return None, None, single_eps_critic_cal_record, current_row
+
+        BoolTensor = torch.cuda.BoolTensor if self.use_cuda else torch.BoolTensor
+        FloatTensor = torch.cuda.FloatTensor if self.use_cuda else torch.FloatTensor
+        c_loss = []
+        a_loss = []
+        total_critic_loss = 0.0
+        total_actor_loss = 0.0
+        transitions = self.memory.sample(self.batch_size)
+        batch = Experience(*zip(*transitions))
+        experience_replay_record.append([f'episode {i_episode} step {current_step}:'])
+        # store experience_replay
+        # experience_to_store = (batch.states, batch.actions, batch.rewards, batch.dones, batch.next_states)
+        experience_to_store = {'cur_state': batch.states, 'actions': batch.actions, 'rewards': batch.rewards, 'dones': batch.dones, 'next_states': batch.next_states}
+        # Initialize a Pandas Excel writer
+
+        step_label = f'Episode {i_episode} Step {current_step}'
+        # step_data = {'Step': [], 'cur_state': [], 'actions': [], 'rewards': [], 'dones': [], 'next_states': []}
+        step_data = {'transition_label': [], 'agent_label': [], 'obs_size': [], 'current_step_action': [], 'cur_state': [], 'actions': [], 'rewards': [], 'dones': [], 'next_states': []}
+        step_data['transition_label'].append(step_label)
+        for _ in range(8):
+            step_data['transition_label'].append('-')
+
+        for experience_to_store_key, experience_to_store_val in experience_to_store.items():
+            agent_idx = 0
+            for agent_idx, agent_data in enumerate(experience_to_store_val):
+                if (experience_to_store_key == 'cur_state') or (experience_to_store_key =='next_states'):
+                    for tensor_idx, tensor in enumerate(agent_data):
+                        if tensor.dim() > 1:
+                            continue
+                        # Convert the tensor to a list and flatten it
+                        flat_list = tensor.cpu().detach().numpy().flatten().tolist() if torch.is_tensor(tensor) else tensor
+                        step_data[experience_to_store_key].append(flat_list)
+                        if (experience_to_store_key == 'cur_state'):
+                            step_data['obs_size'].append([f'1x{len(flat_list)}'])
+                else:
+                    flat_list = agent_data.cpu().detach().numpy().flatten().tolist()
+                    step_data[experience_to_store_key].append(flat_list)
+                    for _ in range(2):
+                        step_data[experience_to_store_key].append('-')
+                    if experience_to_store_key == 'actions':  # only record once, among the actions, rewards and dones
+                        step_data['agent_label'].append([f'agent_{agent_idx}'])
+                        step_data['current_step_action'].append(current_action[agent_idx, :])
+                        for _ in range(2):
+                            step_data['agent_label'].append('-')
+                            step_data['current_step_action'].append('-')
+        # Convert the step data into a DataFrame
+        df_step = pd.DataFrame(step_data)
+        # Write the DataFrame to a single sheet in the Excel file, appending each step one after the other
+        df_step.to_excel(writer, sheet_name='Sheet1', startrow=current_row, index=False,
+                         header=(current_row == 0))
+        # Update current_row to the next starting point
+        current_row += len(df_step) + 1  # +1 for an empty row after each step
+
+        for agent in range(self.n_agents):
+            action_batch = torch.stack(batch.actions).type(FloatTensor)
+            reward_batch = torch.stack(batch.rewards).type(FloatTensor)
+
+            if use_GRU_flag:
+                agents_next_hidden_state = torch.stack(batch.next_hidden).type(FloatTensor)
+                agents_cur_hidden_state = torch.stack(batch.cur_hidden).type(FloatTensor)
+
+            # stack tensors only once
+            stacked_elem_0 = torch.stack([elem[0] for elem in batch.states]).to(device)
+            stacked_elem_1 = torch.stack([elem[1] for elem in batch.states]).to(device)
+            stacked_elem_2 = torch.stack([elem[2] for elem in batch.states]).to(device)
+            if full_observable_critic_flag == True:
+                # stacked_elem_0_combine = stacked_elem_0.view(self.batch_size, -1)  # own_state only
+                stacked_elem_0_combine = stacked_elem_0  # own_state only
+                # stacked_elem_1_combine = stacked_elem_1.view(self.batch_size, -1)  # own_state only
+                stacked_elem_1_combine = stacked_elem_1  # own_state only
+
+            # use the stacked tensors
+            # current_state in the form of list of length of agents in the environments, then, batchNo X individual Feature length
+            # cur_state_list1 = [stacked_elem_0[:, i, :] for i in range(self.n_agents)]
+
+            # for next state
+            next_stacked_elem_0 = torch.stack([elem[0] for elem in batch.next_states]).to(device)
+            next_stacked_elem_1 = torch.stack([elem[1] for elem in batch.next_states]).to(device)
+            next_stacked_elem_2 = torch.stack([elem[2] for elem in batch.next_states]).to(device)
+            if full_observable_critic_flag == True:
+                # next_stacked_elem_0_combine = next_stacked_elem_0.view(self.batch_size, -1)
+                next_stacked_elem_0_combine = next_stacked_elem_0
+                # next_stacked_elem_1_combine = next_stacked_elem_1.view(self.batch_size, -1)
+                next_stacked_elem_1_combine = next_stacked_elem_1
+
+            # for done
+            dones_stacked = torch.stack([three_agent_dones for three_agent_dones in batch.dones]).to(device)
+            # done_combined = torch.from_numpy(np.array([1 if any(torch.eq(three_agent_dones, 1)) else 0 for three_agent_dones in batch.dones])).to(device)
+
+
+            # whole_ownState = stacked_elem_0_combine  # own_state only
+
+            # non_final_next_states_actorin = [next_stacked_elem_0]  # 2 portion available
+            # non_final_next_states_actorin = [next_stacked_elem_0, next_stacked_elem_1]  # 2 portion available
+            non_final_next_states_actorin = [next_stacked_elem_0, next_stacked_elem_1, next_stacked_elem_2]
+
+            # configured for target Q
+
+            # whole_curren_action = action_batch.view(self.batch_size, -1)
+            whole_curren_action = action_batch
+
+            # non_final_next_actions = [self.actors_target[i](non_final_next_states_actorin[0][:,i,:], history_batch[:,:,i,:])[0] for i in range(self.n_agents)]
+            # non_final_next_actions = [self.actors_target[i](non_final_next_states_actorin[0][:,i,:], agents_next_hidden_state[:,i,:])[0] for i in range(self.n_agents)]
+            # using one model #
+            # non_final_next_actions = [self.actors_target([non_final_next_states_actorin[0][:,i,:],
+            #                                               non_final_next_states_actorin[1][:,i,:]]) for i in range(self.n_agents)]
+            if use_GRU_flag:
+                non_final_next_actions = self.actors_target(
+                    [non_final_next_states_actorin[0], non_final_next_states_actorin[1]], agents_next_hidden_state)[0]
+            elif use_selfATT_with_radar or use_allNeigh_wRadar:
+                non_final_next_actions = self.actors_target([non_final_next_states_actorin[0],
+                                                             non_final_next_states_actorin[1],
+                                                             non_final_next_states_actorin[2]])
+            else:
+                non_final_next_actions = self.actors_target([non_final_next_states_actorin[0], non_final_next_states_actorin[1]])
+            # end of using one model
+
+            # non_final_next_combine_actions = torch.stack(non_final_next_actions).view(self.batch_size, -1)
+            non_final_next_combine_actions = non_final_next_actions
+
+            # get current Q-estimate, using agent's critic network
+            # current_Q = self.critics[agent](whole_state, whole_action, whole_agent_combine_gru)
+            # current_Q = self.critics[agent](whole_state, whole_action, history_batch[:, :, agent, :])
+            if full_observable_critic_flag:
+                current_Q = self.critics[agent]([stacked_elem_0_combine, stacked_elem_1_combine], whole_curren_action)
+            else:
+                # current_Q = self.critics[agent]([stacked_elem_0[:,agent,:], stacked_elem_1[:,agent,:]], action_batch[:,agent,:])
+                # using one model
+                if use_GRU_flag:
+                    current_Q = self.critics([stacked_elem_0, stacked_elem_1], action_batch, agents_cur_hidden_state)[0]
+                elif use_selfATT_with_radar or use_allNeigh_wRadar:
+                    current_Q = self.critics([stacked_elem_0, stacked_elem_1, stacked_elem_2], action_batch)
+                else:
+                    current_Q = self.critics([stacked_elem_0, stacked_elem_1], action_batch)
+
+            # has_positive_values = (current_Q > 0).any()
+            # if has_positive_values:
+            #     print("true")
+            with T.no_grad():
+                # next_target_critic_value = self.critics_target[agent](next_stacked_elem_0_combine, non_final_next_actions.view(-1,self.n_agents * self.n_actions), whole_agent_combine_gru).squeeze()
+                # next_target_critic_value = self.critics_target[agent](next_stacked_elem_0_combine, non_final_next_actions.view(-1,self.n_agents * self.n_actions), history_batch[:, :, agent, :]).squeeze()
+                if full_observable_critic_flag:
+                    next_target_critic_value = self.critics_target[agent](
+                        [next_stacked_elem_0_combine, next_stacked_elem_1_combine],
+                        non_final_next_combine_actions).squeeze()
+
+                else:
+                    # next_target_critic_value = self.critics_target[agent](
+                    #     [next_stacked_elem_0[:, agent, :], next_stacked_elem_1[:, agent, :]],
+                    #     non_final_next_actions[agent]).squeeze()
+                    # using one model
+                    if use_GRU_flag:
+                        next_target_critic_value = self.critics_target([next_stacked_elem_0, next_stacked_elem_1],
+                            non_final_next_actions, agents_next_hidden_state)[0].squeeze()
+                    elif use_selfATT_with_radar or use_allNeigh_wRadar:
+                        next_target_critic_value = self.critics_target([next_stacked_elem_0, next_stacked_elem_1, next_stacked_elem_2],
+                            non_final_next_actions).squeeze()
+                    else:
+                        next_target_critic_value = self.critics_target([next_stacked_elem_0, next_stacked_elem_1],
+                            non_final_next_actions).squeeze()
+
+                # tar_Q_before_rew = self.GAMMA * next_target_critic_value * (1-dones_stacked[:, agent])
+                tar_Q_before_rew = self.GAMMA * next_target_critic_value * (1-dones_stacked)  # for one model
+                # reward_cal = reward_batch[:, agent].clone()
+                reward_cal = reward_batch.clone()  # for one model
+                if full_observable_critic_flag:
+                    target_Q = (reward_batch[:, agent]) + (
+                                self.GAMMA * next_target_critic_value * (1 - done_combined))
+                else:
+                    target_Q = (reward_batch) + (self.GAMMA * next_target_critic_value * (1-dones_stacked))
+                target_Q = target_Q.unsqueeze(1)
+                tar_Q_after_rew = target_Q.clone()
+
+            loss_Q = nn.MSELoss()(current_Q, target_Q.detach())
+            total_critic_loss = total_critic_loss + loss_Q
+            cal_loss_Q = loss_Q.clone()
+            single_eps_critic_cal_record.append([tar_Q_before_rew.detach().cpu().numpy(),
+                                                 reward_cal.detach().cpu().numpy(),
+                                                 tar_Q_after_rew.detach().cpu().numpy(),
+                                                 cal_loss_Q.detach().cpu().numpy(),
+                                                 (tar_Q_before_rew.detach().cpu().numpy().min(), tar_Q_before_rew.detach().cpu().numpy().max()),
+                                                 (reward_cal.detach().cpu().numpy().min(), reward_cal.detach().cpu().numpy().max()),
+                                                 (tar_Q_after_rew.detach().cpu().numpy().min(), tar_Q_after_rew.detach().cpu().numpy().max()),
+                                                 (cal_loss_Q.detach().cpu().numpy().min(), cal_loss_Q.detach().cpu().numpy().max())])
+            # # self.critic_optimizer[agent].zero_grad()
+            # self.critic_optimizer.zero_grad()
+            #
+            # loss_Q.backward()
+            # # self.has_gradients(self.critics[agent], agent, wandb)
+            #
+            # # self.critic_optimizer[agent].step()
+            # self.critic_optimizer.step()
+
+            # action_i = self.actors[agent]([stacked_elem_0[:,agent,:], stacked_elem_1[:,agent,:]])
+            if use_GRU_flag:
+                action_i = self.actors([stacked_elem_0, stacked_elem_1], agents_cur_hidden_state)[0]
+            elif use_selfATT_with_radar or use_allNeigh_wRadar:
+                action_i = self.actors([stacked_elem_0, stacked_elem_1, stacked_elem_2])
+            else:
+                action_i = self.actors([stacked_elem_0, stacked_elem_1])
+            # ac = action_batch.clone()
+
+            # ac = action_i.squeeze(0)  # replace the actor from self.actors[agent] into action batch
+            # combine_action_action_replaced = ac.view(self.batch_size, -1)
+            # combine_action_action_replaced = ac
+
+            # actor_loss = -self.critics[agent](whole_state, whole_action_action_replaced, whole_hs).mean()
+            # actor_loss = 3-self.critics[agent](whole_state, whole_action_action_replaced, whole_agent_combine_gru).mean()
+            if full_observable_critic_flag:
+                actor_loss = 3 - self.critics[agent]([stacked_elem_0_combine, stacked_elem_1_combine], combine_action_action_replaced).mean()
+                # actor_loss = - self.critics[agent]([stacked_elem_0_combine, stacked_elem_1_combine], combine_action_action_replaced).mean()
+            else:
+                # actor_loss = 3 - self.critics[agent]([stacked_elem_0[:, agent, :], stacked_elem_1[:, agent, :]],
+                #                                      ac[:, agent, :]).mean()
+                # actor_loss = - self.critics[agent]([stacked_elem_0[:, agent, :], stacked_elem_1[:, agent, :]],
+                #                                      ac[:, agent, :]).mean()
+                if use_GRU_flag:
+                    actor_loss = - self.critics([stacked_elem_0, stacked_elem_1], action_i, agents_cur_hidden_state)[0].mean()
+                elif use_selfATT_with_radar or use_allNeigh_wRadar:
+                    actor_loss = - self.critics([stacked_elem_0, stacked_elem_1, stacked_elem_2], action_i).mean()
+                    total_actor_loss = total_actor_loss + actor_loss
+                else:
+                    actor_loss = - self.critics([stacked_elem_0, stacked_elem_1], action_i).mean()
+
+            # c_loss.append(loss_Q)
+            # a_loss.append(actor_loss)
+
+        c_loss.append(total_critic_loss)
+        a_loss.append(total_actor_loss)
+
+        self.critic_optimizer.zero_grad()
+        self.actor_optimizer.zero_grad()
+
+        total_critic_loss.backward(retain_graph=True)
+        total_actor_loss.backward()
+
+        self.critic_optimizer.step()
+        self.actor_optimizer.step()
+
+        if i_episode % UPDATE_EVERY == 0:  # perform a soft update at each step of an episode.
+            soft_update(self.critics_target, self.critics, self.tau)
+            soft_update(self.actors_target, self.actors, self.tau)
+
+        return c_loss, a_loss, single_eps_critic_cal_record, current_row
+
 
     def has_gradients(self, model, agent, wandb=None):
         for name, param in model.named_parameters():

@@ -245,6 +245,8 @@ class env_simulator:
 
         start_pos_memory = []
 
+        random_start_pos_list = [(600,380), (620,380), (650,280),(650,290),(490,270),(460,330),(580,370),(500,340)]
+        random_end_pos_list = [(490,330), (470,360), (550,350),(560,340),(500,350),(620,360),(460,270),(660,280)]
         # any_collision = 0
         # loop_count = 0
         # while not any_collision:
@@ -290,6 +292,9 @@ class env_simulator:
                     any_collision = 1
                     print("Initial start point {} collision with buildings".format(np.array(random_start_pos)))
                     break
+
+            random_start_pos = random_start_pos_list[agentIdx]
+            random_end_pos = random_end_pos_list[agentIdx]
 
             self.all_agents[agentIdx].pos = np.array(random_start_pos)
             self.all_agents[agentIdx].pre_pos = np.array(random_start_pos)
@@ -2647,7 +2652,7 @@ class env_simulator:
             # dist_to_penalty_upperbound = 6
             dist_to_penalty_upperbound = 10
             # dist_to_penalty_upperbound = 20
-            dist_to_penalty_lowerbound = 2.5
+            dist_to_penalty_lowerbound = drone_obj.protectiveBound
             # assume when at lowerbound, y = 1
             near_drone_penalty = 0  # initialize
             c_drone = 1 + (dist_to_penalty_lowerbound / (dist_to_penalty_upperbound - dist_to_penalty_lowerbound))
