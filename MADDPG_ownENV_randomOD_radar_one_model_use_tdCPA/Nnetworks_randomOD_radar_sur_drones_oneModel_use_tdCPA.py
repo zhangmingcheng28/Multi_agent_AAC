@@ -314,6 +314,19 @@ class ActorNetwork_allnei_wRadar(nn.Module):
         return out_action
 
 
+class ActorNetwork_obs_only(nn.Module):
+    def __init__(self, actor_dim, n_actions):
+        super(ActorNetwork_obs_only, self).__init__()
+        self.own_fc = nn.Sequential(nn.Linear(actor_dim[0], 64), nn.ReLU())
+        self.act_out = nn.Sequential(nn.Linear(64, 64), nn.ReLU(),
+                                     nn.Linear(64, n_actions), nn.Tanh())
+
+    def forward(self, cur_state):
+        own_obs = self.own_fc(cur_state[0])
+        out_action = self.act_out(own_obs)
+        return out_action
+
+
 
 class ActorNetwork_GRU_TwoPortion(nn.Module):
     def __init__(self, actor_dim, n_actions, actor_hidden_state_size):  # actor_obs consists of three parts 0 = own, 1 = own grid, 2 = surrounding drones
@@ -723,6 +736,19 @@ class critic_single_TwoPortion_wRadar(nn.Module):
         return q
 
 
+class critic_single_obs_only(nn.Module):
+    def __init__(self, critic_obs, n_agents, n_actions, single_history, hidden_state_size):
+        super(critic_single_obs_only, self).__init__()
+        self.SA_fc = nn.Sequential(nn.Linear(critic_obs[0]+n_actions, 64), nn.ReLU())
+        self.out_feature_q = nn.Sequential(nn.Linear(64, 64), nn.ReLU(),
+                                           nn.Linear(64, 1))
+
+    def forward(self, single_state, single_action):
+        obsWaction = torch.cat((single_state[0], single_action), dim=1)
+        obsWaction_fea = self.SA_fc(obsWaction)
+        q = self.out_feature_q(obsWaction_fea)
+        return q
+
 
 class critic_single_GRU_TwoPortion(nn.Module):
     def __init__(self, critic_obs, n_agents, n_actions, single_history, hidden_state_size):
@@ -831,3 +857,29 @@ class critic_combine_TwoPortion(nn.Module):
         q = self.out_feature_q(merge_feature)
         # --- end of yc_v1 ---
         return q
+
+
+class critic_combine_TwoPortion_fullneiWradar(nn.Module):
+    def __init__(self, critic_obs, n_agents, n_actions, single_history, hidden_state_size):
+        super(critic_combine_TwoPortion_fullneiWradar, self).__init__()
+        # Create a list to hold individual agent networks
+        self.agents_obs = nn.ModuleList()
+        self.agents_all_neigh = nn.ModuleList()
+        self.agents_grids = nn.ModuleList()
+        # Define similar network structures for each agent
+        for _ in range(n_agents):
+            agent_obs = nn.Sequential(
+                nn.Linear(critic_obs[0] + n_actions, 64),
+                nn.ReLU())
+            agent_all_nei = nn.Sequential(
+                nn.Linear(critic_obs[1], 256),
+                nn.ReLU())
+            agent_grids = nn.Sequential(
+                nn.Linear(critic_obs[2], 128),
+                nn.ReLU())
+            self.agents_obs.append(agent_obs)
+            self.agents_all_neigh.append(agent_all_nei)
+            self.agents_grids.append(agent_grids)
+        self.combine_agents_fea = nn.Sequential(nn.Linear(64+256+128, 512), nn.ReLU())
+        self.out_feature_q = nn.Sequential(nn.Linear(256, 1))
+        # TOO large !!!!, N * 512 =.=

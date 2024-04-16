@@ -1125,7 +1125,7 @@ class env_simulator:
                             if line.intersects(polygons_list_wBound[polygon_idx]):
                                 intersection_point = line.intersection(polygons_list_wBound[polygon_idx].boundary)
 
-                                if intersection_point.type == 'MultiPoint':
+                                if intersection_point.geom_type == 'MultiPoint':
                                     nearest_point = min(intersection_point.geoms,
                                                         key=lambda point: drone_ctr.distance(point))
                                 else:
@@ -1496,10 +1496,13 @@ class env_simulator:
                         delta_host_x = self.all_agents[other_agentIdx].pos[0] - agent.pos[0]
                         delta_host_y = self.all_agents[other_agentIdx].pos[1] - agent.pos[1]
                         euclidean_dist = np.linalg.norm(self.all_agents[other_agentIdx].pos - agent.pos)
+
                         # norm_delta_pos = self.normalizer.scale_pos([delta_host_x, delta_host_y])
                         norm_nei_pos = self.normalizer.nmlz_pos([self.all_agents[other_agentIdx].pos[0],
                                                                  self.all_agents[other_agentIdx].pos[1]])
                         norm_delta_pos = norm_pos - norm_nei_pos # neigh's position relative to host drone. Host drone as origin.
+
+                        norm_euclidean_dist = np.linalg.norm(norm_delta_pos)
 
                         nei_goal_diff_x = self.all_agents[other_agentIdx].goal[-1][0]-agent.pos[0]
                         nei_goal_diff_y = self.all_agents[other_agentIdx].goal[-1][1]-agent.pos[1]
@@ -1537,7 +1540,8 @@ class env_simulator:
                         # p1_norm_surround_agent = np.concatenate([norm_delta_pos, np.array([euclidean_dist]), norm_neigh_vel], axis=0)
                         # p1_norm_surround_agent = np.concatenate([norm_delta_pos, np.array([euclidean_dist]), norm_neigh_vel], axis=0)
                         # p1_norm_surround_agent = np.append(p1_norm_surround_agent, agent.heading)
-                        p1_norm_surround_agent = np.concatenate([norm_delta_pos, np.array([euclidean_dist]), norm_neigh_vel, nei_norm_acc], axis=0)
+                        # p1_norm_surround_agent = np.concatenate([norm_delta_pos, np.array([euclidean_dist]), norm_neigh_vel, nei_norm_acc], axis=0)
+                        p1_norm_surround_agent = np.concatenate([norm_delta_pos, np.array([norm_euclidean_dist]), norm_neigh_vel, nei_norm_acc], axis=0)
                         p1_norm_surround_agent = np.append(p1_norm_surround_agent, agent.heading)
                         # p1_norm_surround_agent = np.concatenate([norm_nei_pos, norm_neigh_vel, ], axis=0)
 
@@ -2280,7 +2284,7 @@ class env_simulator:
         # return reward, done, check_goal, step_reward_record, agent_filled
         return reward, done, check_goal, step_reward_record
 
-    def ss_reward(self, current_ts, step_reward_record, step_collision_record, xy, full_observable_critic_flag, args, evaluation_by_episode):
+    def ss_reward(self, current_ts, step_reward_record, step_collision_record, xy, full_observable_critic_flag, args, evaluation_by_episode, own_obs_only):
         bound_building_check = [False] * 4
         eps_status_holder = [{} for _ in range(len(self.all_agents))]
         reward, done = [], []
@@ -2644,7 +2648,10 @@ class env_simulator:
 
             # ----- start of SUM near drone penalty ----------------
             # near_drone_penalty_coef = 10
-            near_drone_penalty_coef = 1
+            if own_obs_only:
+                near_drone_penalty_coef = 0
+            else:
+                near_drone_penalty_coef = 1
             # near_drone_penalty_coef = 5
             # near_drone_penalty_coef = 1
             # near_drone_penalty_coef = 3
@@ -2749,7 +2756,10 @@ class env_simulator:
 
             # the distance is based on the minimum of the detected distance to surrounding buildings.
             # near_building_penalty_coef = 4
-            near_building_penalty_coef = 10
+            if own_obs_only:
+                near_building_penalty_coef = 0
+            else:
+                near_building_penalty_coef = 10
             # near_building_penalty_coef = 3
             # near_building_penalty_coef = 0
 
@@ -2799,7 +2809,18 @@ class env_simulator:
             # Always check the boundary as the 1st condition, or else will encounter error where the agent crash into wall but also exceed the bound, but crash into wall did not stop the episode. So, we must put the check boundary condition 1st, so that episode can terminate in time and does not leads to exceed boundary with error in no polygon found.
             # exceed bound condition, don't use current point, use current circle or else will have condition that
             # must use "host_passed_volume", or else, we unable to confirm whether the host's circle is at left or right of the boundary lines
-            if x_left_bound.intersects(host_passed_volume) or x_right_bound.intersects(host_passed_volume) or y_bottom_bound.intersects(host_passed_volume) or y_top_bound.intersects(host_passed_volume):
+            if x_left_bound.intersects(host_passed_volume) or x_right_bound.intersects(
+                    host_passed_volume) or y_bottom_bound.intersects(host_passed_volume) or y_top_bound.intersects(
+                    host_passed_volume):
+                bound_collision = True
+            else:
+                bound_collision = False
+
+            if own_obs_only:
+                collide_building = 0
+                collision_drones = []
+            
+            if bound_collision:
                 print("drone_{} has crash into boundary at time step {}".format(drone_idx, current_ts))
                 drone_obj.bound_collision = True
                 rew = rew - crash_penalty_wall

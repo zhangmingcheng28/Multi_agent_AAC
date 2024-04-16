@@ -2743,7 +2743,7 @@ class env_simulator:
                     dist_to_ref_line = coef_ref_line * direction_reward
             else:
                 dist_to_ref_line = -1
-            # cross track v5 (using heading angle)
+            # end of cross track v5 (using heading angle)
 
             small_step_penalty_coef = 3
             # small_step_penalty_coef = 0
@@ -2955,6 +2955,9 @@ class env_simulator:
             # if rew < 0.1 and rew >= 0:
             #     print("check")
             step_reward_record[drone_idx] = [dist_to_ref_line, dist_to_goal]
+
+            # we noramlize all rewards based on the current steps taken
+            # reward = [one_agent_reward / (current_ts if current_ts != 0 else 1) for one_agent_reward in reward]
 
             # print("current drone {} actual distance to goal is {}, current reward is {}".format(drone_idx, actual_after_dist_hg, reward[-1]))
             # print("current drone {} actual distance to goal is {}, current reward to gaol is {}, current ref line reward is {}, current step reward is {}".format(drone_idx, actual_after_dist_hg, dist_to_goal, dist_to_ref_line, rew))

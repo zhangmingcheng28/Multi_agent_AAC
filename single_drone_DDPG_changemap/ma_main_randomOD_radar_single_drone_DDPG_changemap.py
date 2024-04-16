@@ -44,7 +44,7 @@ else:
     device = torch.device('cpu')
     print('Using CPU')
 
-# device = torch.device('cpu')
+device = torch.device('cpu')
 
 def main(args):
 
@@ -68,8 +68,8 @@ def main(args):
         # initialize_excel_file(excel_file_path_time)
         # ------------ end of this portion is to save using excel instead of pickle -----------
 
-    use_wanDB = False
-    # use_wanDB = True
+    # use_wanDB = False
+    use_wanDB = True
 
     # get_evaluation_status = True  # have figure output
     get_evaluation_status = False  # no figure output, mainly obtain collision rate
@@ -80,11 +80,14 @@ def main(args):
     # full_observable_critic_flag = True
     full_observable_critic_flag = False
 
-    use_GRU_flag = True
-    # use_GRU_flag = False
+    # use_GRU_flag = True
+    use_GRU_flag = False
 
     # use_attention_flag = True
     use_attention_flag = False
+
+    attention_only = True
+    # attention_only = False
 
     if use_wanDB:
         wandb.login(key="efb76db851374f93228250eda60639c70a93d1ec")
@@ -158,7 +161,7 @@ def main(args):
     torch.manual_seed(args.seed)  # this is the seed
 
     if args.algo == "maddpg":
-        model = MADDPG(actor_dim, critic_dim, n_actions, actor_hidden_state, gru_history_length, n_agents, args, criticNet_lr, actorNet_lr, GAMMA, TAU, full_observable_critic_flag, use_GRU_flag, use_attention_flag)
+        model = MADDPG(actor_dim, critic_dim, n_actions, actor_hidden_state, gru_history_length, n_agents, args, criticNet_lr, actorNet_lr, GAMMA, TAU, full_observable_critic_flag, use_GRU_flag, use_attention_flag, attention_only)
     elif args.algo == 'TD3':
         model = TD3(actor_dim, critic_dim, n_actions, actor_hidden_state, gru_history_length, n_agents, args,
                        criticNet_lr, actorNet_lr, GAMMA, TAU, full_observable_critic_flag, use_GRU_flag)
@@ -166,6 +169,7 @@ def main(args):
     episode = 0
     total_step = 0
     score_history = []
+    goal_reach_history = []
     eps_reward_record = []
     eps_check_collision = []
     eps_noise_record = []
@@ -191,6 +195,7 @@ def main(args):
     crash_to_bound = 0
     crash_to_building = 0
     goal_reached = 0
+    goal_reach_history.append(goal_reached)
     episode_goal_found = [False] * n_agents
     dummy_xy = (None, None)  # this is a dummy tuple of xy, is not useful during normal training, it is only useful when generating reward map
     if args.mode == "eval":
@@ -199,7 +204,7 @@ def main(args):
         args.max_episodes = 100
         # args.max_episodes = 20
         # args.max_episodes = 1
-        pre_fix = r'D:\MADDPG_2nd_jp\070424_15_52_12\interval_record_eps'
+        pre_fix = r'D:\MADDPG_2nd_jp\150424_17_24_23\interval_record_eps'
         episode_to_check = str(10000)
         load_filepath_0 = pre_fix + '\episode_' + episode_to_check + '_agent_0actor_net.pth'
         load_filepath_1 = pre_fix + '\episode_' + episode_to_check + '_agent_1actor_net.pth'
@@ -218,8 +223,8 @@ def main(args):
         episode_start_time = time.time()
         episode += 1
         eps_reset_start_time = time.time()
-        # random_map_idx = random.randrange(len(env.world_map_2D_collection))
-        random_map_idx = 3  # this value is the previous fixed environment
+        random_map_idx = random.randrange(len(env.world_map_2D_collection))
+        # random_map_idx = 3  # this value is the previous fixed environment
         cur_state, norm_cur_state = env.reset_world(total_agentNum, random_map_idx, show=0)  # random map choose here
         eps_reset_time_used = (time.time()-eps_reset_start_time)*1000
         # print("current episode {} reset time used is {} milliseconds".format(episode, eps_reset_time_used))  # need to + 1 here, or else will misrecord as the previous episode
@@ -405,8 +410,20 @@ def main(args):
                 accum_reward = accum_reward + sum(reward_aft_action)
 
                 step_update_time_start = time.time()
-                # c_loss, a_loss, single_eps_critic_cal_record = model.update_myown(episode, total_step, UPDATE_EVERY, single_eps_critic_cal_record, action, wandb, full_observable_critic_flag, use_GRU_flag)  # last working learning framework
-                c_loss, a_loss, single_eps_critic_cal_record = model.update_myown_ddpg(episode, total_step, UPDATE_EVERY, single_eps_critic_cal_record, action, wandb, full_observable_critic_flag, use_GRU_flag)  # last working learning framework
+                if args.algo == "maddpg":
+                    c_loss, a_loss, single_eps_critic_cal_record = model.update_myown_ddpg(episode, total_step,
+                                                                                           UPDATE_EVERY,
+                                                                                           single_eps_critic_cal_record,
+                                                                                           action, wandb,
+                                                                                           full_observable_critic_flag,
+                                                                                           use_GRU_flag)  # last working learning framework
+                elif args.algo == 'TD3':
+                    c_loss, a_loss, single_eps_critic_cal_record = model.update_myown(episode, total_step, UPDATE_EVERY,
+                                                                                      single_eps_critic_cal_record,
+                                                                                      action, wandb,
+                                                                                      full_observable_critic_flag,
+                                                                                      use_GRU_flag)  # last working learning framework
+
                 update_time_used = (time.time() - step_update_time_start)*1000
                 # print("current step update time used is {} milliseconds".format(update_time_used))
                 cur_state = next_state
@@ -532,6 +549,13 @@ def main(args):
 
                     # time_used = time.time() - start_time
                     # print("update function used {} seconds to run".format(time_used))
+
+                    # # we normalize the final accumulated reward
+                    # if step == 0:
+                    #     accum_reward = accum_reward / 1
+                    # else:
+                    #     accum_reward = accum_reward / step
+
                     # here onwards is end of an episode's play
                     score_history.append(accum_reward)
 
@@ -541,8 +565,10 @@ def main(args):
                     if use_wanDB:
                         wandb.log({'overall_reward': float(accum_reward)})
                         if c_loss and a_loss:
-                            wandb.log({'actor_loss': float(a_loss[0])})
-                            wandb.log({'critic_loss': float(c_loss[0])})
+                            # wandb.log({'actor_loss': float(a_loss[0])})
+                            wandb.log({'actor_loss': a_loss})
+                            # wandb.log({'critic_loss': float(c_loss[0])})
+                            wandb.log({'critic_loss': c_loss})
                         # if c_loss and a_loss:
                         #     for idx, val in enumerate(c_loss):
                         #         # print(" agent %s, a_loss %3.2f c_loss %3.2f" % (idx, a_loss[idx].item(), c_loss[idx].item()))
@@ -552,6 +578,7 @@ def main(args):
                         # save a gif every 100 episode during training
                         episode_to_check = str(episode)
                         # save_gif(env, trajectory_eachPlay, plot_file_name, episode_to_check, episode, random_map_idx)
+                        goal_reach_history.append(goal_reached)
                         print("For the previous 100 episode, the number of goal reaching count is {}".format(goal_reached))
                         goal_reached = 0
                     if episode % args.save_interval == 0 and args.mode == "train":
@@ -912,6 +939,9 @@ def main(args):
             # using csv.writer method from CSV package
             write = csv.writer(f)
             write.writerows([score_history])
+        with open(file_name + '/goal_reaching.csv', 'w') as f:
+            write = csv.writer(f)
+            write.writerows([goal_reach_history])
     else:
         print("total collision count is {}".format(collision_count))
         print("Collision due to bound is {}".format(crash_to_bound))
@@ -930,7 +960,7 @@ if __name__ == '__main__':
     parser.add_argument('--scenario', default="simple_spread", type=str)
     parser.add_argument('--max_episodes', default=10000, type=int)  # run for a total of 50000 episodes
     parser.add_argument('--algo', default="maddpg", type=str, help="commnet/bicnet/maddpg/TD3")
-    parser.add_argument('--mode', default="eval", type=str, help="train/eval")
+    parser.add_argument('--mode', default="train", type=str, help="train/eval")
     parser.add_argument('--episode_length', default=100, type=int)  # maximum play per episode
     parser.add_argument('--memory_length', default=int(1e5), type=int)
     parser.add_argument('--seed', default=777, type=int)  # may choose to use 3407
