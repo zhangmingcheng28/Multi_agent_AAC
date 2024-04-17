@@ -1228,7 +1228,8 @@ class env_simulator:
             # norm_nearest_neigh_vel = self.normalizer.norm_scale([nearest_neigh_vel[0], nearest_neigh_vel[1]])  # normalization using scale
             # ------- end if find nearest neighbour ------
 
-            norm_pos = self.normalizer.scale_pos([agent.pos[0], agent.pos[1]])
+            # norm_pos = self.normalizer.scale_pos([agent.pos[0], agent.pos[1]])
+            norm_pos = self.normalizer.nmlz_pos([agent.pos[0], agent.pos[1]])
 
             norm_vel = self.normalizer.norm_scale([agent.vel[0], agent.vel[1]])  # normalization using scale
             # norm_vel = self.normalizer.nmlz_vel([agent.vel[0], agent.vel[1]])  # normalization using min_max
