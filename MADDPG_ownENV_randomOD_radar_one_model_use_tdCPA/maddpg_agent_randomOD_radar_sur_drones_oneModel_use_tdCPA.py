@@ -497,7 +497,7 @@ class MADDPG:
                      'cur_state': [], 'actions': [], 'rewards': [], 'dones': [], 'next_states': [], 'loop_currentQ': [],
                      'loop_next_target_critic_value': [], 'loop_targetQ': [], 'loop_lossQ': [], 'combine_lossQ': [],
                      'loop_action_used_actor_loss': [], 'loop_before_mean_critic': [],
-                     'actor_loss': [], 'combine_actor_loss': []}
+                     'loop_actor_loss': [], 'combine_actor_loss': []}
         step_data['transition_label'].append(step_label)
         step_data['current_step_action'].append(current_action)
         for _ in range((3*self.batch_size)-1):  # 3 is the number of elements inside state
@@ -525,6 +525,13 @@ class MADDPG:
                         for _ in range(2):
                             step_data['batch_idx'].append('-')
 
+        record_allLoop_currentQ = []
+        record_allLoop_next_tar_critic_val = []
+        record_allLoop_tarQ = []
+        record_allLoop_lossQ = []
+        record_allLoop_act_in_actorLoss = []
+        record_allLoop_before_mean_critic = []
+        record_allLoop_actor_loss = []
 
         for agent in range(self.n_agents):
             action_batch = torch.stack(batch.actions).type(FloatTensor)
@@ -533,7 +540,6 @@ class MADDPG:
             if use_GRU_flag:
                 agents_next_hidden_state = torch.stack(batch.next_hidden).type(FloatTensor)
                 agents_cur_hidden_state = torch.stack(batch.cur_hidden).type(FloatTensor)
-
             # stack tensors only once
             stacked_elem_0 = torch.stack([elem[0] for elem in batch.states]).to(device)
             stacked_elem_1 = torch.stack([elem[1] for elem in batch.states]).to(device)
@@ -612,10 +618,8 @@ class MADDPG:
                     else:
                         current_Q = self.critics([stacked_elem_0, stacked_elem_1, stacked_elem_2], action_batch)
                     record_current_Q = current_Q.clone().detach().cpu().numpy()
-                    for bi in range(self.batch_size):
-                        step_data['currentQ'].append(record_current_Q[bi])
-                        step_data['currentQ'].append('_')
-                        step_data['currentQ'].append('_')
+                    record_allLoop_currentQ.append(record_current_Q)
+
                 else:
                     current_Q = self.critics([stacked_elem_0, stacked_elem_1], action_batch)
 
@@ -639,8 +643,14 @@ class MADDPG:
                         next_target_critic_value = self.critics_target([next_stacked_elem_0, next_stacked_elem_1],
                             non_final_next_actions, agents_next_hidden_state)[0].squeeze()
                     elif use_selfATT_with_radar or use_allNeigh_wRadar:
-                        next_target_critic_value = self.critics_target([next_stacked_elem_0, next_stacked_elem_1, next_stacked_elem_2],
-                            non_final_next_actions).squeeze()
+                        if own_obs_only:
+                            next_target_critic_value = self.critics_target([next_stacked_elem_0],
+                                                                           non_final_next_actions).squeeze()
+                        else:
+                            next_target_critic_value = self.critics_target([next_stacked_elem_0, next_stacked_elem_1, next_stacked_elem_2],
+                                non_final_next_actions).squeeze()
+                        record_next_target_critic_value = next_target_critic_value.clone().detach().cpu().numpy()
+                        record_allLoop_next_tar_critic_val.append(record_next_target_critic_value)
                     else:
                         next_target_critic_value = self.critics_target([next_stacked_elem_0, next_stacked_elem_1],
                             non_final_next_actions).squeeze()
@@ -656,10 +666,12 @@ class MADDPG:
                     target_Q = (reward_batch) + (self.GAMMA * next_target_critic_value * (1-dones_stacked))
                 target_Q = target_Q.unsqueeze(1)
                 tar_Q_after_rew = target_Q.clone()
+                record_allLoop_tarQ.append(tar_Q_after_rew.detach().cpu().numpy())
 
             loss_Q = nn.MSELoss()(current_Q, target_Q.detach())
             total_critic_loss = total_critic_loss + loss_Q
             cal_loss_Q = loss_Q.clone()
+            record_allLoop_lossQ.append(cal_loss_Q.detach().cpu().numpy())
             single_eps_critic_cal_record.append([tar_Q_before_rew.detach().cpu().numpy(),
                                                  reward_cal.detach().cpu().numpy(),
                                                  tar_Q_after_rew.detach().cpu().numpy(),
@@ -681,7 +693,10 @@ class MADDPG:
             if use_GRU_flag:
                 action_i = self.actors([stacked_elem_0, stacked_elem_1], agents_cur_hidden_state)[0]
             elif use_selfATT_with_radar or use_allNeigh_wRadar:
-                action_i = self.actors([stacked_elem_0, stacked_elem_1, stacked_elem_2])
+                if own_obs_only:
+                    action_i = self.actors([stacked_elem_0])
+                else:
+                    action_i = self.actors([stacked_elem_0, stacked_elem_1, stacked_elem_2])
             else:
                 action_i = self.actors([stacked_elem_0, stacked_elem_1])
             # ac = action_batch.clone()
@@ -703,21 +718,53 @@ class MADDPG:
                 if use_GRU_flag:
                     actor_loss = - self.critics([stacked_elem_0, stacked_elem_1], action_i, agents_cur_hidden_state)[0].mean()
                 elif use_selfATT_with_radar or use_allNeigh_wRadar:
-                    actor_loss = - self.critics([stacked_elem_0, stacked_elem_1, stacked_elem_2], action_i).mean()
-                    total_actor_loss = total_actor_loss + actor_loss
+                    action_used_actor_loss = action_i.clone().detach().cpu().numpy()
+                    if own_obs_only:
+                        record_before_mean_critic = self.critics([stacked_elem_0], action_i).detach().cpu().numpy()
+                        actor_loss = - self.critics([stacked_elem_0], action_i).mean()
+                    else:
+                        record_before_mean_critic = self.critics([stacked_elem_0, stacked_elem_1, stacked_elem_2], action_i).detach().cpu().numpy()
+                        actor_loss = - self.critics([stacked_elem_0, stacked_elem_1, stacked_elem_2], action_i).mean()
+                    record_actor_loss = actor_loss.clone().detach().cpu().numpy()
+
+                    record_allLoop_act_in_actorLoss.append(action_used_actor_loss)
+                    record_allLoop_before_mean_critic.append(record_before_mean_critic)
+                    record_allLoop_actor_loss.append(record_actor_loss)
+
                 else:
                     actor_loss = - self.critics([stacked_elem_0, stacked_elem_1], action_i).mean()
+
+            total_actor_loss = total_actor_loss + actor_loss
 
             # c_loss.append(loss_Q)
             # a_loss.append(actor_loss)
 
         c_loss.append(total_critic_loss)
         a_loss.append(total_actor_loss)
+        # store accumulated lossQ and actor loss after for loop.
         step_data['combine_lossQ'].append(total_critic_loss.detach().cpu().numpy())
         step_data['combine_actor_loss'].append(total_actor_loss.detach().cpu().numpy())
         for _ in range((3*self.batch_size)-1):  # 3 is the number of elements inside state
             step_data['combine_lossQ'].append('_')
             step_data['combine_actor_loss'].append('_')
+        # store intermediate value for current Q, target Q and actor loss
+        for bi in range(self.batch_size):
+            for agent in range(self.n_agents):  # for every loop
+                step_data['loop_currentQ'].append(record_allLoop_currentQ[agent][bi])
+                step_data['loop_next_target_critic_value'].append(record_allLoop_next_tar_critic_val[agent][bi])
+                step_data['loop_targetQ'].append(record_allLoop_tarQ[agent][bi])
+                step_data['loop_action_used_actor_loss'].append(record_allLoop_act_in_actorLoss[agent][bi,:])
+                step_data['loop_before_mean_critic'].append(record_allLoop_before_mean_critic[agent][bi])
+
+        # store calculate lossQ and actor loss in each iteration of the for loop
+        for agent in range(self.n_agents):
+            step_data['loop_lossQ'].append([f'loop_{agent} Q loss is {record_allLoop_lossQ[agent]}'])
+            for _ in range(2):
+                step_data['loop_lossQ'].append('-')
+            step_data['loop_actor_loss'].append([f'loop_{agent} actor loss is {record_allLoop_actor_loss[agent]}'])
+            for _ in range(2):
+                step_data['loop_actor_loss'].append('-')
+
 
         self.critic_optimizer.zero_grad()
         self.actor_optimizer.zero_grad()

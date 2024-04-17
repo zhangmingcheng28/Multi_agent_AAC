@@ -96,8 +96,8 @@ def main(args):
     # use_allNeigh_wRadar = False
 
     if use_allNeigh_wRadar:
-        own_obs_only = True
-        # own_obs_only = False
+        # own_obs_only = True
+        own_obs_only = False
     else:
         own_obs_only = False
 
@@ -1077,7 +1077,7 @@ if __name__ == '__main__':
     parser.add_argument('--scenario', default="simple_spread", type=str)
     parser.add_argument('--max_episodes', default=2000, type=int)  # run for a total of 50000 episodes
     parser.add_argument('--algo', default="maddpg", type=str, help="commnet/bicnet/maddpg")
-    parser.add_argument('--mode', default="train", type=str, help="train/eval")
+    parser.add_argument('--mode', default="eval", type=str, help="train/eval")
     # parser.add_argument('--episode_length', default=150, type=int)  # maximum play per episode
     parser.add_argument('--episode_length', default=50, type=int)  # maximum play per episode
     # parser.add_argument('--episode_length', default=100, type=int)  # maximum play per episode

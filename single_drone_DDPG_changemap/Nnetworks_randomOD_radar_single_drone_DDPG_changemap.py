@@ -754,12 +754,36 @@ class actor_TwoPortion_wATT(nn.Module):
         # self.k = nn.Linear(128, 128, bias=False)
         # self.q = nn.Linear(128, 128, bias=False)
         # self.v = nn.Linear(128, 128, bias=False)
-        # attention
-        self.k = nn.Linear(actor_dim[0]+actor_dim[1], 64, bias=False)
-        self.q = nn.Linear(actor_dim[0]+actor_dim[1], 64, bias=False)
-        self.v = nn.Linear(actor_dim[0]+actor_dim[1], 64, bias=False)
-        self.outlay = nn.Sequential(nn.Linear(64, 64), nn.ReLU(),
-                                    nn.Linear(64, n_actions), nn.Tanh())
+
+        # attentionV2
+        # self.k = nn.Linear(actor_dim[0]+actor_dim[1], 64, bias=False)
+        # self.q = nn.Linear(actor_dim[0]+actor_dim[1], 64, bias=False)
+        # self.v = nn.Linear(actor_dim[0]+actor_dim[1], 64, bias=False)
+        # self.outlay = nn.Sequential(nn.Linear(64, 64), nn.ReLU(),
+        #                             nn.Linear(64, n_actions), nn.Tanh())
+
+        # attentionV3
+        # self.q = nn.Linear(2, 32, bias=False)
+        # self.k = nn.Linear(actor_dim[1], 32, bias=False)
+        # self.v = nn.Linear(actor_dim[1], 32, bias=False)
+        # self.own_fc = nn.Sequential(nn.Linear(actor_dim[0], 64), nn.ReLU())
+        # self.own_grid = nn.Sequential(nn.Linear(actor_dim[1], 64), nn.ReLU())
+        # self.combine_feature = nn.Sequential(nn.Linear(64+64+32, 256), nn.ReLU())
+        # self.outlay = nn.Sequential(nn.Linear(256, 256), nn.ReLU(),
+        #                             nn.Linear(256, n_actions), nn.Tanh())
+        # V4
+        # self.q = nn.Linear(actor_dim[0], 64, bias=False)
+        # self.k = nn.Linear(actor_dim[1], 64, bias=False)
+        # self.v = nn.Linear(actor_dim[1], 64, bias=False)
+        # self.own_fc = nn.Sequential(nn.Linear(actor_dim[0], 64), nn.ReLU())
+        # self.outlay = nn.Sequential(nn.Linear(64+64, 128), nn.ReLU(),
+        #                             nn.Linear(128, n_actions), nn.Tanh())
+        #V4.1
+        self.own_fc = nn.Sequential(nn.Linear(actor_dim[0], 64), nn.ReLU())
+        self.own_grid = nn.Sequential(nn.Linear(actor_dim[1], 64), nn.ReLU())
+        self.outlay = nn.Sequential(nn.Linear(64+64, 128), nn.ReLU(),
+                                    nn.Linear(128, n_actions), nn.Tanh())
+
     def forward(self, cur_state):
         # own_obs = self.own_fc(cur_state[0])
         # own_grid = self.own_grid(cur_state[1])
@@ -773,14 +797,42 @@ class actor_TwoPortion_wATT(nn.Module):
         # v_att = torch.sum(v * alpha, axis=1)
         # action_out = self.outlay(v_att)
 
-        obs_grid_concate = torch.cat((cur_state[0], cur_state[1]), dim=1)
-        q = self.q(obs_grid_concate)
-        k = self.k(obs_grid_concate)
-        v = self.v(obs_grid_concate)
-        score = torch.bmm(k.unsqueeze(axis=1), q.unsqueeze(axis=2))
-        alpha = F.softmax(score / np.sqrt(k.size(-1)), dim=1)  # we use dim=1 here because we need to get attention of each sequence in K towards all hidden vector of q in each batch.
-        v_att = torch.sum(v * alpha, axis=1)
-        action_out = self.outlay(v_att)
+        # obs_grid_concate = torch.cat((cur_state[0], cur_state[1]), dim=1)
+        # q = self.q(obs_grid_concate)
+        # k = self.k(obs_grid_concate)
+        # v = self.v(obs_grid_concate)
+        # score = torch.bmm(k.unsqueeze(axis=1), q.unsqueeze(axis=2))
+        # alpha = F.softmax(score / np.sqrt(k.size(-1)), dim=1)  # we use dim=1 here because we need to get attention of each sequence in K towards all hidden vector of q in each batch.
+        # v_att = torch.sum(v * alpha, axis=1)
+        # action_out = self.outlay(v_att)
+        #V3
+        # own_obs = self.own_fc(cur_state[0])
+        # own_grid = self.own_grid(cur_state[1])
+        # norm_pos = cur_state[0][:, 0:2]
+        # q = self.q(norm_pos)
+        # k = self.k(cur_state[1])
+        # v = self.v(cur_state[1])
+        # score = torch.bmm(k.unsqueeze(axis=1), q.unsqueeze(axis=2))
+        # alpha = F.softmax(score / np.sqrt(k.size(-1)), dim=1)  # we use dim=1 here because we need to get attention of each sequence in K towards all hidden vector of q in each batch.
+        # v_att = torch.sum(v * alpha, axis=1)
+        # feature_comb = torch.cat((v_att, own_obs, own_grid), dim=1)
+        # combine_fea = self.combine_feature(feature_comb)
+        # action_out = self.outlay(combine_fea)
+        #V4
+        # q = self.q(cur_state[0])
+        # k = self.k(cur_state[1])
+        # v = self.v(cur_state[1])
+        # score = torch.bmm(k.unsqueeze(axis=1), q.unsqueeze(axis=2))
+        # alpha = F.softmax(score / np.sqrt(k.size(-1)), dim=1)  # we use dim=1 here because we need to get attention of each sequence in K towards all hidden vector of q in each batch.
+        # v_att = torch.sum(v * alpha, axis=1)
+        # own_obs = self.own_fc(cur_state[0])
+        # feature_comb = torch.cat((own_obs, v_att), dim=1)
+        # action_out = self.outlay(feature_comb)
+        #V4.1
+        own_obs = self.own_fc(cur_state[0])
+        own_grid = self.own_grid(cur_state[1])
+        feature_comb = torch.cat((own_obs, own_grid), dim=1)
+        action_out = self.outlay(feature_comb)
         return action_out
 
 
@@ -1169,11 +1221,30 @@ class critic_single_obs_TwoPortion_wATT(nn.Module):
         # self.q = nn.Linear(128, 128, bias=False)
         # self.v = nn.Linear(128, 128, bias=False)
         
-        self.k = nn.Linear(critic_obs[0]+critic_obs[1]+n_actions, 128, bias=False)
-        self.q = nn.Linear(critic_obs[0]+critic_obs[1]+n_actions, 128, bias=False)
-        self.v = nn.Linear(critic_obs[0]+critic_obs[1]+n_actions, 128, bias=False)
-        self.own_fc_outlay = nn.Sequential(nn.Linear(128, 128), nn.ReLU(),
-                                           nn.Linear(128, 1))
+        # self.k = nn.Linear(critic_obs[0]+critic_obs[1]+n_actions, 128, bias=False)
+        # self.q = nn.Linear(critic_obs[0]+critic_obs[1]+n_actions, 128, bias=False)
+        # self.v = nn.Linear(critic_obs[0]+critic_obs[1]+n_actions, 128, bias=False)
+        # self.own_fc_outlay = nn.Sequential(nn.Linear(128, 128), nn.ReLU(),
+        #                                    nn.Linear(128, 1))
+        # V3
+        # self.q = nn.Linear(2, 32, bias=False)
+        # self.k = nn.Linear(critic_obs[1], 32, bias=False)
+        # self.v = nn.Linear(critic_obs[1], 32, bias=False)
+        # self.own_fc = nn.Sequential(nn.Linear(critic_obs[0]+n_actions, 64), nn.ReLU())
+        # self.own_grid = nn.Sequential(nn.Linear(critic_obs[1], 64), nn.ReLU())
+        # self.combine_feature = nn.Sequential(nn.Linear(64+64+32, 256), nn.ReLU())
+        # self.outlay = nn.Sequential(nn.Linear(256, 1))
+        #V4
+        # self.q = nn.Linear(critic_obs[0]+n_actions, 64, bias=False)
+        # self.k = nn.Linear(critic_obs[1], 64, bias=False)
+        # self.v = nn.Linear(critic_obs[1], 64, bias=False)
+        # self.own_fc = nn.Sequential(nn.Linear(critic_obs[0]+n_actions, 64), nn.ReLU())
+        # self.combine_feature = nn.Sequential(nn.Linear(64+64, 256), nn.ReLU())
+        # self.outlay = nn.Sequential(nn.Linear(256, 1))
+        #V4.1
+        self.own_fc = nn.Sequential(nn.Linear(critic_obs[0]+n_actions, 64), nn.ReLU())
+        self.own_grid = nn.Sequential(nn.Linear(critic_obs[1], 64), nn.ReLU())
+        self.outlay = nn.Sequential(nn.Linear(128, 128), nn.ReLU(), nn.Linear(128, 1))
 
     def forward(self, single_state, single_action):
         # obsWaction = torch.cat((single_state[0], single_action), dim=1)
@@ -1188,15 +1259,48 @@ class critic_single_obs_TwoPortion_wATT(nn.Module):
         # alpha = F.softmax(score / np.sqrt(k.size(-1)), dim=1)
         # v_att = torch.sum(v*alpha, axis=1)
         # q = self.own_fc_outlay(v_att)
-        obsWaction_grid = torch.cat((single_state[0], single_state[1], single_action), dim=1)
-        # attention embedding
-        q = self.q(obsWaction_grid)
-        k = self.k(obsWaction_grid)
-        v = self.v(obsWaction_grid)
-        score = torch.bmm(k.unsqueeze(axis=1), q.unsqueeze(axis=2))
-        alpha = F.softmax(score / np.sqrt(k.size(-1)), dim=1)
-        v_att = torch.sum(v*alpha, axis=1)
-        q = self.own_fc_outlay(v_att)
+
+        # obsWaction_grid = torch.cat((single_state[0], single_state[1], single_action), dim=1)
+        # # attention embedding
+        # q = self.q(obsWaction_grid)
+        # k = self.k(obsWaction_grid)
+        # v = self.v(obsWaction_grid)
+        # score = torch.bmm(k.unsqueeze(axis=1), q.unsqueeze(axis=2))
+        # alpha = F.softmax(score / np.sqrt(k.size(-1)), dim=1)
+        # v_att = torch.sum(v*alpha, axis=1)
+        # q = self.own_fc_outlay(v_att)
+        #V3
+        # obsWaction = torch.cat((single_state[0], single_action), dim=1)
+        # own_obs = self.own_fc(obsWaction)
+        # own_grid = self.own_grid(single_state[1])
+        # norm_pos = single_state[0][:, 0:2]
+        # q = self.q(norm_pos)
+        # k = self.k(single_state[1])
+        # v = self.v(single_state[1])
+        # score = torch.bmm(k.unsqueeze(axis=1), q.unsqueeze(axis=2))
+        # alpha = F.softmax(score / np.sqrt(k.size(-1)), dim=1)  # we use dim=1 here because we need to get attention of each sequence in K towards all hidden vector of q in each batch.
+        # v_att = torch.sum(v * alpha, axis=1)
+        # feature_comb = torch.cat((v_att, own_obs, own_grid), dim=1)
+        # comb_fea = self.combine_feature(feature_comb)
+        # q = self.outlay(comb_fea)
+        #V4
+        # obsWaction = torch.cat((single_state[0], single_action), dim=1)
+        # own_obs = self.own_fc(obsWaction)
+        # q = self.q(obsWaction)
+        # k = self.k(single_state[1])
+        # v = self.v(single_state[1])
+        # score = torch.bmm(k.unsqueeze(axis=1), q.unsqueeze(axis=2))
+        # alpha = F.softmax(score / np.sqrt(k.size(-1)), dim=1)  # we use dim=1 here because we need to get attention of each sequence in K towards all hidden vector of q in each batch.
+        # v_att = torch.sum(v * alpha, axis=1)
+        # feature_comb = torch.cat((v_att, own_obs), dim=1)
+        # comb_fea = self.combine_feature(feature_comb)
+        # q = self.outlay(comb_fea)
+        #V4.1
+        obsWaction = torch.cat((single_state[0], single_action), dim=1)
+        own_obs = self.own_fc(obsWaction)
+        own_grid = self.own_grid(single_state[1])
+        feature_comb = torch.cat((own_obs, own_grid), dim=1)
+        q = self.outlay(feature_comb)
         return q
 
 
