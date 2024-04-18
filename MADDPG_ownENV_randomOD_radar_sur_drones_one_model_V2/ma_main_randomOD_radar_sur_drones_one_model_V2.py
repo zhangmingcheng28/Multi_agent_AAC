@@ -347,8 +347,8 @@ def main(args):
         # initialize_excel_file(excel_file_path_time)
         # ------------ end of this portion is to save using excel instead of pickle -----------
 
-    use_wanDB = False
-    # use_wanDB = True
+    # use_wanDB = False
+    use_wanDB = True
 
     get_evaluation_status = True  # have figure output
     # get_evaluation_status = False  # no figure output, mainly obtain collision rate
@@ -385,8 +385,8 @@ def main(args):
     # create world
     # actor_dim = [6+(total_agentNum-1)*2, 10, 6]  # dim host, maximum dim grid, dim other drones
     # critic_dim = [6+(total_agentNum-1)*2, 10, 6]
-    use_allNeigh_wRadar = True
-    # use_allNeigh_wRadar = False
+    # use_allNeigh_wRadar = True
+    use_allNeigh_wRadar = False
     if full_observable_critic_flag:
         # actor_dim = [6, 18, 6]  # dim host, maximum dim grid, dim other drones
         actor_dim = [8, 18, 6]  # dim host, maximum dim grid, dim other drones
@@ -1096,7 +1096,7 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--scenario', default="simple_spread", type=str)
-    parser.add_argument('--max_episodes', default=35000, type=int)  # run for a total of 50000 episodes
+    parser.add_argument('--max_episodes', default=20000, type=int)  # run for a total of 50000 episodes
     parser.add_argument('--algo', default="maddpg", type=str, help="commnet/bicnet/maddpg")
     parser.add_argument('--mode', default="train", type=str, help="train/eval")
     # parser.add_argument('--episode_length', default=150, type=int)  # maximum play per episode

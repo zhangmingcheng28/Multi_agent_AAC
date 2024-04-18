@@ -47,8 +47,11 @@ class MADDPG:
                 self.critics = [critic_single_obs_wGRU_TwoPortion(critic_dim, n_agents, dim_act, gru_history_length, actor_hidden_state_size) for _ in range(n_agents)]
                 # self.critics = [critic_single_obs_wGRU_TwoPortion_att(critic_dim, n_agents, dim_act, gru_history_length, actor_hidden_state_size) for _ in range(n_agents)]
             else:
-                self.actors = [GRUCELL_actor_TwoPortion(actor_dim, dim_act, actor_hidden_state_size) for _ in range(n_agents)]  # use deterministic policy
-                self.critics = [critic_single_obs_wGRU_TwoPortion(critic_dim, n_agents, dim_act, gru_history_length, actor_hidden_state_size) for _ in range(n_agents)]
+                # self.actors = [GRU_batch_actor_TwoPortion(actor_dim, dim_act, actor_hidden_state_size) for _ in range(n_agents)]  # use deterministic policy
+                self.actors = [LSTM_batch_actor_TwoPortion(actor_dim, dim_act, actor_hidden_state_size) for _ in range(n_agents)]  # use deterministic policy
+                # self.critics = [critic_single_obs_wGRU_TwoPortion(critic_dim, n_agents, dim_act, gru_history_length, actor_hidden_state_size) for _ in range(n_agents)]
+                # self.critics = [critic_single_obs_GRU_batch_twoPortion(critic_dim, n_agents, dim_act, gru_history_length, actor_hidden_state_size) for _ in range(n_agents)]
+                self.critics = [critic_single_obs_LSTM_batch_twoPortion(critic_dim, n_agents, dim_act, gru_history_length, actor_hidden_state_size) for _ in range(n_agents)]
         elif attention_only:
             self.actors = [actor_TwoPortion_wATT(actor_dim, dim_act) for _ in
                            range(n_agents)]  # use deterministic policy

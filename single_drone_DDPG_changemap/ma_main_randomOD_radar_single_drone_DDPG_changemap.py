@@ -80,14 +80,15 @@ def main(args):
     # full_observable_critic_flag = True
     full_observable_critic_flag = False
 
-    # use_GRU_flag = True
-    use_GRU_flag = False
+    use_GRU_flag = True
+    # use_GRU_flag = False
 
     # use_attention_flag = True
     use_attention_flag = False
 
-    attention_only = True
-    # attention_only = False
+
+    # attention_only = True
+    attention_only = False
 
     if use_wanDB:
         wandb.login(key="efb76db851374f93228250eda60639c70a93d1ec")
@@ -249,7 +250,6 @@ def main(args):
         step = 0
         agent_added = 0  # this is an initialization for each new episode
         accum_reward = 0
-
         trajectory_eachPlay = []
 
         while True:  # start of a step
