@@ -2814,7 +2814,7 @@ class env_simulator:
         # return reward, done, check_goal, step_reward_record, agent_filled
         return reward, done, check_goal, step_reward_record
 
-    def ss_reward(self, current_ts, step_reward_record, eps_status_holder, step_collision_record, xy, full_observable_critic_flag):
+    def ss_reward(self, current_ts, step_reward_record, eps_status_holder, step_collision_record, xy, full_observable_critic_flag, episode):
         bound_building_check = [False] * 3
         reward, done = [], []
         agent_to_remove = []
@@ -3186,8 +3186,20 @@ class env_simulator:
                 #           small_step_penalty + near_goal_reward - near_building_penalty + seg_reward-survival_penalty - near_drone_penalty
                 # else:
                 #     rew = rew + move_after_reach
-                rew = rew + dist_to_ref_line + dist_to_goal - \
-                      small_step_penalty + near_goal_reward - near_building_penalty + seg_reward - survival_penalty - near_drone_penalty
+
+                # original reward ---
+                # rew = rew + dist_to_ref_line + dist_to_goal - \
+                #       small_step_penalty + near_goal_reward - near_building_penalty + seg_reward - survival_penalty - near_drone_penalty
+                # end of original reward ---
+
+                # reward change with step ---
+                if episode <= 5000:
+                    rew = rew - small_step_penalty - near_building_penalty - near_drone_penalty
+                elif episode > 5000 and episode <= 10000:
+                    rew = rew - small_step_penalty - near_building_penalty - near_drone_penalty + dist_to_goal
+                else:
+                    rew = rew - small_step_penalty - near_building_penalty - near_drone_penalty + dist_to_goal + dist_to_ref_line
+                # end of reward change with step ---
                 # we remove the above termination condition
                 done.append(False)
                 step_reward = np.array(rew)
