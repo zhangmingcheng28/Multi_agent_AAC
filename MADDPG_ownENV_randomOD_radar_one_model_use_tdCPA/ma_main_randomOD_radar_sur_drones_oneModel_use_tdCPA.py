@@ -145,12 +145,14 @@ def main(args):
         elif use_allNeigh_wRadar:
             # actor_dim = [6, (total_agentNum - 1) * 5, 18, 6]
             # actor_dim = [7, (total_agentNum - 1) * 6, 36, 6]
-            actor_dim = [9, (total_agentNum - 1) * 8, 36, 6]
+            # actor_dim = [9, (total_agentNum - 1) * 8, 36, 6]
+            actor_dim = [9, (total_agentNum - 1) * 8, 18, 6]
             # actor_dim = [6, 1 * 5, 36, 6]
             # actor_dim = [6, 2 * 5, 36, 6]
             # critic_dim = [6, (total_agentNum - 1) * 5, 18, 6]
             # critic_dim = [7, (total_agentNum - 1) * 6, 36, 6]
-            critic_dim = [9, (total_agentNum - 1) * 8, 36, 6]
+            # critic_dim = [9, (total_agentNum - 1) * 8, 36, 6]
+            critic_dim = [9, (total_agentNum - 1) * 8, 18, 6]
             # critic_dim = [6, 1 * 5, 36, 6]
             # critic_dim = [6, 2 * 5, 36, 6]
         else:
@@ -197,13 +199,13 @@ def main(args):
     # actorNet_lr = 0.001/10
     # actorNet_lr = 0.0001/5
     # actorNet_lr = 0.0005
-    actorNet_lr = 0.0001
+    actorNet_lr = 0.001
     # actorNet_lr = 0.0001/2
     # actorNet_lr = 0.001
     # criticNet_lr = 0.001/10
     # criticNet_lr = 0.0001/5
     # criticNet_lr = 0.0005
-    criticNet_lr = 0.0001
+    criticNet_lr = 0.001
     # criticNet_lr = 0.0001/2
     # criticNet_lr = 0.001
     # criticNet_lr = 0.0005
@@ -242,10 +244,10 @@ def main(args):
     # eps_end = 5000  # at eps = eps_end, the eps value drops to lowest value which is 0.03 (this value is fixed)
     # eps_end = round(args.max_episodes / 2)  # at eps = eps_end, the eps value drops to lowest value which is 0.03 (this value is fixed)
     # eps_end = 8000  # at eps = eps_end, the eps value drops to lowest value which is 0.03 (this value is fixed)
-    # eps_end = 10000  # at eps = eps_end, the eps value drops to lowest value which is 0.03 (this value is fixed)
+    eps_end = 10000  # at eps = eps_end, the eps value drops to lowest value which is 0.03 (this value is fixed)
     # eps_end = 2500  # at eps = eps_end, the eps value drops to lowest value which is 0.03 (this value is fixed)
     # eps_end = 4500  # at eps = eps_end, the eps value drops to lowest value which is 0.03 (this value is fixed)
-    eps_end = 1000  # at eps = eps_end, the eps value drops to lowest value which is 0.03 (this value is fixed)
+    # eps_end = 1000  # at eps = eps_end, the eps value drops to lowest value which is 0.03 (this value is fixed)
     # eps_end = 2000  # at eps = eps_end, the eps value drops to lowest value which is 0.03 (this value is fixed)
     noise_start_level = 1
     training_start_time = time.time()
@@ -1075,7 +1077,7 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--scenario', default="simple_spread", type=str)
-    parser.add_argument('--max_episodes', default=2000, type=int)  # run for a total of 50000 episodes
+    parser.add_argument('--max_episodes', default=20000, type=int)  # run for a total of 50000 episodes
     parser.add_argument('--algo', default="maddpg", type=str, help="commnet/bicnet/maddpg")
     parser.add_argument('--mode', default="train", type=str, help="train/eval")
     # parser.add_argument('--episode_length', default=150, type=int)  # maximum play per episode

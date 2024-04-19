@@ -1301,8 +1301,11 @@ class env_simulator:
             #                       agent.goal[-1][0]-agent.pos[0], agent.goal[-1][1]-agent.pos[1], nearest_neigh_pos[0],
             #                       nearest_neigh_pos[1]])
 
-            agent_own = np.array([agent.pos[0], agent.pos[1], agent.vel[0], agent.vel[1], x_error, y_error,
-                                  agent.goal[-1][0]-agent.pos[0], agent.goal[-1][1]-agent.pos[1], delta_nei[0], delta_nei[1]])
+            # agent_own = np.array([agent.pos[0], agent.pos[1], agent.vel[0], agent.vel[1], x_error, y_error,
+            #                       agent.goal[-1][0]-agent.pos[0], agent.goal[-1][1]-agent.pos[1], delta_nei[0], delta_nei[1]])
+
+            agent_own = np.array([agent.pos[0], agent.pos[1], agent.vel[0], agent.vel[1],
+                                  agent.goal[-1][0]-agent.pos[0], agent.goal[-1][1]-agent.pos[1], agent.heading, delta_nei[0], delta_nei[1]])
 
             # agent_own = np.array([agent.pos[0], agent.pos[1], agent.vel[0], agent.vel[1], x_error, y_error,
             #                       agent.goal[-1][0]-agent.pos[0], agent.goal[-1][1]-agent.pos[1], delta_nei[0], delta_nei[1],
@@ -1321,7 +1324,10 @@ class env_simulator:
             # norm_agent_own = np.concatenate([norm_pos, norm_vel, norm_deltaG], axis=0)
             # norm_agent_own = np.concatenate([norm_pos, norm_vel, norm_cross, norm_deltaG], axis=0)
             # norm_agent_own = np.concatenate([norm_pos, norm_vel, norm_cross, norm_deltaG, norm_nearest_neigh_pos], axis=0)
-            norm_agent_own = np.concatenate([norm_pos, norm_vel, norm_cross, norm_deltaG, norm_delta_nei], axis=0)
+            # norm_agent_own = np.concatenate([norm_pos, norm_vel, norm_cross, norm_deltaG, norm_delta_nei], axis=0)
+            norm_agent_own = np.concatenate([norm_pos, norm_vel, norm_deltaG], axis=0)
+            heading_to_nei_delta = np.array([agent.heading, norm_delta_nei[0], norm_delta_nei[1]])
+            norm_agent_own = np.append(norm_agent_own, heading_to_nei_delta)
             # norm_agent_own = np.concatenate([norm_pos, norm_vel, norm_cross, norm_deltaG, norm_delta_nei, norm_nearest_neigh_vel], axis=0)
             # norm_agent_own = np.concatenate([norm_pos, norm_vel, norm_ref_line_obs, norm_deltaG], axis=0)
             # norm_agent_own = np.concatenate([norm_pos, norm_vel, norm_acc, norm_deltaG], axis=0)
@@ -3340,8 +3346,9 @@ class env_simulator:
             self.all_agents[drone_idx].acc = np.array([ax, ay])
 
             counterCheck_heading = math.atan2(delta_y, delta_x)
-            if abs(next_heading - counterCheck_heading) > 1e-3 :
+            if abs(next_heading - counterCheck_heading) > 1e-3:
                 print("debug, heading different")
+            self.all_agents[drone_idx].heading = counterCheck_heading
             # ------------- end of acceleration in x and acceleration in y state transition control ---------------#
 
             self.all_agents[drone_idx].pos = np.array([self.all_agents[drone_idx].pos[0] + delta_x,

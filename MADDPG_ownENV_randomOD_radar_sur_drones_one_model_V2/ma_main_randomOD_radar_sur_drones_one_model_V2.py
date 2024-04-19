@@ -408,8 +408,10 @@ def main(args):
             actor_dim = [9, (total_agentNum - 1) * 8, 36, 6]
             critic_dim = [9, (total_agentNum - 1) * 8, 36, 6]
         else:
-            actor_dim = [10, 18, 6]  # dim host, maximum dim grid, dim other drones
-            critic_dim = [10, 18, 6]
+            # actor_dim = [10, 18, 6]  # dim host, maximum dim grid, dim other drones
+            actor_dim = [9, 18, 6]  # dim host, maximum dim grid, dim other drones
+            # critic_dim = [10, 18, 6]
+            critic_dim = [9, 18, 6]
 
     actor_hidden_state = 64
     actor_hidden_state_list = [actor_hidden_state for _ in range(total_agentNum)]
@@ -454,7 +456,8 @@ def main(args):
     eps_check_collision = []
     eps_noise_record = []
     episode_critic_loss_cal_record = []
-    eps_end = 8000  # at eps = eps_end, the eps value drops to lowest value which is 0.03 (this value is fixed)
+    # eps_end = 8000  # at eps = eps_end, the eps value drops to lowest value which is 0.03 (this value is fixed)
+    eps_end = 10000  # at eps = eps_end, the eps value drops to lowest value which is 0.03 (this value is fixed)
     # eps_end = 5000  # at eps = eps_end, the eps value drops to lowest value which is 0.03 (this value is fixed)
     # eps_end = round(args.max_episodes / 2)  # at eps = eps_end, the eps value drops to lowest value which is 0.03 (this value is fixed)
     # eps_end = 8000  # at eps = eps_end, the eps value drops to lowest value which is 0.03 (this value is fixed)
