@@ -8,6 +8,7 @@
 """
 import copy
 import jps
+import warnings
 from jps_straight import jps_find_path
 from collections import OrderedDict
 from shapely.ops import nearest_points
@@ -245,8 +246,9 @@ class env_simulator:
 
         start_pos_memory = []
 
-        random_start_pos_list = [(600,380), (620,380), (650,280),(650,290),(490,270),(460,330),(580,370),(500,340)]
-        random_end_pos_list = [(490,330), (470,360), (550,350),(560,340),(500,350),(620,360),(460,270),(660,280)]
+        # random_start_pos_list = [(600,380), (620,380), (650,280),(650,290),(490,270),(460,330),(580,370),(500,340)]
+        # random_end_pos_list = [(490,330), (470,360), (550,350),(560,340),(500,350),(620,360),(460,270),(660,280)]
+
         # any_collision = 0
         # loop_count = 0
         # while not any_collision:
@@ -293,8 +295,8 @@ class env_simulator:
                     print("Initial start point {} collision with buildings".format(np.array(random_start_pos)))
                     break
 
-            random_start_pos = random_start_pos_list[agentIdx]
-            random_end_pos = random_end_pos_list[agentIdx]
+            # random_start_pos = random_start_pos_list[agentIdx]
+            # random_end_pos = random_end_pos_list[agentIdx]
 
             self.all_agents[agentIdx].pos = np.array(random_start_pos)
             self.all_agents[agentIdx].pre_pos = np.array(random_start_pos)
@@ -1123,8 +1125,9 @@ class env_simulator:
                         # Check if the line intersects with the building polygon's boundary
                         if polygons_list_wBound[polygon_idx].geom_type == "Polygon":
                             if line.intersects(polygons_list_wBound[polygon_idx]):
-                                intersection_point = line.intersection(polygons_list_wBound[polygon_idx].boundary)
-
+                                with warnings.catch_warnings():
+                                    warnings.simplefilter('ignore', category=RuntimeWarning)
+                                    intersection_point = line.intersection(polygons_list_wBound[polygon_idx].boundary)
                                 if intersection_point.geom_type == 'MultiPoint':
                                     nearest_point = min(intersection_point.geoms,
                                                         key=lambda point: drone_ctr.distance(point))
@@ -1143,7 +1146,9 @@ class env_simulator:
                                     norm_intersection_delta_pos = norm_pos - norm_intersection_obstacle
                         else:  # possible intersection is not a polygon but a LineString, meaning it is a boundary line
                             if line.intersects(polygons_list_wBound[polygon_idx]):
-                                intersection = line.intersection(polygons_list_wBound[polygon_idx])
+                                with warnings.catch_warnings():
+                                    warnings.simplefilter('ignore', category=RuntimeWarning)
+                                    intersection = line.intersection(polygons_list_wBound[polygon_idx])
                                 if intersection.geom_type == 'Point':
                                     sensed_shortest_dist = intersection.distance(drone_ctr)
                                     if sensed_shortest_dist < shortest_dist:
@@ -1316,7 +1321,9 @@ class env_simulator:
 
             point_b = nearest_points(agent.ref_line, host_current_point)[0]  # [0] meaning return must be nearer to the 1st input variable
             dist_to_b = agent.ref_line.project(point_b)
-            line_within_circle = agent.ref_line.intersection(host_detection_circle)
+            with warnings.catch_warnings():
+                warnings.simplefilter('ignore', category=RuntimeWarning)
+                line_within_circle = agent.ref_line.intersection(host_detection_circle)
             if line_within_circle.length == 0:
                 # If there is no intersection, we determine whether this drone is on the left or right of the nearest line segment
                 # Identify the closest segment to the nearest point on the line
@@ -1367,8 +1374,9 @@ class env_simulator:
                                                                                cap_style='round')  # set to [-1] so there are no more reference path
                 # when there is no intersection between two geometries, "RuntimeWarning" will appear
                 # RuntimeWarning is, "invalid value encountered in intersection"
-                nei_goal_intersect = nei_cur_circle.intersection(nei_tar_circle)
-
+                with warnings.catch_warnings():
+                    warnings.simplefilter('ignore', category=RuntimeWarning)
+                    nei_goal_intersect = nei_cur_circle.intersection(nei_tar_circle)
                 # if not nei_goal_intersect.is_empty:  # current neigh has reached their goal  # this will affect the drone's state space observation do note of this.
                 #     continue  # straight away pass this neigh which has already reached.
 
@@ -3070,7 +3078,9 @@ class env_simulator:
                                                                                cap_style='round')  # set to [-1] so there are no more reference path
                 # when there is no intersection between two geometries, "RuntimeWarning" will appear
                 # RuntimeWarning is, "invalid value encountered in intersection"
-                neigh_goal_intersect = cur_nei_circle.intersection(cur_nei_tar_circle)
+                with warnings.catch_warnings():
+                    warnings.simplefilter('ignore', category=RuntimeWarning)
+                    neigh_goal_intersect = cur_nei_circle.intersection(cur_nei_tar_circle)
                 if args.mode == 'eval' and evaluation_by_episode == False:
                     if not neigh_goal_intersect.is_empty:  # current neigh has reached their goal
                         continue  # straight away pass this neigh which has already reached.
@@ -3144,7 +3154,9 @@ class env_simulator:
             tar_circle = Point(self.all_agents[drone_idx].goal[-1]).buffer(1, cap_style='round')  # set to [-1] so there are no more reference path
             # when there is no intersection between two geometries, "RuntimeWarning" will appear
             # RuntimeWarning is, "invalid value encountered in intersection"
-            goal_cur_intru_intersect = host_current_circle.intersection(tar_circle)
+            with warnings.catch_warnings():
+                warnings.simplefilter('ignore', category=RuntimeWarning)
+                goal_cur_intru_intersect = host_current_circle.intersection(tar_circle)
 
             # wp_circle = Point(self.all_agents[drone_idx].goal[0]).buffer(1, cap_style='round')
             # wp_circle = Point(self.all_agents[drone_idx].goal[0]).buffer(drone_obj.protectiveBound,
@@ -3184,15 +3196,20 @@ class env_simulator:
             # ------------- pre-processed condition for a normal step -----------------
             # rew = 3
             rew = 0
-            dist_to_goal_coeff = 1
-            # dist_to_goal_coeff = 3
+            # dist_to_goal_coeff = 1
+            dist_to_goal_coeff = 3
             # dist_to_goal_coeff = 1
             # dist_to_goal_coeff = 0
             # dist_to_goal_coeff = 2
 
             x_norm, y_norm = self.normalizer.nmlz_pos(drone_obj.pos)
             tx_norm, ty_norm = self.normalizer.nmlz_pos(drone_obj.goal[-1])
-            # dist_to_goal = dist_to_goal_coeff * math.sqrt(((x_norm-tx_norm)**2 + (y_norm-ty_norm)**2))  # 0~2.828 at each step
+            after_dist_hg = np.linalg.norm(drone_obj.pos - drone_obj.goal[-1])  # distance to goal after action
+
+            # -- original --
+            dist_left = total_length_to_end_of_line(drone_obj.pos, drone_obj.ref_line)
+            dist_to_goal = dist_to_goal_coeff * (1 - (dist_left / drone_obj.ref_line.length))
+            # end of original --
 
             # ---- leading to goal reward V4 ----
             # before_dist_hg = np.linalg.norm(drone_obj.pre_pos - drone_obj.goal[-1])  # distance to goal before action
@@ -3204,12 +3221,12 @@ class env_simulator:
             # ---- end of leading to goal reward V4 ----
 
             # ---- V5 euclidean distance ----
-            dist_away = np.linalg.norm(drone_obj.ini_pos - drone_obj.goal[-1])
-            after_dist_hg = np.linalg.norm(drone_obj.pos - drone_obj.goal[-1])  # distance to goal after action
-            if after_dist_hg > dist_away:
-                dist_to_goal = dist_to_goal_coeff * 0
-            else:
-                dist_to_goal = dist_to_goal_coeff * (1-after_dist_hg/dist_away)
+            # dist_away = np.linalg.norm(drone_obj.ini_pos - drone_obj.goal[-1])
+            # after_dist_hg = np.linalg.norm(drone_obj.pos - drone_obj.goal[-1])  # distance to goal after action
+            # if after_dist_hg > dist_away:
+            #     dist_to_goal = dist_to_goal_coeff * 0
+            # else:
+            #     dist_to_goal = dist_to_goal_coeff * (1-after_dist_hg/dist_away)
             # ---- end of V5 -------
 
             # ----- v4 accumulative ---
@@ -3288,56 +3305,56 @@ class env_simulator:
             # ------- end of reward for surrounding agents as a whole ----
 
             # ----- start of near drone penalty ----------------
-            # near_drone_penalty_coef = 10
+            near_drone_penalty_coef = 10
+            # near_drone_penalty_coef = 5
+            # near_drone_penalty_coef = 1
+            # near_drone_penalty_coef = 3
+            # near_drone_penalty_coef = 0
+            dist_to_penalty_upperbound = 6
+            # dist_to_penalty_upperbound = 10
+            dist_to_penalty_lowerbound = 2.5
+            # assume when at lowerbound, y = 1
+            c_drone = 1 + (dist_to_penalty_lowerbound / (dist_to_penalty_upperbound - dist_to_penalty_lowerbound))
+            m_drone = (0 - 1) / (dist_to_penalty_upperbound - dist_to_penalty_lowerbound)
+            if nearest_neigh_key is not None:
+                if shortest_neigh_dist >= dist_to_penalty_lowerbound and shortest_neigh_dist <= dist_to_penalty_upperbound:
+                    near_drone_penalty = near_drone_penalty_coef * (m_drone * shortest_neigh_dist + c_drone)
+                else:
+                    near_drone_penalty = near_drone_penalty_coef * 0
+            else:
+                near_drone_penalty = near_drone_penalty_coef * 0
+            # -----end of near drone penalty ----------------
+
+            # ----- start of SUM near drone penalty ----------------
+            # # near_drone_penalty_coef = 10
+            # near_drone_penalty_coef = 1
             # # near_drone_penalty_coef = 5
             # # near_drone_penalty_coef = 1
             # # near_drone_penalty_coef = 3
             # # near_drone_penalty_coef = 0
             # # dist_to_penalty_upperbound = 6
             # dist_to_penalty_upperbound = 10
+            # # dist_to_penalty_upperbound = 20
             # dist_to_penalty_lowerbound = 2.5
             # # assume when at lowerbound, y = 1
+            # near_drone_penalty = 0  # initialize
             # c_drone = 1 + (dist_to_penalty_lowerbound / (dist_to_penalty_upperbound - dist_to_penalty_lowerbound))
             # m_drone = (0 - 1) / (dist_to_penalty_upperbound - dist_to_penalty_lowerbound)
-            # if nearest_neigh_key is not None:
-            #     if shortest_neigh_dist >= dist_to_penalty_lowerbound and shortest_neigh_dist <= dist_to_penalty_upperbound:
-            #         near_drone_penalty = near_drone_penalty_coef * (m_drone * shortest_neigh_dist + c_drone)
-            #     else:
-            #         near_drone_penalty = near_drone_penalty_coef * 0
+            # if len(all_neigh_dist) == 0:
+            #     near_drone_penalty = near_drone_penalty + near_drone_penalty_coef * 0
             # else:
-            #     near_drone_penalty = near_drone_penalty_coef * 0
-            # -----end of near drone penalty ----------------
-
-            # ----- start of SUM near drone penalty ----------------
-            # near_drone_penalty_coef = 10
-            near_drone_penalty_coef = 1
-            # near_drone_penalty_coef = 5
-            # near_drone_penalty_coef = 1
-            # near_drone_penalty_coef = 3
-            # near_drone_penalty_coef = 0
-            # dist_to_penalty_upperbound = 6
-            dist_to_penalty_upperbound = 10
-            # dist_to_penalty_upperbound = 20
-            dist_to_penalty_lowerbound = 2.5
-            # assume when at lowerbound, y = 1
-            near_drone_penalty = 0  # initialize
-            c_drone = 1 + (dist_to_penalty_lowerbound / (dist_to_penalty_upperbound - dist_to_penalty_lowerbound))
-            m_drone = (0 - 1) / (dist_to_penalty_upperbound - dist_to_penalty_lowerbound)
-            if len(all_neigh_dist) == 0:
-                near_drone_penalty = near_drone_penalty + near_drone_penalty_coef * 0
-            else:
-                for individual_nei_dist in all_neigh_dist:
-                    if individual_nei_dist >= dist_to_penalty_lowerbound and individual_nei_dist <= dist_to_penalty_upperbound:
-                        # normalize distance to 0-1
-                        norm_ind_nei_dist = (individual_nei_dist-dist_to_penalty_lowerbound) / (dist_to_penalty_upperbound-dist_to_penalty_lowerbound)
-                        near_drone_penalty = near_drone_penalty + (norm_ind_nei_dist-1)**2
-                    else:
-                        near_drone_penalty = near_drone_penalty + near_drone_penalty_coef * 0
-
-                    # if individual_nei_dist >= dist_to_penalty_lowerbound and individual_nei_dist <= dist_to_penalty_upperbound:
-                    #     near_drone_penalty = near_drone_penalty + (near_drone_penalty_coef * (m_drone * individual_nei_dist + c_drone))
-                    # else:
-                    #     near_drone_penalty = near_drone_penalty + near_drone_penalty_coef * 0
+            #     for individual_nei_dist in all_neigh_dist:
+            #         if individual_nei_dist >= dist_to_penalty_lowerbound and individual_nei_dist <= dist_to_penalty_upperbound:
+            #             # normalize distance to 0-1
+            #             norm_ind_nei_dist = (individual_nei_dist-dist_to_penalty_lowerbound) / (dist_to_penalty_upperbound-dist_to_penalty_lowerbound)
+            #             near_drone_penalty = near_drone_penalty + (norm_ind_nei_dist-1)**2
+            #         else:
+            #             near_drone_penalty = near_drone_penalty + near_drone_penalty_coef * 0
+            #
+            #         # if individual_nei_dist >= dist_to_penalty_lowerbound and individual_nei_dist <= dist_to_penalty_upperbound:
+            #         #     near_drone_penalty = near_drone_penalty + (near_drone_penalty_coef * (m_drone * individual_nei_dist + c_drone))
+            #         # else:
+            #         #     near_drone_penalty = near_drone_penalty + near_drone_penalty_coef * 0
             # -----end of near SUM drone penalty ----------------
 
             # ----- start of V2 nearest drone penalty ----------------
@@ -3365,8 +3382,8 @@ class env_simulator:
             # ----- end of V3 near drone penalty -------
 
 
-            # small_step_penalty_coef = 5
-            small_step_penalty_coef = 0
+            small_step_penalty_coef = 5
+            # small_step_penalty_coef = 0
             spd_penalty_threshold = 2*drone_obj.protectiveBound
             # spd_penalty_threshold = drone_obj.protectiveBound
             small_step_penalty_val = (spd_penalty_threshold -
@@ -3398,52 +3415,68 @@ class env_simulator:
             min_dist = dist_array[min_index]
             # radar_status = drone_obj.observableSpace[min_index][-1]  # radar status for now not required
 
-            # the distance is based on the minimum of the detected distance to surrounding buildings.
-            # near_building_penalty_coef = 4
-            near_building_penalty_coef = 10
-            # near_building_penalty_coef = 3
-            # near_building_penalty_coef = 0
+            # ----- non-linear building penalty ---
+            # # the distance is based on the minimum of the detected distance to surrounding buildings.
+            # # near_building_penalty_coef = 4
+            # near_building_penalty_coef = 10
+            # # near_building_penalty_coef = 3
+            # # near_building_penalty_coef = 0
+            #
+            # near_building_penalty = 0  # initialize
+            # prob_counter = 0  # initialize
+            # # turningPtConst = 12.5
+            # # turningPtConst = 5
+            # turningPtConst = 10
+            # if turningPtConst == 12.5:
+            #     c = 1.25
+            # elif turningPtConst == 5:
+            #     c = 2
+            #
+            # c = 1 + (drone_obj.protectiveBound / (turningPtConst - drone_obj.protectiveBound))
+            #
+            # for dist_idx, dist in enumerate(ascending_array):
+            #     # only consider the nearest 4 prob
+            #     if dist_idx > 3:
+            #         continue
+            #     # # linear building penalty
+            #     # makesure only when min_dist is >=0 and <= turningPtConst, then we activate this penalty
+            #     m = (0-1)/(turningPtConst-drone_obj.protectiveBound)  # we must consider drone's circle, because when min_distance is less than drone's radius, it is consider collision.
+            #     # if dist>=drone_obj.protectiveBound and dist<=turningPtConst:  # only when min_dist is between 2.5~5, this penalty is working.
+            #     #     near_building_penalty = near_building_penalty + near_building_penalty_coef*(m*dist+c)  # at each step, penalty from 3 to 0.
+            #     # else:
+            #     #     near_building_penalty = near_building_penalty + 0.0  # if min_dist is outside of the bound, other parts of the reward will be taking care.
+            #     # non-linear building penalty
+            #     if dist >= drone_obj.protectiveBound and dist <= turningPtConst:
+            #         norm_ind_nei_dist = (dist - drone_obj.protectiveBound) / (
+            #                     turningPtConst - drone_obj.protectiveBound)
+            #         near_building_penalty = near_building_penalty + near_building_penalty_coef * \
+            #                                 (1-norm_ind_nei_dist)**3
+            #     else:
+            #         near_building_penalty = near_building_penalty + 0.0
+            # --- end of non-linear building penalty ----
 
-            near_building_penalty = 0  # initialize
-            prob_counter = 0  # initialize
+            # ---linear building penalty ---
+            # the distance is based on the minimum of the detected distance to surrounding buildings.
+            # near_building_penalty_coef = 1
+            near_building_penalty_coef = 3
+            # near_building_penalty_coef = 0
+            # near_building_penalty = near_building_penalty_coef*((1-(1/(1+math.exp(turningPtConst-min_dist))))*
+            #
+            #                                                     (1-(min_dist/turningPtConst)**2))  # value from 0 ~ 1.
             # turningPtConst = 12.5
-            # turningPtConst = 5
-            turningPtConst = 10
+            turningPtConst = 5
             if turningPtConst == 12.5:
                 c = 1.25
             elif turningPtConst == 5:
                 c = 2
-
-            c = 1 + (drone_obj.protectiveBound / (turningPtConst - drone_obj.protectiveBound))
-
-            for dist_idx, dist in enumerate(ascending_array):
-                # only consider the nearest 4 prob
-                if dist_idx > 3:
-                    continue
-                # # linear building penalty
-                # makesure only when min_dist is >=0 and <= turningPtConst, then we activate this penalty
-                m = (0-1)/(turningPtConst-drone_obj.protectiveBound)  # we must consider drone's circle, because when min_distance is less than drone's radius, it is consider collision.
-                # if dist>=drone_obj.protectiveBound and dist<=turningPtConst:  # only when min_dist is between 2.5~5, this penalty is working.
-                #     near_building_penalty = near_building_penalty + near_building_penalty_coef*(m*dist+c)  # at each step, penalty from 3 to 0.
-                # else:
-                #     near_building_penalty = near_building_penalty + 0.0  # if min_dist is outside of the bound, other parts of the reward will be taking care.
-                # non-linear building penalty
-                if dist >= drone_obj.protectiveBound and dist <= turningPtConst:
-                    norm_ind_nei_dist = (dist - drone_obj.protectiveBound) / (
-                                turningPtConst - drone_obj.protectiveBound)
-                    near_building_penalty = near_building_penalty + near_building_penalty_coef * \
-                                            (1-norm_ind_nei_dist)**3
-                else:
-                    near_building_penalty = near_building_penalty + 0.0
-
-            # if min_dist < drone_obj.protectiveBound:
-            #     print("check for collision")
-            # # (linear building penalty) same thing, another way of express
-            # if min_dist < 2.5 or min_dist > turningPtConst:  # when min_dist is less than 2.5m, is consider collision, the collision penalty will take care of that
-            #     near_building_penalty = 0
-            # else:
-            #     near_building_penalty = near_building_penalty_coef * \
-            #                             ((min_dist-drone_obj.protectiveBound)/(turningPtConst-drone_obj.protectiveBound))
+            # # linear building penalty
+            # makesure only when min_dist is >=0 and <= turningPtConst, then we activate this penalty
+            m = (0-1)/(turningPtConst-drone_obj.protectiveBound)  # we must consider drone's circle, because when min_distance is less than drone's radius, it is consider collision.
+            if min_dist>=drone_obj.protectiveBound and min_dist<=turningPtConst:  # only when min_dist is between 2.5~5, this penalty is working.
+                near_building_penalty = near_building_penalty_coef*(m*min_dist+c)  # at each step, penalty from 3 to 0.
+            else:
+                near_building_penalty = 0  # if min_dist is outside of the bound, other parts of the reward will be taking care.
+            # --- end of linear building penalty ---
 
             # -------------end of pre-processed condition for a normal step -----------------
             #

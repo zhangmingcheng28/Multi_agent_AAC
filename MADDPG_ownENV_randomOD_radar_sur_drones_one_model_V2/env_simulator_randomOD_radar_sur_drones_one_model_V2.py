@@ -265,6 +265,7 @@ class env_simulator:
             random_end_pos = random.choice(self.target_pool[random_target_index])
             dist_between_se = np.linalg.norm(np.array(random_end_pos) - np.array(random_start_pos))
 
+
             # while dist_between_se >= 100:  # the distance between start & end point is more than a threshold, we reset SE pairs.
             #     random_end_pos = random.choice(self.target_pool[random_target_index])
             #     dist_between_se = np.linalg.norm(np.array(random_end_pos) - np.array(random_start_pos))
@@ -283,6 +284,13 @@ class env_simulator:
                     any_collision = 1
                     print("Initial start point {} collision with buildings".format(np.array(random_start_pos)))
                     break
+
+            # random_start_pos_list = [(600, 380), (620, 380), (650, 280), (650, 290), (490, 270), (460, 330), (580, 370),
+            #                          (500, 340)]
+            # random_end_pos_list = [(490, 330), (470, 360), (550, 350), (560, 340), (500, 350), (620, 360), (460, 270),
+            #                        (660, 280)]
+            # random_start_pos = random_start_pos_list[agentIdx]
+            # random_end_pos = random_end_pos_list[agentIdx]
 
             self.all_agents[agentIdx].pos = np.array(random_start_pos)
             self.all_agents[agentIdx].pre_pos = np.array(random_start_pos)
@@ -1138,7 +1146,7 @@ class env_simulator:
                             # Check if the line intersects with the polygon's boundary
                             if line.intersects(polygons_list_wBound[polygon_idx]):
                                 intersection_point = line.intersection(polygons_list_wBound[polygon_idx].boundary)
-                                if intersection_point.type == 'MultiPoint':
+                                if intersection_point.geom_type == 'MultiPoint':
                                     nearest_point = min(intersection_point.geoms,
                                                         key=lambda point: drone_ctr.distance(point))
                                 else:
@@ -3188,18 +3196,19 @@ class env_simulator:
                 #     rew = rew + move_after_reach
 
                 # original reward ---
-                # rew = rew + dist_to_ref_line + dist_to_goal - \
-                #       small_step_penalty + near_goal_reward - near_building_penalty + seg_reward - survival_penalty - near_drone_penalty
+                rew = rew + dist_to_ref_line + dist_to_goal - \
+                      small_step_penalty + near_goal_reward - near_building_penalty + seg_reward - survival_penalty - near_drone_penalty
                 # end of original reward ---
 
                 # reward change with step ---
-                if episode <= 5000:
-                    rew = rew - small_step_penalty - near_building_penalty - near_drone_penalty
-                elif episode > 5000 and episode <= 10000:
-                    rew = rew - small_step_penalty - near_building_penalty - near_drone_penalty + dist_to_goal
-                else:
-                    rew = rew - small_step_penalty - near_building_penalty - near_drone_penalty + dist_to_goal + dist_to_ref_line
+                # if episode <= 5000:
+                #     rew = rew - small_step_penalty - near_building_penalty - near_drone_penalty
+                # elif episode > 5000 and episode <= 10000:
+                #     rew = rew - small_step_penalty - near_building_penalty - near_drone_penalty + dist_to_goal
+                # else:
+                #     rew = rew - small_step_penalty - near_building_penalty - near_drone_penalty + dist_to_goal + dist_to_ref_line
                 # end of reward change with step ---
+
                 # we remove the above termination condition
                 done.append(False)
                 step_reward = np.array(rew)
@@ -3298,27 +3307,27 @@ class env_simulator:
             curVely = self.all_agents[drone_idx].vel[1] + ay * self.time_step
 
             # transition V2 ---------
-            cur_vel_vec = np.array([curVelx, curVely])
-            magnitude = np.linalg.norm(cur_vel_vec)
-            if magnitude == 0:
-                self.all_agents[drone_idx].vel = cur_vel_vec
-            else:
-                unit_vel_vec = cur_vel_vec / magnitude
-                cur_vel_vec = unit_vel_vec * self.all_agents[drone_idx].maxSpeed
-                self.all_agents[drone_idx].vel = cur_vel_vec
+            # cur_vel_vec = np.array([curVelx, curVely])
+            # magnitude = np.linalg.norm(cur_vel_vec)
+            # if magnitude == 0:
+            #     self.all_agents[drone_idx].vel = cur_vel_vec
+            # else:
+            #     unit_vel_vec = cur_vel_vec / magnitude
+            #     cur_vel_vec = unit_vel_vec * self.all_agents[drone_idx].maxSpeed
+            #     self.all_agents[drone_idx].vel = cur_vel_vec
             # end of transition V2 ---------
 
             next_heading = math.atan2(curVely, curVelx)
             # original transition ---------
-            # if np.linalg.norm([curVelx, curVely]) >= self.all_agents[drone_idx].maxSpeed:
-            #
-            #     # update host velocity when chosen speed has exceeded the max speed
-            #     hvx = self.all_agents[drone_idx].maxSpeed * math.cos(next_heading)
-            #     hvy = self.all_agents[drone_idx].maxSpeed * math.sin(next_heading)
-            #     self.all_agents[drone_idx].vel = np.array([hvx, hvy])
-            # else:
-            #     # update host velocity when max speed is not exceeded
-            #     self.all_agents[drone_idx].vel = np.array([curVelx, curVely])
+            if np.linalg.norm([curVelx, curVely]) >= self.all_agents[drone_idx].maxSpeed:
+
+                # update host velocity when chosen speed has exceeded the max speed
+                hvx = self.all_agents[drone_idx].maxSpeed * math.cos(next_heading)
+                hvy = self.all_agents[drone_idx].maxSpeed * math.sin(next_heading)
+                self.all_agents[drone_idx].vel = np.array([hvx, hvy])
+            else:
+                # update host velocity when max speed is not exceeded
+                self.all_agents[drone_idx].vel = np.array([curVelx, curVely])
             # end of original transition ---------
 
             #print("At time step {} the drone_{}'s output speed is {}".format(current_ts, drone_idx, np.linalg.norm(self.all_agents[drone_idx].vel)))

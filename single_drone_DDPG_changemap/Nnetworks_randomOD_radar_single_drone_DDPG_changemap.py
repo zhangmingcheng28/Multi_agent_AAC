@@ -741,10 +741,10 @@ class LSTM_batch_actor_TwoPortion(nn.Module):
 
     def forward(self, cur_state, history_hidden_state):
         own_obs = self.own_fc(cur_state[0])
-        h_out_grid, (hn, cn) = self.lstm(cur_state[1])
-        merge_obs_H_grid = torch.cat((own_obs, h_out_grid), dim=1)
+        h_out_grid, (hn, cn) = self.lstm(cur_state[1], history_hidden_state)
+        merge_obs_H_grid = torch.cat((own_obs, h_out_grid), dim=2)
         action_out = self.outlay(merge_obs_H_grid)
-        return action_out, cn
+        return action_out, (hn, cn)
 
 
 class GRUCELL_actor_TwoPortion_wATT(nn.Module):
@@ -1217,39 +1217,39 @@ class critic_single_obs_wGRU_TwoPortion(nn.Module):
         return q, h_out
 
 
-# class critic_single_obs_GRU_batch_twoPortion(nn.Module):
-#     def __init__(self, critic_obs, n_agents, n_actions, single_history, hidden_state_size):
-#         super(critic_single_obs_GRU_batch_twoPortion, self).__init__()
-#         self.SA_fc = nn.Sequential(nn.Linear(critic_obs[0]+n_actions, 64), nn.ReLU())
-#         self.rnn_hidden_dim = hidden_state_size
-#         self.gru = nn.GRU(critic_obs[1], hidden_state_size)
-#         self.own_fc_outlay = nn.Sequential(nn.Linear(64+64, 128), nn.ReLU(),
-#                                            nn.Linear(128, 1))
-#
-#     def forward(self, single_state, single_action, history_hidden_state):
-#         obsWaction = torch.cat((single_state[0], single_action), dim=1)
-#         own_obsWaction = self.SA_fc(obsWaction)
-#         h_out, hx = self.gru(single_state[1])
-#         merge_obs_grid = torch.cat((own_obsWaction, h_out), dim=1)
-#         q = self.own_fc_outlay(merge_obs_grid)
-#         return q, hx
-
-class critic_single_obs_LSTM_batch_twoPortion(nn.Module):
+class critic_single_obs_GRU_batch_twoPortion(nn.Module):
     def __init__(self, critic_obs, n_agents, n_actions, single_history, hidden_state_size):
-        super(critic_single_obs_LSTM_batch_twoPortion, self).__init__()
+        super(critic_single_obs_GRU_batch_twoPortion, self).__init__()
         self.SA_fc = nn.Sequential(nn.Linear(critic_obs[0]+n_actions, 64), nn.ReLU())
         self.rnn_hidden_dim = hidden_state_size
-        self.gru = nn.LSTM(critic_obs[1], hidden_state_size)
+        self.gru = nn.GRU(critic_obs[1], hidden_state_size)
         self.own_fc_outlay = nn.Sequential(nn.Linear(64+64, 128), nn.ReLU(),
                                            nn.Linear(128, 1))
 
     def forward(self, single_state, single_action, history_hidden_state):
         obsWaction = torch.cat((single_state[0], single_action), dim=1)
         own_obsWaction = self.SA_fc(obsWaction)
-        h_out, (hn, cn) = self.gru(single_state[1])
+        h_out, hx = self.gru(single_state[1])
         merge_obs_grid = torch.cat((own_obsWaction, h_out), dim=1)
         q = self.own_fc_outlay(merge_obs_grid)
-        return q, cn
+        return q, hx
+
+class critic_single_obs_LSTM_batch_twoPortion(nn.Module):
+    def __init__(self, critic_obs, n_agents, n_actions, single_history, hidden_state_size):
+        super(critic_single_obs_LSTM_batch_twoPortion, self).__init__()
+        self.SA_fc = nn.Sequential(nn.Linear(critic_obs[0]+n_actions, 64), nn.ReLU())
+        self.rnn_hidden_dim = hidden_state_size
+        self.lstm = nn.LSTM(critic_obs[1], hidden_state_size, batch_first=True)
+        self.own_fc_outlay = nn.Sequential(nn.Linear(64+64, 128), nn.ReLU(),
+                                           nn.Linear(128, 1))
+
+    def forward(self, single_state, single_action, history_hidden_state):
+        obsWaction = torch.cat((single_state[0], single_action), dim=2)
+        own_obsWaction = self.SA_fc(obsWaction)
+        h_out, (hn, cn) = self.lstm(single_state[1], history_hidden_state)
+        merge_obs_grid = torch.cat((own_obsWaction, h_out), dim=2)
+        q = self.own_fc_outlay(merge_obs_grid)
+        return q, (hn, cn)
 
 
 class critic_single_obs_TwoPortion_wATT(nn.Module):
