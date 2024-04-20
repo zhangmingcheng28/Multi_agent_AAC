@@ -271,8 +271,8 @@ class MADDPG:
         c_loss = []
         a_loss = []
 
-        for agent in range(self.n_agents):
-        # for agent in range(1):
+        # for agent in range(self.n_agents):
+        for agent in range(1):
             transitions = self.memory.sample(self.batch_size)
             batch = Experience(*zip(*transitions))
 
