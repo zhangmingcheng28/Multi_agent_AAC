@@ -305,8 +305,10 @@ class MADDPG:
                     agents_next_hidden_state[:, i, :])[0] for i in range(self.n_agents)]
                 current_Q = self.critics[agent]([stacked_elem_0[:, agent, :], stacked_elem_1[:, agent, :]], action_batch[:, agent, :], agents_cur_hidden_state[:, agent, :])[0]
             elif use_LSTM_flag:
-                lstm_target_actor_hidden = self.init_hidden(self.actors[0].rnn_hidden_dim, batch_size=self.batch_size, device=device) if lstm_target_actor_hidden is None else lstm_target_actor_hidden
-                lstm_critic_hidden = self.init_hidden(self.actors[0].rnn_hidden_dim, batch_size=self.batch_size, device=device) if lstm_critic_hidden is None else lstm_critic_hidden
+                # lstm_target_actor_hidden = self.init_hidden(self.actors[0].rnn_hidden_dim, batch_size=self.batch_size, device=device) if lstm_target_actor_hidden is None else lstm_target_actor_hidden
+                # lstm_critic_hidden = self.init_hidden(self.actors[0].rnn_hidden_dim, batch_size=self.batch_size, device=device) if lstm_critic_hidden is None else lstm_critic_hidden
+                lstm_target_actor_hidden = self.init_hidden(self.actors[0].rnn_hidden_dim, batch_size=self.batch_size, device=device)
+                lstm_critic_hidden = self.init_hidden(self.actors[0].rnn_hidden_dim, batch_size=self.batch_size, device=device)
 
                 lstm_target_actor_hidden = (lstm_target_actor_hidden[0].detach(), lstm_target_actor_hidden[1].detach())
                 lstm_critic_hidden = (lstm_critic_hidden[0].detach(), lstm_critic_hidden[1].detach())
@@ -327,7 +329,8 @@ class MADDPG:
                 self.critics_target[agent]([next_stacked_elem_0[:, agent, :], next_stacked_elem_1[:, agent, :]],
                                            non_final_next_actions[agent], agents_next_hidden_state[:, agent, :])[0].squeeze()
             elif use_LSTM_flag:
-                lstm_target_critic_hidden = self.init_hidden(self.actors[0].rnn_hidden_dim, batch_size=self.batch_size, device=device) if lstm_target_critic_hidden is None else lstm_target_critic_hidden
+                # lstm_target_critic_hidden = self.init_hidden(self.actors[0].rnn_hidden_dim, batch_size=self.batch_size, device=device) if lstm_target_critic_hidden is None else lstm_target_critic_hidden
+                lstm_target_critic_hidden = self.init_hidden(self.actors[0].rnn_hidden_dim, batch_size=self.batch_size, device=device)
                 lstm_target_critic_hidden = (lstm_target_critic_hidden[0].detach(), lstm_target_critic_hidden[1].detach())
 
                 next_target_critic_value, lstm_target_critic_hidden = \
@@ -373,8 +376,10 @@ class MADDPG:
                 actor_loss = - self.critics[agent]([stacked_elem_0[:, agent, :], stacked_elem_1[:, agent, :]],
                                                      action_i, agents_cur_hidden_state[:, agent, :])[0].mean()
             elif use_LSTM_flag:
-                lstm_actor_hidden = self.init_hidden(self.actors[0].rnn_hidden_dim, batch_size=self.batch_size, device=device) if lstm_actor_hidden is None else lstm_actor_hidden
-                lstm_critic_hidden = self.init_hidden(self.actors[0].rnn_hidden_dim, batch_size=self.batch_size, device=device) if lstm_critic_hidden is None else lstm_critic_hidden
+                # lstm_actor_hidden = self.init_hidden(self.actors[0].rnn_hidden_dim, batch_size=self.batch_size, device=device) if lstm_actor_hidden is None else lstm_actor_hidden
+                # lstm_critic_hidden = self.init_hidden(self.actors[0].rnn_hidden_dim, batch_size=self.batch_size, device=device) if lstm_critic_hidden is None else lstm_critic_hidden
+                lstm_actor_hidden = self.init_hidden(self.actors[0].rnn_hidden_dim, batch_size=self.batch_size, device=device)
+                lstm_critic_hidden = self.init_hidden(self.actors[0].rnn_hidden_dim, batch_size=self.batch_size, device=device)
 
                 lstm_actor_hidden = (lstm_actor_hidden[0].detach(), lstm_actor_hidden[1].detach())
                 lstm_critic_hidden = (lstm_critic_hidden[0].detach(), lstm_critic_hidden[1].detach())
