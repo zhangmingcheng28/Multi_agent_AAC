@@ -132,8 +132,8 @@ def main(args):
         critic_dim = [8, 18, 6]
         # critic_dim = [4, 18, 4]
 
-    # actor_hidden_state = 64
-    actor_hidden_state = 128
+    actor_hidden_state = 64
+    # actor_hidden_state = 128
     # actor_hidden_state = 256
     actor_hidden_state_list = [actor_hidden_state for _ in range(total_agentNum)]
 

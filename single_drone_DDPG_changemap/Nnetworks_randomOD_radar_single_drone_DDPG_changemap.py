@@ -739,10 +739,17 @@ class LSTM_batch_actor_TwoPortion(nn.Module):
         #                             nn.Linear(128, 128), nn.ReLU(),
         #                             nn.Linear(64+64, n_actions), nn.Tanh())
         # V2
+        # self.rnn_hidden_dim = actor_hidden_state_size
+        # self.lstm = nn.LSTM(actor_dim[0] + actor_dim[1], actor_hidden_state_size, batch_first=True)
+        # self.outlay = nn.Sequential(nn.Linear(actor_hidden_state_size, actor_hidden_state_size), nn.ReLU(),
+        #                             nn.Linear(actor_hidden_state_size, n_actions), nn.Tanh())
+        # V3
         self.rnn_hidden_dim = actor_hidden_state_size
-        self.lstm = nn.LSTM(actor_dim[0] + actor_dim[1], actor_hidden_state_size, batch_first=True)
-        self.outlay = nn.Sequential(nn.Linear(actor_hidden_state_size, actor_hidden_state_size), nn.ReLU(),
-                                    nn.Linear(actor_hidden_state_size, n_actions), nn.Tanh())
+        self.own_fc = nn.Sequential(nn.Linear(actor_dim[0], 64), nn.ReLU())
+        self.own_grid = nn.Sequential(nn.Linear(actor_dim[1], 64), nn.ReLU())
+        self.lstm = nn.LSTM(actor_hidden_state_size, actor_hidden_state_size, batch_first=True)
+        self.outlay = nn.Sequential(nn.Linear(actor_hidden_state_size+64, 128), nn.ReLU(),
+                                    nn.Linear(128, n_actions), nn.Tanh())
 
     def forward(self, cur_state, history_hidden_state):
         # own_obs = self.own_fc(cur_state[0])
@@ -750,9 +757,15 @@ class LSTM_batch_actor_TwoPortion(nn.Module):
         # merge_obs_H_grid = torch.cat((own_obs, h_out_grid), dim=2)
         # action_out = self.outlay(merge_obs_H_grid)
         # V2
-        merge_obs_H_grid = torch.cat((cur_state[0], cur_state[1]), dim=2)
-        h_out_grid, (hn, cn) = self.lstm(merge_obs_H_grid, history_hidden_state)
-        action_out = self.outlay(h_out_grid)
+        # merge_obs_H_grid = torch.cat((cur_state[0], cur_state[1]), dim=2)
+        # h_out_grid, (hn, cn) = self.lstm(merge_obs_H_grid, history_hidden_state)
+        # action_out = self.outlay(h_out_grid)
+        # V3
+        own_obs = self.own_fc(cur_state[0])
+        own_grid = self.own_grid(cur_state[1])
+        grid_lstm, (hn, cn) = self.lstm(own_grid, history_hidden_state)
+        merge_obs_H_grid = torch.cat((own_obs, grid_lstm), dim=2)
+        action_out = self.outlay(merge_obs_H_grid)
         return action_out, (hn, cn)
 
 
@@ -1252,10 +1265,17 @@ class critic_single_obs_LSTM_batch_twoPortion(nn.Module):
         # self.own_fc_outlay = nn.Sequential(nn.Linear(64+64, 128), nn.ReLU(),
         #                                    nn.Linear(128, 1))
         # V2
+        # self.rnn_hidden_dim = hidden_state_size
+        # self.lstm = nn.LSTM(critic_obs[0] + critic_obs[1] + n_actions, hidden_state_size, batch_first=True)
+        # self.own_fc_outlay = nn.Sequential(nn.Linear(hidden_state_size, hidden_state_size), nn.ReLU(),
+        #                                    nn.Linear(hidden_state_size, 1))
+        # V3
         self.rnn_hidden_dim = hidden_state_size
-        self.lstm = nn.LSTM(critic_obs[0] + critic_obs[1] + n_actions, hidden_state_size, batch_first=True)
-        self.own_fc_outlay = nn.Sequential(nn.Linear(hidden_state_size, hidden_state_size), nn.ReLU(),
-                                           nn.Linear(hidden_state_size, 1))
+        self.SA_fc = nn.Sequential(nn.Linear(critic_obs[0]+n_actions, 64), nn.ReLU())
+        self.SA_grid = nn.Sequential(nn.Linear(critic_obs[1], 64), nn.ReLU())
+        self.lstm = nn.LSTM(hidden_state_size, hidden_state_size, batch_first=True)
+        self.own_fc_outlay = nn.Sequential(nn.Linear(hidden_state_size+64, 128), nn.ReLU(),
+                                           nn.Linear(128, 1))
 
     def forward(self, single_state, single_action, history_hidden_state):
         # obsWaction = torch.cat((single_state[0], single_action), dim=2)
@@ -1264,9 +1284,16 @@ class critic_single_obs_LSTM_batch_twoPortion(nn.Module):
         # merge_obs_grid = torch.cat((own_obsWaction, h_out), dim=2)
         # q = self.own_fc_outlay(merge_obs_grid)
         # V2
-        merge_obs_grid = torch.cat((single_state[0], single_state[1], single_action), dim=2)
-        h_out, (hn, cn) = self.lstm(merge_obs_grid, history_hidden_state)
-        q = self.own_fc_outlay(h_out)
+        # merge_obs_grid = torch.cat((single_state[0], single_state[1], single_action), dim=2)
+        # h_out, (hn, cn) = self.lstm(merge_obs_grid, history_hidden_state)
+        # q = self.own_fc_outlay(h_out)
+        # V3
+        obsWaction = torch.cat((single_state[0], single_action), dim=2)
+        own_obsWaction = self.SA_fc(obsWaction)
+        own_grid = self.SA_grid(single_state[1])
+        grid_lstm, (hn, cn) = self.lstm(own_grid, history_hidden_state)
+        merge_obs_H_grid = torch.cat((own_obsWaction, grid_lstm), dim=2)
+        q = self.own_fc_outlay(merge_obs_H_grid)
         return q, (hn, cn)
 
 

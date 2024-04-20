@@ -523,14 +523,12 @@ def main(args):
                 else:
                     accum_reward = accum_reward + sum(reward_aft_action)
 
-                step_update_time_start = time.time()
-                # c_loss, a_loss, single_eps_critic_cal_record = model.update_myown(episode, total_step, UPDATE_EVERY, single_eps_critic_cal_record, transfer_learning, use_allNeigh_wRadar, use_selfATT_with_radar, wandb, full_observable_critic_flag, use_GRU_flag)  # last working learning framework
-                c_loss, a_loss, single_eps_critic_cal_record, current_row = model.update_myown_v2(episode, total_step, UPDATE_EVERY, single_eps_critic_cal_record, transfer_learning, own_obs_only, use_allNeigh_wRadar, use_selfATT_with_radar, step, experience_replay_record, action, current_row, excel_file_path, writer, wandb, full_observable_critic_flag, use_GRU_flag)  # last working learning framework
+                # step_update_time_start = time.time()
+                c_loss, a_loss, single_eps_critic_cal_record = model.update_myown(episode, total_step, UPDATE_EVERY, single_eps_critic_cal_record, transfer_learning, use_allNeigh_wRadar, use_selfATT_with_radar, wandb, full_observable_critic_flag, use_GRU_flag)  # last working learning framework
+                # c_loss, a_loss, single_eps_critic_cal_record, current_row = model.update_myown_v2(episode, total_step, UPDATE_EVERY, single_eps_critic_cal_record, transfer_learning, own_obs_only, use_allNeigh_wRadar, use_selfATT_with_radar, step, experience_replay_record, action, current_row, excel_file_path, writer, wandb, full_observable_critic_flag, use_GRU_flag)  # last working learning framework
                 # c_loss, a_loss, single_eps_critic_cal_record, current_row = model.update_myown_v3(episode, total_step, UPDATE_EVERY, single_eps_critic_cal_record, transfer_learning, own_obs_only, use_allNeigh_wRadar, use_selfATT_with_radar, step, experience_replay_record, action, current_row, excel_file_path, writer, wandb, full_observable_critic_flag, use_GRU_flag)  # last working learning framework
-                update_time_used = (time.time() - step_update_time_start)*1000
-
-
-                # print("current step update time used is {} milliseconds".format(update_time_used))
+                # update_time_used = (time.time() - step_update_time_start)*1000
+                # print("current step {} update time used is {} milliseconds".format(step, update_time_used))
                 cur_state = next_state
                 norm_cur_state = norm_next_state
                 cur_actor_hiddens = next_actor_hiddens
@@ -1086,8 +1084,8 @@ if __name__ == '__main__':
     parser.add_argument('--memory_length', default=int(1e5), type=int)
     # parser.add_argument('--memory_length', default=int(1e4), type=int)
     parser.add_argument('--seed', default=777, type=int)  # may choose to use 3407
-    # parser.add_argument('--batch_size', default=512, type=int)  # original 512
-    parser.add_argument('--batch_size', default=3, type=int)  # original 512
+    parser.add_argument('--batch_size', default=512, type=int)  # original 512
+    # parser.add_argument('--batch_size', default=3, type=int)  # original 512
     # parser.add_argument('--batch_size', default=1536, type=int)  # original 512
     parser.add_argument('--render_flag', default=False, type=bool)
     parser.add_argument('--ou_theta', default=0.15, type=float)
