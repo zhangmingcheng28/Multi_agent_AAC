@@ -118,9 +118,9 @@ def main(args):
     eps_start, eps_end, eps_period, eps, env, \
     agent_grid_obs, BUFFER_SIZE, BATCH_SIZE, GAMMA, TAU, UPDATE_EVERY, seed_used, max_xy = initialize_parameters()
     # total_agentNum = len(pd.read_excel(env.agentConfig))
-    total_agentNum = 3
+    # total_agentNum = 3
     # total_agentNum = 5
-    # total_agentNum = 8
+    total_agentNum = 8
     # total_agentNum = 1
     # max_nei_num = 5
     # create world
@@ -199,13 +199,15 @@ def main(args):
     # actorNet_lr = 0.001/10
     # actorNet_lr = 0.0001/5
     # actorNet_lr = 0.0005
-    actorNet_lr = 0.001
+    # actorNet_lr = 0.001
+    actorNet_lr = 0.0001
     # actorNet_lr = 0.0001/2
     # actorNet_lr = 0.001
     # criticNet_lr = 0.001/10
     # criticNet_lr = 0.0001/5
     # criticNet_lr = 0.0005
-    criticNet_lr = 0.001
+    # criticNet_lr = 0.001
+    criticNet_lr = 0.0001
     # criticNet_lr = 0.0001/2
     # criticNet_lr = 0.001
     # criticNet_lr = 0.0005
