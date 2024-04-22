@@ -3401,7 +3401,7 @@ class env_simulator:
 
             small_step_penalty_coef = 5
             # small_step_penalty_coef = 0
-            spd_penalty_threshold = 2*drone_obj.protectiveBound
+            spd_penalty_threshold = drone_obj.maxSpeed / 2
             # spd_penalty_threshold = drone_obj.protectiveBound
             small_step_penalty_val = (spd_penalty_threshold -
                                   np.clip(np.linalg.norm(drone_obj.vel), 0, spd_penalty_threshold))*\
