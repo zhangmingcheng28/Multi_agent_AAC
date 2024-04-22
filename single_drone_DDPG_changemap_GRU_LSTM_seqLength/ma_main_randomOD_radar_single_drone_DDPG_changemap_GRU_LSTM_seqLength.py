@@ -16,10 +16,10 @@ import time
 import matplotlib.animation as animation
 import pickle
 import wandb
-from parameters_randomOD_radar_single_drone_DDPG_changemap import initialize_parameters
-from maddpg_agent_randomOD_radar_single_drone_DDPG_changemap import MADDPG
+from parameters_randomOD_radar_single_drone_DDPG_changemap_GRU_LSTM_seqLength import initialize_parameters
+from maddpg_agent_randomOD_radar_single_drone_DDPG_changemap_GRU_LSTM_seqLength import MADDPG
 from TD3_agent_single_drone_changemap import TD3
-from utils_randomOD_radar_single_drone_DDPG_changemap import *
+from utils_randomOD_radar_single_drone_DDPG_changemap_GRU_LSTM_seqLength import *
 from copy import deepcopy
 import matplotlib.pyplot as plt
 import matplotlib
@@ -28,7 +28,7 @@ from shapely.strtree import STRtree
 from matplotlib.markers import MarkerStyle
 import math
 from matplotlib.transforms import Affine2D
-from Utilities_own_randomOD_radar_single_drone_DDPG_changemap import *
+from Utilities_own_randomOD_radar_single_drone_DDPG_changemap_GRU_LSTM_seqLength import *
 from collections import deque
 import csv
 
@@ -71,8 +71,8 @@ def main(args):
     use_wanDB = False
     # use_wanDB = True
 
-    get_evaluation_status = True  # have figure output
-    # get_evaluation_status = False  # no figure output, mainly obtain collision rate
+    # get_evaluation_status = True  # have figure output
+    get_evaluation_status = False  # no figure output, mainly obtain collision rate
 
     # simply_view_evaluation = True  # don't save gif
     simply_view_evaluation = False  # save gif
@@ -137,9 +137,10 @@ def main(args):
     # actor_hidden_state = 256
     actor_hidden_state_list = [actor_hidden_state for _ in range(total_agentNum)]
 
-    gru_history_length = 10
-    gru_history = deque(maxlen=gru_history_length)
-    args.gru_history_length = gru_history_length
+    # history_seq_length = 12
+    history_seq_length = 2
+    gru_history = deque(maxlen=history_seq_length)
+    args.gru_history_length = history_seq_length
     # critic_dim = [9, 9, 9]
     # critic_dim = [16, 9, 6]
     n_actions = 2
@@ -166,9 +167,9 @@ def main(args):
     torch.manual_seed(args.seed)  # this is the seed
 
     if args.algo == "maddpg":
-        model = MADDPG(actor_dim, critic_dim, n_actions, actor_hidden_state, gru_history_length, n_agents, args, criticNet_lr, actorNet_lr, GAMMA, TAU, full_observable_critic_flag, use_GRU_flag, use_attention_flag, attention_only, use_LSTM_flag)
+        model = MADDPG(actor_dim, critic_dim, n_actions, actor_hidden_state, history_seq_length, n_agents, args, criticNet_lr, actorNet_lr, GAMMA, TAU, full_observable_critic_flag, use_GRU_flag, use_attention_flag, attention_only, use_LSTM_flag)
     elif args.algo == 'TD3':
-        model = TD3(actor_dim, critic_dim, n_actions, actor_hidden_state, gru_history_length, n_agents, args,
+        model = TD3(actor_dim, critic_dim, n_actions, actor_hidden_state, history_seq_length, n_agents, args,
                        criticNet_lr, actorNet_lr, GAMMA, TAU, full_observable_critic_flag, use_GRU_flag)
 
     episode = 0
@@ -205,11 +206,11 @@ def main(args):
     dummy_xy = (None, None)  # this is a dummy tuple of xy, is not useful during normal training, it is only useful when generating reward map
     if args.mode == "eval":
         # args.max_episodes = 10  # only evaluate one episode during evaluation mode.
-        args.max_episodes = 5  # only evaluate one episode during evaluation mode.
-        # args.max_episodes = 1000
+        # args.max_episodes = 5  # only evaluate one episode during evaluation mode.
+        args.max_episodes = 1000
         # args.max_episodes = 20
         # args.max_episodes = 1
-        pre_fix = r'D:\MADDPG_2nd_jp\210424_12_14_34\interval_record_eps'
+        pre_fix = r'D:\MADDPG_2nd_jp\190424_16_32_01\interval_record_eps'
         episode_to_check = str(10000)
         load_filepath_0 = pre_fix + '\episode_' + episode_to_check + '_agent_0actor_net.pth'
         load_filepath_1 = pre_fix + '\episode_' + episode_to_check + '_agent_1actor_net.pth'
@@ -382,7 +383,7 @@ def main(args):
                 trajectory_eachPlay.append([[each_agent_traj[0], each_agent_traj[1], reward_aft_action[each_agent_idx],
                                              eps_status_holder[each_agent_idx]] for each_agent_idx, each_agent_traj in
                                             enumerate(cur_state[0])])
-                if len(gru_history) >= gru_history_length:
+                if len(gru_history) >= history_seq_length:
                     obs = []
                     next_obs = []
                     # ------------- to store norm or non-norm state into experience replay ---------------
@@ -416,7 +417,7 @@ def main(args):
 
                     # padded_tensor = torch.nn.functional.pad(hs_tensor, pad=(0, 0, 0, 0, 0, args.episode_length), mode='constant', value=0)
 
-                    model.memory.push(obs, ac_tensor, next_obs, rw_tensor, done_tensor, history_tensor, cur_actor_hiddens, next_actor_hiddens)
+                    model.memory.push(obs, ac_tensor, next_obs, rw_tensor, done_tensor, history_tensor, cur_actor_hiddens, next_actor_hiddens, lstm_hist)
 
                 # accum_reward = accum_reward + reward_aft_action[0]  # we just take the first agent's reward, because we are using a joint reward, so all agents obtain the same reward.
                 accum_reward = accum_reward + sum(reward_aft_action)
@@ -974,7 +975,7 @@ if __name__ == '__main__':
     parser.add_argument('--scenario', default="simple_spread", type=str)
     parser.add_argument('--max_episodes', default=10000, type=int)  # run for a total of 50000 episodes
     parser.add_argument('--algo', default="maddpg", type=str, help="commnet/bicnet/maddpg/TD3")
-    parser.add_argument('--mode', default="eval", type=str, help="train/eval")
+    parser.add_argument('--mode', default="train", type=str, help="train/eval")
     parser.add_argument('--episode_length', default=100, type=int)  # maximum play per episode
     parser.add_argument('--memory_length', default=int(1e5), type=int)
     parser.add_argument('--seed', default=777, type=int)  # may choose to use 3407
