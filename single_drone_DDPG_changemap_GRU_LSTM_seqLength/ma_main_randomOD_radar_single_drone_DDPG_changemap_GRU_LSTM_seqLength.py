@@ -137,8 +137,8 @@ def main(args):
     # actor_hidden_state = 256
     actor_hidden_state_list = [actor_hidden_state for _ in range(total_agentNum)]
 
-    # history_seq_length = 12
-    history_seq_length = 2
+    history_seq_length = 10
+    # history_seq_length = 3
     gru_history = deque(maxlen=history_seq_length)
     args.gru_history_length = history_seq_length
     # critic_dim = [9, 9, 9]
@@ -979,7 +979,7 @@ if __name__ == '__main__':
     parser.add_argument('--episode_length', default=100, type=int)  # maximum play per episode
     parser.add_argument('--memory_length', default=int(1e5), type=int)
     parser.add_argument('--seed', default=777, type=int)  # may choose to use 3407
-    parser.add_argument('--batch_size', default=512, type=int)  # original 512
+    parser.add_argument('--batch_size', default=256, type=int)  # original 512
     parser.add_argument('--render_flag', default=False, type=bool)
     parser.add_argument('--ou_theta', default=0.15, type=float)
     parser.add_argument('--ou_mu', default=0.0, type=float)
