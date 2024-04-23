@@ -899,20 +899,36 @@ class critic_combine_TwoPortion_fullneiWradar(nn.Module):
         self.agents_obs = nn.ModuleList()
         self.agents_all_neigh = nn.ModuleList()
         self.agents_grids = nn.ModuleList()
+        self.combined_agent_feature = nn.ModuleList()
         # Define similar network structures for each agent
         for _ in range(n_agents):
             agent_obs = nn.Sequential(
                 nn.Linear(critic_obs[0] + n_actions, 64),
                 nn.ReLU())
             agent_all_nei = nn.Sequential(
-                nn.Linear(critic_obs[1], 256),
+                nn.Linear(critic_obs[1], 128),
                 nn.ReLU())
             agent_grids = nn.Sequential(
                 nn.Linear(critic_obs[2], 128),
                 nn.ReLU())
+            combine_agent_fea = nn.Sequential(nn.Linear(64 + 128 + 128, 512), nn.ReLU())
             self.agents_obs.append(agent_obs)
             self.agents_all_neigh.append(agent_all_nei)
             self.agents_grids.append(agent_grids)
-        self.combine_agents_fea = nn.Sequential(nn.Linear(64+256+128, 512), nn.ReLU())
-        self.out_feature_q = nn.Sequential(nn.Linear(256, 1))
+            self.combined_agent_feature.append(combine_agent_fea)
+        self.all_agent_combined_features_q = nn.Sequential(nn.Linear(n_agents*512, 4096), nn.ReLU(),
+                                                         nn.Linear(4096, 2048), nn.ReLU(),
+                                                         nn.Linear(2048, 1))
         # TOO large !!!!, N * 512 =.=
+    def forward(self, combine_state, combine_action):
+        all_agent_merge_feat = []
+        for i in range(len(self.agents_obs)):
+            one_agent_obsWaction = self.agents_obs[i](torch.concatenate((combine_state[0][:, i, :], combine_action[:, i, :]), dim=1))
+            one_agent_all_nei = self.agents_all_neigh[i](combine_state[1][:, i, :])
+            one_agent_grid = self.agents_grids[i](combine_state[2][:, i, :])
+            merge_fea = torch.concatenate((one_agent_obsWaction, one_agent_all_nei, one_agent_grid), dim=1)
+            one_agent_combine_feat = self.combined_agent_feature[i](merge_fea)
+            all_agent_merge_feat.append(one_agent_combine_feat)
+        concated_all_agent_feat = torch.concatenate(all_agent_merge_feat,dim=1)
+        q = self.all_agent_combined_features_q(concated_all_agent_feat)
+        return q
