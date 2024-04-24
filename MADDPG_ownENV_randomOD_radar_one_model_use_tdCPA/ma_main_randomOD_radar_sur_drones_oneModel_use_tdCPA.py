@@ -65,8 +65,8 @@ def main(args):
         # initialize_excel_file(excel_file_path_time)
         # ------------ end of this portion is to save using excel instead of pickle -----------
 
-    use_wanDB = False
-    # use_wanDB = True
+    # use_wanDB = False
+    use_wanDB = True
 
     evaluation_by_episode = True
     # evaluation_by_episode = False
@@ -77,8 +77,8 @@ def main(args):
     # simply_view_evaluation = True  # don't save gif
     simply_view_evaluation = False  # save gif
 
-    full_observable_critic_flag = True
-    # full_observable_critic_flag = False
+    # full_observable_critic_flag = True
+    full_observable_critic_flag = False
     #
     # transfer_learning = True
     transfer_learning = False
@@ -1082,7 +1082,7 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--scenario', default="simple_spread", type=str)
-    parser.add_argument('--max_episodes', default=20000, type=int)  # run for a total of 50000 episodes
+    parser.add_argument('--max_episodes', default=100000, type=int)  # run for a total of 50000 episodes
     parser.add_argument('--algo', default="maddpg", type=str, help="commnet/bicnet/maddpg")
     parser.add_argument('--mode', default="train", type=str, help="train/eval")
     # parser.add_argument('--episode_length', default=150, type=int)  # maximum play per episode

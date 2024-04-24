@@ -313,7 +313,8 @@ class MADDPG:
 
             # for done
             dones_stacked = torch.stack([three_agent_dones for three_agent_dones in batch.dones]).to(device)
-            done_combined = torch.from_numpy(np.array([1 if any(torch.eq(three_agent_dones, 1)) else 0 for three_agent_dones in batch.dones])).to(device)
+            if full_observable_critic_flag:
+                done_combined = torch.from_numpy(np.array([1 if any(torch.eq(three_agent_dones, 1)) else 0 for three_agent_dones in batch.dones])).to(device)
 
             # whole_ownState = stacked_elem_0_combine  # own_state only
 

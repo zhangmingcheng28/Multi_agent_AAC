@@ -138,6 +138,7 @@ def main(args):
     actor_hidden_state_list = [actor_hidden_state for _ in range(total_agentNum)]
 
     history_seq_length = 10
+    # history_seq_length = 5
     # history_seq_length = 3
     gru_history = deque(maxlen=history_seq_length)
     args.gru_history_length = history_seq_length
@@ -207,10 +208,11 @@ def main(args):
     if args.mode == "eval":
         # args.max_episodes = 10  # only evaluate one episode during evaluation mode.
         # args.max_episodes = 5  # only evaluate one episode during evaluation mode.
-        args.max_episodes = 1000
+        # args.max_episodes = 1000
+        args.max_episodes = 100
         # args.max_episodes = 20
         # args.max_episodes = 1
-        pre_fix = r'D:\MADDPG_2nd_jp\190424_16_32_01\interval_record_eps'
+        pre_fix = r'D:\MADDPG_2nd_jp\230424_10_18_06\interval_record_eps'
         episode_to_check = str(10000)
         load_filepath_0 = pre_fix + '\episode_' + episode_to_check + '_agent_0actor_net.pth'
         load_filepath_1 = pre_fix + '\episode_' + episode_to_check + '_agent_1actor_net.pth'
@@ -231,11 +233,11 @@ def main(args):
         eps_reset_start_time = time.time()
         # random_map_idx = random.randrange(len(env.world_map_2D_collection))
         # Create a list of all indices excluding 3
-        indices = [i for i in range(len(env.world_map_2D_collection)) if i != 3]
+        indices = [i for i in range(len(env.world_map_2D_collection)) if i not in (3, 5)]
         # Select a random index from the list of indices
         random_map_idx = random.choice(indices)
         # random_map_idx = 3  # this value is the previous fixed environment
-        cur_state, norm_cur_state = env.reset_world(total_agentNum, random_map_idx, show=0)  # random map choose here
+        cur_state, norm_cur_state = env.reset_world(total_agentNum, random_map_idx, show=1)  # random map choose here
         eps_reset_time_used = (time.time()-eps_reset_start_time)*1000
         # print("current episode {} reset time used is {} milliseconds".format(episode, eps_reset_time_used))  # need to + 1 here, or else will misrecord as the previous episode
         step_collision_record = [[] for _ in range(total_agentNum)]  # reset at each episode, so that we can record down collision at each step for each agent.
@@ -901,7 +903,8 @@ def main(args):
                             save_gif(env, trajectory_eachPlay, pre_fix, episode_to_check, episode, random_map_idx)
 
                     if any([agent.collision for agent_idx, agent in env.all_agents.items()]) and step < args.episode_length:
-                        # save_gif(env, trajectory_eachPlay, pre_fix, episode_to_check, episode)  # check for collision case
+                        # view_static_traj(env, trajectory_eachPlay, random_map_idx)
+                        # save_gif(env, trajectory_eachPlay, pre_fix, episode_to_check, episode, random_map_idx)
                         # if saved_gif == False:
                         #     save_gif(env, trajectory_eachPlay, pre_fix, episode_to_check, episode)
                         #     saved_gif = True  # once current episode saved, no need to save one more time.
