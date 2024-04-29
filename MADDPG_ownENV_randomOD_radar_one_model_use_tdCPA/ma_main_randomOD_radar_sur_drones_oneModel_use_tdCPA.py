@@ -41,7 +41,7 @@ else:
     device = torch.device('cpu')
     print('Using CPU')
 
-device = torch.device('cpu')
+# device = torch.device('cpu')
 
 
 def main(args):
@@ -77,8 +77,8 @@ def main(args):
     # simply_view_evaluation = True  # don't save gif
     simply_view_evaluation = False  # save gif
 
-    # full_observable_critic_flag = True
-    full_observable_critic_flag = False
+    full_observable_critic_flag = True
+    # full_observable_critic_flag = False
     #
     # transfer_learning = True
     transfer_learning = False
@@ -136,7 +136,8 @@ def main(args):
         # critic_dim = [8, 18, 6]
         # critic_dim = [total_agentNum*9, total_agentNum*36, 6]
         # critic_dim = [total_agentNum*(7+5), total_agentNum*18, 6]
-        critic_dim = [7, (total_agentNum - 1) * 5, 18, 6]
+        # critic_dim = [7, (total_agentNum - 1) * 5, 18, 6]
+        critic_dim = [7]
         # critic_dim = [26, 18, 6]
         # critic_dim = [ea_dim * total_agentNum for ea_dim in actor_dim]
     else:
@@ -234,7 +235,7 @@ def main(args):
     torch.manual_seed(args.seed)  # this is the seed
 
     if args.algo == "maddpg":
-        model = MADDPG(actor_dim, critic_dim, n_actions, actor_hidden_state, gru_history_length, n_agents, args, criticNet_lr, actorNet_lr, GAMMA, TAU, full_observable_critic_flag, use_GRU_flag, use_single_portion_selfATT, use_selfATT_with_radar, use_allNeigh_wRadar, own_obs_only)
+        model = MADDPG(actor_dim, critic_dim, n_actions, actor_hidden_state, gru_history_length, n_agents, args, criticNet_lr, actorNet_lr, GAMMA, TAU, full_observable_critic_flag, use_GRU_flag, use_single_portion_selfATT, use_selfATT_with_radar, use_allNeigh_wRadar, own_obs_only, env.normalizer, device)
 
     episode = 0
     current_row = 0
@@ -282,15 +283,15 @@ def main(args):
     dummy_xy = (None, None)  # this is a dummy tuple of xy, is not useful during normal training, it is only useful when generating reward map
     if args.mode == "eval":
         # args.max_episodes = 10  # only evaluate one episode during evaluation mode.
-        args.max_episodes = 5  # only evaluate one episode during evaluation mode.
-        # args.max_episodes = 100
+        # args.max_episodes = 5  # only evaluate one episode during evaluation mode.
+        args.max_episodes = 100
         # args.max_episodes = 1
         # args.max_episodes = 250
         # args.max_episodes = 25
-        pre_fix = r'D:\MADDPG_2nd_jp\120424_16_40_35\interval_record_eps'
+        pre_fix = r'D:\MADDPG_2nd_jp\230424_21_17_52\interval_record_eps'
         # episode_to_check = str(10000)
         # pre_fix = r'F:\OneDrive_NTU_PhD\OneDrive - Nanyang Technological University\DDPG_2ndJournal\dim_8_transfer_learning'
-        episode_to_check = str(20000)
+        episode_to_check = str(100000)
         # using one model, so we load all the same
         load_filepath_0 = pre_fix + '\episode_' + episode_to_check + '_actor_net.pth'
         load_filepath_1 = pre_fix + '\episode_' + episode_to_check + '_actor_net.pth'
@@ -1082,7 +1083,7 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--scenario', default="simple_spread", type=str)
-    parser.add_argument('--max_episodes', default=100000, type=int)  # run for a total of 50000 episodes
+    parser.add_argument('--max_episodes', default=20000, type=int)  # run for a total of 50000 episodes
     parser.add_argument('--algo', default="maddpg", type=str, help="commnet/bicnet/maddpg")
     parser.add_argument('--mode', default="train", type=str, help="train/eval")
     # parser.add_argument('--episode_length', default=150, type=int)  # maximum play per episode
@@ -1092,6 +1093,7 @@ if __name__ == '__main__':
     # parser.add_argument('--memory_length', default=int(1e4), type=int)
     parser.add_argument('--seed', default=777, type=int)  # may choose to use 3407
     parser.add_argument('--batch_size', default=10, type=int)  # original 512
+    # parser.add_argument('--batch_size', default=512, type=int)  # original 512
     # parser.add_argument('--batch_size', default=3, type=int)  # original 512
     # parser.add_argument('--batch_size', default=1536, type=int)  # original 512
     parser.add_argument('--render_flag', default=False, type=bool)

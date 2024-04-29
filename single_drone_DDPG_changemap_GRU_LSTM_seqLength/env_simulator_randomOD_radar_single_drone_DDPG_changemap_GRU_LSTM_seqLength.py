@@ -2643,7 +2643,7 @@ class env_simulator:
             dist_away = np.linalg.norm(drone_obj.ini_pos - drone_obj.goal[-1])
             after_dist_hg = np.linalg.norm(drone_obj.pos - drone_obj.goal[-1])  # distance to goal after action
             if after_dist_hg > dist_away:
-                dist_to_goal = dist_to_goal_coeff * 0
+                dist_to_goal = np.array(dist_to_goal_coeff * 0.0)
             else:
                 dist_to_goal = dist_to_goal_coeff * (1-after_dist_hg/dist_away)
             # end of V4

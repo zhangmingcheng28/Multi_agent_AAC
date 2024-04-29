@@ -80,11 +80,11 @@ def main(args):
     # full_observable_critic_flag = True
     full_observable_critic_flag = False
 
-    # use_GRU_flag = True
-    use_GRU_flag = False
+    use_GRU_flag = True
+    # use_GRU_flag = False
 
-    use_LSTM_flag = True
-    # use_LSTM_flag = False
+    # use_LSTM_flag = True
+    use_LSTM_flag = False
 
     # use_attention_flag = True
     use_attention_flag = False
@@ -132,9 +132,9 @@ def main(args):
         critic_dim = [8, 18, 6]
         # critic_dim = [4, 18, 4]
 
-    actor_hidden_state = 64
+    # actor_hidden_state = 64
     # actor_hidden_state = 128
-    # actor_hidden_state = 256
+    actor_hidden_state = 256
     actor_hidden_state_list = [actor_hidden_state for _ in range(total_agentNum)]
 
     history_seq_length = 10
@@ -212,7 +212,7 @@ def main(args):
         args.max_episodes = 100
         # args.max_episodes = 20
         # args.max_episodes = 1
-        pre_fix = r'D:\MADDPG_2nd_jp\230424_10_18_06\interval_record_eps'
+        pre_fix = r'D:\MADDPG_2nd_jp\260424_10_34_40\interval_record_eps'
         episode_to_check = str(10000)
         load_filepath_0 = pre_fix + '\episode_' + episode_to_check + '_agent_0actor_net.pth'
         load_filepath_1 = pre_fix + '\episode_' + episode_to_check + '_agent_1actor_net.pth'
@@ -237,7 +237,7 @@ def main(args):
         # Select a random index from the list of indices
         random_map_idx = random.choice(indices)
         # random_map_idx = 3  # this value is the previous fixed environment
-        cur_state, norm_cur_state = env.reset_world(total_agentNum, random_map_idx, show=1)  # random map choose here
+        cur_state, norm_cur_state = env.reset_world(total_agentNum, random_map_idx, show=0)  # random map choose here
         eps_reset_time_used = (time.time()-eps_reset_start_time)*1000
         # print("current episode {} reset time used is {} milliseconds".format(episode, eps_reset_time_used))  # need to + 1 here, or else will misrecord as the previous episode
         step_collision_record = [[] for _ in range(total_agentNum)]  # reset at each episode, so that we can record down collision at each step for each agent.
@@ -259,6 +259,7 @@ def main(args):
         accum_reward = 0
         trajectory_eachPlay = []
         lstm_hist = None
+        gru_hist = None
 
         while True:  # start of a step
             if args.mode == "train":
@@ -275,7 +276,11 @@ def main(args):
                 step_obtain_action_time_start = time.time()
                 # action, step_noise_val = model.choose_action(norm_cur_state, total_step, episode, step, eps_end, noise_start_level, gru_history, noisy=False) # noisy is false because we are using stochastic policy
                 if use_LSTM_flag:
-                    action, step_noise_val, lstm_hist, cur_actor_hiddens, next_actor_hiddens = model.choose_action(norm_cur_state, total_step, episode, step, eps_end, noise_start_level, cur_actor_hiddens, lstm_hist, use_LSTM_flag, noisy=noise_flag, use_GRU_flag=use_GRU_flag)  # noisy is false because we are using stochastic policy
+                    action, step_noise_val, lstm_hist, cur_actor_hiddens, next_actor_hiddens = model.choose_action(norm_cur_state, total_step, episode, step, eps_end, noise_start_level, cur_actor_hiddens, lstm_hist, gru_hist, use_LSTM_flag, noisy=noise_flag, use_GRU_flag=use_GRU_flag)  # noisy is false because we are using stochastic policy
+                elif use_GRU_flag:
+                    action, step_noise_val, gru_hist, cur_actor_hiddens, next_actor_hiddens = model.choose_action(
+                        norm_cur_state, total_step, episode, step, eps_end, noise_start_level, cur_actor_hiddens,
+                        lstm_hist, gru_hist, use_LSTM_flag, noisy=noise_flag, use_GRU_flag=use_GRU_flag)
                 else:
                     action, step_noise_val, cur_actor_hiddens, next_actor_hiddens = model.choose_action(norm_cur_state, total_step, episode, step, eps_end, noise_start_level, cur_actor_hiddens, use_LSTM_flag, noisy=noise_flag, use_GRU_flag=use_GRU_flag)  # noisy is false because we are using stochastic policy
 
@@ -418,8 +423,14 @@ def main(args):
                     history_tensor = torch.FloatTensor(np.array(gru_history)).to(device)
 
                     # padded_tensor = torch.nn.functional.pad(hs_tensor, pad=(0, 0, 0, 0, 0, args.episode_length), mode='constant', value=0)
-
-                    model.memory.push(obs, ac_tensor, next_obs, rw_tensor, done_tensor, history_tensor, cur_actor_hiddens, next_actor_hiddens, lstm_hist)
+                    if use_LSTM_flag:
+                        model.memory.push(obs, ac_tensor, next_obs, rw_tensor, done_tensor, history_tensor, cur_actor_hiddens, next_actor_hiddens, lstm_hist)
+                    elif use_GRU_flag:
+                        model.memory.push(obs, ac_tensor, next_obs, rw_tensor, done_tensor, history_tensor,
+                                          cur_actor_hiddens, next_actor_hiddens, gru_hist)
+                    else:  # here can be lstm_hist or gru_hist don't matter as when don't use lstm or gru, both lstm_hist and gru_hist equals to None
+                        model.memory.push(obs, ac_tensor, next_obs, rw_tensor, done_tensor, history_tensor,
+                                          cur_actor_hiddens, next_actor_hiddens, lstm_hist)
 
                 # accum_reward = accum_reward + reward_aft_action[0]  # we just take the first agent's reward, because we are using a joint reward, so all agents obtain the same reward.
                 accum_reward = accum_reward + sum(reward_aft_action)
@@ -982,7 +993,8 @@ if __name__ == '__main__':
     parser.add_argument('--episode_length', default=100, type=int)  # maximum play per episode
     parser.add_argument('--memory_length', default=int(1e5), type=int)
     parser.add_argument('--seed', default=777, type=int)  # may choose to use 3407
-    parser.add_argument('--batch_size', default=256, type=int)  # original 512
+    # parser.add_argument('--batch_size', default=256, type=int)  # original 512
+    parser.add_argument('--batch_size', default=10, type=int)  # original 512
     parser.add_argument('--render_flag', default=False, type=bool)
     parser.add_argument('--ou_theta', default=0.15, type=float)
     parser.add_argument('--ou_mu', default=0.0, type=float)
