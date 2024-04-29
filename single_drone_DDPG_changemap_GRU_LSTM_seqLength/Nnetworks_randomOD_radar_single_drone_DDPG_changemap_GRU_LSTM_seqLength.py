@@ -739,11 +739,15 @@ class GRU_batch_actor_TwoPortion(nn.Module):
         own_obs = self.own_fc(cur_state[0])
         own_grid = self.own_grid(cur_state[1])
         stacked_hidden = history_hidden_state
+        seq_length = stacked_hidden.shape[2]
         rnn_input = own_grid
         if len(stacked_hidden.shape) == 3:
             rnn_output, hn = self.gru(own_grid, history_hidden_state)
         else:
-            target_stacked_hidden = stacked_hidden[:,:,target_act_flag,:].contiguous()
+            if seq_length == 1:  # when seq_length equals to 1, the 3rd position cannot take other values other than 0.
+                target_stacked_hidden = stacked_hidden[:, :, 0, :].contiguous()
+            else:
+                target_stacked_hidden = stacked_hidden[:,:,target_act_flag,:].contiguous()
             dones_stacked = dones_stacked != 0
             if dones_stacked is not None and torch.any(dones_stacked):
                 rnn_outputs = []
@@ -808,10 +812,14 @@ class LSTM_batch_actor_TwoPortion(nn.Module):
         own_grid = self.own_grid(cur_state[1])
         stacked_hidden, cell_states = history_hidden_state
         rnn_input = own_grid
+        seq_length = stacked_hidden.shape[2]
         if len(stacked_hidden.shape) == 3:
             rnn_output, (hn, cn) = self.lstm(own_grid, history_hidden_state)
         else:
-            target_stacked_hidden = stacked_hidden[:,:,target_act_flag,:].contiguous()
+            if seq_length == 1:
+                target_stacked_hidden = stacked_hidden[:, :, 0, :].contiguous()
+            else:
+                target_stacked_hidden = stacked_hidden[:,:,target_act_flag,:].contiguous()
             target_cell_states = cell_states[:,:,target_act_flag,:].contiguous()
             dones_stacked = dones_stacked != 0
             if dones_stacked is not None and torch.any(dones_stacked):
@@ -1343,7 +1351,10 @@ class critic_single_obs_GRU_batch_twoPortion(nn.Module):
         history_stacked_hidden = history_hidden_state
         seq_length = history_stacked_hidden.shape[2]
         rnn_input = own_grid
-        stacked_hidden = history_stacked_hidden[:, :, target_act_flag, :].contiguous()
+        if seq_length == 1:
+            stacked_hidden = history_stacked_hidden[:, :, 0, :].contiguous()
+        else:
+            stacked_hidden = history_stacked_hidden[:, :, target_act_flag, :].contiguous()
         dones_stacked = dones_stacked != 0  # change 0/1 to False/True
 
         if dones_stacked is not None and torch.any(dones_stacked):
@@ -1424,7 +1435,10 @@ class critic_single_obs_LSTM_batch_twoPortion(nn.Module):
         history_stacked_hidden, history_cell_states = history_hidden_state
         seq_length = history_stacked_hidden.shape[2]
         rnn_input = own_grid
-        stacked_hidden = history_stacked_hidden[:, :, target_act_flag, :].contiguous()
+        if seq_length == 1:
+            stacked_hidden = history_stacked_hidden[:, :, 0, :].contiguous()
+        else:
+            stacked_hidden = history_stacked_hidden[:, :, target_act_flag, :].contiguous()
         cell_states = history_cell_states[:, :, target_act_flag, :].contiguous()
         dones_stacked = dones_stacked != 0  # change 0/1 to False/True
 

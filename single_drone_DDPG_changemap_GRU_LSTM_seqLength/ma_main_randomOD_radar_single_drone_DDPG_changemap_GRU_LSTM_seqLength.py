@@ -68,8 +68,8 @@ def main(args):
         # initialize_excel_file(excel_file_path_time)
         # ------------ end of this portion is to save using excel instead of pickle -----------
 
-    use_wanDB = False
-    # use_wanDB = True
+    # use_wanDB = False
+    use_wanDB = True
 
     # get_evaluation_status = True  # have figure output
     get_evaluation_status = False  # no figure output, mainly obtain collision rate
@@ -137,8 +137,9 @@ def main(args):
     actor_hidden_state = 256
     actor_hidden_state_list = [actor_hidden_state for _ in range(total_agentNum)]
 
-    history_seq_length = 10
-    # history_seq_length = 5
+    # history_seq_length = 10
+    # history_seq_length = 1
+    history_seq_length = 5
     # history_seq_length = 3
     gru_history = deque(maxlen=history_seq_length)
     args.gru_history_length = history_seq_length
@@ -193,6 +194,7 @@ def main(args):
 
     # ------------ record episode time ------------- #
     eps_time_record = []
+    all_OD_geo_fence_reach = {}
     # ----------- record each collision checking version running time and decision -------#
     collision_count = 0
     one_drone_reach = 0
@@ -468,7 +470,20 @@ def main(args):
                     print("Some agent triggers termination condition like collision, current episode {} ends at step {}".format(episode, step-1))  # we need to -1 here, because we perform step + 1 after each complete step. Just to be consistent with the step count inside the reward function.
                 elif all([agent.reach_target for agent_idx, agent in env.all_agents.items()]):
                     episode_decision[2] = True
-                    print("All agents have reached their destinations, episode terminated.")
+                    for agent_idx, agent in env.all_agents.items():
+                        record_key = []
+                        if agent.reach_target == True:
+                            ini_pos = agent.ini_pos
+                            goal_pos = np.array(agent.goal[-1])
+                            record_key = [ini_pos[0], ini_pos[1], goal_pos[0], goal_pos[1]]
+                            for geo_fence in env.geo_fence_area:
+                                record_key.append(geo_fence.centroid.x)
+                                record_key.append(geo_fence.centroid.y)
+                        record_key = tuple(record_key)
+                        all_OD_geo_fence_reach[record_key] = len(env.geo_fence_area)
+
+
+                    print("All agents have reached their destinations, {} steps used, episode terminated.".format(step))
                     goal_reached = goal_reached + 1
                     # show termination condition in picture when termination condition reached.
                     # os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
@@ -971,6 +986,9 @@ def main(args):
         with open(file_name + '/goal_reaching.csv', 'w') as f:
             write = csv.writer(f)
             write.writerows([goal_reach_history])
+        # record the reached OD and geo-fence area
+        with open(plot_file_name + '/reached_OD_wGeo_fence.pickle', 'wb') as handle:
+            pickle.dump(all_OD_geo_fence_reach, handle, protocol=pickle.HIGHEST_PROTOCOL)
     else:
         print("total collision count is {}".format(collision_count))
         print("Collision due to bound is {}".format(crash_to_bound))
@@ -993,8 +1011,8 @@ if __name__ == '__main__':
     parser.add_argument('--episode_length', default=100, type=int)  # maximum play per episode
     parser.add_argument('--memory_length', default=int(1e5), type=int)
     parser.add_argument('--seed', default=777, type=int)  # may choose to use 3407
-    # parser.add_argument('--batch_size', default=256, type=int)  # original 512
-    parser.add_argument('--batch_size', default=10, type=int)  # original 512
+    parser.add_argument('--batch_size', default=256, type=int)  # original 512
+    # parser.add_argument('--batch_size', default=10, type=int)  # original 512
     parser.add_argument('--render_flag', default=False, type=bool)
     parser.add_argument('--ou_theta', default=0.15, type=float)
     parser.add_argument('--ou_mu', default=0.0, type=float)

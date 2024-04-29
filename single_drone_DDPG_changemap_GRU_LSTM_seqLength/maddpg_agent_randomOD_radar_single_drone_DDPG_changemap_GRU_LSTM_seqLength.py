@@ -236,7 +236,7 @@ class MADDPG:
 
     def update_myown_ddpg(self, i_episode, total_step_count, UPDATE_EVERY, single_eps_critic_cal_record, action, use_LSTM_flag, wandb=None, full_observable_critic_flag=False, use_GRU_flag=False):
         self.train_num = i_episode
-        if self.memory.history_seq_length > 1:
+        if use_LSTM_flag or use_GRU_flag:
             if len(self.memory) <= self.batch_size*self.memory.history_seq_length:
                 return None, None, single_eps_critic_cal_record
         else:
@@ -249,15 +249,17 @@ class MADDPG:
         c_loss = []
         a_loss = []
 
-        if self.memory.history_seq_length > 1:  # meaning seq_length is more than 1.
-            sequence_indexes = torch.arange(0, self.memory.history_seq_length, 1)
-            size = len(self.memory)
-            size -= sequence_indexes[-1].item()
-            indexes = torch.randperm(size, dtype=torch.long)[:self.batch_size]
-            indexes = (sequence_indexes.repeat(indexes.shape[0], 1) + indexes.view(-1, 1)).view(-1)
-            transitions = self.memory.sample_by_index(indexes)
+        if use_LSTM_flag or use_GRU_flag:
+            # sequence_indexes = torch.arange(0, self.memory.history_seq_length, 1)
+            # size = len(self.memory)
+            # size -= sequence_indexes[-1].item()
+            # indexes = torch.randperm(size, dtype=torch.long)[:self.batch_size]
+            # indexes = (sequence_indexes.repeat(indexes.shape[0], 1) + indexes.view(-1, 1)).view(-1)
+            # transitions = self.memory.sample_by_index(indexes)
+            transitions = self.memory.sample(self.batch_size*self.memory.history_seq_length)
         else:
             transitions = self.memory.sample(self.batch_size)
+
         # transitions = self.memory.sample(self.batch_size)
         batch = Experience(*zip(*transitions))
 
@@ -324,7 +326,8 @@ class MADDPG:
 
             # configured for target Q
             if self.memory.history_seq_length != 0:
-                whole_curren_action = action_batch.contiguous().view(len(self.memory.sampling_indexes), -1)
+                # whole_curren_action = action_batch.contiguous().view(len(self.memory.sampling_indexes), -1)
+                whole_curren_action = action_batch.squeeze(1)
             else:
                 whole_curren_action = action_batch.contiguous().view(self.batch_size, -1)
 
