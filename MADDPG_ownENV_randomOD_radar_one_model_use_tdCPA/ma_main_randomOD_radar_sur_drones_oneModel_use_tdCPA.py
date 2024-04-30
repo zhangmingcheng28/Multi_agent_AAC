@@ -65,8 +65,8 @@ def main(args):
         # initialize_excel_file(excel_file_path_time)
         # ------------ end of this portion is to save using excel instead of pickle -----------
 
-    # use_wanDB = False
-    use_wanDB = True
+    use_wanDB = False
+    # use_wanDB = True
 
     evaluation_by_episode = True
     # evaluation_by_episode = False
@@ -77,9 +77,9 @@ def main(args):
     # simply_view_evaluation = True  # don't save gif
     simply_view_evaluation = False  # save gif
 
-    full_observable_critic_flag = True
-    # full_observable_critic_flag = False
-    #
+    # full_observable_critic_flag = True
+    full_observable_critic_flag = False
+
     # transfer_learning = True
     transfer_learning = False
 
@@ -118,9 +118,9 @@ def main(args):
     eps_start, eps_end, eps_period, eps, env, \
     agent_grid_obs, BUFFER_SIZE, BATCH_SIZE, GAMMA, TAU, UPDATE_EVERY, seed_used, max_xy = initialize_parameters()
     # total_agentNum = len(pd.read_excel(env.agentConfig))
-    # total_agentNum = 3
+    total_agentNum = 3
     # total_agentNum = 5
-    total_agentNum = 8
+    # total_agentNum = 8
     # total_agentNum = 1
     # max_nei_num = 5
     # create world
@@ -288,10 +288,10 @@ def main(args):
         # args.max_episodes = 1
         # args.max_episodes = 250
         # args.max_episodes = 25
-        pre_fix = r'D:\MADDPG_2nd_jp\230424_21_17_52\interval_record_eps'
+        pre_fix = r'D:\MADDPG_2nd_jp\290424_20_50_44\interval_record_eps'
         # episode_to_check = str(10000)
         # pre_fix = r'F:\OneDrive_NTU_PhD\OneDrive - Nanyang Technological University\DDPG_2ndJournal\dim_8_transfer_learning'
-        episode_to_check = str(100000)
+        episode_to_check = str(19000)
         # using one model, so we load all the same
         load_filepath_0 = pre_fix + '\episode_' + episode_to_check + '_actor_net.pth'
         load_filepath_1 = pre_fix + '\episode_' + episode_to_check + '_actor_net.pth'

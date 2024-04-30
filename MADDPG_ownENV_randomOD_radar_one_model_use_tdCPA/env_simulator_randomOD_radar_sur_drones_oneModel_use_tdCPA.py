@@ -3224,7 +3224,8 @@ class env_simulator:
             # rew = 3
             rew = 0
             # dist_to_goal_coeff = 1
-            dist_to_goal_coeff = 3
+            # dist_to_goal_coeff = 3
+            dist_to_goal_coeff = 6
             # dist_to_goal_coeff = 1
             # dist_to_goal_coeff = 0
             # dist_to_goal_coeff = 2
