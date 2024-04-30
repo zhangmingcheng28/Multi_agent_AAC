@@ -137,6 +137,11 @@ class MADDPG:
             self.critics.cuda().to(dtype=torch.float64)
             self.actors_target.cuda().to(dtype=torch.float64)
             self.critics_target.cuda().to(dtype=torch.float64)
+        else:
+            self.actors.to(dtype=torch.float64)
+            self.critics.to(dtype=torch.float64)
+            self.actors_target.to(dtype=torch.float64)
+            self.critics_target.to(dtype=torch.float64)
 
         self.steps_done = 0
         self.episode_done = 0
@@ -270,7 +275,7 @@ class MADDPG:
         #     for param_group in self.actor_optimizer.param_groups:
         #         param_group['lr'] = changed_lr
 
-        if self.device.type=='cuda':
+        if self.device.type == 'cuda':
             BoolTensor = torch.cuda.BoolTensor
             FloatTensor = torch.cuda.FloatTensor
         else:
@@ -1176,10 +1181,16 @@ class MADDPG:
             act_hn = torch.zeros(self.n_agents, self.actors.rnn_hidden_dim)
         else:
             act_hn = torch.zeros(self.n_agents, self.n_actions)
-        FloatTensor = torch.cuda.FloatTensor if self.use_cuda else torch.FloatTensor
+        if self.device.type == 'cuda':
+            FloatTensor = torch.cuda.FloatTensor
+        else:
+            FloatTensor = torch.FloatTensor
         # this for loop used to decrease noise level for all agents before taking any action
         # gru_history_input = torch.FloatTensor(gru_history_input).to(device)  # batch x seq_length x no_agent x feature_length
-        gru_history_input = torch.FloatTensor(actor_hiddens).unsqueeze(0).to(self.device)  # batch x no_agent x feature_length
+        if isinstance(actor_hiddens, list):
+            gru_history_input = torch.FloatTensor(actor_hiddens).unsqueeze(0).to(self.device)  # batch x no_agent x feature_length
+        else:
+            gru_history_input = actor_hiddens
         for i in range(self.n_agents):
             self.var[i] = self.get_custom_linear_scaling_factor(cur_episode, mini_noise_eps, noise_start_level)  # self.var[i] will decrease as the episode increase
             # self.var[i] = self.exponential_decay_variance(cur_episode, mini_noise_eps, noise_start_level)  # self.var[i] will decrease as the episode increase
@@ -1211,7 +1222,7 @@ class MADDPG:
             # act = self.actors([sb.unsqueeze(0), sb_grid.unsqueeze(0)])
             if noisy:
                 noise_value = np.random.randn(2) * self.var[i]
-                act += torch.from_numpy(noise_value).type(FloatTensor)
+                act = act + torch.from_numpy(noise_value).to(self.device).to(dtype=torch.float64)
                 # print("Episode {}, agent {}, noise level is {}".format(episode, i, self.var[i]))
                 act = torch.clamp(act, -1.0, 1.0)  # when using stochastic policy, we are not require to clamp again.
 

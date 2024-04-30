@@ -77,8 +77,8 @@ def main(args):
     # simply_view_evaluation = True  # don't save gif
     simply_view_evaluation = False  # save gif
 
-    # full_observable_critic_flag = True
-    full_observable_critic_flag = False
+    full_observable_critic_flag = True
+    # full_observable_critic_flag = False
 
     # transfer_learning = True
     transfer_learning = False
