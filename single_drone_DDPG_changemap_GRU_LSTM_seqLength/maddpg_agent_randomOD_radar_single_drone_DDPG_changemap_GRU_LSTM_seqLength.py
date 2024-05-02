@@ -289,6 +289,9 @@ class MADDPG:
                                          device=device)
             stacked_elem_1 = torch.empty((self.batch_size * self.memory.history_seq_length, *batch.states[0][1].shape),
                                          device=device)
+            for i, elem in enumerate(batch.states):
+                stacked_elem_0[i] = elem[0]
+                stacked_elem_1[i] = elem[1]
             stacked_elem_0 = stacked_elem_0.contiguous().view(-1, self.memory.history_seq_length, stacked_elem_0.shape[-1])
             stacked_elem_1 = stacked_elem_1.contiguous().view(-1, self.memory.history_seq_length, stacked_elem_1.shape[-1])
         else:
@@ -310,6 +313,9 @@ class MADDPG:
                 (self.batch_size * self.memory.history_seq_length, *batch.next_states[0][0].shape), device=device)
             next_stacked_elem_1 = torch.empty(
                 (self.batch_size * self.memory.history_seq_length, *batch.next_states[0][1].shape), device=device)
+            for i, elem in enumerate(batch.next_states):
+                next_stacked_elem_0[i] = elem[0]
+                next_stacked_elem_1[i] = elem[1]
             next_stacked_elem_0 = next_stacked_elem_0.contiguous().view(-1, self.memory.history_seq_length, next_stacked_elem_0.shape[-1])
             next_stacked_elem_1 = next_stacked_elem_1.contiguous().view(-1, self.memory.history_seq_length, next_stacked_elem_1.shape[-1])
         else:
