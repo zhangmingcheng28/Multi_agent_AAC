@@ -281,18 +281,19 @@ class MADDPG:
             cell_states = stacked_cell.view(1, -1, self.memory.history_seq_length, stacked_cell.shape[-1])  # (D * num_layers, N, L, Hcell)
             cell_states = cell_states.detach()
 
-        # stack tensors only once
-        stacked_elem_0 = torch.empty((self.batch_size*self.memory.history_seq_length, *batch.states[0][0].shape), device=device)
-        stacked_elem_1 = torch.empty((self.batch_size*self.memory.history_seq_length, *batch.states[0][1].shape), device=device)
-        for i, elem in enumerate(batch.states):
-            stacked_elem_0[i] = elem[0]
-            stacked_elem_1[i] = elem[1]
-        # stacked_elem_0 = torch.stack([elem[0] for elem in batch.states]).to(device)
-        # stacked_elem_1 = torch.stack([elem[1] for elem in batch.states]).to(device)
+
+
         if use_LSTM_flag or use_GRU_flag:
+            # stack tensors only once
+            stacked_elem_0 = torch.empty((self.batch_size * self.memory.history_seq_length, *batch.states[0][0].shape),
+                                         device=device)
+            stacked_elem_1 = torch.empty((self.batch_size * self.memory.history_seq_length, *batch.states[0][1].shape),
+                                         device=device)
             stacked_elem_0 = stacked_elem_0.contiguous().view(-1, self.memory.history_seq_length, stacked_elem_0.shape[-1])
             stacked_elem_1 = stacked_elem_1.contiguous().view(-1, self.memory.history_seq_length, stacked_elem_1.shape[-1])
-
+        else:
+            stacked_elem_0 = torch.stack([elem[0] for elem in batch.states]).to(device)
+            stacked_elem_1 = torch.stack([elem[1] for elem in batch.states]).to(device)
 
         if full_observable_critic_flag == True:
             stacked_elem_0_combine = stacked_elem_0.view(self.batch_size, -1)  # own_state only
@@ -302,17 +303,20 @@ class MADDPG:
         # current_state in the form of list of length of agents in the environments, then, batchNo X individual Feature length
         # cur_state_list1 = [stacked_elem_0[:, i, :] for i in range(self.n_agents)]
 
-        # for next state
-        next_stacked_elem_0 = torch.empty((self.batch_size*self.memory.history_seq_length, *batch.next_states[0][0].shape), device=device)
-        next_stacked_elem_1 = torch.empty((self.batch_size*self.memory.history_seq_length, *batch.next_states[0][1].shape), device=device)
-        for i, elem in enumerate(batch.next_states):
-            next_stacked_elem_0[i] = elem[0]
-            next_stacked_elem_1[i] = elem[1]
-        # next_stacked_elem_0 = torch.stack([elem[0] for elem in batch.next_states]).to(device)
-        # next_stacked_elem_1 = torch.stack([elem[1] for elem in batch.next_states]).to(device)
+
         if use_LSTM_flag or use_GRU_flag:
+            # for next state
+            next_stacked_elem_0 = torch.empty(
+                (self.batch_size * self.memory.history_seq_length, *batch.next_states[0][0].shape), device=device)
+            next_stacked_elem_1 = torch.empty(
+                (self.batch_size * self.memory.history_seq_length, *batch.next_states[0][1].shape), device=device)
             next_stacked_elem_0 = next_stacked_elem_0.contiguous().view(-1, self.memory.history_seq_length, next_stacked_elem_0.shape[-1])
             next_stacked_elem_1 = next_stacked_elem_1.contiguous().view(-1, self.memory.history_seq_length, next_stacked_elem_1.shape[-1])
+        else:
+            next_stacked_elem_0 = torch.stack([elem[0] for elem in batch.next_states]).to(device)
+            next_stacked_elem_1 = torch.stack([elem[1] for elem in batch.next_states]).to(device)
+
+
 
         if full_observable_critic_flag == True:
             next_stacked_elem_0_combine = next_stacked_elem_0.view(self.batch_size, -1)
@@ -381,10 +385,10 @@ class MADDPG:
                 else:
                     tar_Q_before_rew = self.GAMMA * next_target_critic_value * (1 - dones_stacked[:, agent].unsqueeze(1).unsqueeze(1))
                     reward_cal = reward_batch[:, agent].clone()
-                    target_Q = (reward_batch[:, agent].unsqueeze(1).unsqueeze(1)) + \
-                               self.GAMMA * next_target_critic_value * (1 - dones_stacked[:, agent].unsqueeze(1).unsqueeze(1))
-                if not use_GRU_flag and not use_LSTM_flag:
-                    target_Q = target_Q.unsqueeze(1)  # only run when both flag are false
+                    target_Q = (reward_batch[:, agent].unsqueeze(1)) + \
+                               self.GAMMA * next_target_critic_value.unsqueeze(1) * (1 - dones_stacked[:, agent].unsqueeze(1))
+                # if not use_GRU_flag and not use_LSTM_flag:
+                #     target_Q = target_Q.unsqueeze(1)  # only run when both flag are false
                 tar_Q_after_rew = target_Q.clone()
             if use_LSTM_flag:
                 current_Q, _ = self.critics[agent]([stacked_elem_0, stacked_elem_1], action_batch,
@@ -664,9 +668,9 @@ class MADDPG:
         obs = torch.from_numpy(np.stack(state[0])).float().to(device)
         obs_grid = torch.from_numpy(np.stack(state[1])).float().to(device)
         noise_value = np.zeros(2)
-        if lstm_hist is None:
+        if use_LSTM_flag and lstm_hist is None:
             lstm_hist = self.init_hidden(self.actors[0].rnn_hidden_dim, device=device)
-        if gru_hist is None:
+        if use_GRU_flag and gru_hist is None:
             gru_hist = self.init_hidden_gru(self.actors[0].rnn_hidden_dim, device=device)
 
         actions = torch.zeros(self.n_agents, self.n_actions)
