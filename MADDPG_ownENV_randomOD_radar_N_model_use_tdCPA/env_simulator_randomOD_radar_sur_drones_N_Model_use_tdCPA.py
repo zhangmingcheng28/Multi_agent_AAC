@@ -1404,9 +1404,9 @@ class env_simulator:
                 norm_nearest_neigh_vel = nearest_neigh_pos
             else:
                 nearest_neigh_pos = self.all_agents[nearest_neigh_key].pos
-                norm_nearest_neigh_pos = self.normalizer.scale_pos(nearest_neigh_pos)
+                norm_nearest_neigh_pos = self.normalizer.nmlz_pos(nearest_neigh_pos)
                 delta_nei = nearest_neigh_pos - agent.pos
-                norm_delta_nei = norm_nearest_neigh_pos - self.normalizer.scale_pos([agent.pos[0], agent.pos[1]])
+                norm_delta_nei = norm_nearest_neigh_pos - self.normalizer.nmlz_pos([agent.pos[0], agent.pos[1]])
                 nearest_neigh_vel = self.all_agents[nearest_neigh_key].vel
                 norm_nearest_neigh_vel = self.normalizer.norm_scale(
                     [nearest_neigh_vel[0], nearest_neigh_vel[1]])  # normalization using scale
@@ -1640,8 +1640,11 @@ class env_simulator:
             #                       agent.goal[-1][0]-agent.pos[0], agent.goal[-1][1]-agent.pos[1],
             #                      agent.acc[0], agent.acc[1], agent.heading])
 
+            # self_obs = np.array([agent.pos[0], agent.pos[1], agent.vel[0], agent.vel[1],
+            #                       agent.goal[-1][0]-agent.pos[0], agent.goal[-1][1]-agent.pos[1], agent.heading])
+
             self_obs = np.array([agent.pos[0], agent.pos[1], agent.vel[0], agent.vel[1],
-                                  agent.goal[-1][0]-agent.pos[0], agent.goal[-1][1]-agent.pos[1], agent.heading])
+                                  agent.goal[-1][0]-agent.pos[0], agent.goal[-1][1]-agent.pos[1], agent.heading, delta_nei[0], delta_nei[1]])
 
             # self_obs = np.array([agent.vel[0], agent.vel[1],
             #                       agent.goal[-1][0]-agent.pos[0], agent.goal[-1][1]-agent.pos[1],
@@ -1668,6 +1671,7 @@ class env_simulator:
 
             norm_self_obs = np.concatenate([norm_pos, norm_vel, norm_deltaG], axis=0)
             norm_self_obs = np.append(norm_self_obs, agent.heading)  # we have to do this because heading dim=1
+            norm_self_obs = np.append(norm_self_obs, norm_delta_nei)  # we have to do this because heading dim=1
 
             # norm_self_obs = np.append(norm_self_obs, norm_nearest_neigh)
 
