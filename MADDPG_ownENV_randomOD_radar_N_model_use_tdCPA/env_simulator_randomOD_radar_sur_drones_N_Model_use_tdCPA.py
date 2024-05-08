@@ -1640,11 +1640,11 @@ class env_simulator:
             #                       agent.goal[-1][0]-agent.pos[0], agent.goal[-1][1]-agent.pos[1],
             #                      agent.acc[0], agent.acc[1], agent.heading])
 
-            self_obs = np.array([agent.pos[0], agent.pos[1], agent.vel[0], agent.vel[1],
-                                  agent.goal[-1][0]-agent.pos[0], agent.goal[-1][1]-agent.pos[1], agent.heading])
-
             # self_obs = np.array([agent.pos[0], agent.pos[1], agent.vel[0], agent.vel[1],
-            #                       agent.goal[-1][0]-agent.pos[0], agent.goal[-1][1]-agent.pos[1], agent.heading, delta_nei[0], delta_nei[1]])
+            #                       agent.goal[-1][0]-agent.pos[0], agent.goal[-1][1]-agent.pos[1], agent.heading])
+
+            self_obs = np.array([agent.pos[0], agent.pos[1], agent.vel[0], agent.vel[1],
+                                  agent.goal[-1][0]-agent.pos[0], agent.goal[-1][1]-agent.pos[1], agent.heading, delta_nei[0], delta_nei[1]])
 
             # self_obs = np.array([agent.vel[0], agent.vel[1],
             #                       agent.goal[-1][0]-agent.pos[0], agent.goal[-1][1]-agent.pos[1],
@@ -1671,7 +1671,7 @@ class env_simulator:
 
             norm_self_obs = np.concatenate([norm_pos, norm_vel, norm_deltaG], axis=0)
             norm_self_obs = np.append(norm_self_obs, agent.heading)  # we have to do this because heading dim=1
-            # norm_self_obs = np.append(norm_self_obs, norm_delta_nei)  # we have to do this because heading dim=1
+            norm_self_obs = np.append(norm_self_obs, norm_delta_nei)  # we have to do this because heading dim=1
 
             # norm_self_obs = np.append(norm_self_obs, norm_nearest_neigh)
 
