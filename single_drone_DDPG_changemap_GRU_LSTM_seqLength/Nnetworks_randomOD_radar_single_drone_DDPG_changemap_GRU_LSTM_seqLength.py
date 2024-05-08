@@ -572,10 +572,10 @@ class ActorNetwork_TwoPortion(nn.Module):
     def __init__(self, actor_dim, n_actions):  # actor_obs consists of three parts 0 = own, 1 = own grid, 2 = surrounding drones
         super(ActorNetwork_TwoPortion, self).__init__()
 
-        # self.own_fc = nn.Sequential(nn.Linear(actor_dim[0], 64), nn.ReLU())
-        # self.own_grid = nn.Sequential(nn.Linear(actor_dim[1], 64), nn.ReLU())
-        self.own_fc = nn.Sequential(nn.Linear(actor_dim[0], 64), nn.Dropout(0.1), nn.ReLU())
-        self.own_grid = nn.Sequential(nn.Linear(actor_dim[1], 64), nn.Dropout(0.1), nn.ReLU())
+        self.own_fc = nn.Sequential(nn.Linear(actor_dim[0], 64), nn.ReLU())
+        self.own_grid = nn.Sequential(nn.Linear(actor_dim[1], 64), nn.ReLU())
+        # self.own_fc = nn.Sequential(nn.Linear(actor_dim[0], 64), nn.Dropout(0.1), nn.ReLU())
+        # self.own_grid = nn.Sequential(nn.Linear(actor_dim[1], 64), nn.Dropout(0.1), nn.ReLU())
         self.merge_feature = nn.Sequential(nn.Linear(64+64, 128), nn.ReLU())
         self.act_out = nn.Sequential(nn.Linear(128, n_actions), nn.Tanh())
 
@@ -2256,10 +2256,10 @@ class critic_single_obs_wGRU_TwoPortion_TD3(nn.Module):
 class critic_single_TwoPortion(nn.Module):
     def __init__(self, critic_obs, n_agents, n_actions, single_history, hidden_state_size):
         super(critic_single_TwoPortion, self).__init__()
-        # self.SA_fc = nn.Sequential(nn.Linear(critic_obs[0]+n_actions, 64), nn.ReLU())
-        # self.SA_grid = nn.Sequential(nn.Linear(critic_obs[1], 64), nn.ReLU())
-        self.SA_fc = nn.Sequential(nn.Linear(critic_obs[0]+n_actions, 64), nn.Dropout(0.1), nn.ReLU())
-        self.SA_grid = nn.Sequential(nn.Linear(critic_obs[1], 64),nn.Dropout(0.1), nn.ReLU())
+        self.SA_fc = nn.Sequential(nn.Linear(critic_obs[0]+n_actions, 64), nn.ReLU())
+        self.SA_grid = nn.Sequential(nn.Linear(critic_obs[1], 64), nn.ReLU())
+        # self.SA_fc = nn.Sequential(nn.Linear(critic_obs[0]+n_actions, 64), nn.Dropout(0.1), nn.ReLU())
+        # self.SA_grid = nn.Sequential(nn.Linear(critic_obs[1], 64),nn.Dropout(0.1), nn.ReLU())
         self.merge_fc_grid = nn.Sequential(nn.Linear(64+64, 256), nn.ReLU())
         self.out_feature_q = nn.Sequential(nn.Linear(256, 1))
         # V1.1
