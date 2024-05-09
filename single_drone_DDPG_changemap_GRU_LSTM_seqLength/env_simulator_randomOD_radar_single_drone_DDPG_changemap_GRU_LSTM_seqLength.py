@@ -390,16 +390,20 @@ class env_simulator:
             agentsCoor_list.append(self.all_agents[agentIdx].pos)
 
             # check the intersection grid with the current lines
-            empty_grid_tree = STRtree(self.world_map_2D_polyList_collection[random_map_idx][0][1])
+            empty_grid_tree = STRtree(self.world_map_2D_polyList_collection[random_map_idx][0][1])  # get free grid then build into STRtree
+            # get the free/empty polygon that intersect with the reference line
             intersected_polygons = [self.world_map_2D_polyList_collection[random_map_idx][0][1][poly] for poly in empty_grid_tree.query(self.all_agents[0].ref_line) if self.world_map_2D_polyList_collection[random_map_idx][0][1][poly].intersects(self.all_agents[0].ref_line)]
+            # obtain the intersected polygon's centroid
             centroids_grid_intersect_refLine = [poly.centroid for poly in intersected_polygons]
+            # all centroid for grids that are occupied
             centroids_occupied_grids = [poly.centroid for poly in self.world_map_2D_polyList_collection[random_map_idx][0][0]]
+            # build occupied grid into a STRtree
             tree_centroids_occupied_grids = STRtree(centroids_occupied_grids)
             bound_startpt = Point(self.all_agents[agentIdx].ini_pos).buffer(15)
             bound_endpt = Point(self.all_agents[agentIdx].goal[-1]).buffer(15)
             filtered_centroids = []
             for centroid in centroids_grid_intersect_refLine:
-                # Check distance from each centroid to the centroids in group 2
+                # Check distance from each centroid to the centroids in occupied grids
                 nearby_indices = tree_centroids_occupied_grids.query(centroid.buffer(20))
                 nearby_centroids = [centroids_occupied_grids[i] for i in nearby_indices]
 
@@ -419,7 +423,7 @@ class env_simulator:
                 self.geo_fence_area.append(geo_fence)
         else:
             # geo_fence_num = 5
-            geo_fence_num = 1
+            geo_fence_num = 10
             distance_from_start = 7.5  # Distances from the start and end points of the LineString
             distance_from_end = 7.5  # we ensure the geo-fence will not cover the start and end point.
             if (self.all_agents[0].ref_line.length > (distance_from_start + distance_from_end)) and len(
@@ -2890,6 +2894,13 @@ class env_simulator:
             #     near_building_penalty = 0
             # end of V1.1
 
+            # cross-track error reward
+            cross_track_penalty = 1
+            # cross_track_penalty = 0
+            if host_current_circle.intersects(drone_obj.ref_line):
+                cross_track_penalty = 0
+
+
             # if min_dist < drone_obj.protectiveBound:
             #     print("check for collision")
             # # (linear building penalty) same thing, another way of express
@@ -2989,7 +3000,7 @@ class env_simulator:
                         #       .format(drone_idx, current_ts, coef_ref_line))
                 rew = rew + dist_to_ref_line + dist_to_goal - \
                       small_step_penalty + near_goal_reward - near_building_penalty + seg_reward + survival_penalty + \
-                      no_obstruction_reward
+                      no_obstruction_reward - cross_track_penalty
                 # we remove the above termination condition
                 # if current_ts >= args.episode_length:
                 #     done.append(True)

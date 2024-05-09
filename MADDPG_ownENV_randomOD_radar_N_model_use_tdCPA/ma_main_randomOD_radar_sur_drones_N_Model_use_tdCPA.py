@@ -118,9 +118,9 @@ def main(args):
     eps_start, eps_end, eps_period, eps, env, \
     agent_grid_obs, BUFFER_SIZE, BATCH_SIZE, GAMMA, TAU, UPDATE_EVERY, seed_used, max_xy = initialize_parameters()
     # total_agentNum = len(pd.read_excel(env.agentConfig))
-    total_agentNum = 3
+    # total_agentNum = 3
     # total_agentNum = 5
-    # total_agentNum = 8
+    total_agentNum = 8
     # total_agentNum = 1
     # max_nei_num = 5
     # create world
@@ -151,16 +151,16 @@ def main(args):
             # actor_dim = [7, (total_agentNum - 1) * 6, 36, 6]
             # actor_dim = [9, (total_agentNum - 1) * 8, 36, 6]
             # actor_dim = [9, (total_agentNum - 1) * 8, 18, 6]
-            # actor_dim = [7, (total_agentNum - 1) * 5, 18, 6]
-            actor_dim = [9, (total_agentNum - 1) * 5, 18, 6]
+            actor_dim = [7, (total_agentNum - 1) * 5, 18, 6]
+            # actor_dim = [9, (total_agentNum - 1) * 5, 18, 6]
             # actor_dim = [6, 1 * 5, 36, 6]
             # actor_dim = [6, 2 * 5, 36, 6]
             # critic_dim = [6, (total_agentNum - 1) * 5, 18, 6]
             # critic_dim = [7, (total_agentNum - 1) * 6, 36, 6]
             # critic_dim = [9, (total_agentNum - 1) * 8, 36, 6]
             # critic_dim = [9, (total_agentNum - 1) * 8, 18, 6]
-            # critic_dim = [7, (total_agentNum - 1) * 5, 18, 6]
-            critic_dim = [9, (total_agentNum - 1) * 5, 18, 6]
+            critic_dim = [7, (total_agentNum - 1) * 5, 18, 6]
+            # critic_dim = [9, (total_agentNum - 1) * 5, 18, 6]
             # critic_dim = [6, 1 * 5, 36, 6]
             # critic_dim = [6, 2 * 5, 36, 6]
         else:
@@ -290,7 +290,7 @@ def main(args):
         # args.max_episodes = 1
         # args.max_episodes = 250
         # args.max_episodes = 25
-        pre_fix = r'D:\MADDPG_2nd_jp\030524_09_06_27\030524_09_06_27\interval_record_eps'
+        pre_fix = r'D:\MADDPG_2nd_jp\070524_13_39_52\interval_record_eps'
         # episode_to_check = str(10000)
         # pre_fix = r'F:\OneDrive_NTU_PhD\OneDrive - Nanyang Technological University\DDPG_2ndJournal\dim_8_transfer_learning'
         episode_to_check = str(20000)
@@ -309,7 +309,7 @@ def main(args):
             # load_filepath_4 = pre_fix + '\episode_' + episode_to_check + '_agent_4actor_net.pth'
 
             # model.load_model([load_filepath_0, load_filepath_1, load_filepath_2, load_filepath_3, load_filepath_4])
-            model.load_model([load_filepath_0, load_filepath_1, load_filepath_2])
+            model.load_model([load_filepath_0, load_filepath_1, load_filepath_2], full_observable_critic_flag)
     else:
         if transfer_learning:
             pre_fix = r'F:\OneDrive_NTU_PhD\OneDrive - Nanyang Technological University\DDPG_2ndJournal\dim_8_transfer_learning'

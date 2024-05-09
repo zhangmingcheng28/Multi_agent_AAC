@@ -44,7 +44,7 @@ else:
     device = torch.device('cpu')
     print('Using CPU')
 
-# device = torch.device('cpu')
+device = torch.device('cpu')
 
 def main(args):
 
@@ -80,8 +80,8 @@ def main(args):
     # full_observable_critic_flag = True
     full_observable_critic_flag = False
 
-    use_GRU_flag = True
-    # use_GRU_flag = False
+    # use_GRU_flag = True
+    use_GRU_flag = False
 
     # use_LSTM_flag = True
     use_LSTM_flag = False
@@ -221,7 +221,8 @@ def main(args):
         # args.max_episodes = 500
         # args.max_episodes = 20
         # args.max_episodes = 1
-        pre_fix = r'D:\MADDPG_2nd_jp\060524_20_13_15\060524_20_13_15\interval_record_eps'
+        episode_situation_holder = [None] * args.max_episodes
+        pre_fix = r'D:\MADDPG_2nd_jp\080524_18_08_26\interval_record_eps'
         episode_to_check = str(10000)
         load_filepath_0 = pre_fix + '\episode_' + episode_to_check + '_agent_0actor_net.pth'
         load_filepath_1 = pre_fix + '\episode_' + episode_to_check + '_agent_1actor_net.pth'
@@ -401,7 +402,6 @@ def main(args):
                 step += 1  # current play step
                 total_step += 1  # steps taken from 1st episode
                 eps_noise.append(step_noise_val)
-                traj_step_list = []
                 trajectory_eachPlay.append([[each_agent_traj[0], each_agent_traj[1], reward_aft_action[each_agent_idx],
                                              eps_status_holder[each_agent_idx]] for each_agent_idx, each_agent_traj in
                                             enumerate(cur_state[0])])
@@ -941,7 +941,8 @@ def main(args):
                             # print("near goal reward is {}".format(step_reward_decomposition[6]))
                             # print("current spd is {} m/s, curent spd penalty is {}". format(step_reward_decomposition[5], step_reward_decomposition[4]))
                     print("[Episode %05d] reward %6.4f " % (episode, accum_reward))
-
+                    if args.mode == "eval":
+                        episode_situation_holder[episode-1] = trajectory_eachPlay
                     if get_evaluation_status:
                         if simply_view_evaluation:
                         # ------------------ static display trajectory ---------------------------- #
@@ -1031,7 +1032,7 @@ if __name__ == '__main__':
     parser.add_argument('--scenario', default="simple_spread", type=str)
     parser.add_argument('--max_episodes', default=10000, type=int)  # run for a total of 50000 episodes
     parser.add_argument('--algo', default="maddpg", type=str, help="commnet/bicnet/maddpg/TD3")
-    parser.add_argument('--mode', default="train", type=str, help="train/eval")
+    parser.add_argument('--mode', default="eval", type=str, help="train/eval")
     parser.add_argument('--episode_length', default=100, type=int)  # maximum play per episode
     parser.add_argument('--memory_length', default=int(1e5), type=int)
     parser.add_argument('--seed', default=777, type=int)  # may choose to use 3407

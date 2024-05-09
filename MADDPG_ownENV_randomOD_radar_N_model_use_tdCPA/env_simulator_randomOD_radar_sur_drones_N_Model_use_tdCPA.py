@@ -1640,11 +1640,11 @@ class env_simulator:
             #                       agent.goal[-1][0]-agent.pos[0], agent.goal[-1][1]-agent.pos[1],
             #                      agent.acc[0], agent.acc[1], agent.heading])
 
-            # self_obs = np.array([agent.pos[0], agent.pos[1], agent.vel[0], agent.vel[1],
-            #                       agent.goal[-1][0]-agent.pos[0], agent.goal[-1][1]-agent.pos[1], agent.heading])
-
             self_obs = np.array([agent.pos[0], agent.pos[1], agent.vel[0], agent.vel[1],
-                                  agent.goal[-1][0]-agent.pos[0], agent.goal[-1][1]-agent.pos[1], agent.heading, delta_nei[0], delta_nei[1]])
+                                  agent.goal[-1][0]-agent.pos[0], agent.goal[-1][1]-agent.pos[1], agent.heading])
+
+            # self_obs = np.array([agent.pos[0], agent.pos[1], agent.vel[0], agent.vel[1],
+            #                       agent.goal[-1][0]-agent.pos[0], agent.goal[-1][1]-agent.pos[1], agent.heading, delta_nei[0], delta_nei[1]])
 
             # self_obs = np.array([agent.vel[0], agent.vel[1],
             #                       agent.goal[-1][0]-agent.pos[0], agent.goal[-1][1]-agent.pos[1],
@@ -1671,7 +1671,7 @@ class env_simulator:
 
             norm_self_obs = np.concatenate([norm_pos, norm_vel, norm_deltaG], axis=0)
             norm_self_obs = np.append(norm_self_obs, agent.heading)  # we have to do this because heading dim=1
-            norm_self_obs = np.append(norm_self_obs, norm_delta_nei)  # we have to do this because heading dim=1
+            # norm_self_obs = np.append(norm_self_obs, norm_delta_nei)  # we have to do this because heading dim=1
 
             # norm_self_obs = np.append(norm_self_obs, norm_nearest_neigh)
 
@@ -1685,7 +1685,6 @@ class env_simulator:
             # overall_state_p2.append(agent.observableSpace)
             overall_state_p2_radar.append(agent.observableSpace)
             overall_state_p2.append(all_neigh_agents)
-
 
             # distances_list = [dist_element[0] for dist_element in agent.observableSpace]
             # mini_index = find_index_of_min_first_element(agent.observableSpace)
@@ -3290,8 +3289,8 @@ class env_simulator:
             # dist_to_goal = dist_to_goal_coeff * (1 - (dist_left / drone_obj.ref_line.length))  # v3
             # ---- end of v3 leading to goal reward, based on remained distance to travel only ---
 
-            if dist_to_goal > drone_obj.maxSpeed:
-                print("dist_to_goal reward out of range")
+            # if dist_to_goal > drone_obj.maxSpeed:
+            #     print("dist_to_goal reward out of range")
 
             # ------- small segment reward ------------
             # dist_to_seg_coeff = 10
@@ -3358,10 +3357,10 @@ class env_simulator:
             m_drone = (0 - 1) / (dist_to_penalty_upperbound - dist_to_penalty_lowerbound)
             if nearest_neigh_key is not None:
                 if shortest_neigh_dist >= dist_to_penalty_lowerbound and shortest_neigh_dist <= dist_to_penalty_upperbound:
-                    # if neigh_relative_bearing >= 90.0 and neigh_relative_bearing <= 180:
-                    #     near_drone_penalty_coef = near_drone_penalty_coef * 2
-                    # else:
-                    #     pass
+                    if neigh_relative_bearing >= 90.0 and neigh_relative_bearing <= 180:
+                        near_drone_penalty_coef = near_drone_penalty_coef * 2
+                    else:
+                        pass
                     near_drone_penalty = near_drone_penalty_coef * (m_drone * shortest_neigh_dist + c_drone)
                 else:
                     near_drone_penalty = near_drone_penalty_coef * 0
@@ -3570,10 +3569,10 @@ class env_simulator:
                     done.append(True)
                 # done.append(False)
                 bound_building_check[2] = True
-                # if neigh_collision_bearing >=90.0 and neigh_collision_bearing <=180:
-                #     crash_penalty_wall = crash_penalty_wall * 2
-                # else:
-                #     pass
+                if neigh_collision_bearing >=90.0 and neigh_collision_bearing <=180:
+                    crash_penalty_wall = crash_penalty_wall * 2
+                else:
+                    pass
                 rew = rew - crash_penalty_wall
                 reward.append(np.array(rew))
                 # check if the collision is due to the nearest drone.
