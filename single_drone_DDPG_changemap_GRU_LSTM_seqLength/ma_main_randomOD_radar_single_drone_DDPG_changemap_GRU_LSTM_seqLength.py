@@ -212,6 +212,7 @@ def main(args):
     goal_reached = 0
     goal_reach_history.append(goal_reached)
     episode_goal_found = [False] * n_agents
+    num_geo_fence_created = []
     dummy_xy = (None, None)  # this is a dummy tuple of xy, is not useful during normal training, it is only useful when generating reward map
     if args.mode == "eval":
         # args.max_episodes = 10  # only evaluate one episode during evaluation mode.
@@ -251,7 +252,7 @@ def main(args):
         eps_reset_time_used = (time.time()-eps_reset_start_time)*1000
         # print("current episode {} reset time used is {} milliseconds".format(episode, eps_reset_time_used))  # need to + 1 here, or else will misrecord as the previous episode
         step_collision_record = [[] for _ in range(total_agentNum)]  # reset at each episode, so that we can record down collision at each step for each agent.
-
+        num_geo_fence_created.append(len(env.geo_fence_area))
         episode_decision = [False] * 3
         agents_added = []
         eps_reward = []
@@ -268,6 +269,7 @@ def main(args):
         agent_added = 0  # this is an initialization for each new episode
         accum_reward = 0
         trajectory_eachPlay = []
+
         lstm_hist = None
         gru_hist = None
 
