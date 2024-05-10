@@ -68,8 +68,8 @@ def main(args):
         # initialize_excel_file(excel_file_path_time)
         # ------------ end of this portion is to save using excel instead of pickle -----------
 
-    use_wanDB = False
-    # use_wanDB = True
+    # use_wanDB = False
+    use_wanDB = True
 
     # get_evaluation_status = True  # have figure output
     get_evaluation_status = False  # no figure output, mainly obtain collision rate
@@ -1016,6 +1016,8 @@ def main(args):
         # record the reached OD and geo-fence area
         with open(plot_file_name + '/reached_OD_wGeo_fence.pickle', 'wb') as handle:
             pickle.dump(all_OD_geo_fence_reach, handle, protocol=pickle.HIGHEST_PROTOCOL)
+        with open(plot_file_name + '/geo_fence_number_perEps.pickle', 'wb') as handle:
+            pickle.dump(num_geo_fence_created, handle, protocol=pickle.HIGHEST_PROTOCOL)
     else:
         print("total collision count is {}".format(collision_count))
         print("Collision due to bound is {}".format(crash_to_bound))
@@ -1036,7 +1038,7 @@ if __name__ == '__main__':
     parser.add_argument('--scenario', default="simple_spread", type=str)
     parser.add_argument('--max_episodes', default=10000, type=int)  # run for a total of 50000 episodes
     parser.add_argument('--algo', default="maddpg", type=str, help="commnet/bicnet/maddpg/TD3")
-    parser.add_argument('--mode', default="eval", type=str, help="train/eval")
+    parser.add_argument('--mode', default="train", type=str, help="train/eval")
     parser.add_argument('--episode_length', default=100, type=int)  # maximum play per episode
     parser.add_argument('--memory_length', default=int(1e5), type=int)
     parser.add_argument('--seed', default=777, type=int)  # may choose to use 3407
