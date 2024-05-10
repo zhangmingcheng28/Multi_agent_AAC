@@ -2895,7 +2895,7 @@ class env_simulator:
             # end of V1.1
 
             # cross-track error reward
-            cross_track_penalty = 1
+            cross_track_penalty = 2
             # cross_track_penalty = 0
             if host_current_circle.intersects(drone_obj.ref_line):
                 cross_track_penalty = 0

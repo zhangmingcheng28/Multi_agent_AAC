@@ -223,7 +223,7 @@ def main(args):
         # args.max_episodes = 20
         # args.max_episodes = 1
         episode_situation_holder = [None] * args.max_episodes
-        pre_fix = r'D:\MADDPG_2nd_jp\080524_18_08_26\interval_record_eps'
+        pre_fix = r'D:\MADDPG_2nd_jp\090524_17_37_36\interval_record_eps'
         episode_to_check = str(10000)
         load_filepath_0 = pre_fix + '\episode_' + episode_to_check + '_agent_0actor_net.pth'
         load_filepath_1 = pre_fix + '\episode_' + episode_to_check + '_agent_1actor_net.pth'
@@ -1025,6 +1025,8 @@ def main(args):
         print("Two goal reached count is {}".format(two_drone_reach))
         print("All goal reached count is {}".format(all_drone_reach))
     print(f'training finishes, time spent: {datetime.timedelta(seconds=int(time.time() - training_start_time))}')
+    with open(plot_file_name + '/all_episode_reward.pickle', 'wb') as handle:
+        pickle.dump(eps_reward_record, handle, protocol=pickle.HIGHEST_PROTOCOL)
     if use_wanDB:
         wandb.finish()
 
