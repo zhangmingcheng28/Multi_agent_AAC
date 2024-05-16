@@ -207,7 +207,7 @@ class env_simulator:
             self.all_agents[agent_i] = agent
         self.dummy_agent = self.all_agents[0]
 
-    def reset_world(self, total_agentNum, random_map_idx, use_reached, show):  # set initialize position and observation for all agents
+    def reset_world(self, total_agentNum, random_map_idx, use_reached, args, show):  # set initialize position and observation for all agents
         self.global_time = 0.0
         # self.time_step = 0.1
         self.time_step = 0.5
@@ -218,8 +218,7 @@ class env_simulator:
         self.geo_fence_area = []
         reached_OD_geo_fence = None
         if use_reached:
-            with open(r'D:\MADDPG_2nd_jp\010524_11_24_30\010524_11_24_30\toplot\reached_OD_wGeo_fence.pickle',
-                      'rb') as handle:
+            with open(r'D:\MADDPG_2nd_jp\130524_20_23_20\toplot\reached_OD_wGeo_fence.pickle', 'rb') as handle:
                 reached_OD_geo_fence = pickle.load(handle)
             load_random_OD_geo_fence = random.choice(list(reached_OD_geo_fence.keys()))
             geo_fence_number_stored, random_map_idx = reached_OD_geo_fence[load_random_OD_geo_fence]
@@ -422,18 +421,26 @@ class env_simulator:
                 geo_fence = circle_centre.buffer(5)
                 self.geo_fence_area.append(geo_fence)
         else:
-            # geo_fence_num = 5
-            # geo_fence_num = 10
-            # geo_fence_num = 7
-            # geo_fence_num = 5
-            # geo_fence_num = 3
-            geo_fence_num = 1
+            geo_fence_num = 5
             distance_from_start = 7.5  # Distances from the start and end points of the LineString
             distance_from_end = 7.5  # we ensure the geo-fence will not cover the start and end point.
             if (self.all_agents[0].ref_line.length > (distance_from_start + distance_from_end)) and len(
                     filtered_centroids) > 0:
                 gf_to_create = min(geo_fence_num, len(filtered_centroids))
                 sampled_points = random.sample(filtered_centroids, gf_to_create)
+                # if args.mode == "eval":
+                #     while len(sampled_points) < geo_fence_num:
+                #         # Randomly select a point
+                #         base_point = random.choice(sampled_points)
+                #         # Generate random angle and radius
+                #         angle = random.uniform(0, 2 * math.pi)
+                #         radius = random.uniform(0, 2.5)
+                #         # Convert polar coordinates to Cartesian coordinates
+                #         delta_x = radius * math.cos(angle)
+                #         delta_y = radius * math.sin(angle)
+                #         # Create new point by adding the offset
+                #         new_point = Point(base_point.x + delta_x, base_point.y + delta_y)
+                #         sampled_points.append(new_point)
                 for point_on_line in sampled_points:
                     # Fixed distance within which the point should be generated
                     fixed_distance = 2.5  # don't deviate from ref line too far
