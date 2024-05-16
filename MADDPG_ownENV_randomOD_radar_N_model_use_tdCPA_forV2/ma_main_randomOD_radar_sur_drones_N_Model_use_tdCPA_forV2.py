@@ -41,7 +41,7 @@ else:
     device = torch.device('cpu')
     print('Using CPU')
 
-device = torch.device('cpu')  # Desktop, we must use this.
+# device = torch.device('cpu')  # Desktop, we must use this.
 
 
 def main(args):
@@ -65,8 +65,8 @@ def main(args):
         # initialize_excel_file(excel_file_path_time)
         # ------------ end of this portion is to save using excel instead of pickle -----------
 
-    use_wanDB = False
-    # use_wanDB = True
+    # use_wanDB = False
+    use_wanDB = True
 
     evaluation_by_episode = True
     # evaluation_by_episode = False
@@ -289,10 +289,10 @@ def main(args):
         # args.max_episodes = 1
         # args.max_episodes = 250
         # args.max_episodes = 25
-        pre_fix = r'D:\MADDPG_2nd_jp\090524_15_47_47\interval_record_eps'
+        pre_fix = r'D:\MADDPG_2nd_jp\150524_13_21_44\interval_record_eps'
         # episode_to_check = str(10000)
         # pre_fix = r'F:\OneDrive_NTU_PhD\OneDrive - Nanyang Technological University\DDPG_2ndJournal\dim_8_transfer_learning'
-        episode_to_check = str(17000)
+        episode_to_check = str(20000)
         model_list = []
         if full_observable_critic_flag:
             for i in range(total_agentNum):
@@ -1128,7 +1128,7 @@ if __name__ == '__main__':
     parser.add_argument('--batch_size', default=512, type=int)  # original 512
     # parser.add_argument('--batch_size', default=3, type=int)  # original 512
     # parser.add_argument('--batch_size', default=1536, type=int)  # original 512
-    parser.add_argument('--gamma', default=0.95, type=float)
+    parser.add_argument('--gamma', default=0.93, type=float)
     parser.add_argument('--tau', default=0.01, type=float)
     parser.add_argument('--update_step', default=1, type=int)
     parser.add_argument('--render_flag', default=False, type=bool)

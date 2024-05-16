@@ -423,7 +423,11 @@ class env_simulator:
                 self.geo_fence_area.append(geo_fence)
         else:
             # geo_fence_num = 5
-            geo_fence_num = 10
+            # geo_fence_num = 10
+            # geo_fence_num = 7
+            # geo_fence_num = 5
+            # geo_fence_num = 3
+            geo_fence_num = 1
             distance_from_start = 7.5  # Distances from the start and end points of the LineString
             distance_from_end = 7.5  # we ensure the geo-fence will not cover the start and end point.
             if (self.all_agents[0].ref_line.length > (distance_from_start + distance_from_end)) and len(

@@ -44,7 +44,7 @@ else:
     device = torch.device('cpu')
     print('Using CPU')
 
-device = torch.device('cpu')
+# device = torch.device('cpu')
 
 def main(args):
 
@@ -246,8 +246,8 @@ def main(args):
         # Create a list of all indices excluding 3
         indices = [i for i in range(len(env.world_map_2D_collection)) if i not in (3, 5)]
         # Select a random index from the list of indices
-        # random_map_idx = random.choice(indices)
-        random_map_idx = 3  # this value is the previous fixed environment
+        random_map_idx = random.choice(indices)
+        # random_map_idx = 3  # this value is the previous fixed environment
         cur_state, norm_cur_state = env.reset_world(total_agentNum, random_map_idx, use_reached, show=0)  # random map choose here
         eps_reset_time_used = (time.time()-eps_reset_start_time)*1000
         # print("current episode {} reset time used is {} milliseconds".format(episode, eps_reset_time_used))  # need to + 1 here, or else will misrecord as the previous episode
