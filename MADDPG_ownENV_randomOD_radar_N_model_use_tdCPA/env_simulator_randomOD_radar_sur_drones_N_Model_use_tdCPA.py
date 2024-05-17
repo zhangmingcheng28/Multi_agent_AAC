@@ -3025,7 +3025,9 @@ class env_simulator:
             host_current_circle = Point(self.all_agents[drone_idx].pos[0], self.all_agents[drone_idx].pos[1]).buffer(
                 self.all_agents[drone_idx].protectiveBound)
             tar_circle = Point(self.all_agents[drone_idx].goal[-1]).buffer(1, cap_style='round')
-            goal_cur_intru_intersect = host_current_circle.intersection(tar_circle)
+            with warnings.catch_warnings():
+                warnings.simplefilter('ignore', category=RuntimeWarning)
+                goal_cur_intru_intersect = host_current_circle.intersection(tar_circle)
             if not goal_cur_intru_intersect.is_empty:
                 drone_obj.reach_target = True
 
