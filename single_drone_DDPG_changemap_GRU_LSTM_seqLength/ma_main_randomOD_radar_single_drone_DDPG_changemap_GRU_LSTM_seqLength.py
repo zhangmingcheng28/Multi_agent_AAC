@@ -68,8 +68,8 @@ def main(args):
         # initialize_excel_file(excel_file_path_time)
         # ------------ end of this portion is to save using excel instead of pickle -----------
 
-    # use_wanDB = False
-    use_wanDB = True
+    use_wanDB = False
+    # use_wanDB = True
 
     # get_evaluation_status = True  # have figure output
     get_evaluation_status = False  # no figure output, mainly obtain collision rate
@@ -80,8 +80,8 @@ def main(args):
     # full_observable_critic_flag = True
     full_observable_critic_flag = False
 
-    use_GRU_flag = True
-    # use_GRU_flag = False
+    # use_GRU_flag = True
+    use_GRU_flag = False
 
     # use_LSTM_flag = True
     use_LSTM_flag = False
@@ -97,6 +97,9 @@ def main(args):
 
     # attention_only = True
     attention_only = False
+
+    # feature_matching = True
+    feature_matching = False
 
     if use_wanDB:
         wandb.login(key="efb76db851374f93228250eda60639c70a93d1ec")
@@ -174,7 +177,7 @@ def main(args):
     torch.manual_seed(args.seed)  # this is the seed
 
     if args.algo == "maddpg":
-        model = MADDPG(actor_dim, critic_dim, n_actions, actor_hidden_state, history_seq_length, n_agents, args, criticNet_lr, actorNet_lr, GAMMA, TAU, full_observable_critic_flag, use_GRU_flag, use_attention_flag, attention_only, use_LSTM_flag, stacking)
+        model = MADDPG(actor_dim, critic_dim, n_actions, actor_hidden_state, history_seq_length, n_agents, args, criticNet_lr, actorNet_lr, GAMMA, TAU, full_observable_critic_flag, use_GRU_flag, use_attention_flag, attention_only, use_LSTM_flag, stacking, feature_matching)
     elif args.algo == 'TD3':
         model = TD3(actor_dim, critic_dim, n_actions, actor_hidden_state, history_seq_length, n_agents, args,
                        criticNet_lr, actorNet_lr, GAMMA, TAU, full_observable_critic_flag, use_GRU_flag)
@@ -301,7 +304,7 @@ def main(args):
                 #         norm_cur_state, total_step, episode, step, eps_end, noise_start_level, cur_actor_hiddens,
                 #         lstm_hist, gru_hist, use_LSTM_flag, noisy=noise_flag, use_GRU_flag=use_GRU_flag)  # noisy is false because we are using stochastic policy
 
-                action, step_noise_val, lstm_hist, gru_hist, cur_actor_hiddens, next_actor_hiddens = model.choose_action(norm_cur_state, total_step, episode, step, eps_end, noise_start_level, cur_actor_hiddens, lstm_hist, gru_hist, use_LSTM_flag, stacking, noisy=noise_flag, use_GRU_flag=use_GRU_flag)
+                action, step_noise_val, lstm_hist, gru_hist, cur_actor_hiddens, next_actor_hiddens = model.choose_action(env.OU_noise, norm_cur_state, total_step, episode, step, eps_end, noise_start_level, cur_actor_hiddens, lstm_hist, gru_hist, use_LSTM_flag, stacking, noisy=noise_flag, use_GRU_flag=use_GRU_flag)
 
                 generate_action_time = (time.time() - step_obtain_action_time_start)*1000
                 # print("current step obtain action time used is {} milliseconds".format(generate_action_time))
@@ -1042,7 +1045,7 @@ if __name__ == '__main__':
     parser.add_argument('--scenario', default="simple_spread", type=str)
     parser.add_argument('--max_episodes', default=10000, type=int)  # run for a total of 50000 episodes
     parser.add_argument('--algo', default="maddpg", type=str, help="commnet/bicnet/maddpg/TD3")
-    parser.add_argument('--mode', default="eval", type=str, help="train/eval")
+    parser.add_argument('--mode', default="train", type=str, help="train/eval")
     parser.add_argument('--episode_length', default=100, type=int)  # maximum play per episode
     parser.add_argument('--memory_length', default=int(1e5), type=int)
     parser.add_argument('--seed', default=777, type=int)  # may choose to use 3407

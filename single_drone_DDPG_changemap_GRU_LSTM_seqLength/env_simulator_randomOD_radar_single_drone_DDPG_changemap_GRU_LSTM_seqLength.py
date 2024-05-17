@@ -88,7 +88,7 @@ class env_simulator:
 
     def create_world(self, total_agentNum, n_actions, gamma, tau, target_update, largest_Nsigma, smallest_Nsigma, ini_Nsigma, max_xy, max_spd, acc_range):
         # config OU_noise
-        self.OU_noise = OUNoise(n_actions, largest_Nsigma, smallest_Nsigma, ini_Nsigma)
+        self.OU_noise = OUActionNoise(np.zeros(n_actions), 0.1, 0.15, 0.5)
         self.all_agents = {}
         # os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
         # matplotlib.use('TkAgg')

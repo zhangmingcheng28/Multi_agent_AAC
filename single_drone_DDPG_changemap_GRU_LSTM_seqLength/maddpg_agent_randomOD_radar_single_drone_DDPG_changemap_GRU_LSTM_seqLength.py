@@ -12,6 +12,7 @@ import time
 import numpy as np
 import torch as T
 from utils_randomOD_radar_single_drone_DDPG_changemap_GRU_LSTM_seqLength import device
+from Utilities_own_randomOD_radar_single_drone_DDPG_changemap_GRU_LSTM_seqLength import *
 import csv
 
 
@@ -29,12 +30,12 @@ def hard_update(target, source):
 
 
 class MADDPG:
-    def __init__(self, actor_dim, critic_dim, dim_act, actor_hidden_state_size, gru_history_length, n_agents, args, cr_lr, ac_lr, gamma, tau, full_observable_critic_flag, use_GRU_flag, use_attention_flag, attention_only, use_LSTM_flag, stacking):
+    def __init__(self, actor_dim, critic_dim, dim_act, actor_hidden_state_size, gru_history_length, n_agents, args, cr_lr, ac_lr, gamma, tau, full_observable_critic_flag, use_GRU_flag, use_attention_flag, attention_only, use_LSTM_flag, stacking, feature_matching):
         self.args = args
         self.mode = args.mode
         self.actors = []
         self.critics = []
-
+        self.random_network = RandomNetwork(actor_dim, 0.1)
         # original
         # self.actors = [Actor(dim_obs, dim_act) for _ in range(n_agents)]
         # self.critics = [Critic(n_agents, dim_obs, dim_act) for _ in range(n_agents)]
@@ -47,9 +48,12 @@ class MADDPG:
                 self.critics = [critic_single_obs_wGRU_TwoPortion(critic_dim, n_agents, dim_act, gru_history_length, actor_hidden_state_size) for _ in range(n_agents)]
                 # self.critics = [critic_single_obs_wGRU_TwoPortion_att(critic_dim, n_agents, dim_act, gru_history_length, actor_hidden_state_size) for _ in range(n_agents)]
             else:
-                self.actors = [GRU_batch_actor_TwoPortion(actor_dim, dim_act, actor_hidden_state_size) for _ in range(n_agents)]  # use deterministic policy
-                # self.critics = [critic_single_obs_wGRU_TwoPortion(critic_dim, n_agents, dim_act, gru_history_length, actor_hidden_state_size) for _ in range(n_agents)]
-                self.critics = [critic_single_obs_GRU_batch_twoPortion(critic_dim, n_agents, dim_act, gru_history_length, actor_hidden_state_size) for _ in range(n_agents)]
+                if feature_matching:
+                    self.actors = [GRU_batch_actor_TwoPortionFM(actor_dim, dim_act, actor_hidden_state_size) for _ in range(n_agents)]  # use deterministic policy
+                    self.critics = [critic_single_obs_GRU_batch_twoPortionFM(critic_dim, n_agents, dim_act, gru_history_length, actor_hidden_state_size) for _ in range(n_agents)]
+                else:
+                    self.actors = [GRU_batch_actor_TwoPortion(actor_dim, dim_act, actor_hidden_state_size) for _ in range(n_agents)]  # use deterministic policy
+                    self.critics = [critic_single_obs_GRU_batch_twoPortion(critic_dim, n_agents, dim_act, gru_history_length, actor_hidden_state_size) for _ in range(n_agents)]
 
         elif use_LSTM_flag:
             self.actors = [LSTM_batch_actor_TwoPortion(actor_dim, dim_act, actor_hidden_state_size) for _ in range(n_agents)]  # use deterministic policy
@@ -707,7 +711,7 @@ class MADDPG:
                 wandb.log({name: float(param.grad.norm())})
                 # wandb.log({'agent' + str(idx): wandb.Histogram(param.grad.cpu().detach().numpy())})
 
-    def choose_action(self, state, cur_total_step, cur_episode, step, total_training_steps, noise_start_level, actor_hiddens, lstm_hist, gru_hist, use_LSTM_flag, stacking, noisy=True, use_GRU_flag=False):
+    def choose_action(self, OU_noise, state, cur_total_step, cur_episode, step, total_training_steps, noise_start_level, actor_hiddens, lstm_hist, gru_hist, use_LSTM_flag, stacking, noisy=True, use_GRU_flag=False):
         # ------------- MADDPG_test_181123_10_10_54 version noise -------------------
         obs = torch.from_numpy(np.stack(state[0])).float().to(device)
         obs_grid = torch.from_numpy(np.stack(state[1])).float().to(device)
@@ -756,8 +760,10 @@ class MADDPG:
             else:
                 act = self.actors[i]([sb.unsqueeze(0), sb_grid.unsqueeze(0)])
             if noisy:
-                noise_value = np.random.randn(2) * self.var[i]
-                act += torch.from_numpy(noise_value).type(FloatTensor)
+                # noise_value = np.random.randn(2) * self.var[i]  # gaussian
+                # ou_noise_val = OU_noise()
+                ou_noise_val = OU_noise() * self.var[i]
+                act += torch.from_numpy(ou_noise_val).type(FloatTensor)
                 # print("Episode {}, agent {}, noise level is {}".format(episode, i, self.var[i]))
                 act = torch.clamp(act, -1.0, 1.0)  # when using stochastic policy, we are not require to clamp again.
 

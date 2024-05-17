@@ -20,6 +20,29 @@ from torch.distributions import Normal
 use_cuda = torch.cuda.is_available()
 device = torch.device("cuda" if use_cuda else "cpu")
 
+class RandomNetwork(nn.Module):
+    def __init__(self, actor_dim, alpha):
+        super(RandomNetwork, self).__init__()
+        self.alpha = alpha
+        self.fc = nn.Linear(actor_dim[0] + actor_dim[1], actor_dim[0] + actor_dim[1])
+        self.reset_parameters()
+
+    def reset_parameters(self):
+        with torch.no_grad():
+            # Identity kernel initialization
+            I = torch.eye(self.fc.weight.shape[0], self.fc.weight.shape[1])
+
+            # Xavier normal distribution initialization
+            std = math.sqrt(2.0 / (self.fc.weight.shape[1] + self.fc.weight.shape[0]))
+            normal_dist = torch.randn_like(self.fc.weight) * std
+
+            # Mixture of identity kernel and normal distribution
+            self.fc.weight.copy_(self.alpha * I + self.alpha * normal_dist)
+            self.fc.bias.fill_(0)
+
+    def forward(self, x):
+        return self.fc(x)
+
 
 class ScaledDotProductAttention(nn.Module):
     """
@@ -869,6 +892,62 @@ class GRU_batch_actor_TwoPortion(nn.Module):
             if dones_stacked is not None and torch.any(dones_stacked):
                 rnn_outputs = []
                 terminated = dones_stacked.view(-1, stacked_hidden.shape[2])  # we must ensure [2] is the sequence length
+                indexes = [0] + (terminated[:, :-1].any(dim=0).nonzero(as_tuple=True)[0] + 1).tolist() + \
+                          [stacked_hidden.shape[2]]  # here should be dim=1
+
+                for i in range(len(indexes) - 1):
+                    i0, i1 = indexes[i], indexes[i + 1]
+                    rnn_output, target_stacked_hidden = self.gru(rnn_input[:, i0:i1, :], target_stacked_hidden)
+                    target_stacked_hidden[:, (terminated[:, i1 - 1]), :] = 0
+                    rnn_outputs.append(rnn_output)
+
+                rnn_states = target_stacked_hidden
+                rnn_output = torch.cat(rnn_outputs, dim=1)
+            # no need to reset the RNN state in the sequence
+            else:
+                rnn_output, rnn_states = self.gru(rnn_input, target_stacked_hidden)
+
+            hn = rnn_states
+
+        merge_obs_H_grid = torch.flatten(rnn_output, start_dim=0, end_dim=1)  # (N, L, D ∗ Hout) -> (N * L, D ∗ Hout)
+        action_out = self.outlay(merge_obs_H_grid)
+
+        return action_out, hn
+
+
+class GRU_batch_actor_TwoPortionFM(nn.Module):
+    def __init__(self, actor_dim, n_actions, actor_hidden_state_size):
+        super(GRU_batch_actor_TwoPortionFM, self).__init__()
+        # new V4
+        self.rnn_hidden_dim = actor_hidden_state_size
+        self.own_fc = nn.Sequential(nn.Linear(actor_dim[0] + actor_dim[1], 64), nn.ReLU())
+        self.gru = nn.GRU(64, actor_hidden_state_size, batch_first=True)
+        self.outlay = nn.Sequential(nn.Linear(actor_hidden_state_size, 128), nn.ReLU(),
+                                    nn.Linear(128, 128), nn.ReLU(),
+                                    nn.Linear(64 + 64, n_actions), nn.Tanh())
+
+    # new V3
+    def forward(self, cur_state, history_hidden_state, target_act_flag=0, dones_stacked=None):
+        combine_obs = torch.cat((cur_state[0], cur_state[1]), dim=2)
+        stacked_hidden = history_hidden_state
+        seq_length = stacked_hidden.shape[2]
+        # rnn_input = combine_obs  # this is for V3
+        # The two lines below, it is for V3.1
+        combine_obs_feat = self.own_fc(combine_obs)
+        rnn_input = combine_obs_feat
+
+        if len(stacked_hidden.shape) == 3:
+            rnn_output, hn = self.gru(rnn_input, history_hidden_state)
+        else:
+            if seq_length == 1:  # when seq_length equals to 1, the 3rd position cannot take other values other than 0.
+                target_stacked_hidden = stacked_hidden[:, :, 0, :].contiguous()
+            else:
+                target_stacked_hidden = stacked_hidden[:, :, target_act_flag, :].contiguous()
+            dones_stacked = dones_stacked != 0
+            if dones_stacked is not None and torch.any(dones_stacked):
+                rnn_outputs = []
+                terminated = dones_stacked.view(-1,
+                                                stacked_hidden.shape[2])  # we must ensure [2] is the sequence length
                 indexes = [0] + (terminated[:, :-1].any(dim=0).nonzero(as_tuple=True)[0] + 1).tolist() + \
                           [stacked_hidden.shape[2]]  # here should be dim=1
 
@@ -1939,6 +2018,63 @@ class critic_single_obs_GRU_batch_twoPortion(nn.Module):
 
 
         # merge_feature = self.merge_fc_grid(rnn_output) # this line for other critic version
+
+        # ONLY use two lines below when we use critic V3.2
+        merge_feature = torch.cat((rnn_output, own_act_feat), dim=2)
+        merge_feature = self.merge_fc_grid(merge_feature)
+        flat_merge_feature = torch.flatten(merge_feature, start_dim=0,
+                                           end_dim=1)  # (N, L, D ∗ Hout) -> (N * L, D ∗ Hout)
+        q = self.out_feature_q(flat_merge_feature)
+        return q, hn
+
+
+class critic_single_obs_GRU_batch_twoPortionFM(nn.Module):
+    def __init__(self, critic_obs, n_agents, n_actions, single_history, hidden_state_size):
+        super(critic_single_obs_GRU_batch_twoPortionFM, self).__init__()
+        # V3.1
+        self.gru = nn.GRU(hidden_state_size, hidden_state_size, batch_first=True)
+        self.SA_fc = nn.Sequential(nn.Linear(critic_obs[0] + critic_obs[1], hidden_state_size), nn.ReLU())
+        self.act_fea = nn.Sequential(nn.Linear(n_actions, 64), nn.ReLU())
+        self.merge_fc_grid = nn.Sequential(nn.Linear(hidden_state_size+64, 512), nn.ReLU())
+        self.out_feature_q = nn.Sequential(nn.Linear(512, 1))
+
+    # with new sequence
+    def forward(self, single_state, single_action, history_hidden_state, target_act_flag, dones_stacked=None):
+        #V3.2
+        own_act = single_action.contiguous().view(single_state[0].shape[0], single_state[0].shape[1], -1)
+        own_act_feat = self.act_fea(own_act)
+        combine_obsWact = torch.cat((single_state[0], single_state[1]), dim=2)
+        combine_featWact = self.SA_fc(combine_obsWact)
+        history_stacked_hidden = history_hidden_state
+        seq_length = history_stacked_hidden.shape[2]
+        rnn_input = combine_featWact
+
+        if seq_length == 1:
+            stacked_hidden = history_stacked_hidden[:, :, 0, :].contiguous()
+        else:
+            stacked_hidden = history_stacked_hidden[:, :, target_act_flag, :].contiguous()
+        dones_stacked = dones_stacked != 0  # change 0/1 to False/True
+
+        if dones_stacked is not None and torch.any(dones_stacked):
+            rnn_outputs = []
+            terminated = dones_stacked.view(-1,
+                                            seq_length)  # we must ensure history_stacked_hidden[2] is the sequence length
+            indexes = [0] + (terminated[:, :-1].any(dim=0).nonzero(as_tuple=True)[0] + 1).tolist() + \
+                      [seq_length]  # here should be dim=1???
+
+            for i in range(len(indexes) - 1):
+                i0, i1 = indexes[i], indexes[i + 1]
+                rnn_output, stacked_hidden = self.gru(rnn_input[:, i0:i1, :], stacked_hidden)
+                stacked_hidden[:, (terminated[:, i1 - 1]), :] = 0
+                rnn_outputs.append(rnn_output)
+
+            rnn_states = stacked_hidden
+            rnn_output = torch.cat(rnn_outputs, dim=1)
+        # no need to reset the RNN state in the sequence
+        else:
+            rnn_output, rnn_states = self.gru(rnn_input, stacked_hidden)
+
+        hn = rnn_states
 
         # ONLY use two lines below when we use critic V3.2
         merge_feature = torch.cat((rnn_output, own_act_feat), dim=2)
