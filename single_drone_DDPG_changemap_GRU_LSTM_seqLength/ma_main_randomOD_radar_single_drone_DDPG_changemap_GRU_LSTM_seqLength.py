@@ -44,7 +44,7 @@ else:
     device = torch.device('cpu')
     print('Using CPU')
 
-# device = torch.device('cpu')
+device = torch.device('cpu')
 
 def main(args):
 
@@ -68,8 +68,8 @@ def main(args):
         # initialize_excel_file(excel_file_path_time)
         # ------------ end of this portion is to save using excel instead of pickle -----------
 
-    use_wanDB = False
-    # use_wanDB = True
+    # use_wanDB = False
+    use_wanDB = True
 
     # get_evaluation_status = True  # have figure output
     get_evaluation_status = False  # no figure output, mainly obtain collision rate
@@ -98,8 +98,8 @@ def main(args):
     # attention_only = True
     attention_only = False
 
-    # feature_matching = True
-    feature_matching = False
+    feature_matching = True
+    # feature_matching = False
 
     if use_wanDB:
         wandb.login(key="efb76db851374f93228250eda60639c70a93d1ec")
@@ -304,7 +304,7 @@ def main(args):
                 #         norm_cur_state, total_step, episode, step, eps_end, noise_start_level, cur_actor_hiddens,
                 #         lstm_hist, gru_hist, use_LSTM_flag, noisy=noise_flag, use_GRU_flag=use_GRU_flag)  # noisy is false because we are using stochastic policy
 
-                action, step_noise_val, lstm_hist, gru_hist, cur_actor_hiddens, next_actor_hiddens = model.choose_action(env.OU_noise, norm_cur_state, total_step, episode, step, eps_end, noise_start_level, cur_actor_hiddens, lstm_hist, gru_hist, use_LSTM_flag, stacking, noisy=noise_flag, use_GRU_flag=use_GRU_flag)
+                action, step_noise_val, lstm_hist, gru_hist, cur_actor_hiddens, next_actor_hiddens = model.choose_action(env.OU_noise, norm_cur_state, total_step, episode, step, eps_end, noise_start_level, cur_actor_hiddens, lstm_hist, gru_hist, use_LSTM_flag, stacking, feature_matching, noisy=noise_flag, use_GRU_flag=use_GRU_flag)
 
                 generate_action_time = (time.time() - step_obtain_action_time_start)*1000
                 # print("current step obtain action time used is {} milliseconds".format(generate_action_time))
@@ -463,7 +463,7 @@ def main(args):
                     c_loss, a_loss, single_eps_critic_cal_record = model.update_myown_ddpg(episode, total_step,
                                                                                            UPDATE_EVERY,
                                                                                            single_eps_critic_cal_record,
-                                                                                           action, use_LSTM_flag, stacking, wandb,
+                                                                                           action, use_LSTM_flag, stacking, feature_matching, wandb,
                                                                                            full_observable_critic_flag,
                                                                                            use_GRU_flag)  # last working learning framework
                 elif args.algo == 'TD3':

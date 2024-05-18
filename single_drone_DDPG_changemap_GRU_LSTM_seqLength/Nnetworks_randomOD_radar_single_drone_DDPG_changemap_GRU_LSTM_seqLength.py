@@ -21,7 +21,7 @@ use_cuda = torch.cuda.is_available()
 device = torch.device("cuda" if use_cuda else "cpu")
 
 class RandomNetwork(nn.Module):
-    def __init__(self, actor_dim, alpha):
+    def __init__(self, actor_dim, alpha=0.1):
         super(RandomNetwork, self).__init__()
         self.alpha = alpha
         self.fc = nn.Linear(actor_dim[0] + actor_dim[1], actor_dim[0] + actor_dim[1])
@@ -621,6 +621,28 @@ class ActorNetwork_TwoPortion(nn.Module):
         merge_feature = self.merge_feature(merge_obs_grid)
         out_action = self.act_out(merge_feature)
         return out_action
+
+
+class ActorNetwork_TwoPortionFM(nn.Module):
+    def __init__(self, actor_dim, n_actions):  # actor_obs consists of three parts 0 = own, 1 = own grid, 2 = surrounding drones
+        super(ActorNetwork_TwoPortionFM, self).__init__()
+        # V2
+        self.randomLayer = RandomNetwork(actor_dim)
+        self.own_fc = nn.Sequential(nn.Linear(actor_dim[0] + actor_dim[1], 128), nn.ReLU())
+        self.merge_feature = nn.Sequential(nn.Linear(64+64, 128), nn.ReLU())
+        self.act_out = nn.Sequential(nn.Linear(128, n_actions), nn.Tanh())
+
+    def forward(self, cur_state, use_random=False):
+        # V2
+        obs_grid = torch.cat((cur_state[0], cur_state[1]), dim=1)
+        if use_random:
+            obs_grid_input = self.randomLayer(obs_grid)
+        else:
+            obs_grid_input = obs_grid
+        merge_obs_grid = self.own_fc(obs_grid_input)
+        merge_feature = self.merge_feature(merge_obs_grid)
+        out_action = self.act_out(merge_feature)
+        return out_action, merge_obs_grid
 
 
 class ActorNetwork_OnePortion(nn.Module):
@@ -2468,6 +2490,31 @@ class critic_single_TwoPortion(nn.Module):
         merge_feature = self.merge_fc_grid(combine_feature)
         q = self.out_feature_q(merge_feature)
         return q
+
+
+class critic_single_TwoPortionFM(nn.Module):
+    def __init__(self, critic_obs, n_agents, n_actions, single_history, hidden_state_size):
+        super(critic_single_TwoPortionFM, self).__init__()
+        self.randomLayer = RandomNetwork(critic_obs)
+        #V2.1
+        self.SA_fc = nn.Sequential(nn.Linear(critic_obs[0]+critic_obs[1], 256), nn.ReLU())
+        self.act = nn.Sequential(nn.Linear(n_actions, 64), nn.ReLU())
+        self.merge_fc_grid = nn.Sequential(nn.Linear(256+64, 512), nn.ReLU())
+        self.out_feature_q = nn.Sequential(nn.Linear(512, 256), nn.ReLU(), nn.Linear(256, 1))
+
+    def forward(self, single_state, single_action, use_random=False):
+        # V2.1
+        obsWgrid = torch.cat((single_state[0], single_state[1]), dim=1)
+        if use_random:
+            obs_grid_input = self.randomLayer(obsWgrid)
+        else:
+            obs_grid_input = obsWgrid
+        obsWgrid_feat = self.SA_fc(obs_grid_input)
+        act_feat = self.act(single_action)
+        combine_feature = torch.cat((act_feat, obsWgrid_feat), dim=1)
+        merge_feature = self.merge_fc_grid(combine_feature)
+        q = self.out_feature_q(merge_feature)
+        return q, obsWgrid_feat
 
 
 class critic_single_TwoPortion_TD3(nn.Module):

@@ -121,7 +121,8 @@ class MADDPG:
         self.tau = tau
 
         self.var = [1.0 for i in range(n_agents)]
-        self.OU_noise = OrnsteinUhlenbeckProcess(dim_act)
+        # self.OU_noise = OrnsteinUhlenbeckProcess(dim_act)
+        self.OU_noise = OUActionNoise(np.zeros(dim_act), 0.1, 0.15, 0.5)
         # self.var = [0.5 for i in range(n_agents)]
 
         # original, critic learning rate is 10 times larger compared to actor

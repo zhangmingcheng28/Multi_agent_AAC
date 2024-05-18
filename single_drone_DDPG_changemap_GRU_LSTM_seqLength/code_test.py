@@ -7,12 +7,12 @@ import random
 
 
 class RandomNetwork(nn.Module):
-    def __init__(self, input_dim):
+    def __init__(self, input_dim, alpha):
         super(RandomNetwork, self).__init__()
         self.fc = nn.Linear(input_dim, input_dim)
-        self.reset_parameters()
+        self.reset_parameters(alpha)
 
-    def reset_parameters(self):
+    def reset_parameters(self, alpha):
         with torch.no_grad():
             # Identity kernel initialization
             I = torch.eye(self.fc.weight.shape[0], self.fc.weight.shape[1])
@@ -23,7 +23,7 @@ class RandomNetwork(nn.Module):
             normal_dist = torch.randn_like(self.fc.weight) * std
 
             # Mixture of identity kernel and normal distribution
-            self.fc.weight.copy_(0.5 * I + 0.5 * normal_dist)
+            self.fc.weight.copy_(alpha * I + (1-alpha) * normal_dist)
             self.fc.bias.fill_(0)
 
     def forward(self, x):
