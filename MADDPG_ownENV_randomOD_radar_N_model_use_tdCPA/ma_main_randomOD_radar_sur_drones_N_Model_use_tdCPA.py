@@ -68,11 +68,11 @@ def main(args):
     use_wanDB = False
     # use_wanDB = True
 
-    # evaluation_by_episode = True
-    evaluation_by_episode = False
+    evaluation_by_episode = True
+    # evaluation_by_episode = False
 
-    get_evaluation_status = True  # have figure output
-    # get_evaluation_status = False  # no figure output, mainly obtain collision rate
+    # get_evaluation_status = True  # have figure output
+    get_evaluation_status = False  # no figure output, mainly obtain collision rate
 
     # simply_view_evaluation = True  # don't save gif
     simply_view_evaluation = False  # save gif
@@ -323,15 +323,15 @@ def main(args):
     # while episode < args.max_episodes:
     steps_before_collide = []
     all_eps_OD = []
-    with open('all_eps_OD.pickle', 'rb') as handle:
-        one_set_SE_collection = pickle.load(handle)
+    # with open('all_eps_OD.pickle', 'rb') as handle:
+    #     one_set_SE_collection = pickle.load(handle)
     while episode < args.max_episodes:  # start of an episode
 
         # ------------ my own env.reset() ------------ #
         episode_start_time = time.time()
         episode += 1
         eps_reset_start_time = time.time()
-        cur_state, norm_cur_state = env.reset_world(total_agentNum, full_observable_critic_flag, episode, one_set_SE_collection, show=0)
+        cur_state, norm_cur_state = env.reset_world(total_agentNum, full_observable_critic_flag, episode, show=0)
         eps_reset_time_used = (time.time()-eps_reset_start_time)*1000
         # print("current episode {} reset time used is {} milliseconds".format(episode, eps_reset_time_used))  # need to + 1 here, or else will misrecord as the previous episode
         step_collision_record = [[] for _ in range(total_agentNum)]  # reset at each episode, so that we can record down collision at each step for each agent.
@@ -1124,7 +1124,7 @@ if __name__ == '__main__':
     parser.add_argument('--scenario', default="simple_spread", type=str)
     parser.add_argument('--max_episodes', default=40000, type=int)  # run for a total of 50000 episodes
     parser.add_argument('--algo', default="maddpg", type=str, help="commnet/bicnet/maddpg")
-    parser.add_argument('--mode', default="eval", type=str, help="train/eval")
+    parser.add_argument('--mode', default="train", type=str, help="train/eval")
     # parser.add_argument('--episode_length', default=150, type=int)  # maximum play per episode
     parser.add_argument('--episode_length', default=100, type=int)  # maximum play per episode
     # parser.add_argument('--episode_length', default=100, type=int)  # maximum play per episode

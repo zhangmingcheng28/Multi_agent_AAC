@@ -199,7 +199,7 @@ class env_simulator:
                 # top left
                 # plt.plot(centre_coord[0], centre_coord[1], marker='.', color='g', markersize=2)
 
-    def reset_world(self, total_agentNum, full_observable_critic_flag, episode, one_set_SE_collection, show):  # set initialize position and observation for all agents
+    def reset_world(self, total_agentNum, full_observable_critic_flag, episode, show):  # set initialize position and observation for all agents
         self.global_time = 0.0
         self.time_step = 0.5
         # reset OU_noise as well
@@ -287,8 +287,8 @@ class env_simulator:
             #     random_end_pos = (600, 360)
             #     pass
 
-            random_start_pos = one_set_SE_collection[episode-1][agentIdx][0]
-            random_end_pos = one_set_SE_collection[episode-1][agentIdx][1]
+            # random_start_pos = one_set_SE_collection[episode-1][agentIdx][0]
+            # random_end_pos = one_set_SE_collection[episode-1][agentIdx][1]
             # random_start_pos = one_set_SE_collection[agentIdx][0]
             # random_end_pos = one_set_SE_collection[agentIdx][1]
 
@@ -3141,7 +3141,7 @@ class env_simulator:
                 euclidean_dist_diff = np.linalg.norm(diff_dist_vec)
 
 
-                if self.all_agents[neigh_keys].reach_target == True:
+                if self.all_agents[neigh_keys].reach_target == True or drone_obj.reach_target == True:
                     euclidean_dist_diff = math.inf
                 else:
                     all_neigh_dist.append(euclidean_dist_diff)
