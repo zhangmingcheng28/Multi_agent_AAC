@@ -8,6 +8,7 @@
 """
 from matplotlib.patches import Polygon as matPolygon
 import torch as T
+import matplotlib.patches as patches
 import numpy as np
 import torch
 import os
@@ -23,6 +24,167 @@ from openpyxl import load_workbook
 from openpyxl import Workbook
 from matplotlib.markers import MarkerStyle
 import math
+from matplotlib.lines import Line2D
+
+
+def create_corrected_small_circles_outside(center, exterior_coords, small_circle_radius, geo_fence_areas, occupied_grid_lines_STRtree):
+    small_circles = []
+    small_circles_coords = []
+    for x, y in exterior_coords.coords:
+        overlaps_or_within_or_cuts = False
+        # Calculate the direction vector from the center of the big circle to the exterior point
+        direction_vector = np.array([x - center.x, y - center.y]) / np.linalg.norm([x - center.x, y - center.y])
+
+        # Translate the center of the small circle in the direction of the direction vector outside the big circle
+        center_x, center_y = x + direction_vector[0] * small_circle_radius, y + direction_vector[
+            1] * small_circle_radius
+        small_circle = Point(center_x, center_y).buffer(small_circle_radius)
+
+        # Check if the small circle overlaps with any of the big circles
+        if not any(small_circle.overlaps(geo_fence) or small_circle.within(geo_fence) for geo_fence in geo_fence_areas):
+            # check for overlaps or within the grid polygons
+            potential_candiates_idx = occupied_grid_lines_STRtree.query(small_circle)
+            for idx in potential_candiates_idx:
+                element = occupied_grid_lines_STRtree.geometries[idx]
+                if element.type == 'Polygon':
+                    if small_circle.overlaps(element) or small_circle.within(element):
+                        overlaps_or_within_or_cuts = True
+                        break
+                elif element.type == 'LineString':
+                    if small_circle.intersects(element) and not small_circle.touches(element):
+                        overlaps_or_within_or_cuts = True
+                        break
+            if not overlaps_or_within_or_cuts:
+                small_circles.append(small_circle)
+                small_circles_coords.append([small_circle.centroid.x, small_circle.centroid.y])
+    return small_circles, small_circles_coords
+
+
+def create_adjusted_circles_along_line(line, radius, interval, geo_fence_areas):
+    circles = []
+    circle_centre = []
+    distances = np.arange(0, line.length, interval)
+    for distance in distances:
+        point = line.interpolate(distance)
+        tem_circle = point.buffer(radius)
+        if not any(tem_circle.overlaps(geo_fence) or tem_circle.within(geo_fence) for geo_fence in geo_fence_areas):
+            circles.append(tem_circle)
+            circle_centre.append([tem_circle.centroid.x, tem_circle.centroid.y])
+    last_pt = line.interpolate(line.length)
+    circles.append(last_pt.buffer(radius))  # Ensure the last circle is at the end
+    circle_centre.append([last_pt.x, last_pt.y])
+    return circles, circle_centre
+
+
+def grayscale_to_rgba(value):
+    return (value, value, value, 1)
+
+
+def generate_traj(env, episode_situation_holder, random_map_idx):
+    os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
+    matplotlib.use('TkAgg')
+    fig, ax = plt.subplots(1, 1)
+    font_size = 15
+    # Define color thresholds
+    light_gray = 0.8  # Lightest gray (not white)
+    dark_gray = 0.2  # Darkest gray (almost black)
+
+    # plt.axvline(x=env.bound_collection[random_map_idx][0], c="green")
+    # plt.axvline(x=env.bound_collection[random_map_idx][1], c="green")
+    # plt.axhline(y=env.bound_collection[random_map_idx][2], c="green")
+    # plt.axhline(y=env.bound_collection[random_map_idx][3], c="green")
+
+
+    # draw occupied_poly
+    for one_poly in env.world_map_2D_polyList_collection[random_map_idx][0][0]:
+        one_poly_mat = shapelypoly_to_matpoly(one_poly, True, 'y', 'b')
+        ax.add_patch(one_poly_mat)
+    # draw non-occupied_poly
+    for zero_poly in env.world_map_2D_polyList_collection[random_map_idx][0][1]:
+        zero_poly_mat = shapelypoly_to_matpoly(zero_poly, False, 'y')
+        # ax.add_patch(zero_poly_mat)
+
+    # show building obstacles
+    for poly in env.buildingPolygons:
+        matp_poly = shapelypoly_to_matpoly(poly, False, 'red')  # the 3rd parameter is the edge color
+        ax.add_patch(matp_poly)
+
+    # show geo-fence
+    for geo_fence in env.geo_fence_area:
+        fence_poly = shapelypoly_to_matpoly(geo_fence, False, 'red')  # the 3rd parameter is the edge color
+        ax.add_patch(fence_poly)
+
+    for agentIdx, agent in env.all_agents.items():
+        dx = agent.goal[0][0] - agent.ini_pos[0]
+        dy = agent.goal[0][1] - agent.ini_pos[1]
+        angle = math.atan2(dy, dx)
+        heading = math.degrees(angle)
+
+        plt.plot(agent.ini_pos[0], agent.ini_pos[1],
+                 marker=MarkerStyle(">",
+                                    fillstyle="right",
+                                    transform=Affine2D().rotate_deg(heading)),
+                 color='g', markersize=10, label='Origin')
+        # plt.text(agent.ini_pos[0], agent.ini_pos[1], 'Origin')
+        plt.plot(agent.goal[-1][0], agent.goal[-1][1], marker='*', color='r', markersize=10, label='Destination')
+        # plt.text(agent.goal[-1][0], agent.goal[-1][1], 'Destination')
+
+        # link individual drone's starting position with its goal
+        ini = agent.ini_pos
+        # for wp in agent.goal:
+        ic = 0
+        for wp in agent.ref_line.coords:
+            # plt.plot(wp[0], wp[1], marker='*', color='y', markersize=10)
+            if ic == 0:
+                plt.plot([wp[0], ini[0]], [wp[1], ini[1]], '--', color='c', label='Reference Line')
+            else:
+                plt.plot([wp[0], ini[0]], [wp[1], ini[1]], '--', color='c')
+            ic = ic + 1
+            ini = wp
+        trajectory = []
+        for eps_time_step, ea_eps in enumerate(episode_situation_holder[0]):
+            t = eps_time_step
+            radius = 2.5
+            gray_value = light_gray - t * (light_gray - dark_gray) / (len(episode_situation_holder[0]) - 1)
+            color_value = grayscale_to_rgba(gray_value)
+            x = ea_eps[0][0]
+            y = ea_eps[0][1]
+            trajectory.append([x, y])
+            # ax.plot(x, y, 'o', color=plt.cm.gray(color_value), markersize=10)
+            # circle = patches.Circle((x, y), 2.5, color=color_value, ec='black')
+            circle = patches.Circle((x, y), radius, facecolor=color_value, edgecolor='white')
+            ax.add_patch(circle)
+            # ax.text(x, y + 0.3, f't={eps_time_step}', fontsize=9, ha='center', va='center', color='black')
+
+            # Plot large circle with dotted outline
+            # outline_circle = patches.Circle((x, y), 7.5, facecolor='none', edgecolor=color_value, linestyle='dotted')
+            # ax.add_patch(outline_circle)
+        # Draw lines between the points
+        trajectory = np.array(trajectory)
+        ax.plot(trajectory[:, 0], trajectory[:, 1], color='black', linestyle='-', linewidth=1)
+
+    # Adding titles and labels
+    ax.set_title('Drone Trajectory with 3 geo-fences',fontsize=font_size)
+    ax.set_xlabel('N-S direction (m)',fontsize=font_size)
+    ax.set_ylabel('E-W direction (m)',fontsize=font_size)
+    # Customize tick size
+    ax.tick_params(axis='both', which='major', labelsize=font_size)
+    # Custom legend
+    legend_elements = [
+        Line2D([0], [0], linestyle='None', marker=MarkerStyle(">", fillstyle="right"), color='g', label='Origin', markerfacecolor='g', markersize=10),
+        Line2D([0], [0], marker='*', color='w', label='Destination', markerfacecolor='r', markersize=15, linestyle='None'),
+        Line2D([0], [0], color='cyan', lw=2, linestyle='dotted', label='Reference Line')
+    ]
+
+    # Add legend
+    # ax.legend(handles=legend_elements, loc='upper right', fontsize=font_size)
+    ax.legend(handles=legend_elements, loc='lower right', fontsize=font_size-2, borderpad=0.1)
+
+    plt.xlim(env.bound_collection[random_map_idx][0], env.bound_collection[random_map_idx][1]-5)
+    plt.ylim(env.bound_collection[random_map_idx][2], env.bound_collection[random_map_idx][3])
+    plt.savefig('drone_trajectory.png')
+    plt.show()
+
 
 def initialize_excel_file(file_path):
     # Create a new workbook and add three empty sheets
