@@ -7,6 +7,10 @@
 @Package dependency:
 """
 from matplotlib.patches import Polygon as matPolygon
+import matplotlib.path as mpath
+import matplotlib.patches as mpatches
+from scipy.ndimage import gaussian_filter
+from matplotlib.colors import LinearSegmentedColormap
 import torch as T
 import numpy as np
 import torch
@@ -24,8 +28,33 @@ from openpyxl import Workbook
 from matplotlib.markers import MarkerStyle
 import math
 
+def polygons_single_cloud_conflict(circle, cloud_polygon):
+    conflicts = []
+    if not cloud_polygon.touches(circle) and cloud_polygon.intersects(circle):
+        conflicts.append(cloud_polygon)
+    elif cloud_polygon.within(circle):
+        conflicts.append(cloud_polygon)
+    return conflicts
 
-# def radar_capture_obsgrid_centre():
+
+def calculate_next_position(start_pos, target_pos, speed, time_step):
+    # Calculate the direction vector from start to target
+    direction_vector = target_pos - start_pos
+
+    # Normalize the direction vector to get the unit direction vector
+    distance_to_target = np.linalg.norm(direction_vector)
+    if distance_to_target < 1:
+        unit_direction_vector = np.zeros(2)  # prevent the case where current pos is very near to end pos which leads divide by zero
+    else:
+        unit_direction_vector = direction_vector / distance_to_target
+
+    # Calculate the distance the agent will travel in one time step
+    distance_travelled = speed * time_step
+
+    # Calculate the new position
+    new_position = start_pos + unit_direction_vector * distance_travelled
+
+    return new_position
 
 
 def calculate_bearing(x_host, y_host, x_intruder, y_intruder):
@@ -124,7 +153,7 @@ def animate(frame_num, ax, env, trajectory_eachPlay):
     # draw occupied_poly
     for one_poly in env.world_map_2D_polyList[0][0]:
         one_poly_mat = shapelypoly_to_matpoly(one_poly, True, 'y', 'b')
-        ax.add_patch(one_poly_mat)
+        # ax.add_patch(one_poly_mat)
     # draw non-occupied_poly
     for zero_poly in env.world_map_2D_polyList[0][1]:
         zero_poly_mat = shapelypoly_to_matpoly(zero_poly, False, 'y')
@@ -133,7 +162,7 @@ def animate(frame_num, ax, env, trajectory_eachPlay):
     # show building obstacles
     for poly in env.buildingPolygons:
         matp_poly = shapelypoly_to_matpoly(poly, False, 'red')  # the 3rd parameter is the edge color
-        ax.add_patch(matp_poly)
+        # ax.add_patch(matp_poly)
 
     for agentIdx, agent in env.all_agents.items():
         plt.plot(agent.ini_pos[0], agent.ini_pos[1],
@@ -152,6 +181,85 @@ def animate(frame_num, ax, env, trajectory_eachPlay):
             # plt.plot(wp[0], wp[1], marker='*', color='y', markersize=10)
             plt.plot([wp[0], ini[0]], [wp[1], ini[1]], '--', color='c')
             ini = wp
+
+    # display cloud
+    interval = 5  # Change cluster coordinates around centre every 10 frames
+    for cloud_idx, cloud_agent in enumerate(env.cloud_config):
+        # Define the fixed center
+        center_x, center_y = cloud_agent.trajectory[frame_num].x, cloud_agent.trajectory[frame_num].y
+        cloud_centre = Point(center_x, center_y)
+        cloud_poly = cloud_centre.buffer(cloud_agent.radius)
+        matp_poly = shapelypoly_to_matpoly(cloud_poly, False, 'blue')  # the 3rd parameter is the edge color
+        matp_poly.set_zorder(5)
+        ax.add_patch(matp_poly)
+        # Generate multiple clusters of random points within the specified range
+        num_points_per_cluster = 5000
+        num_clusters = 15
+        x_range = cloud_agent.spawn_cluster_pt_x_range
+        y_range = cloud_agent.spawn_cluster_pt_y_range
+        if frame_num % interval == 0:
+            cluster_centers_x = np.random.uniform(center_x+x_range[0], center_x+x_range[1], num_clusters)
+            cluster_centers_y = np.random.uniform(center_y+y_range[0], center_y+y_range[1], num_clusters)
+            cluster_centers = np.column_stack((cluster_centers_x, cluster_centers_y))
+            cloud_agent.cluster_centres = cluster_centers
+
+        # Generate points for each cluster with controlled density
+        x, y = [], []
+        for cx, cy in cloud_agent.cluster_centres:
+            angles = np.random.uniform(0, 2 * np.pi, num_points_per_cluster)
+            radii = np.random.normal(0, 0.1, num_points_per_cluster)  # Decrease spread for higher density
+            x.extend(cx + radii * np.cos(angles))
+            y.extend(cy + radii * np.sin(angles))
+        x = np.array(x)
+        y = np.array(y)
+        # Create a 2D histogram to serve as the contour data
+        margin = 25
+        contour_min_x = center_x+x_range[0] - margin
+        contour_max_x = center_x+x_range[1] + margin
+        contour_min_y = center_y+y_range[0] - margin
+        contour_max_y = center_y+y_range[1] + margin
+        hist, xedges, yedges = np.histogram2d(x, y, bins=(100, 100),
+                                              range=[[contour_min_x, contour_max_x], [contour_min_y, contour_max_y]])
+        # Smooth the histogram to create a more organic shape
+        hist = gaussian_filter(hist, sigma=5)  # Adjust sigma for better control
+
+        # Create the custom colormap from green to yellow to red
+        cmap = LinearSegmentedColormap.from_list('green_yellow_red', ['green', 'yellow', 'red'])
+        X, Y = np.meshgrid(xedges[:-1] + 0.5 * (xedges[1] - xedges[0]), yedges[:-1] + 0.5 * (yedges[1] - yedges[0]))
+        contour_levels = np.linspace(hist.min(), hist.max(), 10)
+        contour = ax.contourf(X, Y, hist, levels=contour_levels, cmap=cmap)
+        # Extract the path for the highest density level
+        path = None
+        for collection in contour.collections:
+            if collection.get_paths():
+                path = collection.get_paths()[0]
+                break
+        # Define the vertices for a large rectangle covering the entire plotting area
+        # Extend vertices by the margin
+        extended_margin = 0  # Adjust this margin as needed
+        vertices = [
+            [xedges[0] - extended_margin, yedges[0] - extended_margin],
+            [xedges[0] - extended_margin, yedges[-1] + extended_margin],
+            [xedges[-1] + extended_margin, yedges[-1] + extended_margin],
+            [xedges[-1] + extended_margin, yedges[0] - extended_margin],
+            [xedges[0] - extended_margin, yedges[0] - extended_margin]
+        ]
+        # Create the corresponding codes for the full path
+        codes = [mpath.Path.MOVETO] + [mpath.Path.LINETO] * (len(vertices) - 2) + [mpath.Path.CLOSEPOLY]
+
+        # Create a path that covers the entire plotting area
+        full_path = mpath.Path(vertices, codes)
+
+        # Create a compound path that combines the full path and the contour path
+        if path is not None:
+            clip_path = mpath.Path.make_compound_path(full_path, path)
+
+            for collection in contour.collections:
+                collection.set_clip_path(mpatches.PathPatch(clip_path, transform=ax.transData))
+
+        # # Apply the clipping path to the contour collections to exclude the region inside the contour path
+        # for collection in contour.collections:
+        #     collection.set_clip_path(mpatches.PathPatch(clip_path, transform=ax.transData))
 
     for a_idx, agent in enumerate(trajectory_eachPlay[frame_num]):
         x, y = agent[0], agent[1]
@@ -197,7 +305,7 @@ def save_gif(env, trajectory_eachPlay, pre_fix, episode_to_check, episode):
     # draw occupied_poly
     for one_poly in env.world_map_2D_polyList[0][0]:
         one_poly_mat = shapelypoly_to_matpoly(one_poly, True, 'y', 'b')
-        ax.add_patch(one_poly_mat)
+        # ax.add_patch(one_poly_mat)
     # draw non-occupied_poly
     for zero_poly in env.world_map_2D_polyList[0][1]:
         zero_poly_mat = shapelypoly_to_matpoly(zero_poly, False, 'y')
@@ -206,7 +314,7 @@ def save_gif(env, trajectory_eachPlay, pre_fix, episode_to_check, episode):
     # show building obstacles
     for poly in env.buildingPolygons:
         matp_poly = shapelypoly_to_matpoly(poly, False, 'red')  # the 3rd parameter is the edge color
-        ax.add_patch(matp_poly)
+        # ax.add_patch(matp_poly)
 
     for agentIdx, agent in env.all_agents.items():
         plt.plot(agent.ini_pos[0], agent.ini_pos[1],

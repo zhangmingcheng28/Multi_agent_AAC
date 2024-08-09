@@ -8,7 +8,7 @@
 """
 import numpy as np
 import torch as T
-from Utilities_own_randomOD_radar_sur_drones_N_Model_use_tdCPA_forV2 import padding_list
+from Utilities_own_randomOD_radar_sur_drones_N_Model_use_tdCPA_forV2_changeskin import padding_list
 
 
 class Agent:
@@ -54,6 +54,7 @@ class Agent:
         self.reach_target = False
         self.bound_collision = False
         self.building_collision = False
+        self.cloud_collision = False
         self.drone_collision = False
         self.collide_wall_count = 0
 
