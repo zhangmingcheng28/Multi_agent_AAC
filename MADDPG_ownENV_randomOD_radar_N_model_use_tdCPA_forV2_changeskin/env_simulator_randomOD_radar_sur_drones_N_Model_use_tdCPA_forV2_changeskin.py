@@ -587,7 +587,7 @@ class env_simulator:
             cloud_a.goal = Point(cloud_setting[2], cloud_setting[3])
             cloud_a.trajectory.append(cloud_a.pos)
             cloud_config.append(cloud_a)
-            no_spawn_zone.append((cloud_setting[0]-20, cloud_setting[0]+20, cloud_setting[1]-20, cloud_setting[1]+20))
+            no_spawn_zone.append((cloud_setting[0]-25, cloud_setting[0]+25, cloud_setting[1]-25, cloud_setting[1]+25))
 
         # additional no spawn zone to account for aircraft don't spawn near the map boundaries
         no_spawn_zone.append((self.bound[0], self.bound[1], self.bound[2], self.bound[2]+10))  # x-axis, lower bound
@@ -3945,10 +3945,11 @@ class env_simulator:
             #
             #                                                     (1-(min_dist/turningPtConst)**2))  # value from 0 ~ 1.
             # turningPtConst = 12.5
-            turningPtConst = 5
+            # turningPtConst = 5
+            turningPtConst = 7.5
             if turningPtConst == 12.5:
                 c = 1.25
-            elif turningPtConst == 5:
+            elif turningPtConst == 5 or turningPtConst == 7.5:
                 c = 2
             # # linear building penalty
             # makesure only when min_dist is >=0 and <= turningPtConst, then we activate this penalty

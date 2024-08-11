@@ -445,25 +445,45 @@ def save_gif(env, trajectory_eachPlay, pre_fix, episode_to_check, episode):
     plt.close(fig)
 
 
-def view_static_traj(env, trajectory_eachPlay):
+def view_static_traj(env, trajectory_eachPlay, save_path=None, max_time_step=None):
+    aircraft_svg_path = r'F:\githubClone\HotspotResolver_24\pictures\Aircraft.svg'  # Replace with your SVG path
+    plane_img = load_svg_image(aircraft_svg_path)
     os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
     matplotlib.use('TkAgg')
     fig, ax = plt.subplots(1, 1)
+    colors = [
+        (0.5, 0, 0.5),  # Purple
+        (0.2, 0.8, 0.2),  # Lime
+        (1, 0, 0),  # Red
+        (0, 1, 0),  # Green
+        (0, 0, 1),  # Blue
+        (0, 1, 1),  # Cyan
+        (1, 0, 1),  # Magenta
+        (1, 1, 0),  # Yellow
+        (1, 0.65, 0),  # Orange
+    ]
     # display initial condition
     # global_state = env.reset_world(show=0)  # just a dummy to reset all condition so that initial condition can be added to the output graph
     for agentIdx, agent in env.all_agents.items():
-        # if agentIdx != 0:
-        #     continue
+        x, y = agent.pos[0], agent.pos[1]
+        heading = agent.heading * 180 / np.pi  # in degree
+        img_extent = [
+            x - env.all_agents[0].protectiveBound,
+            x + env.all_agents[0].protectiveBound,
+            y - env.all_agents[0].protectiveBound,
+            y + env.all_agents[0].protectiveBound
+        ]
+        transform = Affine2D().rotate_deg_around(x, y, heading - 90) + ax.transData
+        ax.imshow(plane_img, extent=img_extent, zorder=10, transform=transform)
         plt.plot(agent.ini_pos[0], agent.ini_pos[1],
-                 marker=MarkerStyle(">",
-                                    fillstyle="right",
-                                    transform=Affine2D().rotate_deg(math.degrees(agent.heading))),
-                 color='y')
+                 marker=MarkerStyle("^"), color=colors[agentIdx])
         plt.text(agent.ini_pos[0], agent.ini_pos[1], agent.agent_name)
         # plot self_circle of the drone
-        self_circle = Point(agent.ini_pos[0],
-                            agent.ini_pos[1]).buffer(agent.protectiveBound, cap_style='round')
-        grid_mat_Scir = shapelypoly_to_matpoly(self_circle, inFill=False, Edgecolor='k')
+        self_circle = Point(x, y).buffer(agent.protectiveBound, cap_style='round')
+        grid_mat_Scir = shapelypoly_to_matpoly(self_circle, inFill=True, Edgecolor=None,
+                                               FcColor='lightblue')  # None meaning no edge
+        grid_mat_Scir.set_zorder(2)
+        grid_mat_Scir.set_alpha(0.9)  # Set transparency to 0.5
         ax.add_patch(grid_mat_Scir)
 
         # plot drone's detection range
@@ -474,48 +494,66 @@ def view_static_traj(env, trajectory_eachPlay):
 
         # link individual drone's starting position with its goal
         ini = agent.ini_pos
-        # for wp in agent.goal:
         for wp in agent.ref_line.coords:
-            plt.plot(wp[0], wp[1], marker='*', color='y', markersize=10)
-            plt.plot([wp[0], ini[0]], [wp[1], ini[1]], '--', color='c')
-            # plot drone's detection range
-            wp_circle = Point(wp[0], wp[1]).buffer(agent.protectiveBound, cap_style='round')
-            wp_circle_mat = shapelypoly_to_matpoly(wp_circle, inFill=False, Edgecolor='g')
-            ax.add_patch(wp_circle_mat)
+            plt.plot([wp[0], ini[0]], [wp[1], ini[1]], linestyle='solid', linewidth=10, color=colors[agentIdx], alpha=0.2)
             ini = wp
 
-        plt.plot(agent.goal[-1][0], agent.goal[-1][1], marker='*', color='y', markersize=10)
+        # # link individual drone's starting position with its goal
+        # ini = agent.ini_pos
+        # # for wp in agent.goal:
+        # for wp in agent.ref_line.coords:
+        #     plt.plot(wp[0], wp[1], marker='*', color='y', markersize=10)
+        #     plt.plot([wp[0], ini[0]], [wp[1], ini[1]], '--', color='c')
+        #     # plot drone's detection range
+        #     wp_circle = Point(wp[0], wp[1]).buffer(agent.protectiveBound, cap_style='round')
+        #     wp_circle_mat = shapelypoly_to_matpoly(wp_circle, inFill=False, Edgecolor='g')
+        #     ax.add_patch(wp_circle_mat)
+        #     ini = wp
+
+        plt.plot(agent.goal[-1][0], agent.goal[-1][1], marker='*', color=colors[agentIdx], markersize=10)
         plt.text(agent.goal[-1][0], agent.goal[-1][1], agent.agent_name)
 
     # draw trajectory in current episode
-    frame_to_show = [len(trajectory_eachPlay)-1, len(trajectory_eachPlay)-2, len(trajectory_eachPlay)-3]
-    for trajectory_idx, trajectory_val in enumerate(trajectory_eachPlay):  # each time step
-        # if trajectory_idx != len(trajectory_eachPlay)-1 or \
-        #         trajectory_idx != len(trajectory_eachPlay)-2 or \
-        #         trajectory_idx != len(trajectory_eachPlay)-3:  # only show last frame
-        #     continue
-        if trajectory_idx not in frame_to_show:
-            continue
-        for agentIDX, each_agent_traj in enumerate(trajectory_val):  # for each agent's motion in a time step
-            # if agentIDX != 0:
-            #     continue
-            x, y = each_agent_traj[0], each_agent_traj[1]
-            plt.plot(x, y, 'o', color='r')
+    if max_time_step is None:
+        max_time_step = len(trajectory_eachPlay)
 
-            # plt.text(x-1, y-1, str(round(float(reward_each_agent[trajectory_idx][agentIDX]),2)))
-            plt.text(x - 1, y - 1, 'A' + str(agentIDX) + '_' + 'step'+str(trajectory_idx) + '_' +
-                     'GL_'+str(each_agent_traj[3]['goal_leading_reward'].round(3)) +
-                     'BP_'+str(each_agent_traj[3]['near_building_penalty'].round(3)) +
-                     'DP_'+str(each_agent_traj[3]['near_drone_penalty'].round(3)) + 'sum_'+str(each_agent_traj[2]))
-            # plt.text(x - 1, y - 1, 'agent_' + str(agentIDX) + '_' + str(each_agent_traj[2]))
-            self_circle = Point(x, y).buffer(env.all_agents[0].protectiveBound, cap_style='round')
-            grid_mat_Scir = shapelypoly_to_matpoly(self_circle, False, 'k')
-            ax.add_patch(grid_mat_Scir)
+    for agentIDX, agent in env.all_agents.items():
+        previous_position = agent.ini_pos  # Start with the agent's initial position
+        for trajectory_idx in range(max_time_step):
+            if trajectory_idx >= max_time_step:
+                break
+            each_agent_traj = trajectory_eachPlay[trajectory_idx][agentIDX]
+            x, y = each_agent_traj[0], each_agent_traj[1]
+
+            # Draw the trajectory as dotted lines starting from the initial position
+            if trajectory_idx > 0:  # Ensure we're not drawing a redundant line from ini_pos to itself
+                plt.plot([previous_position[0], x], [previous_position[1], y], linestyle=(0, (1, 10)), color=colors[agentIDX])
+            # Update previous position
+            previous_position = (x, y)
+
+            if trajectory_idx == max_time_step - 1:
+                # Final position with aircraft marker
+                heading = each_agent_traj[3] * 180 / np.pi  # Convert to degrees
+                img_extent = [
+                    x - env.all_agents[0].protectiveBound,
+                    x + env.all_agents[0].protectiveBound,
+                    y - env.all_agents[0].protectiveBound,
+                    y + env.all_agents[0].protectiveBound
+                ]
+                transform = Affine2D().rotate_deg_around(x, y, heading - 90) + ax.transData
+                ax.imshow(plane_img, extent=img_extent, zorder=10, transform=transform)
+
+                # Draw the protective boundary around the final position
+                self_circle = Point(x, y).buffer(env.all_agents[0].protectiveBound, cap_style='round')
+                grid_mat_SCir = shapelypoly_to_matpoly(self_circle, inFill=True, Edgecolor=None, FcColor='lightblue')
+                grid_mat_SCir.set_zorder(2)
+                grid_mat_SCir.set_alpha(0.9)
+                ax.add_patch(grid_mat_SCir)
 
     # draw occupied_poly
     for one_poly in env.world_map_2D_polyList[0][0]:
         one_poly_mat = shapelypoly_to_matpoly(one_poly, True, 'y', 'b')
-        ax.add_patch(one_poly_mat)
+        # ax.add_patch(one_poly_mat)
     # draw non-occupied_poly
     for zero_poly in env.world_map_2D_polyList[0][1]:
         zero_poly_mat = shapelypoly_to_matpoly(zero_poly, False, 'y')
@@ -524,7 +562,7 @@ def view_static_traj(env, trajectory_eachPlay):
     # show building obstacles
     for poly in env.buildingPolygons:
         matp_poly = shapelypoly_to_matpoly(poly, False, 'red')  # the 3rd parameter is the edge color
-        ax.add_patch(matp_poly)
+        # ax.add_patch(matp_poly)
 
     plt.axis('equal')
     plt.xlim(env.bound[0], env.bound[1])
@@ -535,6 +573,12 @@ def view_static_traj(env, trajectory_eachPlay):
     plt.axhline(y=env.bound[3], c="green")
     plt.xlabel("X axis")
     plt.ylabel("Y axis")
+
+    # Save the figure if save_path is provided
+    if save_path:
+        plt.savefig(save_path, bbox_inches='tight')
+        # print(f"Figure saved at {save_path}")
+
     plt.show()
 
 

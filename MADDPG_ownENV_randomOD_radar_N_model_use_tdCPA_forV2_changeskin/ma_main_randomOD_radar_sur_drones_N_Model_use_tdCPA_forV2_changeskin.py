@@ -68,8 +68,8 @@ def main(args):
     use_wanDB = False
     # use_wanDB = True
 
-    evaluation_by_episode = True
-    # evaluation_by_episode = False
+    # evaluation_by_episode = True
+    evaluation_by_episode = False
 
     # get_evaluation_status = True  # have figure output
     get_evaluation_status = False  # no figure output, mainly obtain collision rate
@@ -248,6 +248,7 @@ def main(args):
     # writer = pd.ExcelWriter(excel_file_path, engine='xlsxwriter')
     total_step = 0
     score_history = []
+    goal_reach_history = []
     experience_replay_record = []
     eps_reward_record = []
     eps_check_collision = []
@@ -284,7 +285,8 @@ def main(args):
     crash_to_building = 0
     crash_to_drone = 0
     crash_due_to_nearest = 0
-    episode_goal_found = [False] * n_agents
+    goal_reached = 0
+    goal_reach_history.append(goal_reached)
     dummy_xy = (None, None)  # this is a dummy tuple of xy, is not useful during normal training, it is only useful when generating reward map
     if args.mode == "eval":
         # args.max_episodes = 10  # only evaluate one episode during evaluation mode.
@@ -293,10 +295,10 @@ def main(args):
         # args.max_episodes = 1
         # args.max_episodes = 250
         # args.max_episodes = 25
-        pre_fix = r'D:\MADDPG_2nd_jp\220524_16_46_07\interval_record_eps'
+        pre_fix = r'D:\MADDPG_2nd_jp\100824_21_03_35\interval_record_eps'
         # episode_to_check = str(10000)
         # pre_fix = r'F:\OneDrive_NTU_PhD\OneDrive - Nanyang Technological University\DDPG_2ndJournal\dim_8_transfer_learning'
-        episode_to_check = str(19000)
+        episode_to_check = str(30000)
         model_list = []
         if full_observable_critic_flag:
             for i in range(total_agentNum):
@@ -325,12 +327,12 @@ def main(args):
     # while episode < args.max_episodes:
     steps_before_collide = []
     while episode < args.max_episodes:  # start of an episode
-
+        episode_goal_found = [False] * n_agents  # reset at start of each episode. We accumulate its stats at end of one complete step
         # ------------ my own env.reset() ------------ #
         episode_start_time = time.time()
         episode += 1
         eps_reset_start_time = time.time()
-        cur_state, norm_cur_state = env.reset_world_change_skin(total_agentNum, full_observable_critic_flag, show=1)
+        cur_state, norm_cur_state = env.reset_world_change_skin(total_agentNum, full_observable_critic_flag, show=0)
         eps_reset_time_used = (time.time()-eps_reset_start_time)*1000
         # print("current episode {} reset time used is {} milliseconds".format(episode, eps_reset_time_used))  # need to + 1 here, or else will misrecord as the previous episode
         step_collision_record = [[] for _ in range(total_agentNum)]  # reset at each episode, so that we can record down collision at each step for each agent.
@@ -586,11 +588,12 @@ def main(args):
                     episode_decision[1] = True
                     print("Some agent triggers termination condition like collision, current episode {} ends at step {}".format(episode, step-1))  # we need to -1 here, because we perform step + 1 after each complete step. Just to be consistent with the step count inside the reward function.
                 # elif all([agent.reach_target for agent_idx, agent in env.all_agents.items()]):
-                elif all(check_goal):
-                    episode_decision[2] = True
-                    print("All agents have reached their destinations at step {}, episode {} terminated.".format(step-1, episode))
+                # elif all(check_goal):
+                #     episode_decision[2] = True
+                #     print("All agents have reached their destinations at step {}, episode {} terminated.".format(step-1, episode))
                 elif all([agent.reach_target for agent_idx, agent in env.all_agents.items()]):  # check whether these two termination condition has any difference
                     episode_decision[2] = True
+                    goal_reached = goal_reached + 1
                     print(
                         "All agents have reached their destinations at step {}, episode {} terminated.".format(step - 1,
                                                                                                                episode))
@@ -694,9 +697,12 @@ def main(args):
                     # plt.axis('equal')
                     # plt.show()
 
-                if True in episode_decision:
-
-                    # end of an episode starts here
+                if True in episode_decision:  #  --- end of an episode starts here ---
+                    png_file_name = plot_file_name + '\episode_' + str(episode)+'.png'
+                    view_static_traj(env, trajectory_eachPlay, png_file_name)
+                    # record in this episode is there any target reach case.
+                    for agent_idx, agent in env.all_agents.items():
+                        episode_goal_found[agent_idx] = agent.reach_target
 
                     # time_used = time.time() - start_time
                     # print("update function used {} seconds to run".format(time_used))
@@ -742,13 +748,16 @@ def main(args):
                             all_drone_reach = all_drone_reach + 1
                             # print("There are no True values in the list.")
 
-                    if episode % 1000 == 0:  # every 100 episode we record the training performance (without evaluation)
+                    if episode % 100 == 0:  # every 100 episode we record the training performance (without evaluation)
                         # if episode == 10:
                         # After the loop, save the file once
                         # writer.save()
                         # print(f'Data saved to {excel_file_path}')
                         # save a gif every 100 episode during training
                         episode_to_check = str(episode)
+                        goal_reach_history.append(goal_reached)
+                        print("For the previous 100 episode, the number of goal reaching count is {}".format(goal_reached))
+                        goal_reached = 0
                         save_gif(env, trajectory_eachPlay, plot_file_name, episode_to_check, episode)
                         print("collision count for last 100 episode is {}, {}%".format(collision_count,
                                                                         round(collision_count / 100 * 100,
@@ -1077,6 +1086,9 @@ def main(args):
             # using csv.writer method from CSV package
             write = csv.writer(f)
             write.writerows([score_history])
+        with open(file_name + '/goal_reaching.csv', 'w') as f:
+            write = csv.writer(f)
+            write.writerows([goal_reach_history])
         # After the loop, save the file once
         # writer.save()
         # print(f'Data saved to {excel_file_path}')
@@ -1119,7 +1131,7 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--scenario', default="simple_spread", type=str)
-    parser.add_argument('--max_episodes', default=20000, type=int)  # run for a total of 50000 episodes
+    parser.add_argument('--max_episodes', default=200, type=int)  # run for a total of 50000 episodes
     parser.add_argument('--algo', default="maddpg", type=str, help="commnet/bicnet/maddpg")
     parser.add_argument('--mode', default="train", type=str, help="train/eval")
     # parser.add_argument('--episode_length', default=150, type=int)  # maximum play per episode
