@@ -65,8 +65,8 @@ def main(args):
         # initialize_excel_file(excel_file_path_time)
         # ------------ end of this portion is to save using excel instead of pickle -----------
 
-    use_wanDB = False
-    # use_wanDB = True
+    # use_wanDB = False
+    use_wanDB = True
 
     # evaluation_by_episode = True
     evaluation_by_episode = False
@@ -117,8 +117,8 @@ def main(args):
     # -------------- create my own environment -----------------
     env, max_xy = initialize_parameters()
     # total_agentNum = len(pd.read_excel(env.agentConfig))
-    total_agentNum = 2
-    # total_agentNum = 5
+    # total_agentNum = 3
+    total_agentNum = 5
     # total_agentNum = 8
     # total_agentNum = 1
     # max_nei_num = 5
@@ -698,8 +698,8 @@ def main(args):
                     # plt.show()
 
                 if True in episode_decision:  #  --- end of an episode starts here ---
-                    png_file_name = plot_file_name + '\episode_' + str(episode)+'.png'
-                    view_static_traj(env, trajectory_eachPlay, png_file_name)
+
+
                     # record in this episode is there any target reach case.
                     for agent_idx, agent in env.all_agents.items():
                         episode_goal_found[agent_idx] = agent.reach_target
@@ -748,7 +748,7 @@ def main(args):
                             all_drone_reach = all_drone_reach + 1
                             # print("There are no True values in the list.")
 
-                    if episode % 100 == 0:  # every 100 episode we record the training performance (without evaluation)
+                    if episode % 1000 == 0:  # every 100 episode we record the training performance (without evaluation)
                         # if episode == 10:
                         # After the loop, save the file once
                         # writer.save()
@@ -823,7 +823,8 @@ def main(args):
                     #
                     break  # this is to break out from "while True:", which is one play
             elif args.mode == "eval":
-
+                png_file_name = plot_file_name + '\episode_' + str(episode)+'.png'
+                view_static_traj(env, trajectory_eachPlay, png_file_name)
                 step_reward_record = [None] * n_agents
                 # show_step_by_step = True
                 show_step_by_step = False
@@ -1131,7 +1132,7 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--scenario', default="simple_spread", type=str)
-    parser.add_argument('--max_episodes', default=200, type=int)  # run for a total of 50000 episodes
+    parser.add_argument('--max_episodes', default=20000, type=int)  # run for a total of 50000 episodes
     parser.add_argument('--algo', default="maddpg", type=str, help="commnet/bicnet/maddpg")
     parser.add_argument('--mode', default="train", type=str, help="train/eval")
     # parser.add_argument('--episode_length', default=150, type=int)  # maximum play per episode

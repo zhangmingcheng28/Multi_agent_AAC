@@ -587,7 +587,7 @@ class env_simulator:
             cloud_a.goal = Point(cloud_setting[2], cloud_setting[3])
             cloud_a.trajectory.append(cloud_a.pos)
             cloud_config.append(cloud_a)
-            no_spawn_zone.append((cloud_setting[0]-25, cloud_setting[0]+25, cloud_setting[1]-25, cloud_setting[1]+25))
+            no_spawn_zone.append((cloud_setting[0]-30, cloud_setting[0]+30, cloud_setting[1]-30, cloud_setting[1]+30))
 
         # additional no spawn zone to account for aircraft don't spawn near the map boundaries
         no_spawn_zone.append((self.bound[0], self.bound[1], self.bound[2], self.bound[2]+10))  # x-axis, lower bound
@@ -640,8 +640,8 @@ class env_simulator:
                     random_target_index = random.choice(numbers_left)
                     # random_start_pos = random.choice(self.target_pool[random_start_index])
                     random_start_pos = generate_random_circle_multiple_exclusions(self.bound, no_spawn_zone)
-                    # Check that the distance to all existing points is more than 5
-                    if all(np.linalg.norm(np.array(random_start_pos)-point) > self.all_agents[agentIdx].protectiveBound*2 for point in start_pos_memory):
+                    # Check that the distance to all existing points is more than safety buffer (5)*4
+                    if all(np.linalg.norm(np.array(random_start_pos)-point) > self.all_agents[agentIdx].protectiveBound*8 for point in start_pos_memory):
                         break
 
             # random_end_pos = random.choice(self.target_pool[random_target_index])
@@ -4495,9 +4495,10 @@ class env_simulator:
             # near_drone_penalty_coef = 1
             # near_drone_penalty_coef = 3
             # near_drone_penalty_coef = 0
-            dist_to_penalty_upperbound = 6
-            # dist_to_penalty_upperbound = 10
-            dist_to_penalty_lowerbound = 2.5
+            dist_to_penalty_upperbound = 30  # starting to generate penalty
+            dist_to_penalty_lowerbound = 10  # penalty ends as collision happened
+            # dist_to_penalty_upperbound = 6
+            # dist_to_penalty_lowerbound = 2.5
             # assume when at lowerbound, y = 1
             c_drone = 1 + (dist_to_penalty_lowerbound / (dist_to_penalty_upperbound - dist_to_penalty_lowerbound))
             m_drone = (0 - 1) / (dist_to_penalty_upperbound - dist_to_penalty_lowerbound)

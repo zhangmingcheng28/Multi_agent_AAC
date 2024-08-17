@@ -39,7 +39,7 @@ def plot_linestring(ax, linestring, color='black', zorder=0):
 
 
 def plot_bounding_box(ax, bbox, edgecolor='r', facecolor='none'):
-# def plot_bounding_box(ax, bbox, facecolor='none'):
+    # def plot_bounding_box(ax, bbox, facecolor='none'):
     """
     Plots a bounding box on the given axis.
 
@@ -111,6 +111,7 @@ def generate_random_circle_multiple_exclusions(bounds, no_fly_zones):
 
     return center_x, center_y
 
+
 def load_svg_image(svg_path):
     png_image_data = cairosvg.svg2png(url=svg_path)
     image = Image.open(io.BytesIO(png_image_data))
@@ -133,7 +134,8 @@ def calculate_next_position(start_pos, target_pos, speed, time_step):
     # Normalize the direction vector to get the unit direction vector
     distance_to_target = np.linalg.norm(direction_vector)
     if distance_to_target < 1:
-        unit_direction_vector = np.zeros(2)  # prevent the case where current pos is very near to end pos which leads divide by zero
+        unit_direction_vector = np.zeros(
+            2)  # prevent the case where current pos is very near to end pos which leads divide by zero
     else:
         unit_direction_vector = direction_vector / distance_to_target
 
@@ -161,6 +163,7 @@ def calculate_bearing(x_host, y_host, x_intruder, y_intruder):
 
     return bearing
 
+
 def initialize_excel_file(file_path):
     # Create a new workbook and add three empty sheets
     wb = Workbook()
@@ -186,7 +189,7 @@ def append_to_excel(file_path, data):
     # Check if the required sheets exist, if not create them
     if len(data) == 3:  # for record eps time
         number_of_sheets = len(data)
-        required_sheets = ['Sheet'+str(i) for i in range(number_of_sheets)]
+        required_sheets = ['Sheet' + str(i) for i in range(number_of_sheets)]
         for sheet_name in required_sheets:
             if sheet_name not in wb.sheetnames:
                 wb.create_sheet(title=sheet_name)
@@ -213,7 +216,7 @@ def append_to_excel(file_path, data):
                 for agent_idx, single_sheet_name in enumerate(required_sheets):
                     sheet = wb[single_sheet_name]
                     sheet.append(step_reward[agent_idx])
-                    if idx == len(data)-1:
+                    if idx == len(data) - 1:
                         sheet.append([-9999])
 
         else:  # for record noise
@@ -262,7 +265,8 @@ def animate(frame_num, ax, env, trajectory_eachPlay):
         # link individual drone's starting position with its goal
         ini = agent.ini_pos
         for wp in agent.ref_line.coords:
-            plt.plot([wp[0], ini[0]], [wp[1], ini[1]], linestyle='solid', linewidth=10, color=colors[agentIdx], alpha=0.2)
+            plt.plot([wp[0], ini[0]], [wp[1], ini[1]], linestyle='solid', linewidth=10, color=colors[agentIdx],
+                     alpha=0.2)
             ini = wp
 
     # display cloud
@@ -272,17 +276,18 @@ def animate(frame_num, ax, env, trajectory_eachPlay):
         center_x, center_y = cloud_agent.trajectory[frame_num].x, cloud_agent.trajectory[frame_num].y
         cloud_centre = Point(center_x, center_y)
         cloud_poly = cloud_centre.buffer(cloud_agent.radius)
-        matp_poly = shapelypoly_to_matpoly(cloud_poly, False, 'blue')  # the 3rd parameter is the edge color
-        matp_poly.set_zorder(5)
-        ax.add_patch(matp_poly)
+        # ___add boundary circle for clouds---
+        # matp_poly = shapelypoly_to_matpoly(cloud_poly, False, 'blue')  # the 3rd parameter is the edge color
+        # matp_poly.set_zorder(5)
+        # ax.add_patch(matp_poly)
         # Generate multiple clusters of random points within the specified range
         num_points_per_cluster = 5000
         num_clusters = 15
         x_range = cloud_agent.spawn_cluster_pt_x_range
         y_range = cloud_agent.spawn_cluster_pt_y_range
         if frame_num % interval == 0:
-            cluster_centers_x = np.random.uniform(center_x+x_range[0], center_x+x_range[1], num_clusters)
-            cluster_centers_y = np.random.uniform(center_y+y_range[0], center_y+y_range[1], num_clusters)
+            cluster_centers_x = np.random.uniform(center_x + x_range[0], center_x + x_range[1], num_clusters)
+            cluster_centers_y = np.random.uniform(center_y + y_range[0], center_y + y_range[1], num_clusters)
             cluster_centers = np.column_stack((cluster_centers_x, cluster_centers_y))
             cloud_agent.cluster_centres = cluster_centers
 
@@ -297,10 +302,10 @@ def animate(frame_num, ax, env, trajectory_eachPlay):
         y = np.array(y)
         # Create a 2D histogram to serve as the contour data
         margin = 25
-        contour_min_x = center_x+x_range[0] - margin
-        contour_max_x = center_x+x_range[1] + margin
-        contour_min_y = center_y+y_range[0] - margin
-        contour_max_y = center_y+y_range[1] + margin
+        contour_min_x = center_x + x_range[0] - margin
+        contour_max_x = center_x + x_range[1] + margin
+        contour_min_y = center_y + y_range[0] - margin
+        contour_max_y = center_y + y_range[1] + margin
         hist, xedges, yedges = np.histogram2d(x, y, bins=(100, 100),
                                               range=[[contour_min_x, contour_max_x], [contour_min_y, contour_max_y]])
         # Smooth the histogram to create a more organic shape
@@ -363,7 +368,8 @@ def animate(frame_num, ax, env, trajectory_eachPlay):
         transform = Affine2D().rotate_deg_around(x, y, heading - 90) + ax.transData
         ax.imshow(plane_img, extent=img_extent, zorder=10, transform=transform)
         self_circle = Point(x, y).buffer(env.all_agents[0].protectiveBound, cap_style='round')
-        grid_mat_Scir = shapelypoly_to_matpoly(self_circle, inFill=True, Edgecolor=None, FcColor='lightblue')  # None meaning no edge
+        grid_mat_Scir = shapelypoly_to_matpoly(self_circle, inFill=True, Edgecolor=None,
+                                               FcColor='lightblue')  # None meaning no edge
         grid_mat_Scir.set_zorder(2)
         grid_mat_Scir.set_alpha(0.9)  # Set transparency to 0.5
         ax.add_patch(grid_mat_Scir)
@@ -391,17 +397,17 @@ def save_gif(env, trajectory_eachPlay, pre_fix, episode_to_check, episode):
     plt.axis('equal')
     plt.xlim(env.bound[0], env.bound[1])
     plt.ylim(env.bound[2], env.bound[3])
-    plt.axvline(x=env.bound[0], c="green")
-    plt.axvline(x=env.bound[1], c="green")
-    plt.axhline(y=env.bound[2], c="green")
-    plt.axhline(y=env.bound[3], c="green")
+    plt.axvline(x=env.bound[0], c="black")
+    plt.axvline(x=env.bound[1], c="black")
+    plt.axhline(y=env.bound[2], c="black")
+    plt.axhline(y=env.bound[3], c="black")
     plt.xlabel("X axis")
     plt.ylabel("Y axis")
 
     # draw occupied_poly
     for one_poly in env.world_map_2D_polyList[0][0]:
         one_poly_mat = shapelypoly_to_matpoly(one_poly, True, 'y', 'b')
-        # ax.add_patch(one_poly_mat)
+    #     ax.add_patch(one_poly_mat)
     # draw non-occupied_poly
     for zero_poly in env.world_map_2D_polyList[0][1]:
         zero_poly_mat = shapelypoly_to_matpoly(zero_poly, False, 'y')
@@ -495,7 +501,8 @@ def view_static_traj(env, trajectory_eachPlay, save_path=None, max_time_step=Non
         # link individual drone's starting position with its goal
         ini = agent.ini_pos
         for wp in agent.ref_line.coords:
-            plt.plot([wp[0], ini[0]], [wp[1], ini[1]], linestyle='solid', linewidth=10, color=colors[agentIdx], alpha=0.2)
+            plt.plot([wp[0], ini[0]], [wp[1], ini[1]], linestyle='solid', linewidth=10, color=colors[agentIdx],
+                     alpha=0.2)
             ini = wp
 
         # # link individual drone's starting position with its goal
@@ -527,7 +534,8 @@ def view_static_traj(env, trajectory_eachPlay, save_path=None, max_time_step=Non
 
             # Draw the trajectory as dotted lines starting from the initial position
             if trajectory_idx > 0:  # Ensure we're not drawing a redundant line from ini_pos to itself
-                plt.plot([previous_position[0], x], [previous_position[1], y], linestyle=(0, (1, 10)), color=colors[agentIDX])
+                plt.plot([previous_position[0], x], [previous_position[1], y], linestyle=(0, (1, 10)),
+                         color=colors[agentIDX])
             # Update previous position
             previous_position = (x, y)
 
@@ -579,10 +587,11 @@ def view_static_traj(env, trajectory_eachPlay, save_path=None, max_time_step=Non
         plt.savefig(save_path, bbox_inches='tight')
         # print(f"Figure saved at {save_path}")
 
-    plt.show()
+    # plt.show()
 
 
-def compute_t_cpa_d_cpa_potential_col(other_pos, host_pos, other_vel, host_vel, other_bound, host_bound, total_possible_conf):
+def compute_t_cpa_d_cpa_potential_col(other_pos, host_pos, other_vel, host_vel, other_bound, host_bound,
+                                      total_possible_conf):
     rel_dist_withNeg = -1 * (other_pos - host_pos)  # relative distance, host-intru
     rel_vel = other_vel - host_vel  # get relative velocity, host-intru
     rel_vel_norm_withSQ = np.square(np.linalg.norm(rel_vel))  # square of norm
@@ -768,10 +777,10 @@ def compute_potential_conflict(cur_drone_pos, cur_drone_vel, cur_drone_protRad, 
     # if (t_cpa_before >= 0) and (t_cpa_before <= 1.5) and (d_cpa_before < (cur_drone_protRad + cur_neigh_protRad)):
     #     # pc_list.append(cur_neigh_idx)
     #     pc_list[cur_neigh_idx] = [t_cpa_before, d_cpa_before]
-        # double check
-        # host_future_pos = cur_drone_pos + (t_cpa_before*cur_drone_vel)
-        # intru_future_pos = cur_neigh_pos + (t_cpa_before*cur_neigh_vel)
-        # doubleCheck_dcpa = np.linalg.norm((host_future_pos-intru_future_pos))
+    # double check
+    # host_future_pos = cur_drone_pos + (t_cpa_before*cur_drone_vel)
+    # intru_future_pos = cur_neigh_pos + (t_cpa_before*cur_neigh_vel)
+    # doubleCheck_dcpa = np.linalg.norm((host_future_pos-intru_future_pos))
     if (t_cpa_before >= 0) and (t_cpa_before < 3):
         return [cur_neigh_idx, t_cpa_before, d_cpa_before]
     else:
@@ -820,11 +829,7 @@ def preprocess_batch_for_critic_net_v2(input_state, batch_size):
         for agent_cur in input_state:
             critic_own_cur_state.append(agent_cur[batch_idx, :])
 
-
-
-
         critic_own_batched_cur_state.append(np.array(critic_own_cur_state).reshape((1, -1)))
-
 
     cur_state_pre_processed = T.tensor(np.array(critic_own_batched_cur_state))  # batch X (1 x no_agent x feature size)
 
@@ -877,22 +882,23 @@ def action_rescaler(low, high):
 
 
 def ornstein_uhlenbeck_gen(
-    mu: np.ndarray = None,
-    sigma: float = 1.0,
-    theta: float = 0.15,
-    dt: float = 1e-2,
+        mu: np.ndarray = None,
+        sigma: float = 1.0,
+        theta: float = 0.15,
+        dt: float = 1e-2,
 ):
     rescaler = action_rescaler(-1, 1)  # this acts like an noise clipping, align with the paper's description
     noise_gen = ornstein_uhlenbeck_unscaled(mu=mu, sigma=sigma, theta=theta, dt=dt)
     for action in noise_gen:
         yield rescaler(action)
 
+
 def ornstein_uhlenbeck_unscaled(
-    mu: np.ndarray = None,
-    sigma: float = 1.0,
-    dim: int = None,
-    theta: float = 0.15,
-    dt: float = 1e-2,
+        mu: np.ndarray = None,
+        sigma: float = 1.0,
+        dim: int = None,
+        theta: float = 0.15,
+        dt: float = 1e-2,
 ):
     if mu is None:
         if not dim:
@@ -901,12 +907,13 @@ def ornstein_uhlenbeck_unscaled(
     last_noise = np.zeros_like(mu)
     while True:
         noise = (
-            last_noise
-            + theta * (mu - last_noise) * dt
-            + sigma * np.sqrt(dt) * np.random.normal(size=mu.shape)
+                last_noise
+                + theta * (mu - last_noise) * dt
+                + sigma * np.sqrt(dt) * np.random.normal(size=mu.shape)
         )
         last_noise = noise
         yield noise
+
 
 class NormalizeData:
     def __init__(self, x_min_max, y_min_max, spd_max, acc_range):
@@ -922,8 +929,8 @@ class NormalizeData:
         self.scale_attribute()
 
     def scale_attribute(self):
-        self.x_scale = (self.normalize_max-self.normalize_min)/(self.dis_max_x - self.dis_min_x)
-        self.y_scale = (self.normalize_max-self.normalize_min)/(self.dis_max_y - self.dis_min_y)
+        self.x_scale = (self.normalize_max - self.normalize_min) / (self.dis_max_x - self.dis_min_x)
+        self.y_scale = (self.normalize_max - self.normalize_min) / (self.dis_max_y - self.dis_min_y)
 
     def nmlz_pos(self, pos_c):
         x, y = pos_c[0], pos_c[1]
@@ -933,11 +940,12 @@ class NormalizeData:
 
     def reverse_nmlz_pos(self, norm_pos_c):
         norm_x, norm_y = norm_pos_c[0], norm_pos_c[1]
-        x = ((norm_x+1) / 2) * (self.dis_max_x - self.dis_min_x) + self.dis_min_x
-        y = ((norm_y+1) / 2) * (self.dis_max_y - self.dis_min_y) + self.dis_min_y
+        x = ((norm_x + 1) / 2) * (self.dis_max_x - self.dis_min_x) + self.dis_min_x
+        y = ((norm_y + 1) / 2) * (self.dis_max_y - self.dis_min_y) + self.dis_min_y
         return np.array([x, y])
 
-    def scale_pos(self, pos_c):  # NOTE: this method is essentially same as min-max normalize approach, but we need this appraoch to calculate x & y scale
+    def scale_pos(self,
+                  pos_c):  # NOTE: this method is essentially same as min-max normalize approach, but we need this appraoch to calculate x & y scale
         x_normalized = self.normalize_min + (pos_c[0] - self.dis_min_x) * self.x_scale
         y_normalized = self.normalize_min + (pos_c[1] - self.dis_min_y) * self.y_scale
         return np.array([x_normalized, y_normalized])
@@ -947,10 +955,10 @@ class NormalizeData:
 
     def nmlz_pos_diff(self, diff):
         dx, dy = diff[0], diff[1]
-        dx_min = self.dis_min_x-self.dis_max_x
-        dx_max = self.dis_max_x-self.dis_min_x
-        dy_min = self.dis_min_y-self.dis_max_y
-        dy_max = self.dis_max_y-self.dis_min_y
+        dx_min = self.dis_min_x - self.dis_max_x
+        dx_max = self.dis_max_x - self.dis_min_x
+        dy_min = self.dis_min_y - self.dis_max_y
+        dy_max = self.dis_max_y - self.dis_min_y
         dx_normalized = 2 * ((dx - dx_min) / (dx_max - dx_min)) - 1
         dy_normalized = 2 * ((dy - dy_min) / (dy_max - dy_min)) - 1
         return dx_normalized, dy_normalized
@@ -986,7 +994,7 @@ def BetaNoise(action, noise_scale):
     value = 0.5 + action / 2  # converting from action space of -1 to 1 to beta space of 0 to 1
     beta = alpha * (1 - value) / value  # calculating beta
     beta = beta + 1.0 * (
-                (alpha - beta) / alpha)  # adding a little bit to beta prevents actions getting stuck at -1 or 1
+            (alpha - beta) / alpha)  # adding a little bit to beta prevents actions getting stuck at -1 or 1
     sample = np.random.beta(alpha, beta)  # sampling from the beta distribution
     sample = sign * sample + (1 - sign) / 2  # flipping sample if sign is <0 since we only use right tail of beta dsn
 
@@ -1010,8 +1018,9 @@ def WeightedNoise(action, noise_scale, action_type):
         target = np.random.uniform(0, 1, 4)  # action space is discrete
         target = target / sum(target)
     action = noise_scale * target + (
-                1 - noise_scale) * action.detach().numpy()  # take a weighted average with noise_scale as the noise weight
+            1 - noise_scale) * action.detach().numpy()  # take a weighted average with noise_scale as the noise weight
     return torch.tensor(action).float()
+
 
 def display_trajectory(cur_env, combined_trajectory, eps_to_watch):
     episode_to_show = eps_to_watch
@@ -1046,7 +1055,8 @@ def display_trajectory(cur_env, combined_trajectory, eps_to_watch):
             # calculate the deviation from the reference path after an action has been taken
             curPoint = Point(cur_env.all_agents[ea_idx].pos)
             host_refline = LineString([cur_env.all_agents[ea_idx].ini_pos, cur_env.all_agents[ea_idx].goal[0]])
-            cross_track_deviation = curPoint.distance(host_refline)  # deviation from the reference line, cross track error
+            cross_track_deviation = curPoint.distance(
+                host_refline)  # deviation from the reference line, cross track error
 
             host_pass_line = LineString([cur_env.all_agents[ea_idx].pre_pos, cur_env.all_agents[ea_idx].pos])
             host_passed_volume = host_pass_line.buffer(cur_env.all_agents[ea_idx].protectiveBound, cap_style='round')
@@ -1069,7 +1079,9 @@ def display_trajectory(cur_env, combined_trajectory, eps_to_watch):
                 step_D.append(True)
                 step_R.append(np.array(reach_target))
             # exceed bound condition, don't use current point, use current circle or else will have condition that
-            elif x_left_bound.intersects(host_passed_volume) or x_right_bound.intersects(host_passed_volume) or y_bottom_bound.intersects(host_passed_volume) or y_top_bound.intersects(host_passed_volume):
+            elif x_left_bound.intersects(host_passed_volume) or x_right_bound.intersects(
+                    host_passed_volume) or y_bottom_bound.intersects(host_passed_volume) or y_top_bound.intersects(
+                    host_passed_volume):
                 print("drone_{} has crash into boundary at time step {}".format(ea_idx, step_idx))
                 step_R.append(np.array(crash_penalty))
                 step_D.append(True)
@@ -1085,7 +1097,8 @@ def display_trajectory(cur_env, combined_trajectory, eps_to_watch):
                 cross_track_error = (20 / ((cross_track_deviation * cross_track_deviation) / 200 + 1)) - 3.5
                 # Distance between drone and its goal for two consecutive time step
                 before_dist_hg = np.linalg.norm(cur_env.all_agents[ea_idx].pre_pos - cur_env.all_agents[ea_idx].goal[0])
-                after_dist_hg = np.linalg.norm(cur_env.all_agents[ea_idx].pos - cur_env.all_agents[ea_idx].goal[0])  # distance to goal after action
+                after_dist_hg = np.linalg.norm(cur_env.all_agents[ea_idx].pos - cur_env.all_agents[ea_idx].goal[
+                    0])  # distance to goal after action
                 delta_hg = goalCoefficient * (before_dist_hg - after_dist_hg)
                 # a small penalty for discourage the agent to stay in one single spot
                 if (before_dist_hg - after_dist_hg) <= 2:
@@ -1095,11 +1108,11 @@ def display_trajectory(cur_env, combined_trajectory, eps_to_watch):
                 # Domino term also use as an indicator for agent to avoid other drones. so no need to specifically
                 # add a term to avoid surrounding drones
                 # step_reward = crossCoefficient*cross_track_error + delta_hg + dominoTerm - small_step_penalty
-                step_reward = crossCoefficient*cross_track_error + delta_hg - small_step_penalty
+                step_reward = crossCoefficient * cross_track_error + delta_hg - small_step_penalty
                 # step_reward = delta_hg
                 # convert to arr
                 step_R.append(np.array(step_reward))
-                plt.text(each_agent[0] + 5, each_agent[1], str(np.array(round(step_reward,1))))
+                plt.text(each_agent[0] + 5, each_agent[1], str(np.array(round(step_reward, 1))))
 
             # plot self_circle of the drone
             self_circle = Point(each_agent[0], each_agent[1]).buffer(2.5, cap_style='round')
@@ -1107,7 +1120,7 @@ def display_trajectory(cur_env, combined_trajectory, eps_to_watch):
 
             # label drone time step for the position
             plt.text(each_agent[0], each_agent[1], str(ea_idx))
-            #plt.text(each_agent[0]+5, each_agent[1], str(step_idx))
+            # plt.text(each_agent[0]+5, each_agent[1], str(step_idx))
 
             ax.add_patch(grid_mat_Scir)
         reward.append(step_R)
@@ -1143,6 +1156,7 @@ def display_trajectory(cur_env, combined_trajectory, eps_to_watch):
     plt.ylabel("Y axis")
     plt.show()
     return reward
+
 
 def display_exploration_expolitation(cur_env, combined_trajectory, eps_period):
     episode_to_show = 4999
@@ -1191,12 +1205,7 @@ def display_exploration_expolitation(cur_env, combined_trajectory, eps_period):
                                                                cur_env.all_agents[ea_idx].pos[1] + delta_y])
                     # plt.scatter(cur_env.all_agents[ea_idx].pos[0], cur_env.all_agents[ea_idx].pos[1], color='lightblue')
 
-
-
-
             selfLabel = 1
-
-
 
     # draw occupied_poly
     for one_poly in cur_env.world_map_2D_polyList[0][0]:
@@ -1266,8 +1275,3 @@ def action_selection_statistics(action_selection_collection):
 
     # Show the histogram
     plt.show()
-
-
-
-
-
