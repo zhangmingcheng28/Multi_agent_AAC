@@ -9,6 +9,8 @@
 from matplotlib.patches import Polygon as matPolygon
 import matplotlib.path as mpath
 import matplotlib.patches as mpatches
+from matplotlib.path import Path
+from matplotlib.patches import PathPatch
 from scipy.ndimage import gaussian_filter
 from matplotlib.colors import LinearSegmentedColormap
 import torch as T
@@ -316,38 +318,23 @@ def animate(frame_num, ax, env, trajectory_eachPlay):
         X, Y = np.meshgrid(xedges[:-1] + 0.5 * (xedges[1] - xedges[0]), yedges[:-1] + 0.5 * (yedges[1] - yedges[0]))
         contour_levels = np.linspace(hist.min(), hist.max(), 10)
         contour = ax.contourf(X, Y, hist, levels=contour_levels, cmap=cmap)
-        # Extract the path for the highest density level
-        path = None
-        for collection in contour.collections:
-            if collection.get_paths():
-                path = collection.get_paths()[0]
-                break
-        # Define the vertices for a large rectangle covering the entire plotting area
-        # Extend vertices by the margin
-        extended_margin = 0  # Adjust this margin as needed
-        vertices = [
-            [xedges[0] - extended_margin, yedges[0] - extended_margin],
-            [xedges[0] - extended_margin, yedges[-1] + extended_margin],
-            [xedges[-1] + extended_margin, yedges[-1] + extended_margin],
-            [xedges[-1] + extended_margin, yedges[0] - extended_margin],
-            [xedges[0] - extended_margin, yedges[0] - extended_margin]
-        ]
-        # Create the corresponding codes for the full path
-        codes = [mpath.Path.MOVETO] + [mpath.Path.LINETO] * (len(vertices) - 2) + [mpath.Path.CLOSEPOLY]
 
-        # Create a path that covers the entire plotting area
-        full_path = mpath.Path(vertices, codes)
-
-        # Create a compound path that combines the full path and the contour path
-        if path is not None:
-            clip_path = mpath.Path.make_compound_path(full_path, path)
-
-            for collection in contour.collections:
-                collection.set_clip_path(mpatches.PathPatch(clip_path, transform=ax.transData))
-
-        # # Apply the clipping path to the contour collections to exclude the region inside the contour path
-        # for collection in contour.collections:
-        #     collection.set_clip_path(mpatches.PathPatch(clip_path, transform=ax.transData))
+        level_color = cmap(
+            (contour_levels[1] - contour_levels.min()) / (contour_levels.max() - contour_levels.min()))
+        # Extract the outermost contour path and overlay it with a black line
+        outermost_contour = ax.contour(X, Y, hist, levels=[contour_levels[1]], colors=[level_color],
+                                       linewidths=1)  # this line must be present to
+        # Extract the vertices of the outermost contour path
+        outermost_path = outermost_contour.collections[0].get_paths()[0]
+        vertices = outermost_path.vertices
+        x_clip, y_clip = vertices[:, 0], vertices[:, 1]
+        # ax.plot(x_clip, y_clip, color="crimson")
+        coordinates = np.column_stack((x_clip, y_clip))
+        clippath = Path(coordinates)
+        patch = PathPatch(clippath, facecolor='none')
+        ax.add_patch(patch)
+        for c in contour.collections:
+            c.set_clip_path(patch)
 
     for a_idx, agent in enumerate(trajectory_eachPlay[frame_num]):
         x, y = agent[0], agent[1]
@@ -505,24 +492,83 @@ def view_static_traj(env, trajectory_eachPlay, save_path=None, max_time_step=Non
                      alpha=0.2)
             ini = wp
 
-        # # link individual drone's starting position with its goal
-        # ini = agent.ini_pos
-        # # for wp in agent.goal:
-        # for wp in agent.ref_line.coords:
-        #     plt.plot(wp[0], wp[1], marker='*', color='y', markersize=10)
-        #     plt.plot([wp[0], ini[0]], [wp[1], ini[1]], '--', color='c')
-        #     # plot drone's detection range
-        #     wp_circle = Point(wp[0], wp[1]).buffer(agent.protectiveBound, cap_style='round')
-        #     wp_circle_mat = shapelypoly_to_matpoly(wp_circle, inFill=False, Edgecolor='g')
-        #     ax.add_patch(wp_circle_mat)
-        #     ini = wp
-
         plt.plot(agent.goal[-1][0], agent.goal[-1][1], marker='*', color=colors[agentIdx], markersize=10)
         plt.text(agent.goal[-1][0], agent.goal[-1][1], agent.agent_name)
 
     # draw trajectory in current episode
     if max_time_step is None:
         max_time_step = len(trajectory_eachPlay)
+
+    # display cloud
+    interval = 10  # Change cluster coordinates around centre every 10 frames
+    # Calculate alpha values that will create a fading effect
+    alpha_values = np.linspace(0.1, 1.0, max_time_step)
+
+    for cloud_idx, cloud_agent in enumerate(env.cloud_config):
+        for trajectory_idx in range(max_time_step):
+            if trajectory_idx >= max_time_step:
+                break
+            if trajectory_idx % interval == 0:
+                # Define the fixed center
+                center_x, center_y = cloud_agent.trajectory[trajectory_idx].x, cloud_agent.trajectory[trajectory_idx].y
+                # ___add boundary circle for clouds---
+                # cloud_centre = Point(center_x, center_y)
+                # cloud_poly = cloud_centre.buffer(cloud_agent.radius)
+                # matp_poly = shapelypoly_to_matpoly(cloud_poly, False, 'blue')  # the 3rd parameter is the edge color
+                # matp_poly.set_zorder(5)
+                # ax.add_patch(matp_poly)
+                # Generate multiple clusters of random points within the specified range
+                num_points_per_cluster = 5000
+                num_clusters = 15
+                x_range = cloud_agent.spawn_cluster_pt_x_range
+                y_range = cloud_agent.spawn_cluster_pt_y_range
+
+                cluster_centers_x = np.random.uniform(center_x + x_range[0], center_x + x_range[1], num_clusters)
+                cluster_centers_y = np.random.uniform(center_y + y_range[0], center_y + y_range[1], num_clusters)
+                cluster_centers = np.column_stack((cluster_centers_x, cluster_centers_y))
+                cloud_agent.cluster_centres = cluster_centers
+
+                # Generate points for each cluster with controlled density
+                x, y = [], []
+                for cx, cy in cloud_agent.cluster_centres:
+                    angles = np.random.uniform(0, 2 * np.pi, num_points_per_cluster)
+                    radii = np.random.normal(0, 0.1, num_points_per_cluster)  # Decrease spread for higher density
+                    x.extend(cx + radii * np.cos(angles))
+                    y.extend(cy + radii * np.sin(angles))
+                x = np.array(x)
+                y = np.array(y)
+                # Create a 2D histogram to serve as the contour data
+                margin = 25
+                contour_min_x = center_x + x_range[0] - margin
+                contour_max_x = center_x + x_range[1] + margin
+                contour_min_y = center_y + y_range[0] - margin
+                contour_max_y = center_y + y_range[1] + margin
+                hist, xedges, yedges = np.histogram2d(x, y, bins=(100, 100),
+                                                      range=[[contour_min_x, contour_max_x], [contour_min_y, contour_max_y]])
+                # Smooth the histogram to create a more organic shape
+                hist = gaussian_filter(hist, sigma=5)  # Adjust sigma for better control
+
+                # Create the custom colormap from green to yellow to red
+                cmap = LinearSegmentedColormap.from_list('green_yellow_red', ['green', 'yellow', 'red'])
+                X, Y = np.meshgrid(xedges[:-1] + 0.5 * (xedges[1] - xedges[0]), yedges[:-1] + 0.5 * (yedges[1] - yedges[0]))
+                contour_levels = np.linspace(hist.min(), hist.max(), 10)
+                contour = ax.contourf(X, Y, hist, levels=contour_levels, cmap=cmap, alpha=alpha_values[trajectory_idx])
+                level_color = cmap(
+                    (contour_levels[1] - contour_levels.min()) / (contour_levels.max() - contour_levels.min()))
+                # Extract the outermost contour path and overlay it with a black line
+                outermost_contour = ax.contour(X, Y, hist, levels=[contour_levels[1]], colors=[level_color],
+                                               linewidths=1, alpha=alpha_values[trajectory_idx])  # this line must be present to
+                # Extract the vertices of the outermost contour path
+                outermost_path = outermost_contour.collections[0].get_paths()[0]
+                vertices = outermost_path.vertices
+                x_clip, y_clip = vertices[:, 0], vertices[:, 1]
+                # ax.plot(x_clip, y_clip, color="crimson")
+                coordinates = np.column_stack((x_clip, y_clip))
+                clippath = Path(coordinates)
+                patch = PathPatch(clippath, facecolor='none', alpha=alpha_values[trajectory_idx])
+                ax.add_patch(patch)
+                for c in contour.collections:
+                    c.set_clip_path(patch)
 
     for agentIDX, agent in env.all_agents.items():
         previous_position = agent.ini_pos  # Start with the agent's initial position
@@ -587,7 +633,7 @@ def view_static_traj(env, trajectory_eachPlay, save_path=None, max_time_step=Non
         plt.savefig(save_path, bbox_inches='tight')
         # print(f"Figure saved at {save_path}")
 
-    # plt.show()
+    plt.show()
 
 
 def compute_t_cpa_d_cpa_potential_col(other_pos, host_pos, other_vel, host_vel, other_bound, host_bound,

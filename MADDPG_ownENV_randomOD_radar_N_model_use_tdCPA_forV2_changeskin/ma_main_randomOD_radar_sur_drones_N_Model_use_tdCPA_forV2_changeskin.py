@@ -65,11 +65,11 @@ def main(args):
         # initialize_excel_file(excel_file_path_time)
         # ------------ end of this portion is to save using excel instead of pickle -----------
 
-    # use_wanDB = False
-    use_wanDB = True
+    use_wanDB = False
+    # use_wanDB = True
 
-    # evaluation_by_episode = True
-    evaluation_by_episode = False
+    evaluation_by_episode = True
+    # evaluation_by_episode = False
 
     # get_evaluation_status = True  # have figure output
     get_evaluation_status = False  # no figure output, mainly obtain collision rate
@@ -295,10 +295,10 @@ def main(args):
         # args.max_episodes = 1
         # args.max_episodes = 250
         # args.max_episodes = 25
-        pre_fix = r'D:\MADDPG_2nd_jp\100824_21_03_35\interval_record_eps'
+        pre_fix = r'D:\MADDPG_2nd_jp\160824_18_24_23\interval_record_eps'
         # episode_to_check = str(10000)
         # pre_fix = r'F:\OneDrive_NTU_PhD\OneDrive - Nanyang Technological University\DDPG_2ndJournal\dim_8_transfer_learning'
-        episode_to_check = str(30000)
+        episode_to_check = str(20000)
         model_list = []
         if full_observable_critic_flag:
             for i in range(total_agentNum):
@@ -748,7 +748,7 @@ def main(args):
                             all_drone_reach = all_drone_reach + 1
                             # print("There are no True values in the list.")
 
-                    if episode % 1000 == 0:  # every 100 episode we record the training performance (without evaluation)
+                    if episode % 10 == 0:  # every 100 episode we record the training performance (without evaluation)
                         # if episode == 10:
                         # After the loop, save the file once
                         # writer.save()
@@ -823,8 +823,7 @@ def main(args):
                     #
                     break  # this is to break out from "while True:", which is one play
             elif args.mode == "eval":
-                png_file_name = plot_file_name + '\episode_' + str(episode)+'.png'
-                view_static_traj(env, trajectory_eachPlay, png_file_name)
+                png_file_name = pre_fix + '\episode_' + str(episode)+'.png'
                 step_reward_record = [None] * n_agents
                 # show_step_by_step = True
                 show_step_by_step = False
@@ -841,7 +840,10 @@ def main(args):
                 # nearest_two_drones
                 next_state, norm_next_state, polygons_list, all_agent_st_points, all_agent_ed_points, all_agent_intersection_point_list, all_agent_line_collection, all_agent_mini_intersection_list = env.step(action, step, acc_max, args, evaluation_by_episode, full_observable_critic_flag)  # no heading update here
                 # reward_aft_action, done_aft_action, check_goal, step_reward_record, eps_status_holder, step_collision_record, bound_building_check = env.ss_reward(step, step_reward_record, step_collision_record, dummy_xy, full_observable_critic_flag, args, evaluation_by_episode, own_obs_only)
-                reward_aft_action, done_aft_action, check_goal, step_reward_record, eps_status_holder, step_collision_record, bound_building_check = env.ss_reward_Mar(step, step_reward_record, step_collision_record, dummy_xy, full_observable_critic_flag, args, evaluation_by_episode)
+                # reward_aft_action, done_aft_action, check_goal, step_reward_record, eps_status_holder, step_collision_record, bound_building_check = env.ss_reward_Mar(step, step_reward_record, step_collision_record, dummy_xy, full_observable_critic_flag, args, evaluation_by_episode)
+                reward_aft_action, done_aft_action, check_goal, step_reward_record, status_holder, step_collision_record, bound_building_check = env.ss_reward_Mar_changeskin(
+                    step, step_reward_record, step_collision_record, dummy_xy, full_observable_critic_flag, args,
+                    evaluation_by_episode)  # remove reached agent here
                 # reward_aft_action, done_aft_action, check_goal, step_reward_record = env.get_step_reward_5_v3(step, step_reward_record)
 
                 step += 1
@@ -852,17 +854,17 @@ def main(args):
                 traj_step_list = []
                 for each_agent_idx, each_agent in env.all_agents.items():
                     # traj_step_list.append([each_agent.pos[0], each_agent.pos[1], reward_aft_action[each_agent_idx]])
-                    traj_step_list.append([each_agent.pos[0], each_agent.pos[1], np.array(step_reward_record[each_agent_idx][1]), eps_status_holder[each_agent_idx]])
+                    traj_step_list.append([each_agent.pos[0], each_agent.pos[1], np.array(step_reward_record[each_agent_idx][1]), each_agent.heading])
                 trajectory_eachPlay.append(traj_step_list)
                 accum_reward = accum_reward + sum(reward_aft_action)
-                # show states in text
-                for agentIdx, agent in env.all_agents.items():
-                    print("drone {}, next WP is {}, deviation from ref line is {}, ref_line_reward is {}, "
-                          "actual dist to goal is {}, dist_goal_reward is {}, velocity is {}, step {} reward is {}"
-                          .format(agentIdx, agent.goal[-1], eps_status_holder[agentIdx]['deviation_to_ref_line'],
-                                  eps_status_holder[agentIdx]['deviation_to_ref_line_reward'], eps_status_holder[agentIdx]['Euclidean_dist_to_goal'],
-                                  eps_status_holder[agentIdx]['goal_leading_reward'], eps_status_holder[agentIdx]['current_drone_speed'], step,
-                                  reward_aft_action[agentIdx]))
+                # # show states in text
+                # for agentIdx, agent in env.all_agents.items():
+                #     print("drone {}, next WP is {}, deviation from ref line is {}, ref_line_reward is {}, "
+                #           "actual dist to goal is {}, dist_goal_reward is {}, velocity is {}, step {} reward is {}"
+                #           .format(agentIdx, agent.goal[-1], eps_status_holder[agentIdx]['deviation_to_ref_line'],
+                #                   eps_status_holder[agentIdx]['deviation_to_ref_line_reward'], eps_status_holder[agentIdx]['Euclidean_dist_to_goal'],
+                #                   eps_status_holder[agentIdx]['goal_leading_reward'], eps_status_holder[agentIdx]['current_drone_speed'], step,
+                #                   reward_aft_action[agentIdx]))
 
                 if show_step_by_step:
                     os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
@@ -975,14 +977,14 @@ def main(args):
                     # episode_goal_found = [for agents in env.all_agents]
                 # if args.episode_length < step:  # when termination condition reached, without counting drone collision to buildings/wall
                     # display current episode out status through status_holder
-                    for each_agent_idx, each_agent in enumerate(eps_status_holder):
-                        for step_idx, step_reward_decomposition in enumerate(each_agent):
-                            pass
-                            # print(r"agent {}, step {}, distance to goal is {} m, goal reward is {}, ref line reward is {}, current step reward is {}.".format(each_agent_idx, step_idx, step_reward_decomposition[0], step_reward_decomposition[1], step_reward_decomposition[2], step_reward_decomposition[3]))
-                            # print("near goal reward is {}".format(step_reward_decomposition[6]))
-                            # print("current spd is {} m/s, curent spd penalty is {}". format(step_reward_decomposition[5], step_reward_decomposition[4]))
+                    # for each_agent_idx, each_agent in enumerate(eps_status_holder):
+                    #     for step_idx, step_reward_decomposition in enumerate(each_agent):
+                    #         pass
+                    #         # print(r"agent {}, step {}, distance to goal is {} m, goal reward is {}, ref line reward is {}, current step reward is {}.".format(each_agent_idx, step_idx, step_reward_decomposition[0], step_reward_decomposition[1], step_reward_decomposition[2], step_reward_decomposition[3]))
+                    #         # print("near goal reward is {}".format(step_reward_decomposition[6]))
+                    #         # print("current spd is {} m/s, curent spd penalty is {}". format(step_reward_decomposition[5], step_reward_decomposition[4]))
                     print("[Episode %05d] reward %6.4f " % (episode, accum_reward))
-
+                    view_static_traj(env, trajectory_eachPlay, png_file_name)
                     if get_evaluation_status:
                         if simply_view_evaluation:
                         # ------------------ static display trajectory ---------------------------- #
@@ -1083,13 +1085,15 @@ def main(args):
             pickle.dump(eps_time_record, handle, protocol=pickle.HIGHEST_PROTOCOL)
         with open(plot_file_name + '/all_episode_collision.pickle', 'wb') as handle:
             pickle.dump(eps_check_collision, handle, protocol=pickle.HIGHEST_PROTOCOL)
-        with open(file_name + '/GFG.csv', 'w') as f:
+        with open(file_name + '/GFG.csv', 'w', newline='') as f:
             # using csv.writer method from CSV package
             write = csv.writer(f)
-            write.writerows([score_history])
+            for item in score_history:
+                write.writerow([item])
         with open(file_name + '/goal_reaching.csv', 'w') as f:
             write = csv.writer(f)
-            write.writerows([goal_reach_history])
+            for goal_item in goal_reach_history:
+                write.writerow([goal_item])
         # After the loop, save the file once
         # writer.save()
         # print(f'Data saved to {excel_file_path}')
@@ -1132,7 +1136,7 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--scenario', default="simple_spread", type=str)
-    parser.add_argument('--max_episodes', default=20000, type=int)  # run for a total of 50000 episodes
+    parser.add_argument('--max_episodes', default=200, type=int)  # run for a total of 50000 episodes
     parser.add_argument('--algo', default="maddpg", type=str, help="commnet/bicnet/maddpg")
     parser.add_argument('--mode', default="train", type=str, help="train/eval")
     # parser.add_argument('--episode_length', default=150, type=int)  # maximum play per episode

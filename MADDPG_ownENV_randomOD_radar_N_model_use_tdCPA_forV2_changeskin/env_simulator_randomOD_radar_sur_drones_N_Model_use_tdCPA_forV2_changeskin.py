@@ -565,6 +565,13 @@ class env_simulator:
             'star4': [(139.538, 9.936), (160.002, 190.064)]
         }
 
+        # ___SG air routes in an area of 200 x 200 nm ___
+        sg_routes = {
+            'OD1': [(10, 53), (180, 190)],
+            'OD2': [(10, 145), (190, 10)],
+            'OD3': [(90, 10), (190, 88)],
+        }
+
         # --------- bound config ------------------
         x_left = LineString([(self.bound[0], self.bound[2]), (self.bound[0], self.bound[3])])
         x_right = LineString([(self.bound[1], self.bound[2]), (self.bound[1], self.bound[3])])
@@ -4937,9 +4944,10 @@ class env_simulator:
             self.all_agents[drone_idx].acc = np.array([ax, ay])
 
             counterCheck_heading = math.atan2(delta_y, delta_x)
-            if abs(next_heading - counterCheck_heading) > 1e-3 :
+            if abs(next_heading - counterCheck_heading) > 1e-3:
                 print("debug, heading different")
-            self.all_agents[drone_idx].heading = counterCheck_heading
+            if drone_obj.reach_target != True:
+                self.all_agents[drone_idx].heading = counterCheck_heading  # only update heading when AC has not reached the goal.
             # ------------- end of acceleration in x and acceleration in y state transition control ---------------#
 
             self.all_agents[drone_idx].pos = np.array([self.all_agents[drone_idx].pos[0] + delta_x,
