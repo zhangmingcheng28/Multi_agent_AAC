@@ -470,7 +470,7 @@ def view_static_traj(env, trajectory_eachPlay, save_path=None, max_time_step=Non
         ax.imshow(plane_img, extent=img_extent, zorder=10, transform=transform)
         plt.plot(agent.ini_pos[0], agent.ini_pos[1],
                  marker=MarkerStyle("^"), color=colors[agentIdx])
-        plt.text(agent.ini_pos[0], agent.ini_pos[1], agent.agent_name)
+        # plt.text(agent.ini_pos[0], agent.ini_pos[1], agent.agent_name)
         # plot self_circle of the drone
         self_circle = Point(x, y).buffer(agent.protectiveBound, cap_style='round')
         grid_mat_Scir = shapelypoly_to_matpoly(self_circle, inFill=True, Edgecolor=None,
@@ -493,7 +493,7 @@ def view_static_traj(env, trajectory_eachPlay, save_path=None, max_time_step=Non
             ini = wp
 
         plt.plot(agent.goal[-1][0], agent.goal[-1][1], marker='*', color=colors[agentIdx], markersize=10)
-        plt.text(agent.goal[-1][0], agent.goal[-1][1], agent.agent_name)
+        # plt.text(agent.goal[-1][0], agent.goal[-1][1], agent.agent_name)
 
     # draw trajectory in current episode
     if max_time_step is None:
@@ -603,6 +603,7 @@ def view_static_traj(env, trajectory_eachPlay, save_path=None, max_time_step=Non
                 grid_mat_SCir.set_zorder(2)
                 grid_mat_SCir.set_alpha(0.9)
                 ax.add_patch(grid_mat_SCir)
+                plt.text(x+3, y+3, 'a'+str(agentIDX))
 
     # draw occupied_poly
     for one_poly in env.world_map_2D_polyList[0][0]:
