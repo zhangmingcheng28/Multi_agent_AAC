@@ -581,9 +581,10 @@ class env_simulator:
         # -------- end of bound config ---------
 
         # -------- start of add cloud -----------
-        cloud_0 = [520, 300, 650, 300]
-        cloud_1 = [575, 350, 650, 350]
-        all_clouds = [cloud_0, cloud_1]
+        cloud_0 = [50, 180, 80, 30]
+        # cloud_1 = [575, 350, 650, 350]
+        # all_clouds = [cloud_0, cloud_1]
+        all_clouds = [cloud_0]
         cloud_config = []
         no_spawn_zone = []
         for cloud_idx, cloud_setting in enumerate(all_clouds):
