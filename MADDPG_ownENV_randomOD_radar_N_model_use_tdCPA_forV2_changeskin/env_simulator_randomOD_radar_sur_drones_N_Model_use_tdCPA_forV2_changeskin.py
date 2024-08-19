@@ -546,7 +546,7 @@ class env_simulator:
         return overall_state, norm_overall_state
 
 
-    def reset_world_change_skin(self, total_agentNum, full_observable_critic_flag, evaluation_by_fixed_ar, include_other_AC, show):  # set initialize position and observation for all agents
+    def reset_world_change_skin(self, total_agentNum, full_observable_critic_flag, evaluation_by_fixed_ar, include_other_AC, use_nearestN_neigh_wRadar, N_neigh, show):  # set initialize position and observation for all agents
         self.global_time = 0.0
         self.time_step = 0.5
         # reset OU_noise as well
@@ -762,7 +762,7 @@ class env_simulator:
 
 
         overall_state, norm_overall_state, polygons_list, all_agent_st_pos, all_agent_ed_pos, all_agent_intersection_point_list, \
-        all_agent_line_collection, all_agent_mini_intersection_list = self.cur_state_norm_state_v3(agentRefer_dict, full_observable_critic_flag, include_other_AC)
+        all_agent_line_collection, all_agent_mini_intersection_list = self.cur_state_norm_state_v3(agentRefer_dict, full_observable_critic_flag, include_other_AC, use_nearestN_neigh_wRadar, N_neigh)
 
         if show:
             os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
@@ -1244,7 +1244,7 @@ class env_simulator:
         norm_overall.append(norm_overall_state_p2)
         return overall, norm_overall
 
-    def cur_state_norm_state_v3(self, agentRefer_dict, full_observable_critic_flag, include_other_AC):
+    def cur_state_norm_state_v3(self, agentRefer_dict, full_observable_critic_flag, include_other_AC, use_nearestN_neigh_wRadar, N_neigh):
         overall = []
         norm_overall = []
         # prepare for output states
@@ -1292,7 +1292,7 @@ class env_simulator:
             #
             # identify neighbors (use distance)
             # obs_nei_time = time.time()
-            agent.surroundingNeighbor = self.get_current_agent_nei(agent, agentRefer_dict, queue=True)
+            agent.surroundingNeighbor = self.get_current_agent_nei(agent, agentRefer_dict, queue=True)  # when queue=True, meaning we already sort the neighbours by distance
             # # print("generate nei time is {} milliseconds".format((time.time() - obs_nei_time) * 1000))
 
 
@@ -1712,8 +1712,13 @@ class env_simulator:
                         p1_other_agents.append(p1_surround_agent)
                         p1_norm_other_agents.append(p1_norm_surround_agent)
                         # p2_just_euclidean_delta.append(euclidean_dist)
-                        p2_just_neighbour.append(p1_surround_agent)
-                        p2_norm_just_neighbour.append(p1_norm_surround_agent)
+                        if use_nearestN_neigh_wRadar:
+                            if len(p2_just_neighbour) < N_neigh:
+                                p2_just_neighbour.append(p1_surround_agent)
+                                p2_norm_just_neighbour.append(p1_norm_surround_agent)
+                        else:
+                            p2_just_neighbour.append(p1_surround_agent)
+                            p2_norm_just_neighbour.append(p1_norm_surround_agent)
                         include_neigh_count = include_neigh_count + 1
                         # if include_neigh_count > 0:  # only include 2 nearest agents
                         #     break
@@ -4550,7 +4555,7 @@ class env_simulator:
         status_holder[drone_idx]['near_drone_penalty'] = cur_step_reward[11]
         return status_holder
 
-    def step(self, actions, current_ts, acc_max, args, evaluation_by_episode, full_observable_critic_flag, evaluation_by_fixed_ar, include_other_AC):
+    def step(self, actions, current_ts, acc_max, args, evaluation_by_episode, full_observable_critic_flag, evaluation_by_fixed_ar, include_other_AC, use_nearestN_neigh_wRadar, N_neigh):
         next_combine_state = []
         agentCoorKD_list_update = []
         agentRefer_dict = {}  # A dictionary to use agent's current pos as key, their agent name (idx) as value
@@ -4679,7 +4684,7 @@ class env_simulator:
 
         # next_state, next_state_norm = self.cur_state_norm_state_fully_observable(agentRefer_dict)
         # start_acceleration_time = time.time()
-        next_state, next_state_norm, polygons_list, all_agent_st_points, all_agent_ed_points, all_agent_intersection_point_list, all_agent_line_collection, all_agent_mini_intersection_list = self.cur_state_norm_state_v3(agentRefer_dict, full_observable_critic_flag, include_other_AC)
+        next_state, next_state_norm, polygons_list, all_agent_st_points, all_agent_ed_points, all_agent_intersection_point_list, all_agent_line_collection, all_agent_mini_intersection_list = self.cur_state_norm_state_v3(agentRefer_dict, full_observable_critic_flag, include_other_AC, use_nearestN_neigh_wRadar, N_neigh)
         # print("obtain_current_state, time used {} milliseconds".format(
         #     (time.time() - start_acceleration_time) * 1000))
 

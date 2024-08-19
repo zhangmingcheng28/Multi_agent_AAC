@@ -45,8 +45,6 @@ else:
 
 
 def main(args):
-    with open(r'D:\MADDPG_2nd_jp\190824_14_58_34\toplot\all_episode_OD.pickle', 'rb') as handle:
-        episode_critic_loss_cal_record = pickle.load(handle)
     if args.mode == "train":
         today = datetime.date.today()
         current_date = today.strftime("%d%m%y")
@@ -100,8 +98,12 @@ def main(args):
     # use_allNeigh_wRadar = True
     use_allNeigh_wRadar = False
 
-    include_other_AC = True  # used for change skin during training, whether include the surrounding ACs.
-    # include_other_AC = False
+    use_nearestN_neigh_wRadar = True
+    # use_nearestN_neigh_wRadar = False
+    N_neigh = 2
+
+    # include_other_AC = True  # used for change skin during training, whether include the surrounding ACs.
+    include_other_AC = False
 
     if use_allNeigh_wRadar:
         # own_obs_only = True
@@ -172,6 +174,9 @@ def main(args):
             # critic_dim = [9, (total_agentNum - 1) * 5, 18, 6]
             # critic_dim = [6, 1 * 5, 36, 6]
             # critic_dim = [6, 2 * 5, 36, 6]
+        elif use_nearestN_neigh_wRadar:
+            actor_dim = [7, N_neigh * 5, 18, 6]
+            critic_dim = [7, N_neigh * 5, 18, 6]
         else:
             # actor_dim = [6, 18, 6]  # dim host, maximum dim grid, dim other drones
             # actor_dim = [8, 18, 6]  # dim host, maximum dim grid, dim other drones
@@ -248,7 +253,7 @@ def main(args):
     torch.manual_seed(args.seed)  # this is the seed
 
     if args.algo == "maddpg":
-        model = MADDPG(actor_dim, critic_dim, n_actions, actor_hidden_state, gru_history_length, n_agents, args, criticNet_lr, actorNet_lr, args.gamma, args.tau, full_observable_critic_flag, use_GRU_flag, use_single_portion_selfATT, use_selfATT_with_radar, use_allNeigh_wRadar, own_obs_only, env.normalizer, device)
+        model = MADDPG(actor_dim, critic_dim, n_actions, actor_hidden_state, gru_history_length, n_agents, args, criticNet_lr, actorNet_lr, args.gamma, args.tau, full_observable_critic_flag, use_GRU_flag, use_single_portion_selfATT, use_selfATT_with_radar, use_allNeigh_wRadar, own_obs_only, env.normalizer, use_nearestN_neigh_wRadar, device)
 
     episode = 0
     current_row = 0
@@ -342,7 +347,7 @@ def main(args):
         episode_start_time = time.time()
         episode += 1
         eps_reset_start_time = time.time()
-        cur_state, norm_cur_state = env.reset_world_change_skin(total_agentNum, full_observable_critic_flag, evaluation_by_fixed_ar, include_other_AC, show=0)
+        cur_state, norm_cur_state = env.reset_world_change_skin(total_agentNum, full_observable_critic_flag, evaluation_by_fixed_ar, include_other_AC, use_nearestN_neigh_wRadar, N_neigh, show=0)
         eps_reset_time_used = (time.time()-eps_reset_start_time)*1000
         # print("current episode {} reset time used is {} milliseconds".format(episode, eps_reset_time_used))  # need to + 1 here, or else will misrecord as the previous episode
         step_collision_record = [[] for _ in range(total_agentNum)]  # reset at each episode, so that we can record down collision at each step for each agent.
@@ -383,7 +388,7 @@ def main(args):
 
                 step_obtain_action_time_start = time.time()
                 # action, step_noise_val = model.choose_action(norm_cur_state, total_step, episode, step, eps_end, noise_start_level, gru_history, noisy=False) # noisy is false because we are using stochastic policy
-                action, step_noise_val, cur_actor_hiddens, next_actor_hiddens = model.choose_action(norm_cur_state, total_step, episode, step, eps_end, noise_start_level, cur_actor_hiddens, use_allNeigh_wRadar, use_selfATT_with_radar, own_obs_only, noisy=noise_flag, use_GRU_flag=use_GRU_flag)  # noisy is false because we are using stochastic policy
+                action, step_noise_val, cur_actor_hiddens, next_actor_hiddens = model.choose_action(norm_cur_state, total_step, episode, step, eps_end, noise_start_level, cur_actor_hiddens, use_allNeigh_wRadar, use_selfATT_with_radar, own_obs_only, use_nearestN_neigh_wRadar, noisy=noise_flag, use_GRU_flag=use_GRU_flag)  # noisy is false because we are using stochastic policy
 
                 generate_action_time = (time.time() - step_obtain_action_time_start)*1000
                 # print("current step obtain action time used is {} milliseconds".format(generate_action_time))
@@ -391,7 +396,7 @@ def main(args):
                 # action = model.choose_action(cur_state, episode, noisy=True)
 
                 one_step_transition_start = time.time()
-                next_state, norm_next_state, polygons_list, all_agent_st_points, all_agent_ed_points, all_agent_intersection_point_list, all_agent_line_collection, all_agent_mini_intersection_list = env.step(action, step, acc_max, args, evaluation_by_episode, full_observable_critic_flag, evaluation_by_fixed_ar, include_other_AC)
+                next_state, norm_next_state, polygons_list, all_agent_st_points, all_agent_ed_points, all_agent_intersection_point_list, all_agent_line_collection, all_agent_mini_intersection_list = env.step(action, step, acc_max, args, evaluation_by_episode, full_observable_critic_flag, evaluation_by_fixed_ar, include_other_AC, use_nearestN_neigh_wRadar, N_neigh)
                 step_transition_time = (time.time() - one_step_transition_start)*1000
                 # print("current step transition time used is {} milliseconds".format(step_transition_time))
 
@@ -583,7 +588,7 @@ def main(args):
                     accum_reward = accum_reward + sum(reward_aft_action)
 
                 step_update_time_start = time.time()
-                c_loss, a_loss, single_eps_critic_cal_record = model.update_myown(episode, total_step, args.update_step, single_eps_critic_cal_record, transfer_learning, use_allNeigh_wRadar, use_selfATT_with_radar, wandb, full_observable_critic_flag, use_GRU_flag)  # last working learning framework
+                c_loss, a_loss, single_eps_critic_cal_record = model.update_myown(episode, total_step, args.update_step, single_eps_critic_cal_record, transfer_learning, use_allNeigh_wRadar, use_selfATT_with_radar, use_nearestN_neigh_wRadar, wandb, full_observable_critic_flag, use_GRU_flag)  # last working learning framework
                 # c_loss, a_loss, single_eps_critic_cal_record, current_row = model.update_myown_v2(episode, total_step, UPDATE_EVERY, single_eps_critic_cal_record, transfer_learning, own_obs_only, use_allNeigh_wRadar, use_selfATT_with_radar, step, experience_replay_record, action, current_row, excel_file_path, writer, wandb, full_observable_critic_flag, use_GRU_flag)  # last working learning framework
                 # c_loss, a_loss, single_eps_critic_cal_record, current_row = model.update_myown_v3(episode, total_step, UPDATE_EVERY, single_eps_critic_cal_record, transfer_learning, own_obs_only, use_allNeigh_wRadar, use_selfATT_with_radar, step, experience_replay_record, action, current_row, excel_file_path, writer, wandb, full_observable_critic_flag, use_GRU_flag)  # last working learning framework
                 update_time_used = (time.time() - step_update_time_start)*1000
@@ -851,10 +856,10 @@ def main(args):
 
                 # action, step_noise_val = model.choose_action(norm_cur_state, total_step, episode, step, eps_end, noise_start_level, gru_history, noisy=False) # noisy is false because we are using stochastic policy
                 action, step_noise_val, cur_actor_hiddens, \
-                next_actor_hiddens = model.choose_action(norm_cur_state, total_step, episode, step, eps_end, noise_start_level, cur_actor_hiddens, use_allNeigh_wRadar, use_selfATT_with_radar, own_obs_only, noisy=noise_flag, use_GRU_flag=use_GRU_flag)  # noisy is false because we are using stochastic policy
+                next_actor_hiddens = model.choose_action(norm_cur_state, total_step, episode, step, eps_end, noise_start_level, cur_actor_hiddens, use_allNeigh_wRadar, use_selfATT_with_radar, own_obs_only, use_nearestN_neigh_wRadar, noisy=noise_flag, use_GRU_flag=use_GRU_flag)  # noisy is false because we are using stochastic policy
 
                 # nearest_two_drones
-                next_state, norm_next_state, polygons_list, all_agent_st_points, all_agent_ed_points, all_agent_intersection_point_list, all_agent_line_collection, all_agent_mini_intersection_list = env.step(action, step, acc_max, args, evaluation_by_episode, full_observable_critic_flag, evaluation_by_fixed_ar, include_other_AC)  # no heading update here
+                next_state, norm_next_state, polygons_list, all_agent_st_points, all_agent_ed_points, all_agent_intersection_point_list, all_agent_line_collection, all_agent_mini_intersection_list = env.step(action, step, acc_max, args, evaluation_by_episode, full_observable_critic_flag, evaluation_by_fixed_ar, include_other_AC, use_nearestN_neigh_wRadar, N_neigh)  # no heading update here
                 # reward_aft_action, done_aft_action, check_goal, step_reward_record, eps_status_holder, step_collision_record, bound_building_check = env.ss_reward(step, step_reward_record, step_collision_record, dummy_xy, full_observable_critic_flag, args, evaluation_by_episode, own_obs_only)
                 # reward_aft_action, done_aft_action, check_goal, step_reward_record, eps_status_holder, step_collision_record, bound_building_check = env.ss_reward_Mar(step, step_reward_record, step_collision_record, dummy_xy, full_observable_critic_flag, args, evaluation_by_episode)
                 reward_aft_action, done_aft_action, check_goal, step_reward_record, status_holder, step_collision_record, bound_building_check = env.ss_reward_Mar_changeskin(
@@ -1155,7 +1160,7 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--scenario', default="simple_spread", type=str)
-    parser.add_argument('--max_episodes', default=10, type=int)  # run for a total of 50000 episodes
+    parser.add_argument('--max_episodes', default=20000, type=int)  # run for a total of 50000 episodes
     parser.add_argument('--algo', default="maddpg", type=str, help="commnet/bicnet/maddpg")
     parser.add_argument('--mode', default="train", type=str, help="train/eval")
     parser.add_argument('--episode_length', default=150, type=int)  # maximum play per episode
@@ -1164,7 +1169,7 @@ if __name__ == '__main__':
     parser.add_argument('--memory_length', default=int(1e5), type=int)
     # parser.add_argument('--memory_length', default=int(1e4), type=int)
     parser.add_argument('--seed', default=777, type=int)  # may choose to use 3407
-    # parser.add_argument('--batch_size', default=10, type=int)  # original 512
+    # parser.add_argument('--batch_size', default=2, type=int)  # original 512
     parser.add_argument('--batch_size', default=512, type=int)  # original 512
     # parser.add_argument('--batch_size', default=3, type=int)  # original 512
     # parser.add_argument('--batch_size', default=1536, type=int)  # original 512
