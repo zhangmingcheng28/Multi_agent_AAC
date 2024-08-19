@@ -45,6 +45,8 @@ else:
 
 
 def main(args):
+    with open(r'D:\MADDPG_2nd_jp\190824_14_58_34\toplot\all_episode_OD.pickle', 'rb') as handle:
+        episode_critic_loss_cal_record = pickle.load(handle)
     if args.mode == "train":
         today = datetime.date.today()
         current_date = today.strftime("%d%m%y")
@@ -274,6 +276,8 @@ def main(args):
 
     # ------------ record episode time ------------- #
     eps_time_record = []
+    # ---------- record episode OD pairs ------------ #
+    eps_OD_record = []
     # ----------- record each collision checking version running time and decision -------#
     collision_count = 0
     one_drone_reach = 0
@@ -359,6 +363,11 @@ def main(args):
         accum_reward = 0
 
         trajectory_eachPlay = []
+
+        # --- load this episode OD for each agent ---- #
+        cur_eps_OD = []
+        for agent_idx, agent_obj in env.all_agents.items():
+            cur_eps_OD.append([list(agent_obj.ini_pos), agent_obj.goal[-1]])
 
         while True:  # start of a step
             if args.mode == "train":
@@ -717,7 +726,7 @@ def main(args):
 
                     # print("[Episode %05d] reward %6.4f time used is %.2f sec" % (episode, accum_reward, time_used))
                     print("[Episode %05d] reward %6.4f" % (episode, accum_reward))
-
+                    eps_OD_record.append(cur_eps_OD)
                     if use_wanDB:
                         wandb.log({'overall_reward': float(accum_reward)}, step=episode)
                         if c_loss and a_loss:
@@ -1093,6 +1102,8 @@ def main(args):
             pickle.dump(eps_time_record, handle, protocol=pickle.HIGHEST_PROTOCOL)
         with open(plot_file_name + '/all_episode_collision.pickle', 'wb') as handle:
             pickle.dump(eps_check_collision, handle, protocol=pickle.HIGHEST_PROTOCOL)
+        with open(plot_file_name + '/all_episode_OD.pickle', 'wb') as handle:
+            pickle.dump(eps_OD_record, handle, protocol=pickle.HIGHEST_PROTOCOL)
         with open(file_name + '/GFG.csv', 'w', newline='') as f:
             # using csv.writer method from CSV package
             write = csv.writer(f)
@@ -1144,7 +1155,7 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--scenario', default="simple_spread", type=str)
-    parser.add_argument('--max_episodes', default=200, type=int)  # run for a total of 50000 episodes
+    parser.add_argument('--max_episodes', default=10, type=int)  # run for a total of 50000 episodes
     parser.add_argument('--algo', default="maddpg", type=str, help="commnet/bicnet/maddpg")
     parser.add_argument('--mode', default="train", type=str, help="train/eval")
     parser.add_argument('--episode_length', default=150, type=int)  # maximum play per episode
