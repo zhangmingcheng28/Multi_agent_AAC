@@ -58,6 +58,8 @@ class Agent:
         self.cloud_collision = False
         self.drone_collision = False
         self.collide_wall_count = 0
+        self.eta = None
+        self.ar = None
 
     def choose_actions(self, observation):
         actions = None

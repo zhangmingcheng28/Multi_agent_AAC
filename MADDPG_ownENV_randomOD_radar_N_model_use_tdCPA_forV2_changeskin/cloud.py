@@ -16,8 +16,8 @@ class cloud_agent:
         self.pre_pos = None
         self.cloud_actual_cur_shape = None
         self.cloud_actual_previous_shape = None
-        self.spawn_range = 15
-        self.contour_range = 20
+        self.spawn_range = 10
+        self.contour_range = 15
         self.vel = 2  # m/s
         self.radius = self.contour_range + 2  # nautical mile in radius
         # self.radius = 18  # nautical mile in radius

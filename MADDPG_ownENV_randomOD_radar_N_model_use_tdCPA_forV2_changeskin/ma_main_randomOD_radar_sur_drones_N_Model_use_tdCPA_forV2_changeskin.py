@@ -74,6 +74,9 @@ def main(args):
     # get_evaluation_status = True  # have figure output
     get_evaluation_status = False  # no figure output, mainly obtain collision rate
 
+    # evaluation_by_fixed_ar = True  # condition to when evaluation using fixed AR.
+    evaluation_by_fixed_ar = False
+
     # simply_view_evaluation = True  # don't save gif
     simply_view_evaluation = False  # save gif
 
@@ -94,6 +97,9 @@ def main(args):
 
     # use_allNeigh_wRadar = True
     use_allNeigh_wRadar = False
+
+    include_other_AC = True  # used for change skin during training, whether include the surrounding ACs.
+    # include_other_AC = False
 
     if use_allNeigh_wRadar:
         # own_obs_only = True
@@ -291,7 +297,7 @@ def main(args):
     if args.mode == "eval":
         # args.max_episodes = 10  # only evaluate one episode during evaluation mode.
         # args.max_episodes = 5  # only evaluate one episode during evaluation mode.
-        args.max_episodes = 100
+        args.max_episodes = 10
         # args.max_episodes = 1
         # args.max_episodes = 250
         # args.max_episodes = 25
@@ -332,7 +338,7 @@ def main(args):
         episode_start_time = time.time()
         episode += 1
         eps_reset_start_time = time.time()
-        cur_state, norm_cur_state = env.reset_world_change_skin(total_agentNum, full_observable_critic_flag, show=0)
+        cur_state, norm_cur_state = env.reset_world_change_skin(total_agentNum, full_observable_critic_flag, evaluation_by_fixed_ar, include_other_AC, show=0)
         eps_reset_time_used = (time.time()-eps_reset_start_time)*1000
         # print("current episode {} reset time used is {} milliseconds".format(episode, eps_reset_time_used))  # need to + 1 here, or else will misrecord as the previous episode
         step_collision_record = [[] for _ in range(total_agentNum)]  # reset at each episode, so that we can record down collision at each step for each agent.
@@ -376,7 +382,7 @@ def main(args):
                 # action = model.choose_action(cur_state, episode, noisy=True)
 
                 one_step_transition_start = time.time()
-                next_state, norm_next_state, polygons_list, all_agent_st_points, all_agent_ed_points, all_agent_intersection_point_list, all_agent_line_collection, all_agent_mini_intersection_list = env.step(action, step, acc_max, args, evaluation_by_episode, full_observable_critic_flag)
+                next_state, norm_next_state, polygons_list, all_agent_st_points, all_agent_ed_points, all_agent_intersection_point_list, all_agent_line_collection, all_agent_mini_intersection_list = env.step(action, step, acc_max, args, evaluation_by_episode, full_observable_critic_flag, evaluation_by_fixed_ar, include_other_AC)
                 step_transition_time = (time.time() - one_step_transition_start)*1000
                 # print("current step transition time used is {} milliseconds".format(step_transition_time))
 
@@ -385,7 +391,7 @@ def main(args):
 
                 one_step_reward_start = time.time()
                 # reward_aft_action, done_aft_action, check_goal, step_reward_record, status_holder, step_collision_record, bound_building_check = env.ss_reward(step, step_reward_record, step_collision_record, dummy_xy, full_observable_critic_flag, args, evaluation_by_episode, own_obs_only)   # remove reached agent here
-                reward_aft_action, done_aft_action, check_goal, step_reward_record, status_holder, step_collision_record, bound_building_check = env.ss_reward_Mar_changeskin(step, step_reward_record, step_collision_record, dummy_xy, full_observable_critic_flag, args, evaluation_by_episode)   # remove reached agent here
+                reward_aft_action, done_aft_action, check_goal, step_reward_record, status_holder, step_collision_record, bound_building_check = env.ss_reward_Mar_changeskin(step, step_reward_record, step_collision_record, dummy_xy, full_observable_critic_flag, args, evaluation_by_episode, evaluation_by_fixed_ar)   # remove reached agent here
                 reward_generation_time = (time.time() - one_step_reward_start)*1000
                 # print("current step reward time used is {} milliseconds".format(reward_generation_time))
 
@@ -473,7 +479,7 @@ def main(args):
                 traj_step_list = []
                 for each_agent_idx, each_agent in env.all_agents.items():
                     # traj_step_list.append([each_agent.pos[0], each_agent.pos[1], reward_aft_action[each_agent_idx]])
-                    traj_step_list.append([each_agent.pos[0], each_agent.pos[1], np.array(step_reward_record[each_agent_idx][1]), each_agent.heading])
+                    traj_step_list.append([each_agent.pos[0], each_agent.pos[1], np.array(step_reward_record[each_agent_idx][1]), each_agent.heading, each_agent.probe_line])
                 trajectory_eachPlay.append(traj_step_list)
                 if len(gru_history) >= gru_history_length:
                     obs = []
@@ -748,7 +754,7 @@ def main(args):
                             all_drone_reach = all_drone_reach + 1
                             # print("There are no True values in the list.")
 
-                    if episode % 10 == 0:  # every 100 episode we record the training performance (without evaluation)
+                    if episode % 5 == 0:  # every 100 episode we record the training performance (without evaluation)
                         # if episode == 10:
                         # After the loop, save the file once
                         # writer.save()
@@ -824,12 +830,13 @@ def main(args):
                     break  # this is to break out from "while True:", which is one play
             elif args.mode == "eval":
                 png_file_name = pre_fix + '\episode_' + str(episode)+'.png'
-                step_reward_record = [None] * n_agents
+                step_reward_record = [[0, 0]] * n_agents
                 # show_step_by_step = True
                 show_step_by_step = False
                 saved_gif = True  # Don't save gif while doing mass run
                 # saved_gif = False
                 noise_flag = False
+
                 # populate gru history
                 gru_history.append(np.array(norm_cur_state[0]))
 
@@ -838,12 +845,12 @@ def main(args):
                 next_actor_hiddens = model.choose_action(norm_cur_state, total_step, episode, step, eps_end, noise_start_level, cur_actor_hiddens, use_allNeigh_wRadar, use_selfATT_with_radar, own_obs_only, noisy=noise_flag, use_GRU_flag=use_GRU_flag)  # noisy is false because we are using stochastic policy
 
                 # nearest_two_drones
-                next_state, norm_next_state, polygons_list, all_agent_st_points, all_agent_ed_points, all_agent_intersection_point_list, all_agent_line_collection, all_agent_mini_intersection_list = env.step(action, step, acc_max, args, evaluation_by_episode, full_observable_critic_flag)  # no heading update here
+                next_state, norm_next_state, polygons_list, all_agent_st_points, all_agent_ed_points, all_agent_intersection_point_list, all_agent_line_collection, all_agent_mini_intersection_list = env.step(action, step, acc_max, args, evaluation_by_episode, full_observable_critic_flag, evaluation_by_fixed_ar, include_other_AC)  # no heading update here
                 # reward_aft_action, done_aft_action, check_goal, step_reward_record, eps_status_holder, step_collision_record, bound_building_check = env.ss_reward(step, step_reward_record, step_collision_record, dummy_xy, full_observable_critic_flag, args, evaluation_by_episode, own_obs_only)
                 # reward_aft_action, done_aft_action, check_goal, step_reward_record, eps_status_holder, step_collision_record, bound_building_check = env.ss_reward_Mar(step, step_reward_record, step_collision_record, dummy_xy, full_observable_critic_flag, args, evaluation_by_episode)
                 reward_aft_action, done_aft_action, check_goal, step_reward_record, status_holder, step_collision_record, bound_building_check = env.ss_reward_Mar_changeskin(
                     step, step_reward_record, step_collision_record, dummy_xy, full_observable_critic_flag, args,
-                    evaluation_by_episode)  # remove reached agent here
+                    evaluation_by_episode, evaluation_by_fixed_ar)  # remove reached agent here
                 # reward_aft_action, done_aft_action, check_goal, step_reward_record = env.get_step_reward_5_v3(step, step_reward_record)
 
                 step += 1
@@ -984,7 +991,8 @@ def main(args):
                     #         # print("near goal reward is {}".format(step_reward_decomposition[6]))
                     #         # print("current spd is {} m/s, curent spd penalty is {}". format(step_reward_decomposition[5], step_reward_decomposition[4]))
                     print("[Episode %05d] reward %6.4f " % (episode, accum_reward))
-                    view_static_traj(env, trajectory_eachPlay, png_file_name)
+                    # view_static_traj(env, trajectory_eachPlay, png_file_name)
+                    save_gif(env, trajectory_eachPlay, pre_fix, episode, episode)
                     if get_evaluation_status:
                         if simply_view_evaluation:
                         # ------------------ static display trajectory ---------------------------- #
@@ -993,7 +1001,7 @@ def main(args):
 
                         # ---------- new save as gif ----------------------- #
                         else:
-                            save_gif(env, trajectory_eachPlay, pre_fix, episode_to_check, episode)
+                            save_gif(env, trajectory_eachPlay, pre_fix, episode, episode)
                     if evaluation_by_episode:
                         if True in done_aft_action and step < args.episode_length:
                             # save_gif(env, trajectory_eachPlay, pre_fix, episode_to_check, episode)
@@ -1138,9 +1146,9 @@ if __name__ == '__main__':
     parser.add_argument('--scenario', default="simple_spread", type=str)
     parser.add_argument('--max_episodes', default=200, type=int)  # run for a total of 50000 episodes
     parser.add_argument('--algo', default="maddpg", type=str, help="commnet/bicnet/maddpg")
-    parser.add_argument('--mode', default="eval", type=str, help="train/eval")
-    # parser.add_argument('--episode_length', default=150, type=int)  # maximum play per episode
-    parser.add_argument('--episode_length', default=120, type=int)  # maximum play per episode
+    parser.add_argument('--mode', default="train", type=str, help="train/eval")
+    parser.add_argument('--episode_length', default=150, type=int)  # maximum play per episode
+    # parser.add_argument('--episode_length', default=120, type=int)  # maximum play per episode
     # parser.add_argument('--episode_length', default=100, type=int)  # maximum play per episode
     parser.add_argument('--memory_length', default=int(1e5), type=int)
     # parser.add_argument('--memory_length', default=int(1e4), type=int)

@@ -257,19 +257,26 @@ def animate(frame_num, ax, env, trajectory_eachPlay):
         (1, 1, 0),  # Yellow
         (1, 0.65, 0),  # Orange
     ]
-    for agentIdx, agent in env.all_agents.items():
-        plt.plot(agent.ini_pos[0], agent.ini_pos[1],
-                 marker=MarkerStyle("^"), color=colors[agentIdx])
-        plt.text(agent.ini_pos[0], agent.ini_pos[1], agent.agent_name)
-        plt.plot(agent.goal[-1][0], agent.goal[-1][1], marker='*', color=colors[agentIdx], markersize=10)
-        plt.text(agent.goal[-1][0], agent.goal[-1][1], agent.agent_name)
 
-        # link individual drone's starting position with its goal
-        ini = agent.ini_pos
-        for wp in agent.ref_line.coords:
-            plt.plot([wp[0], ini[0]], [wp[1], ini[1]], linestyle='solid', linewidth=10, color=colors[agentIdx],
-                     alpha=0.2)
-            ini = wp
+    for line_idx, line in enumerate(env.potential_ref_line):
+        x, y = line.xy
+        plt.plot(x, y, linestyle='solid', linewidth=10, color=colors[line_idx], alpha=0.2)
+        plt.plot(line.coords[0][0], line.coords[0][1], marker=MarkerStyle("^"), color=colors[line_idx])
+        plt.plot(line.coords[-1][0], line.coords[-1][1], marker='*', color=colors[line_idx])
+
+    # for agentIdx, agent in env.all_agents.items():
+    #     plt.plot(agent.ini_pos[0], agent.ini_pos[1],
+    #              marker=MarkerStyle("^"), color=colors[agentIdx])
+    #     plt.text(agent.ini_pos[0], agent.ini_pos[1], agent.agent_name)
+    #     plt.plot(agent.goal[-1][0], agent.goal[-1][1], marker='*', color=colors[agentIdx], markersize=10)
+    #     plt.text(agent.goal[-1][0], agent.goal[-1][1], agent.agent_name)
+
+        # # link individual drone's starting position with its goal
+        # ini = agent.ini_pos
+        # for wp in agent.ref_line.coords:
+        #     plt.plot([wp[0], ini[0]], [wp[1], ini[1]], linestyle='solid', linewidth=10, color=colors[agentIdx],
+        #              alpha=0.2)
+        #     ini = wp
 
     # display cloud
     interval = 5  # Change cluster coordinates around centre every 10 frames
@@ -338,13 +345,21 @@ def animate(frame_num, ax, env, trajectory_eachPlay):
 
     for a_idx, agent in enumerate(trajectory_eachPlay[frame_num]):
         x, y = agent[0], agent[1]
-        # plt.plot(x, y, 'o', color='r')
+
+        # draw agent prob line
+        for line_angle, line_info in agent[4].items():
+            line_to_draw = LineString([Point(x, y), line_info[0]])
+            line_x, line_y = line_to_draw.xy
+            # plt.text(line_info[0].x, line_info[0].y, str(line_angle))
+            ax.plot(line_x, line_y, color='k', linewidth=1)
 
         # plt.text(x-1, y-1, 'agent_'+str(a_idx)+'_'+str(round(float(frame_num), 2)))
         if np.issubdtype(agent[2].dtype, np.integer):
-            plt.text(x - 1, y - 1, 'a_' + str(a_idx) + '_' + str(agent[2]))
+            # plt.text(x - 3, y - 3, 'a_' + str(a_idx) + '_' + str(agent[2]))
+            plt.text(x - 3, y - 3, 'a' + str(a_idx))
         else:
-            plt.text(x - 1, y - 1, 'a_' + str(a_idx) + '_' + str(np.round((agent[2]), 4)))
+            # plt.text(x - 3, y - 3, 'a_' + str(a_idx) + '_' + str(np.round((agent[2]), 4)))
+            plt.text(x - 3, y - 3, 'a' + str(a_idx))
         heading = agent[3] * 180 / np.pi  # in degree
         img_extent = [
             x - env.all_agents[0].protectiveBound,
@@ -431,7 +446,7 @@ def save_gif(env, trajectory_eachPlay, pre_fix, episode_to_check, episode):
     ani = animation.FuncAnimation(fig, animate, fargs=(ax, env, trajectory_eachPlay), frames=len(trajectory_eachPlay),
                                   interval=300, blit=False)
     # Save as GIF
-    gif_path = pre_fix + '\episode_' + episode_to_check + 'simulation_num_' + str(episode) + '.gif'
+    gif_path = pre_fix + '\episode_' + str(episode_to_check) + 'simulation_num_' + str(episode) + '.gif'
     ani.save(gif_path, writer='pillow')
 
     # Close figure
@@ -456,6 +471,12 @@ def view_static_traj(env, trajectory_eachPlay, save_path=None, max_time_step=Non
         (1, 0.65, 0),  # Orange
     ]
     # display initial condition
+
+    for line_idx, line in enumerate(env.potential_ref_line):
+        x, y = line.xy
+        plt.plot(x, y, linestyle='solid', linewidth=10, color=colors[line_idx], alpha=0.2)
+        plt.plot(line.coords[0][0], line.coords[0][1], marker=MarkerStyle("^"), color=colors[line_idx])
+        plt.plot(line.coords[-1][0], line.coords[-1][1], marker='*', color=colors[line_idx])
     # global_state = env.reset_world(show=0)  # just a dummy to reset all condition so that initial condition can be added to the output graph
     for agentIdx, agent in env.all_agents.items():
         x, y = agent.pos[0], agent.pos[1]
@@ -486,13 +507,13 @@ def view_static_traj(env, trajectory_eachPlay, save_path=None, max_time_step=Non
         # ax.add_patch(detec_circle_mat)
 
         # link individual drone's starting position with its goal
-        ini = agent.ini_pos
-        for wp in agent.ref_line.coords:
-            plt.plot([wp[0], ini[0]], [wp[1], ini[1]], linestyle='solid', linewidth=10, color=colors[agentIdx],
-                     alpha=0.2)
-            ini = wp
-
-        plt.plot(agent.goal[-1][0], agent.goal[-1][1], marker='*', color=colors[agentIdx], markersize=10)
+        # ini = agent.ini_pos
+        # for wp in agent.ref_line.coords:
+        #     plt.plot([wp[0], ini[0]], [wp[1], ini[1]], linestyle='solid', linewidth=10, color=colors[agentIdx],
+        #              alpha=0.2)
+        #     ini = wp
+        #
+        # plt.plot(agent.goal[-1][0], agent.goal[-1][1], marker='*', color=colors[agentIdx], markersize=10)
         # plt.text(agent.goal[-1][0], agent.goal[-1][1], agent.agent_name)
 
     # draw trajectory in current episode
@@ -619,22 +640,22 @@ def view_static_traj(env, trajectory_eachPlay, save_path=None, max_time_step=Non
         matp_poly = shapelypoly_to_matpoly(poly, False, 'red')  # the 3rd parameter is the edge color
         # ax.add_patch(matp_poly)
 
-    plt.axis('equal')
+    # plt.axis('equal')
     plt.xlim(env.bound[0], env.bound[1])
     plt.ylim(env.bound[2], env.bound[3])
     plt.axvline(x=env.bound[0], c="green")
     plt.axvline(x=env.bound[1], c="green")
     plt.axhline(y=env.bound[2], c="green")
     plt.axhline(y=env.bound[3], c="green")
-    plt.xlabel("X axis")
-    plt.ylabel("Y axis")
+    plt.xlabel("Length (nm)")
+    plt.ylabel("Width (nm)")
 
     # Save the figure if save_path is provided
     if save_path:
         plt.savefig(save_path, bbox_inches='tight')
         # print(f"Figure saved at {save_path}")
 
-    plt.show()
+    # plt.show()
 
 
 def compute_t_cpa_d_cpa_potential_col(other_pos, host_pos, other_vel, host_vel, other_bound, host_bound,
