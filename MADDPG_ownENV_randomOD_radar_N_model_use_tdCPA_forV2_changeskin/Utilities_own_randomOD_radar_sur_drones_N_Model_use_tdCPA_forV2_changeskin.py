@@ -35,6 +35,23 @@ from matplotlib.markers import MarkerStyle
 import math
 
 
+def obtain_euclidean_dist_list_all_AC(flight_ratio_per_eps_all_AC, trajectory_eachPlay, env):
+    for agentIDX, agent in env.all_agents.items():
+        desired_distance = np.linalg.norm(np.array(agent.goal[-1]) - agent.ini_pos)
+        each_ac_total_dist = 0
+        for trajectory_idx in range(1, len(trajectory_eachPlay)):
+            pre_x, pre_y = trajectory_eachPlay[trajectory_idx-1][agentIDX][0], trajectory_eachPlay[trajectory_idx-1][agentIDX][1]
+            x, y = trajectory_eachPlay[trajectory_idx][agentIDX][0], trajectory_eachPlay[trajectory_idx][agentIDX][1]
+            distance = np.linalg.norm(np.array([x, y]) - np.array([pre_x, pre_y]))
+            each_ac_total_dist = each_ac_total_dist + distance
+        first_pt = np.array([trajectory_eachPlay[0][agentIDX][0],
+                             trajectory_eachPlay[0][agentIDX][1]])
+        dist_ini_pos_to_1stPt = np.linalg.norm(first_pt - agent.ini_pos)
+        each_ac_total_dist = each_ac_total_dist + dist_ini_pos_to_1stPt + 5  # this 5 is because, when ac reached, just the protective zone reach is consider reached, so we add 5.
+        flight_ratio_per_eps_all_AC.append(each_ac_total_dist/desired_distance)
+    return flight_ratio_per_eps_all_AC
+
+
 def plot_linestring(ax, linestring, color='black', zorder=0):
     x, y = linestring.xy
     ax.plot(x, y, color=color, linewidth=2)
@@ -471,12 +488,13 @@ def view_static_traj(env, trajectory_eachPlay, save_path=None, max_time_step=Non
         (1, 0.65, 0),  # Orange
     ]
     # display initial condition
-
+    FixedAR_names = ['N884', 'M768', 'M767']
     for line_idx, line in enumerate(env.potential_ref_line):
         x, y = line.xy
         plt.plot(x, y, linestyle='solid', linewidth=10, color=colors[line_idx], alpha=0.2)
-        plt.plot(line.coords[0][0], line.coords[0][1], marker=MarkerStyle("^"), color=colors[line_idx])
-        plt.plot(line.coords[-1][0], line.coords[-1][1], marker='*', color=colors[line_idx])
+        plt.plot(line.coords[0][0], line.coords[0][1], marker=MarkerStyle("^"), color=colors[line_idx])  # start point
+        plt.text(line.coords[0][0]+5, line.coords[0][1]+5, FixedAR_names[line_idx])
+        plt.plot(line.coords[-1][0], line.coords[-1][1], marker='*', color=colors[line_idx])  # end point
     # global_state = env.reset_world(show=0)  # just a dummy to reset all condition so that initial condition can be added to the output graph
     for agentIdx, agent in env.all_agents.items():
         x, y = agent.pos[0], agent.pos[1]
@@ -643,16 +661,21 @@ def view_static_traj(env, trajectory_eachPlay, save_path=None, max_time_step=Non
     # plt.axis('equal')
     plt.xlim(env.bound[0], env.bound[1])
     plt.ylim(env.bound[2], env.bound[3])
-    plt.axvline(x=env.bound[0], c="green")
-    plt.axvline(x=env.bound[1], c="green")
-    plt.axhline(y=env.bound[2], c="green")
-    plt.axhline(y=env.bound[3], c="green")
+    # plt.axvline(x=env.bound[0], c="green")
+    # plt.axvline(x=env.bound[1], c="green")
+    # plt.axhline(y=env.bound[2], c="green")
+    # plt.axhline(y=env.bound[3], c="green")
     plt.xlabel("Length (nm)")
     plt.ylabel("Width (nm)")
 
     # Save the figure if save_path is provided
     if save_path:
-        plt.savefig(save_path, bbox_inches='tight')
+        # save svg
+        svg_path = os.path.splitext(save_path)[0] + '.svg'
+        plt.savefig(svg_path, bbox_inches='tight')
+        # save pdf
+        pdf_path = os.path.splitext(save_path)[0] + '.pdf'
+        plt.savefig(pdf_path, bbox_inches='tight')
         # print(f"Figure saved at {save_path}")
 
     # plt.show()

@@ -74,8 +74,8 @@ def main(args):
     # get_evaluation_status = True  # have figure output
     get_evaluation_status = False  # no figure output, mainly obtain collision rate
 
-    # evaluation_by_fixed_ar = True  # condition to when evaluation using fixed AR.
-    evaluation_by_fixed_ar = False
+    evaluation_by_fixed_ar = True  # condition to when evaluation using fixed AR.
+    # evaluation_by_fixed_ar = False
 
     # simply_view_evaluation = True  # don't save gif
     simply_view_evaluation = False  # save gif
@@ -98,12 +98,15 @@ def main(args):
     # use_allNeigh_wRadar = True
     use_allNeigh_wRadar = False
 
-    use_nearestN_neigh_wRadar = True
-    # use_nearestN_neigh_wRadar = False
+    # use_nearestN_neigh_wRadar = True
+    use_nearestN_neigh_wRadar = False
     N_neigh = 2
 
-    # include_other_AC = True  # used for change skin during training, whether include the surrounding ACs.
-    include_other_AC = False
+    include_other_AC = True  # used for change skin during training, whether include the surrounding ACs.
+    # include_other_AC = False
+
+    save_cur_eva_OD = True
+    # save_cur_eva_OD = False
 
     if use_allNeigh_wRadar:
         # own_obs_only = True
@@ -128,7 +131,8 @@ def main(args):
     env, max_xy = initialize_parameters()
     # total_agentNum = len(pd.read_excel(env.agentConfig))
     # total_agentNum = 3
-    total_agentNum = 5
+    # total_agentNum = 5
+    total_agentNum = 4
     # total_agentNum = 8
     # total_agentNum = 1
     # max_nei_num = 5
@@ -278,7 +282,8 @@ def main(args):
     # eps_end = 2000  # at eps = eps_end, the eps value drops to lowest value which is 0.03 (this value is fixed)
     noise_start_level = 1
     training_start_time = time.time()
-
+    entire_evaluation_run_flight_ratio = []
+    evaluation_OD_repeatability = []
     # ------------ record episode time ------------- #
     eps_time_record = []
     # ---------- record episode OD pairs ------------ #
@@ -306,14 +311,14 @@ def main(args):
     if args.mode == "eval":
         # args.max_episodes = 10  # only evaluate one episode during evaluation mode.
         # args.max_episodes = 5  # only evaluate one episode during evaluation mode.
-        args.max_episodes = 10
+        args.max_episodes = 100
         # args.max_episodes = 1
         # args.max_episodes = 250
         # args.max_episodes = 25
-        pre_fix = r'D:\MADDPG_2nd_jp\170824_11_38_19\interval_record_eps'
+        pre_fix = r'D:\MADDPG_2nd_jp\190824_15_17_16\interval_record_eps'
         # episode_to_check = str(10000)
         # pre_fix = r'F:\OneDrive_NTU_PhD\OneDrive - Nanyang Technological University\DDPG_2ndJournal\dim_8_transfer_learning'
-        episode_to_check = str(20000)
+        episode_to_check = str(12000)
         model_list = []
         if full_observable_critic_flag:
             for i in range(total_agentNum):
@@ -347,7 +352,7 @@ def main(args):
         episode_start_time = time.time()
         episode += 1
         eps_reset_start_time = time.time()
-        cur_state, norm_cur_state = env.reset_world_change_skin(total_agentNum, full_observable_critic_flag, evaluation_by_fixed_ar, include_other_AC, use_nearestN_neigh_wRadar, N_neigh, show=0)
+        cur_state, norm_cur_state = env.reset_world_change_skin(total_agentNum, full_observable_critic_flag, evaluation_by_fixed_ar, include_other_AC, use_nearestN_neigh_wRadar, N_neigh, args, show=0)
         eps_reset_time_used = (time.time()-eps_reset_start_time)*1000
         # print("current episode {} reset time used is {} milliseconds".format(episode, eps_reset_time_used))  # need to + 1 here, or else will misrecord as the previous episode
         step_collision_record = [[] for _ in range(total_agentNum)]  # reset at each episode, so that we can record down collision at each step for each agent.
@@ -357,7 +362,7 @@ def main(args):
         eps_noise = []
         step_time_breakdown = []
         single_eps_critic_cal_record = []
-        
+        flight_ratio_per_eps_all_AC = []
         cur_actor_hiddens = []
         for hidden_dim in actor_hidden_state_list:
             cur_actor_hiddens.append(np.zeros((hidden_dim)))
@@ -843,7 +848,10 @@ def main(args):
                     #
                     break  # this is to break out from "while True:", which is one play
             elif args.mode == "eval":
-                png_file_name = pre_fix + '\episode_' + str(episode)+'.png'
+                png_file_name = pre_fix + '\episode_' + str(episode) + '_' + str(total_agentNum) + 'AC' + '.png'
+                path_to_save_eva_OD = pre_fix + '\_' +str(total_agentNum) + 'AC'
+                eps_all_ac_eva_OD_eta = {agent_idx: [agent.ar, agent.eta] for agent_idx, agent in
+                                         env.all_agents.items()}
                 step_reward_record = [[0, 0]] * n_agents
                 # show_step_by_step = True
                 show_step_by_step = False
@@ -875,7 +883,7 @@ def main(args):
                 traj_step_list = []
                 for each_agent_idx, each_agent in env.all_agents.items():
                     # traj_step_list.append([each_agent.pos[0], each_agent.pos[1], reward_aft_action[each_agent_idx]])
-                    traj_step_list.append([each_agent.pos[0], each_agent.pos[1], np.array(step_reward_record[each_agent_idx][1]), each_agent.heading])
+                    traj_step_list.append([each_agent.pos[0], each_agent.pos[1], np.array(step_reward_record[each_agent_idx][1]), each_agent.heading, each_agent.probe_line])
                 trajectory_eachPlay.append(traj_step_list)
                 accum_reward = accum_reward + sum(reward_aft_action)
                 # # show states in text
@@ -1005,8 +1013,15 @@ def main(args):
                     #         # print("near goal reward is {}".format(step_reward_decomposition[6]))
                     #         # print("current spd is {} m/s, curent spd penalty is {}". format(step_reward_decomposition[5], step_reward_decomposition[4]))
                     print("[Episode %05d] reward %6.4f " % (episode, accum_reward))
-                    # view_static_traj(env, trajectory_eachPlay, png_file_name)
-                    save_gif(env, trajectory_eachPlay, pre_fix, episode, episode)
+                    # -------- start calculate the flight distance ratio at end of an episode during evaluation --------
+                    flight_ratio_per_eps_all_AC = obtain_euclidean_dist_list_all_AC(flight_ratio_per_eps_all_AC, trajectory_eachPlay, env)
+                    entire_evaluation_run_flight_ratio.extend(flight_ratio_per_eps_all_AC)
+                    # -------- end of calculate the flight distance ratio at end of an episode during evaluation --------
+                    evaluation_OD_repeatability.append(eps_all_ac_eva_OD_eta)
+
+
+                    view_static_traj(env, trajectory_eachPlay, png_file_name)
+                    # save_gif(env, trajectory_eachPlay, pre_fix, episode, episode)
                     if get_evaluation_status:
                         if simply_view_evaluation:
                         # ------------------ static display trajectory ---------------------------- #
@@ -1122,6 +1137,9 @@ def main(args):
         # writer.save()
         # print(f'Data saved to {excel_file_path}')
     else:
+        if save_cur_eva_OD:
+            with open(path_to_save_eva_OD + '_cur_eva_fixedAR_OD.pickle', 'wb') as handle:
+                pickle.dump(eps_OD_record, handle, protocol=pickle.HIGHEST_PROTOCOL)
         if evaluation_by_episode:
             print("total collision count is {}, {}%".format(collision_count, round(collision_count/args.max_episodes*100,2)))
             print("Collision due to bound is {}".format(crash_to_bound))
@@ -1137,6 +1155,9 @@ def main(args):
             print("Six goal reached count is {}, {}%".format(six_drone_reach, round(six_drone_reach/100*100, 2)))
             print("Seven goal reached count is {}, {}%".format(seven_drone_reach, round(seven_drone_reach/100*100, 2)))
             print("All goal reached count is {}, {}%".format(all_drone_reach, round(all_drone_reach/100*100, 2)))
+            mean_flight_dist_ratio = np.mean(entire_evaluation_run_flight_ratio)
+            std_flight_dist_ratio = np.std(entire_evaluation_run_flight_ratio)
+            print("In evaluation by episode mode, the mean of overall flight distance ratio is {}, std is {}".format(mean_flight_dist_ratio, std_flight_dist_ratio))
         else:
             print("Total collision {}".format(collision_count))
             print("Collision to bound {}".format(crash_to_bound))
@@ -1145,14 +1166,16 @@ def main(args):
             print("Destination reached {}".format(sorties_reached))
             print("Idle UAV {}".format(idle_drone))
     print(f'training finishes, time spent: {datetime.timedelta(seconds=int(time.time() - training_start_time))}')
-    os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
-    matplotlib.use('TkAgg')
-    # plot2 = plt.plot(steps_before_collide)
-    plot2 = plt.scatter(range(len(steps_before_collide)), steps_before_collide)
-    plt.grid(linestyle='-.')
-    plt.xlabel('episodes')
-    plt.ylabel('steps taken')
-    plt.show()
+
+    # os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
+    # matplotlib.use('TkAgg')
+    # # plot2 = plt.plot(steps_before_collide)
+    # plot2 = plt.scatter(range(len(steps_before_collide)), steps_before_collide)
+    # plt.grid(linestyle='-.')
+    # plt.xlabel('episodes')
+    # plt.ylabel('steps taken')
+    # plt.show()
+
     if use_wanDB:
         wandb.finish()
 
@@ -1162,8 +1185,8 @@ if __name__ == '__main__':
     parser.add_argument('--scenario', default="simple_spread", type=str)
     parser.add_argument('--max_episodes', default=20000, type=int)  # run for a total of 50000 episodes
     parser.add_argument('--algo', default="maddpg", type=str, help="commnet/bicnet/maddpg")
-    parser.add_argument('--mode', default="train", type=str, help="train/eval")
-    parser.add_argument('--episode_length', default=150, type=int)  # maximum play per episode
+    parser.add_argument('--mode', default="eval", type=str, help="train/eval")
+    parser.add_argument('--episode_length', default=200, type=int)  # maximum play per episode
     # parser.add_argument('--episode_length', default=120, type=int)  # maximum play per episode
     # parser.add_argument('--episode_length', default=100, type=int)  # maximum play per episode
     parser.add_argument('--memory_length', default=int(1e5), type=int)

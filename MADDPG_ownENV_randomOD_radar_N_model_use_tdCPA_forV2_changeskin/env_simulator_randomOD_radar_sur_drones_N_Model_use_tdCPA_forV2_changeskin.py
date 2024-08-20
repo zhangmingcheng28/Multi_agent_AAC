@@ -546,7 +546,7 @@ class env_simulator:
         return overall_state, norm_overall_state
 
 
-    def reset_world_change_skin(self, total_agentNum, full_observable_critic_flag, evaluation_by_fixed_ar, include_other_AC, use_nearestN_neigh_wRadar, N_neigh, show):  # set initialize position and observation for all agents
+    def reset_world_change_skin(self, total_agentNum, full_observable_critic_flag, evaluation_by_fixed_ar, include_other_AC, use_nearestN_neigh_wRadar, N_neigh, args, show):  # set initialize position and observation for all agents
         self.global_time = 0.0
         self.time_step = 0.5
         # reset OU_noise as well
@@ -568,7 +568,7 @@ class env_simulator:
         # ___SG air routes in an area of 200 x 200 nm ___
         sg_routes = {
             'OD1': [(10, 53), (180, 190)],
-            'OD2': [(10, 145), (190, 10)],
+            'OD2': [(20, 145), (190, 10)],
             'OD3': [(90, 10), (190, 88)],
         }
 
@@ -654,9 +654,10 @@ class env_simulator:
                         if current_route_value_numbering == 0:
                             continue
                         if self.all_agents[assigned_agents[routes][current_route_value_numbering-1]].eta is None:
-                            self.all_agents[assigned_agents[routes][current_route_value_numbering]].eta = random.randint(10, 20)
+                            self.all_agents[assigned_agents[routes][current_route_value_numbering]].eta = random.randint(25, 30)
                         else:  # this is to prevent the subsequent AC spawn too near to each other, if all use t=0 as the datum.
-                            self.all_agents[assigned_agents[routes][current_route_value_numbering]].eta = self.all_agents[assigned_agents[routes][current_route_value_numbering-1]].eta + random.randint(10, 20)
+                            self.all_agents[assigned_agents[routes][current_route_value_numbering]].eta = \
+                                self.all_agents[assigned_agents[routes][current_route_value_numbering-1]].eta + random.randint(25, 30)
 
         random_end_pos_collection = []
         for agentIdx in self.all_agents.keys():
@@ -698,8 +699,18 @@ class env_simulator:
             random_end_pos = generate_random_circle_multiple_exclusions(self.bound, no_spawn_zone)
 
             if evaluation_by_fixed_ar:
+                # if agentIdx == 0:
+                #     self.all_agents[agentIdx].ar = 'OD1'
+                # elif agentIdx == 1:
+                #     self.all_agents[agentIdx].ar = 'OD2'
+                # elif agentIdx == 2:
+                #     self.all_agents[agentIdx].ar = 'OD1'
+                # elif agentIdx == 3:
+                #     self.all_agents[agentIdx].ar = 'OD3'
+
                 random_start_pos = sg_routes[self.all_agents[agentIdx].ar][0]
                 random_end_pos = sg_routes[self.all_agents[agentIdx].ar][1]
+
 
             self.all_agents[agentIdx].pos = np.array(random_start_pos)
             self.all_agents[agentIdx].pre_pos = np.array(random_start_pos)
@@ -762,7 +773,7 @@ class env_simulator:
 
 
         overall_state, norm_overall_state, polygons_list, all_agent_st_pos, all_agent_ed_pos, all_agent_intersection_point_list, \
-        all_agent_line_collection, all_agent_mini_intersection_list = self.cur_state_norm_state_v3(agentRefer_dict, full_observable_critic_flag, include_other_AC, use_nearestN_neigh_wRadar, N_neigh)
+        all_agent_line_collection, all_agent_mini_intersection_list = self.cur_state_norm_state_v3(agentRefer_dict, full_observable_critic_flag, include_other_AC, use_nearestN_neigh_wRadar, N_neigh, args, evaluation_by_fixed_ar)
 
         if show:
             os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
@@ -1244,7 +1255,7 @@ class env_simulator:
         norm_overall.append(norm_overall_state_p2)
         return overall, norm_overall
 
-    def cur_state_norm_state_v3(self, agentRefer_dict, full_observable_critic_flag, include_other_AC, use_nearestN_neigh_wRadar, N_neigh):
+    def cur_state_norm_state_v3(self, agentRefer_dict, full_observable_critic_flag, include_other_AC, use_nearestN_neigh_wRadar, N_neigh, args, evaluation_by_fixed_ar):
         overall = []
         norm_overall = []
         # prepare for output states
@@ -1382,6 +1393,10 @@ class env_simulator:
                     for other_agents_idx, others in self.all_agents.items():
                         if other_agents_idx == agentIdx:
                             continue
+                        # During evaluation of fixed AR, we ignore the probe for AC that has not spawned
+                        if args.mode == 'eval' and evaluation_by_fixed_ar == True:
+                            if others.eta != None or others.reach_target==True:
+                                continue
                         other_circle = Point(others.pos).buffer(agent.protectiveBound)
                         other_circle_boundary = other_circle.boundary
                         if cur_host_line.intersects(other_circle_boundary):
@@ -3968,7 +3983,7 @@ class env_simulator:
                 if np.linalg.norm(diff_dist_vec) <= drone_obj.protectiveBound * 2:
                     if args.mode == 'eval' and evaluation_by_fixed_ar == True:
                         if self.all_agents[neigh_keys].eta is not None:
-                            if self.all_agents[neigh_keys].eta > current_ts:
+                            if self.all_agents[neigh_keys].eta > current_ts:  # current_ts is less than eta, we skip this neighbour
                                 continue  # this this neigh as it is not even activated
                     if args.mode == 'eval' and evaluation_by_episode == False:
                         neigh_collision_bearing = calculate_bearing(drone_obj.pos[0], drone_obj.pos[1],
@@ -4684,7 +4699,7 @@ class env_simulator:
 
         # next_state, next_state_norm = self.cur_state_norm_state_fully_observable(agentRefer_dict)
         # start_acceleration_time = time.time()
-        next_state, next_state_norm, polygons_list, all_agent_st_points, all_agent_ed_points, all_agent_intersection_point_list, all_agent_line_collection, all_agent_mini_intersection_list = self.cur_state_norm_state_v3(agentRefer_dict, full_observable_critic_flag, include_other_AC, use_nearestN_neigh_wRadar, N_neigh)
+        next_state, next_state_norm, polygons_list, all_agent_st_points, all_agent_ed_points, all_agent_intersection_point_list, all_agent_line_collection, all_agent_mini_intersection_list = self.cur_state_norm_state_v3(agentRefer_dict, full_observable_critic_flag, include_other_AC, use_nearestN_neigh_wRadar, N_neigh, args, evaluation_by_fixed_ar)
         # print("obtain_current_state, time used {} milliseconds".format(
         #     (time.time() - start_acceleration_time) * 1000))
 
