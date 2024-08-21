@@ -45,6 +45,9 @@ else:
 
 
 def main(args):
+    # Load the pickle file
+    # with open(r'D:\MADDPG_2nd_jp\190824_15_17_16\interval_record_eps\5ac_ts_500\_5AC_cur_eva_fixedAR_OD.pickle', 'rb') as handle:
+    #     to_see = pickle.load(handle)
     if args.mode == "train":
         today = datetime.date.today()
         current_date = today.strftime("%d%m%y")
@@ -132,7 +135,7 @@ def main(args):
     # total_agentNum = len(pd.read_excel(env.agentConfig))
     # total_agentNum = 3
     # total_agentNum = 5
-    total_agentNum = 8
+    total_agentNum = 4
     # total_agentNum = 8
     # total_agentNum = 1
     # max_nei_num = 5
@@ -315,10 +318,10 @@ def main(args):
         # args.max_episodes = 1
         # args.max_episodes = 250
         # args.max_episodes = 25
-        pre_fix = r'D:\MADDPG_2nd_jp\190824_15_17_16\interval_record_eps\8ac'
+        pre_fix = r'D:\MADDPG_2nd_jp\190824_15_17_16\interval_record_eps'
         # episode_to_check = str(10000)
         # pre_fix = r'F:\OneDrive_NTU_PhD\OneDrive - Nanyang Technological University\DDPG_2ndJournal\dim_8_transfer_learning'
-        episode_to_check = str(12000)
+        episode_to_check = str(15000)
         model_list = []
         if full_observable_critic_flag:
             for i in range(total_agentNum):
@@ -379,6 +382,8 @@ def main(args):
         for agent_idx, agent_obj in env.all_agents.items():
             cur_eps_OD.append([list(agent_obj.ini_pos), agent_obj.goal[-1]])
 
+        eps_all_ac_eva_OD_eta = {agent_idx: [agent.ar, agent.eta] for agent_idx, agent in
+                                 env.all_agents.items()}
         while True:  # start of a step
             if args.mode == "train":
                 step_start_time = time.time()
@@ -850,8 +855,7 @@ def main(args):
             elif args.mode == "eval":
                 png_file_name = pre_fix + '\episode_' + str(episode) + '_' + str(total_agentNum) + 'AC' + '.png'
                 path_to_save_eva_OD = pre_fix + '\_' +str(total_agentNum) + 'AC'
-                eps_all_ac_eva_OD_eta = {agent_idx: [agent.ar, agent.eta] for agent_idx, agent in
-                                         env.all_agents.items()}
+
                 step_reward_record = [[0, 0]] * n_agents
                 # show_step_by_step = True
                 show_step_by_step = False
@@ -1020,6 +1024,7 @@ def main(args):
                     evaluation_OD_repeatability.append(eps_all_ac_eva_OD_eta)
 
 
+                    # view_static_traj(env, trajectory_eachPlay, png_file_name, max_time_step=60)
                     view_static_traj(env, trajectory_eachPlay, png_file_name)
                     # save_gif(env, trajectory_eachPlay, pre_fix, episode, episode)
                     if get_evaluation_status:
@@ -1186,7 +1191,7 @@ if __name__ == '__main__':
     parser.add_argument('--max_episodes', default=20000, type=int)  # run for a total of 50000 episodes
     parser.add_argument('--algo', default="maddpg", type=str, help="commnet/bicnet/maddpg")
     parser.add_argument('--mode', default="eval", type=str, help="train/eval")
-    parser.add_argument('--episode_length', default=200, type=int)  # maximum play per episode
+    parser.add_argument('--episode_length', default=500, type=int)  # maximum play per episode
     # parser.add_argument('--episode_length', default=120, type=int)  # maximum play per episode
     # parser.add_argument('--episode_length', default=100, type=int)  # maximum play per episode
     parser.add_argument('--memory_length', default=int(1e5), type=int)

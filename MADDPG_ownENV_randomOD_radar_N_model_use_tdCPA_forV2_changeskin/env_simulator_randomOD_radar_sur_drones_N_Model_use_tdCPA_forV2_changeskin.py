@@ -655,24 +655,16 @@ class env_simulator:
                             continue
                         if self.all_agents[assigned_agents[routes][current_route_value_numbering-1]].eta is None:
                             self.all_agents[assigned_agents[routes][current_route_value_numbering]].eta = random.randint(25, 30)
+                            self.all_agents[assigned_agents[routes][current_route_value_numbering]].ini_eta = \
+                                self.all_agents[assigned_agents[routes][current_route_value_numbering]].eta
                         else:  # this is to prevent the subsequent AC spawn too near to each other, if all use t=0 as the datum.
                             self.all_agents[assigned_agents[routes][current_route_value_numbering]].eta = \
                                 self.all_agents[assigned_agents[routes][current_route_value_numbering-1]].eta + random.randint(25, 30)
+                            self.all_agents[assigned_agents[routes][current_route_value_numbering]].ini_eta = \
+                                self.all_agents[assigned_agents[routes][current_route_value_numbering]].eta
 
         random_end_pos_collection = []
         for agentIdx in self.all_agents.keys():
-
-            # keys = list(star_map_list.keys())  # Get a list of STAR-keys
-            # if agentIdx == 0:
-            #     random_star_key = keys[0]
-            # elif agentIdx == 1:
-            #     random_star_key = keys[2]
-            # elif agentIdx == 2:
-            #     random_star_key = keys[3]
-            # else:
-            #     pass
-            # random_start_pos = np.array(star_map_list[random_star_key][0])
-            # random_end_pos = np.array(star_map_list[random_star_key][-1])
 
             # ---------------- using random initialized agent position for traffic flow ---------
             random_start_index = random.randint(0, len(self.target_pool) - 1)
@@ -699,14 +691,27 @@ class env_simulator:
             random_end_pos = generate_random_circle_multiple_exclusions(self.bound, no_spawn_zone)
 
             if evaluation_by_fixed_ar:
-                # if agentIdx == 0:
-                #     self.all_agents[agentIdx].ar = 'OD1'
-                # elif agentIdx == 1:
-                #     self.all_agents[agentIdx].ar = 'OD2'
-                # elif agentIdx == 2:
-                #     self.all_agents[agentIdx].ar = 'OD1'
-                # elif agentIdx == 3:
-                #     self.all_agents[agentIdx].ar = 'OD3'
+                # --------- start of FixedAR, with different time step, 5.3, part 1 -----------
+                keys = list(sg_routes.keys())  # Get a list of STAR-keys
+                if agentIdx == 0:
+                    self.all_agents[agentIdx].ar = keys[0]
+                    self.all_agents[agentIdx].eta = None
+                    self.all_agents[agentIdx].ini_eta = None
+                elif agentIdx == 1:
+                    self.all_agents[agentIdx].ar = keys[1]
+                    self.all_agents[agentIdx].eta = None
+                    self.all_agents[agentIdx].ini_eta = None
+                elif agentIdx == 2:
+                    self.all_agents[agentIdx].ar = keys[2]
+                    self.all_agents[agentIdx].eta = None
+                    self.all_agents[agentIdx].ini_eta = None
+                elif agentIdx == 3:
+                    self.all_agents[agentIdx].ar = keys[0]
+                    self.all_agents[agentIdx].eta = 28
+                    self.all_agents[agentIdx].ini_eta = 28
+                else:
+                    pass
+                # --------- end of FixedAR, with different time step, 5.3, part 1 -----------
 
                 random_start_pos = sg_routes[self.all_agents[agentIdx].ar][0]
                 random_end_pos = sg_routes[self.all_agents[agentIdx].ar][1]

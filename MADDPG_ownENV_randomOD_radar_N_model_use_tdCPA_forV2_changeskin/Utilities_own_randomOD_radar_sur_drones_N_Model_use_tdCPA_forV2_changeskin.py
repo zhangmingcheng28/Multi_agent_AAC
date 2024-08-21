@@ -495,44 +495,28 @@ def view_static_traj(env, trajectory_eachPlay, save_path=None, max_time_step=Non
         plt.plot(line.coords[0][0], line.coords[0][1], marker=MarkerStyle("^"), color=colors[line_idx])  # start point
         plt.text(line.coords[0][0]+5, line.coords[0][1]+5, FixedAR_names[line_idx])
         plt.plot(line.coords[-1][0], line.coords[-1][1], marker='*', color=colors[line_idx])  # end point
-    # global_state = env.reset_world(show=0)  # just a dummy to reset all condition so that initial condition can be added to the output graph
-    for agentIdx, agent in env.all_agents.items():
-        x, y = agent.pos[0], agent.pos[1]
-        heading = agent.heading * 180 / np.pi  # in degree
-        img_extent = [
-            x - env.all_agents[0].protectiveBound,
-            x + env.all_agents[0].protectiveBound,
-            y - env.all_agents[0].protectiveBound,
-            y + env.all_agents[0].protectiveBound
-        ]
-        transform = Affine2D().rotate_deg_around(x, y, heading - 90) + ax.transData
-        ax.imshow(plane_img, extent=img_extent, zorder=10, transform=transform)
-        plt.plot(agent.ini_pos[0], agent.ini_pos[1],
-                 marker=MarkerStyle("^"), color=colors[agentIdx])
-        # plt.text(agent.ini_pos[0], agent.ini_pos[1], agent.agent_name)
-        # plot self_circle of the drone
-        self_circle = Point(x, y).buffer(agent.protectiveBound, cap_style='round')
-        grid_mat_Scir = shapelypoly_to_matpoly(self_circle, inFill=True, Edgecolor=None,
-                                               FcColor='lightblue')  # None meaning no edge
-        grid_mat_Scir.set_zorder(2)
-        grid_mat_Scir.set_alpha(0.9)  # Set transparency to 0.5
-        ax.add_patch(grid_mat_Scir)
 
-        # plot drone's detection range
-        detec_circle = Point(agent.ini_pos[0],
-                             agent.ini_pos[1]).buffer(agent.detectionRange / 2, cap_style='round')
-        detec_circle_mat = shapelypoly_to_matpoly(detec_circle, inFill=False, Edgecolor='g')
-        # ax.add_patch(detec_circle_mat)
-
-        # link individual drone's starting position with its goal
-        # ini = agent.ini_pos
-        # for wp in agent.ref_line.coords:
-        #     plt.plot([wp[0], ini[0]], [wp[1], ini[1]], linestyle='solid', linewidth=10, color=colors[agentIdx],
-        #              alpha=0.2)
-        #     ini = wp
-        #
-        # plt.plot(agent.goal[-1][0], agent.goal[-1][1], marker='*', color=colors[agentIdx], markersize=10)
-        # plt.text(agent.goal[-1][0], agent.goal[-1][1], agent.agent_name)
+    # for agentIdx, agent in env.all_agents.items():
+    #     x, y = agent.pos[0], agent.pos[1]
+    #     heading = agent.heading * 180 / np.pi  # in degree
+    #     img_extent = [
+    #         x - env.all_agents[0].protectiveBound,
+    #         x + env.all_agents[0].protectiveBound,
+    #         y - env.all_agents[0].protectiveBound,
+    #         y + env.all_agents[0].protectiveBound
+    #     ]
+    #     transform = Affine2D().rotate_deg_around(x, y, heading - 90) + ax.transData
+    #     ax.imshow(plane_img, extent=img_extent, zorder=10, transform=transform)
+    #     plt.plot(agent.ini_pos[0], agent.ini_pos[1],
+    #              marker=MarkerStyle("^"), color=colors[agentIdx])
+    #     # plt.text(agent.ini_pos[0], agent.ini_pos[1], agent.agent_name)
+    #     # plot self_circle of the drone
+    #     self_circle = Point(x, y).buffer(agent.protectiveBound, cap_style='round')
+    #     grid_mat_Scir = shapelypoly_to_matpoly(self_circle, inFill=True, Edgecolor=None,
+    #                                            FcColor='lightblue')  # None meaning no edge
+    #     grid_mat_Scir.set_zorder(2)
+    #     grid_mat_Scir.set_alpha(0.9)  # Set transparency to 0.5
+    #     ax.add_patch(grid_mat_Scir)
 
     # draw trajectory in current episode
     if max_time_step is None:
@@ -542,6 +526,9 @@ def view_static_traj(env, trajectory_eachPlay, save_path=None, max_time_step=Non
     interval = 10  # Change cluster coordinates around centre every 10 frames
     # Calculate alpha values that will create a fading effect
     alpha_values = np.linspace(0.1, 1.0, max_time_step)
+    contour_drawn = [False] * len(env.cloud_config)
+    outline_drawn = [False] * len(env.cloud_config)
+
 
     for cloud_idx, cloud_agent in enumerate(env.cloud_config):
         for trajectory_idx in range(max_time_step):
@@ -549,7 +536,11 @@ def view_static_traj(env, trajectory_eachPlay, save_path=None, max_time_step=Non
                 break
             if trajectory_idx % interval == 0:
                 # Define the fixed center
-                center_x, center_y = cloud_agent.trajectory[trajectory_idx].x, cloud_agent.trajectory[trajectory_idx].y
+                if max_time_step == len(trajectory_eachPlay):
+                    center_x, center_y = cloud_agent.trajectory[trajectory_idx].x, cloud_agent.trajectory[trajectory_idx].y
+                else:
+                    center_x, center_y = cloud_agent.trajectory[max_time_step].x, cloud_agent.trajectory[
+                        max_time_step].y
                 # ___add boundary circle for clouds---
                 # cloud_centre = Point(center_x, center_y)
                 # cloud_poly = cloud_centre.buffer(cloud_agent.radius)
@@ -591,12 +582,27 @@ def view_static_traj(env, trajectory_eachPlay, save_path=None, max_time_step=Non
                 cmap = LinearSegmentedColormap.from_list('green_yellow_red', ['green', 'yellow', 'red'])
                 X, Y = np.meshgrid(xedges[:-1] + 0.5 * (xedges[1] - xedges[0]), yedges[:-1] + 0.5 * (yedges[1] - yedges[0]))
                 contour_levels = np.linspace(hist.min(), hist.max(), 10)
-                contour = ax.contourf(X, Y, hist, levels=contour_levels, cmap=cmap, alpha=alpha_values[trajectory_idx])
+
+                if max_time_step == len(trajectory_eachPlay):
+                    contour = ax.contourf(X, Y, hist, levels=contour_levels, cmap=cmap, alpha=alpha_values[trajectory_idx])
+                else:
+                    # in this loop we only required to draw once.
+                    if contour_drawn[cloud_idx] == False:
+                        contour = ax.contourf(X, Y, hist, levels=contour_levels, cmap=cmap)
+                        contour_drawn[cloud_idx] = True
                 level_color = cmap(
                     (contour_levels[1] - contour_levels.min()) / (contour_levels.max() - contour_levels.min()))
                 # Extract the outermost contour path and overlay it with a black line
-                outermost_contour = ax.contour(X, Y, hist, levels=[contour_levels[1]], colors=[level_color],
-                                               linewidths=1, alpha=alpha_values[trajectory_idx])  # this line must be present to
+
+                if max_time_step == len(trajectory_eachPlay):
+                    outermost_contour = ax.contour(X, Y, hist, levels=[contour_levels[1]], colors=[level_color],
+                                                   linewidths=1, alpha=alpha_values[trajectory_idx])  # this line must be present to show the boundary fading
+                else:
+                    # in this loop we only required to draw once.
+                    if outline_drawn[cloud_idx] == False:
+                        outermost_contour = ax.contour(X, Y, hist, levels=[contour_levels[1]], colors=[level_color],
+                                                       linewidths=1)
+                        outline_drawn[cloud_idx] = True
                 # Extract the vertices of the outermost contour path
                 outermost_path = outermost_contour.collections[0].get_paths()[0]
                 vertices = outermost_path.vertices
@@ -634,29 +640,17 @@ def view_static_traj(env, trajectory_eachPlay, save_path=None, max_time_step=Non
                     y + env.all_agents[0].protectiveBound
                 ]
                 transform = Affine2D().rotate_deg_around(x, y, heading - 90) + ax.transData
-                ax.imshow(plane_img, extent=img_extent, zorder=10, transform=transform)
+                if agent.ini_eta == None or agent.ini_eta < trajectory_idx:
+                    ax.imshow(plane_img, extent=img_extent, zorder=10, transform=transform)
 
                 # Draw the protective boundary around the final position
                 self_circle = Point(x, y).buffer(env.all_agents[0].protectiveBound, cap_style='round')
                 grid_mat_SCir = shapelypoly_to_matpoly(self_circle, inFill=True, Edgecolor=None, FcColor='lightblue')
                 grid_mat_SCir.set_zorder(2)
                 grid_mat_SCir.set_alpha(0.9)
-                ax.add_patch(grid_mat_SCir)
-                plt.text(x+3, y+3, 'a'+str(agentIDX))
-
-    # draw occupied_poly
-    for one_poly in env.world_map_2D_polyList[0][0]:
-        one_poly_mat = shapelypoly_to_matpoly(one_poly, True, 'y', 'b')
-        # ax.add_patch(one_poly_mat)
-    # draw non-occupied_poly
-    for zero_poly in env.world_map_2D_polyList[0][1]:
-        zero_poly_mat = shapelypoly_to_matpoly(zero_poly, False, 'y')
-        # ax.add_patch(zero_poly_mat)
-
-    # show building obstacles
-    for poly in env.buildingPolygons:
-        matp_poly = shapelypoly_to_matpoly(poly, False, 'red')  # the 3rd parameter is the edge color
-        # ax.add_patch(matp_poly)
+                if agent.ini_eta == None or agent.ini_eta < trajectory_idx:
+                    ax.add_patch(grid_mat_SCir)
+                    plt.text(x+3, y+3, 'a'+str(agentIDX))
 
     # plt.axis('equal')
     plt.xlim(env.bound[0], env.bound[1])
