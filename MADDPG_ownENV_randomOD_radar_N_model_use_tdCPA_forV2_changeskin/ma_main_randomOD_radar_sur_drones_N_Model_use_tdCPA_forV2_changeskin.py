@@ -132,7 +132,7 @@ def main(args):
     # total_agentNum = len(pd.read_excel(env.agentConfig))
     # total_agentNum = 3
     # total_agentNum = 5
-    total_agentNum = 4
+    total_agentNum = 8
     # total_agentNum = 8
     # total_agentNum = 1
     # max_nei_num = 5
@@ -315,7 +315,7 @@ def main(args):
         # args.max_episodes = 1
         # args.max_episodes = 250
         # args.max_episodes = 25
-        pre_fix = r'D:\MADDPG_2nd_jp\190824_15_17_16\interval_record_eps'
+        pre_fix = r'D:\MADDPG_2nd_jp\190824_15_17_16\interval_record_eps\8ac'
         # episode_to_check = str(10000)
         # pre_fix = r'F:\OneDrive_NTU_PhD\OneDrive - Nanyang Technological University\DDPG_2ndJournal\dim_8_transfer_learning'
         episode_to_check = str(12000)
@@ -1139,7 +1139,7 @@ def main(args):
     else:
         if save_cur_eva_OD:
             with open(path_to_save_eva_OD + '_cur_eva_fixedAR_OD.pickle', 'wb') as handle:
-                pickle.dump(eps_OD_record, handle, protocol=pickle.HIGHEST_PROTOCOL)
+                pickle.dump(evaluation_OD_repeatability, handle, protocol=pickle.HIGHEST_PROTOCOL)
         if evaluation_by_episode:
             print("total collision count is {}, {}%".format(collision_count, round(collision_count/args.max_episodes*100,2)))
             print("Collision due to bound is {}".format(crash_to_bound))
