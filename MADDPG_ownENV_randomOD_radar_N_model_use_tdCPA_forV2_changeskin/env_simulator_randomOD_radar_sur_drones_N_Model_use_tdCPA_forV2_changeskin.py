@@ -585,6 +585,8 @@ class env_simulator:
             'OD3': [(20, 30), (170, 180)],
         }
 
+        AR_routes = sg_routes
+
         # --------- bound config ------------------
         x_left = LineString([(self.bound[0], self.bound[2]), (self.bound[0], self.bound[3])])
         x_right = LineString([(self.bound[1], self.bound[2]), (self.bound[1], self.bound[3])])
@@ -600,18 +602,20 @@ class env_simulator:
         # all_clouds = [cloud_0, cloud_1]
         # ---------- end of sg_route_clouds with fixed cloud OD for 5.3 --------------- #
 
-        # ---------- start of sg_route_clouds with fixed cloud OD for 5.5 --------------- #
-        # cloud_0 = [50, 180, 80, 30]
-        # cloud_1 = [100, 140, 140, 40]
-        # all_clouds = [cloud_0, cloud_1]
-        # ---------- end of sg_route_clouds with fixed cloud OD for 5.5 --------------- #
+        # #AR1_clouds
+        # cloud_0 = [175, 130, 20, 50]
+        # # cloud_1 = [190, 100, 100, 50]
 
-        # --------- start of manually assigned a fixed cloud OD config -------------- #
+        # #AR2_clouds
+        # cloud_0 = [135, 190, 80, 25]
+        # # cloud_1 = [190, 100, 100, 50]
+
+        # --------- start of manually assigned a fixed cloud OD config for 5.5 4 graph-------------- #
         cloud_0 = [40, 13, 175, 60]
         cloud_1 = [40, 180, 125, 88]
         cloud_2 = [50, 198, 165, 150]
         all_clouds = [cloud_0, cloud_1, cloud_2]
-        # --------- end of manually assigned a fixed cloud OD config -------------- #
+        # --------- end of manually assigned a fixed cloud OD config 4 graph-------------- #
 
         # ------- start of generate random cloud number -------------- #
         # all_clouds = []
@@ -622,7 +626,7 @@ class env_simulator:
         #     # set threshold
         #     thresh = 20+5  # my final goal or starting point is not a point, but a circle
         #     # min_distance_between_cloud_OD = 40
-        #     for OD_pt in sg_routes.values():
+        #     for OD_pt in AR_routes.values():
         #         ori_pt_x, ori_pt_y = OD_pt[0][0], OD_pt[0][1]
         #         dest_pt_x, dest_pt_y = OD_pt[1][0], OD_pt[1][1]
         #         cloud_ori_no_spawn_zone.append((ori_pt_x-thresh, ori_pt_x+thresh, ori_pt_y-thresh, ori_pt_y+thresh))
@@ -668,7 +672,7 @@ class env_simulator:
         # line_w3 = LineString([(580, 255), (650, 385)])
         # line_w4 = LineString([(640, 255), (600, 385)])
         potential_RF = []
-        for ar_name, ar_od in sg_routes.items():
+        for ar_name, ar_od in AR_routes.items():
             line = LineString(ar_od)
             potential_RF.append(line)
         # potential_RF = [line_w1, line_w2, line_w3, line_w4]
@@ -678,9 +682,9 @@ class env_simulator:
         # ---------- end of potential reference line ---------
 
         if evaluation_by_fixed_ar:
-            assigned_agents = {key: [] for key in sg_routes.keys()}
+            assigned_agents = {key: [] for key in AR_routes.keys()}
             for agentIdx in self.all_agents.keys():
-                selected_choice = random.choice(list(sg_routes.keys()))
+                selected_choice = random.choice(list(AR_routes.keys()))
                 self.all_agents[agentIdx].ar = selected_choice
                 assigned_agents[selected_choice].append(agentIdx)
             for routes in assigned_agents.keys():
@@ -736,7 +740,7 @@ class env_simulator:
                 self.all_agents[agentIdx].ini_eta = result_to_repeat[agentIdx][1]
 
                 # --------- start of FixedAR, with different time step, 5.3, part 1 -----------
-                # keys = list(sg_routes.keys())  # Get a list of STAR-keys
+                # keys = list(AR_routes.keys())  # Get a list of STAR-keys
                 # if agentIdx == 0:
                 #     self.all_agents[agentIdx].ar = keys[0]
                 #     self.all_agents[agentIdx].eta = None
@@ -757,8 +761,8 @@ class env_simulator:
                 #     pass
                 # --------- end of FixedAR, with different time step, 5.3, part 1 -----------
 
-                random_start_pos = sg_routes[self.all_agents[agentIdx].ar][0]
-                random_end_pos = sg_routes[self.all_agents[agentIdx].ar][1]
+                random_start_pos = AR_routes[self.all_agents[agentIdx].ar][0]
+                random_end_pos = AR_routes[self.all_agents[agentIdx].ar][1]
 
 
             self.all_agents[agentIdx].pos = np.array(random_start_pos)
