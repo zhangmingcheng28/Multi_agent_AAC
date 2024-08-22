@@ -46,7 +46,7 @@ else:
 
 def main(args):
     # Load the pickle file
-    # with open(r'D:\MADDPG_2nd_jp\190824_15_17_16\interval_record_eps\5ac_ts_500\_5AC_cur_eva_fixedAR_OD.pickle', 'rb') as handle:
+    # with open(r'D:\MADDPG_2nd_jp\190824_15_17_16\interval_record_eps\chapter_5_5_3cL_randomOD_16000\_4AC_cur_eva_fixedAR_OD.pickle', 'rb') as handle:
     #     to_see = pickle.load(handle)
     if args.mode == "train":
         today = datetime.date.today()
@@ -314,14 +314,14 @@ def main(args):
     if args.mode == "eval":
         # args.max_episodes = 10  # only evaluate one episode during evaluation mode.
         # args.max_episodes = 5  # only evaluate one episode during evaluation mode.
-        args.max_episodes = 100
-        # args.max_episodes = 1
+        # args.max_episodes = 100
+        args.max_episodes = 1
         # args.max_episodes = 250
         # args.max_episodes = 25
-        pre_fix = r'D:\MADDPG_2nd_jp\190824_15_17_16\interval_record_eps'
+        pre_fix = r'D:\MADDPG_2nd_jp\190824_15_17_16\interval_record_eps\chapter_5_5_3cL_randomOD_16000'
         # episode_to_check = str(10000)
         # pre_fix = r'F:\OneDrive_NTU_PhD\OneDrive - Nanyang Technological University\DDPG_2ndJournal\dim_8_transfer_learning'
-        episode_to_check = str(15000)
+        episode_to_check = str(16000)
         model_list = []
         if full_observable_critic_flag:
             for i in range(total_agentNum):
@@ -1021,10 +1021,9 @@ def main(args):
                     flight_ratio_per_eps_all_AC = obtain_euclidean_dist_list_all_AC(flight_ratio_per_eps_all_AC, trajectory_eachPlay, env)
                     entire_evaluation_run_flight_ratio.extend(flight_ratio_per_eps_all_AC)
                     # -------- end of calculate the flight distance ratio at end of an episode during evaluation --------
-                    evaluation_OD_repeatability.append(eps_all_ac_eva_OD_eta)
+                    evaluation_OD_repeatability.append([eps_all_ac_eva_OD_eta, trajectory_eachPlay, env.cloud_config])
 
-
-                    # view_static_traj(env, trajectory_eachPlay, png_file_name, max_time_step=60)
+                    # view_static_traj(env, trajectory_eachPlay, png_file_name, max_time_step=30)
                     view_static_traj(env, trajectory_eachPlay, png_file_name)
                     # save_gif(env, trajectory_eachPlay, pre_fix, episode, episode)
                     if get_evaluation_status:

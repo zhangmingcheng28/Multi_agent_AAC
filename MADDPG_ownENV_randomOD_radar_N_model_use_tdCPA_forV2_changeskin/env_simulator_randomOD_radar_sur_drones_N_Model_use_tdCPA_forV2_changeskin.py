@@ -8,6 +8,7 @@
 """
 import copy
 import jps
+import pickle
 import warnings
 from jps_straight import jps_find_path
 from collections import OrderedDict
@@ -593,9 +594,44 @@ class env_simulator:
         # -------- end of bound config ---------
 
         # -------- start of add cloud -----------
-        #sg_route_clouds
-        cloud_0 = [50, 180, 80, 30]
-        cloud_1 = [100, 140, 140, 40]
+        # ---------- start of sg_route_clouds with fixed cloud OD for 5.3 --------------- #
+        # cloud_0 = [50, 180, 80, 30]
+        # cloud_1 = [100, 140, 140, 40]
+        # all_clouds = [cloud_0, cloud_1]
+        # ---------- end of sg_route_clouds with fixed cloud OD for 5.3 --------------- #
+
+        # ---------- start of sg_route_clouds with fixed cloud OD for 5.5 --------------- #
+        # cloud_0 = [50, 180, 80, 30]
+        # cloud_1 = [100, 140, 140, 40]
+        # all_clouds = [cloud_0, cloud_1]
+        # ---------- end of sg_route_clouds with fixed cloud OD for 5.5 --------------- #
+
+        # --------- start of manually assigned a fixed cloud OD config -------------- #
+        cloud_0 = [40, 13, 175, 60]
+        cloud_1 = [40, 180, 125, 88]
+        cloud_2 = [50, 198, 165, 150]
+        all_clouds = [cloud_0, cloud_1, cloud_2]
+        # --------- end of manually assigned a fixed cloud OD config -------------- #
+
+        # ------- start of generate random cloud number -------------- #
+        # all_clouds = []
+        # cloud_num = 3
+        # for _ in range(cloud_num):
+        #     cloud_ori_no_spawn_zone = []  # there is a maximum of 3 set of origin or destination, so at most list length equals to 3.
+        #     cloud_dest_no_spawn_zone = []
+        #     # set threshold
+        #     thresh = 20+5  # my final goal or starting point is not a point, but a circle
+        #     # min_distance_between_cloud_OD = 40
+        #     for OD_pt in sg_routes.values():
+        #         ori_pt_x, ori_pt_y = OD_pt[0][0], OD_pt[0][1]
+        #         dest_pt_x, dest_pt_y = OD_pt[1][0], OD_pt[1][1]
+        #         cloud_ori_no_spawn_zone.append((ori_pt_x-thresh, ori_pt_x+thresh, ori_pt_y-thresh, ori_pt_y+thresh))
+        #         cloud_dest_no_spawn_zone.append((dest_pt_x-thresh, dest_pt_x+thresh, dest_pt_y-thresh, dest_pt_y+thresh))
+        #     cloud_coord_origin = generate_random_circle_multiple_exclusions(self.bound, cloud_ori_no_spawn_zone)
+        #     # generate_random_circle_multiple_exclusions_with_refPt(self.bound)
+        #     cloud_coord_destination = generate_random_circle_multiple_exclusions_with_refPt(self.bound, cloud_dest_no_spawn_zone, cloud_coord_origin)
+        #     all_clouds.append(cloud_coord_origin + cloud_coord_destination)
+        # ------- end of generate random cloud number -------------- #
 
         # #AR1_clouds
         # cloud_0 = [125, 175, 75, 25]
@@ -603,9 +639,8 @@ class env_simulator:
         # #AR2_clouds
         # cloud_0 = [125, 175, 75, 25]
         # # cloud_1 = [190, 100, 100, 50]
-
-        all_clouds = [cloud_0, cloud_1]
         # all_clouds = [cloud_0]
+
         cloud_config = []
         no_spawn_zone = []
         for cloud_idx, cloud_setting in enumerate(all_clouds):
@@ -691,26 +726,35 @@ class env_simulator:
             random_end_pos = generate_random_circle_multiple_exclusions(self.bound, no_spawn_zone)
 
             if evaluation_by_fixed_ar:
+                with open(
+                        r'D:\MADDPG_2nd_jp\190824_15_17_16\interval_record_eps\4_AC_randomAR_3cL_randomOD_16000\_4AC_cur_eva_fixedAR_OD.pickle',
+                        'rb') as handle:
+                    OD_eta_record = pickle.load(handle)
+                result_to_repeat = OD_eta_record[31]
+                self.all_agents[agentIdx].ar = result_to_repeat[agentIdx][0]
+                self.all_agents[agentIdx].eta = result_to_repeat[agentIdx][1]
+                self.all_agents[agentIdx].ini_eta = result_to_repeat[agentIdx][1]
+
                 # --------- start of FixedAR, with different time step, 5.3, part 1 -----------
-                keys = list(sg_routes.keys())  # Get a list of STAR-keys
-                if agentIdx == 0:
-                    self.all_agents[agentIdx].ar = keys[0]
-                    self.all_agents[agentIdx].eta = None
-                    self.all_agents[agentIdx].ini_eta = None
-                elif agentIdx == 1:
-                    self.all_agents[agentIdx].ar = keys[1]
-                    self.all_agents[agentIdx].eta = None
-                    self.all_agents[agentIdx].ini_eta = None
-                elif agentIdx == 2:
-                    self.all_agents[agentIdx].ar = keys[2]
-                    self.all_agents[agentIdx].eta = None
-                    self.all_agents[agentIdx].ini_eta = None
-                elif agentIdx == 3:
-                    self.all_agents[agentIdx].ar = keys[0]
-                    self.all_agents[agentIdx].eta = 28
-                    self.all_agents[agentIdx].ini_eta = 28
-                else:
-                    pass
+                # keys = list(sg_routes.keys())  # Get a list of STAR-keys
+                # if agentIdx == 0:
+                #     self.all_agents[agentIdx].ar = keys[0]
+                #     self.all_agents[agentIdx].eta = None
+                #     self.all_agents[agentIdx].ini_eta = None
+                # elif agentIdx == 1:
+                #     self.all_agents[agentIdx].ar = keys[1]
+                #     self.all_agents[agentIdx].eta = None
+                #     self.all_agents[agentIdx].ini_eta = None
+                # elif agentIdx == 2:
+                #     self.all_agents[agentIdx].ar = keys[2]
+                #     self.all_agents[agentIdx].eta = None
+                #     self.all_agents[agentIdx].ini_eta = None
+                # elif agentIdx == 3:
+                #     self.all_agents[agentIdx].ar = keys[0]
+                #     self.all_agents[agentIdx].eta = 28
+                #     self.all_agents[agentIdx].ini_eta = 28
+                # else:
+                #     pass
                 # --------- end of FixedAR, with different time step, 5.3, part 1 -----------
 
                 random_start_pos = sg_routes[self.all_agents[agentIdx].ar][0]
@@ -774,7 +818,6 @@ class env_simulator:
                              self.all_agents[agentIdx].pos[1])] = self.all_agents[agentIdx].agent_name
 
             agentsCoor_list.append(self.all_agents[agentIdx].pos)
-
 
 
         overall_state, norm_overall_state, polygons_list, all_agent_st_pos, all_agent_ed_pos, all_agent_intersection_point_list, \
@@ -4037,7 +4080,7 @@ class env_simulator:
                     if len(conflicting_cloud) > 0:
                         collide_cloud = 1
                         drone_obj.cloud_collision = True
-                        print("{} conflict with cloud".format(drone_obj.agent_name))
+                        print("{} conflict with cloud at step {}".format(drone_obj.agent_name, current_ts))
                         break
 
 

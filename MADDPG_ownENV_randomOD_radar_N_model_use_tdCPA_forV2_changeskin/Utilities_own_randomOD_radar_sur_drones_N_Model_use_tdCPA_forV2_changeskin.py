@@ -79,6 +79,70 @@ def plot_bounding_box(ax, bbox, edgecolor='r', facecolor='none'):
     ax.add_patch(rect)
 
 
+def generate_random_circle_multiple_exclusions_with_refPt(bounds, no_fly_zones, reference_point=None, min_distance=20):
+    xmin, xmax, ymin, ymax = bounds
+
+    # Start with the entire space as possible regions
+    possible_regions = [(xmin, xmax, ymin, ymax)]
+
+    for no_fly_bounds in no_fly_zones:
+        no_fly_xmin, no_fly_xmax, no_fly_ymin, no_fly_ymax = no_fly_bounds
+        new_regions = []
+
+        for region in possible_regions:
+            rxmin, rxmax, rymin, rymax = region
+
+            # Check if the no-fly zone intersects with the current region
+            if rxmin < no_fly_xmax and rxmax > no_fly_xmin and rymin < no_fly_ymax and rymax > no_fly_ymin:
+                # Split the region into parts that are outside the no-fly zone
+                if rxmin < no_fly_xmin:
+                    new_regions.append((rxmin, no_fly_xmin, rymin, rymax))  # Left part
+                if rxmax > no_fly_xmax:
+                    new_regions.append((no_fly_xmax, rxmax, rymin, rymax))  # Right part
+                if rymin < no_fly_ymin:
+                    new_regions.append(
+                        (max(rxmin, no_fly_xmin), min(rxmax, no_fly_xmax), rymin, no_fly_ymin))  # Bottom part
+                if rymax > no_fly_ymax:
+                    new_regions.append(
+                        (max(rxmin, no_fly_xmin), min(rxmax, no_fly_xmax), no_fly_ymax, rymax))  # Top part
+            else:
+                # If no intersection, keep the entire region
+                new_regions.append(region)
+
+        possible_regions = new_regions
+
+    # If a reference point is provided, exclude regions within the min_distance
+    if reference_point is not None:
+        ref_x, ref_y = reference_point
+        new_regions = []
+        for region in possible_regions:
+            rxmin, rxmax, rymin, rymax = region
+
+            # Calculate the closest point on the region boundary to the reference point
+            closest_x = np.clip(ref_x, rxmin, rxmax)
+            closest_y = np.clip(ref_y, rymin, rymax)
+
+            # Calculate the distance from the reference point to the closest point in the region
+            distance = np.sqrt((ref_x - closest_x) ** 2 + (ref_y - closest_y) ** 2)
+
+            if distance >= min_distance:
+                new_regions.append(region)
+
+        possible_regions = new_regions
+
+    # Randomly select one of the remaining regions
+    if not possible_regions:
+        raise ValueError("No valid regions available outside the no-fly zones and exclusion region.")
+
+    selected_region = possible_regions[np.random.randint(0, len(possible_regions))]
+
+    # Generate a random center within the selected region
+    center_x = np.random.uniform(selected_region[0], selected_region[1])
+    center_y = np.random.uniform(selected_region[2], selected_region[3])
+
+    return [center_x, center_y]
+
+
 def generate_random_circle_multiple_exclusions(bounds, no_fly_zones):
     xmin, xmax, ymin, ymax = bounds
 
@@ -128,7 +192,7 @@ def generate_random_circle_multiple_exclusions(bounds, no_fly_zones):
     #
     # radius = np.random.uniform(0, max_possible_radius)
 
-    return center_x, center_y
+    return [center_x, center_y]
 
 
 def load_svg_image(svg_path):
