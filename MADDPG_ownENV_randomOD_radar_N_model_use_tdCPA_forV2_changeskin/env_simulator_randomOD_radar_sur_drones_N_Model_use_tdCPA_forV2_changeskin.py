@@ -596,6 +596,9 @@ class env_simulator:
         # -------- end of bound config ---------
 
         # -------- start of add cloud -----------
+        # cloud_0 = [520, 300, 650, 300]
+        # cloud_1 = [575, 350, 650, 350]
+        # all_clouds = [cloud_0, cloud_1]
         # ---------- start of sg_route_clouds with fixed cloud OD for 5.3 --------------- #
         # cloud_0 = [50, 180, 80, 30]
         # cloud_1 = [100, 140, 140, 40]
