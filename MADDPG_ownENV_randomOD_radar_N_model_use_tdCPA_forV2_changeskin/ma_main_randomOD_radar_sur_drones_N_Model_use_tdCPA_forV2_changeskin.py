@@ -68,8 +68,8 @@ def main(args):
         # initialize_excel_file(excel_file_path_time)
         # ------------ end of this portion is to save using excel instead of pickle -----------
 
-    use_wanDB = False
-    # use_wanDB = True
+    # use_wanDB = False
+    use_wanDB = True
 
     evaluation_by_episode = True
     # evaluation_by_episode = False
@@ -77,8 +77,8 @@ def main(args):
     # get_evaluation_status = True  # have figure output
     get_evaluation_status = False  # no figure output, mainly obtain collision rate
 
-    evaluation_by_fixed_ar = True  # condition to when evaluation using fixed AR.
-    # evaluation_by_fixed_ar = False
+    # evaluation_by_fixed_ar = True  # condition to when evaluation using fixed AR.
+    evaluation_by_fixed_ar = False
 
     # simply_view_evaluation = True  # don't save gif
     simply_view_evaluation = False  # save gif
@@ -105,8 +105,8 @@ def main(args):
     use_nearestN_neigh_wRadar = False
     N_neigh = 2
 
-    include_other_AC = True  # used for change skin during training, whether include the surrounding ACs.
-    # include_other_AC = False
+    # include_other_AC = True  # used for change skin during training, whether include the surrounding ACs.
+    include_other_AC = False
 
     save_cur_eva_OD = True
     # save_cur_eva_OD = False
@@ -134,8 +134,8 @@ def main(args):
     env, max_xy = initialize_parameters()
     # total_agentNum = len(pd.read_excel(env.agentConfig))
     # total_agentNum = 3
-    # total_agentNum = 5
-    total_agentNum = 4
+    total_agentNum = 5
+    # total_agentNum = 4
     # total_agentNum = 8
     # total_agentNum = 1
     # max_nei_num = 5
@@ -314,11 +314,11 @@ def main(args):
     if args.mode == "eval":
         # args.max_episodes = 10  # only evaluate one episode during evaluation mode.
         # args.max_episodes = 5  # only evaluate one episode during evaluation mode.
-        # args.max_episodes = 100
-        args.max_episodes = 1
+        args.max_episodes = 100
+        # args.max_episodes = 1
         # args.max_episodes = 250
         # args.max_episodes = 25
-        pre_fix = r'D:\MADDPG_2nd_jp\190824_15_17_16\interval_record_eps\chapter_5_5_3cL_randomOD_16000'
+        pre_fix = r'D:\MADDPG_2nd_jp\190824_15_17_16\interval_record_eps'
         # episode_to_check = str(10000)
         # pre_fix = r'F:\OneDrive_NTU_PhD\OneDrive - Nanyang Technological University\DDPG_2ndJournal\dim_8_transfer_learning'
         episode_to_check = str(16000)
@@ -406,7 +406,9 @@ def main(args):
                 # action = model.choose_action(cur_state, episode, noisy=True)
 
                 one_step_transition_start = time.time()
-                next_state, norm_next_state, polygons_list, all_agent_st_points, all_agent_ed_points, all_agent_intersection_point_list, all_agent_line_collection, all_agent_mini_intersection_list = env.step(action, step, acc_max, args, evaluation_by_episode, full_observable_critic_flag, evaluation_by_fixed_ar, include_other_AC, use_nearestN_neigh_wRadar, N_neigh)
+                (next_state, norm_next_state, polygons_list, all_agent_st_points, all_agent_ed_points,
+                 all_agent_intersection_point_list, all_agent_line_collection,
+                 all_agent_mini_intersection_list) = env.step(action, step, acc_max, args, evaluation_by_episode, full_observable_critic_flag, evaluation_by_fixed_ar, include_other_AC, use_nearestN_neigh_wRadar, N_neigh)
                 step_transition_time = (time.time() - one_step_transition_start)*1000
                 # print("current step transition time used is {} milliseconds".format(step_transition_time))
 
@@ -778,7 +780,7 @@ def main(args):
                             all_drone_reach = all_drone_reach + 1
                             # print("There are no True values in the list.")
 
-                    if episode % 5 == 0:  # every 100 episode we record the training performance (without evaluation)
+                    if episode % 1000 == 0:  # every 100 episode we record the training performance (without evaluation)
                         # if episode == 10:
                         # After the loop, save the file once
                         # writer.save()
@@ -1189,7 +1191,7 @@ if __name__ == '__main__':
     parser.add_argument('--scenario', default="simple_spread", type=str)
     parser.add_argument('--max_episodes', default=20000, type=int)  # run for a total of 50000 episodes
     parser.add_argument('--algo', default="maddpg", type=str, help="commnet/bicnet/maddpg")
-    parser.add_argument('--mode', default="eval", type=str, help="train/eval")
+    parser.add_argument('--mode', default="train", type=str, help="train/eval")
     parser.add_argument('--episode_length', default=500, type=int)  # maximum play per episode
     # parser.add_argument('--episode_length', default=120, type=int)  # maximum play per episode
     # parser.add_argument('--episode_length', default=100, type=int)  # maximum play per episode

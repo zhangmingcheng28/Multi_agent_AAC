@@ -596,9 +596,11 @@ class env_simulator:
         # -------- end of bound config ---------
 
         # -------- start of add cloud -----------
-        # cloud_0 = [520, 300, 650, 300]
-        # cloud_1 = [575, 350, 650, 350]
-        # all_clouds = [cloud_0, cloud_1]
+        # ___clouds used in training___
+        cloud_0 = [30, 185, 180, 80]
+        cloud_1 = [30, 100, 180, 30]
+        all_clouds = [cloud_0, cloud_1]
+
         # ---------- start of sg_route_clouds with fixed cloud OD for 5.3 --------------- #
         # cloud_0 = [50, 180, 80, 30]
         # cloud_1 = [100, 140, 140, 40]
@@ -614,10 +616,10 @@ class env_simulator:
         # # cloud_1 = [190, 100, 100, 50]
 
         # --------- start of manually assigned a fixed cloud OD config for 5.5 4 graph-------------- #
-        cloud_0 = [40, 13, 175, 60]
-        cloud_1 = [40, 180, 125, 88]
-        cloud_2 = [50, 198, 165, 150]
-        all_clouds = [cloud_0, cloud_1, cloud_2]
+        # cloud_0 = [40, 13, 175, 60]
+        # cloud_1 = [40, 180, 125, 88]
+        # cloud_2 = [50, 198, 165, 150]
+        # all_clouds = [cloud_0, cloud_1, cloud_2]
         # --------- end of manually assigned a fixed cloud OD config 4 graph-------------- #
 
         # ------- start of generate random cloud number -------------- #
@@ -3891,15 +3893,16 @@ class env_simulator:
         reward_record_idx = 0  # this is used as a list index, increase with for loop. No need go with agent index, this index is also shared by done checking
         # crash_penalty_wall = 5
         # crash_penalty_wall = 15
-        crash_penalty_wall = 20
+
         # crash_penalty_wall = 100
-        big_crash_penalty_wall = 200
-        crash_penalty_drone = 1
+        # big_crash_penalty_wall = 200
+        # crash_penalty_drone = 1
         # reach_target = 1
         # reach_target = 5
+        crash_penalty_wall = 20
         reach_target = 20
-        survival_penalty = 0
-        move_after_reach = -2
+        # survival_penalty = 0
+        # move_after_reach = -2
 
         potential_conflict_count = 0
         final_goal_toadd = 0
@@ -4356,8 +4359,8 @@ class env_simulator:
             # ----- end of V3 near drone penalty -------
 
 
-            small_step_penalty_coef = 5
-            # small_step_penalty_coef = 0
+            # small_step_penalty_coef = 5
+            small_step_penalty_coef = 0
             spd_penalty_threshold = drone_obj.maxSpeed / 2
             # spd_penalty_threshold = drone_obj.protectiveBound
             small_step_penalty_val = (spd_penalty_threshold -
@@ -4551,10 +4554,15 @@ class env_simulator:
                 #     rew = rew + dist_to_ref_line + dist_to_goal - \
                 #           small_step_penalty + near_goal_reward - near_building_penalty + seg_reward-survival_penalty - near_drone_penalty
                 # else:
-                #     rew = rew + move_after_reach
-                rew = rew + dist_to_ref_line + dist_to_goal - \
-                      small_step_penalty + near_goal_reward - near_building_penalty + seg_reward \
-                      - survival_penalty - near_drone_penalty - surrounding_collision_penalty
+
+                rew = rew + dist_to_goal - near_building_penalty  #1
+                # rew = rew + dist_to_goal - near_drone_penalty  #2
+                # rew = rew - near_building_penalty - near_drone_penalty  #3
+                # rew = rew + dist_to_goal - near_building_penalty - near_drone_penalty  # total
+
+                # rew = rew + dist_to_goal - \
+                #       small_step_penalty + near_goal_reward - near_building_penalty + seg_reward \
+                #       - near_drone_penalty - surrounding_collision_penalty
                 # we remove the above termination condition
                 # if current_ts >= args.episode_length:
                 #     done.append(True)
