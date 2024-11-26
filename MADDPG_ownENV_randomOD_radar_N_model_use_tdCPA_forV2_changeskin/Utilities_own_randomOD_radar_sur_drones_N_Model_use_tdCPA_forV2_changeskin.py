@@ -37,18 +37,19 @@ import math
 
 def obtain_euclidean_dist_list_all_AC(flight_ratio_per_eps_all_AC, trajectory_eachPlay, env):
     for agentIDX, agent in env.all_agents.items():
-        desired_distance = np.linalg.norm(np.array(agent.goal[-1]) - agent.ini_pos)
-        each_ac_total_dist = 0
-        for trajectory_idx in range(1, len(trajectory_eachPlay)):
-            pre_x, pre_y = trajectory_eachPlay[trajectory_idx-1][agentIDX][0], trajectory_eachPlay[trajectory_idx-1][agentIDX][1]
-            x, y = trajectory_eachPlay[trajectory_idx][agentIDX][0], trajectory_eachPlay[trajectory_idx][agentIDX][1]
-            distance = np.linalg.norm(np.array([x, y]) - np.array([pre_x, pre_y]))
-            each_ac_total_dist = each_ac_total_dist + distance
-        first_pt = np.array([trajectory_eachPlay[0][agentIDX][0],
-                             trajectory_eachPlay[0][agentIDX][1]])
-        dist_ini_pos_to_1stPt = np.linalg.norm(first_pt - agent.ini_pos)
-        each_ac_total_dist = each_ac_total_dist + dist_ini_pos_to_1stPt + 5  # this 5 is because, when ac reached, just the protective zone reach is consider reached, so we add 5.
-        flight_ratio_per_eps_all_AC.append(each_ac_total_dist/desired_distance)
+        if agent.reach_target == True:
+            desired_distance = np.linalg.norm(np.array(agent.goal[-1]) - agent.ini_pos)
+            each_ac_total_dist = 0
+            for trajectory_idx in range(1, len(trajectory_eachPlay)):
+                pre_x, pre_y = trajectory_eachPlay[trajectory_idx-1][agentIDX][0], trajectory_eachPlay[trajectory_idx-1][agentIDX][1]
+                x, y = trajectory_eachPlay[trajectory_idx][agentIDX][0], trajectory_eachPlay[trajectory_idx][agentIDX][1]
+                distance = np.linalg.norm(np.array([x, y]) - np.array([pre_x, pre_y]))
+                each_ac_total_dist = each_ac_total_dist + distance
+            first_pt = np.array([trajectory_eachPlay[0][agentIDX][0],
+                                 trajectory_eachPlay[0][agentIDX][1]])
+            dist_ini_pos_to_1stPt = np.linalg.norm(first_pt - agent.ini_pos)
+            each_ac_total_dist = each_ac_total_dist + dist_ini_pos_to_1stPt + 5  # this 5 is because, when ac reached, just the protective zone reach is consider reached, so we add 5.
+            flight_ratio_per_eps_all_AC.append(each_ac_total_dist/desired_distance)
     return flight_ratio_per_eps_all_AC
 
 
@@ -324,7 +325,7 @@ def animate(frame_num, ax, env, trajectory_eachPlay):
     plt.axhline(y=env.bound[3], c="green")
     plt.xlabel("X axis")
     plt.ylabel("Y axis")
-    aircraft_svg_path = r'F:\githubClone\HotspotResolver_24\pictures\Aircraft.svg'  # Replace with your SVG path
+    aircraft_svg_path = r'C:\Users\aiden.pang\Aircraft.svg'  # Replace with your SVG path
     plane_img = load_svg_image(aircraft_svg_path)
     # Define colors with transparency (alpha)
     colors = [
