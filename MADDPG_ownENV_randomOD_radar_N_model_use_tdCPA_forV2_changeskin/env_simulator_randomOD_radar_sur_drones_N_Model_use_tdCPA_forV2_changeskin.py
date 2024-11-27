@@ -652,6 +652,7 @@ class env_simulator:
 
         cloud_config = []
         no_spawn_zone = []
+        spawn_threshold = 30
         for cloud_idx, cloud_setting in enumerate(all_clouds):
             cloud_a = cloud_agent(cloud_idx)
             cloud_a.pos = Point(cloud_setting[0], cloud_setting[1])
@@ -660,13 +661,14 @@ class env_simulator:
             cloud_a.goal = Point(cloud_setting[2], cloud_setting[3])
             cloud_a.trajectory.append(cloud_a.pos)
             cloud_config.append(cloud_a)
-            no_spawn_zone.append((cloud_setting[0]-30, cloud_setting[0]+30, cloud_setting[1]-30, cloud_setting[1]+30))
+            no_spawn_zone.append((cloud_setting[0]-spawn_threshold, cloud_setting[0]+spawn_threshold,
+                                  cloud_setting[1]-spawn_threshold, cloud_setting[1]+spawn_threshold))
 
         # additional no spawn zone to account for aircraft don't spawn near the map boundaries
-        no_spawn_zone.append((self.bound[0], self.bound[1], self.bound[2], self.bound[2]+10))  # x-axis, lower bound
-        no_spawn_zone.append((self.bound[0], self.bound[1], self.bound[3]-10, self.bound[3]))  # x-axis, upper bound
-        no_spawn_zone.append((self.bound[0], self.bound[0]+10, self.bound[2], self.bound[3]))  # y-axis, left bound
-        no_spawn_zone.append((self.bound[1]-10, self.bound[1], self.bound[2], self.bound[3]))  # y-axis, right bound
+        no_spawn_zone.append((self.bound[0], self.bound[1], self.bound[2], self.bound[2]+spawn_threshold))  # x-axis, lower bound
+        no_spawn_zone.append((self.bound[0], self.bound[1], self.bound[3]-spawn_threshold, self.bound[3]))  # x-axis, upper bound
+        no_spawn_zone.append((self.bound[0], self.bound[0]+spawn_threshold, self.bound[2], self.bound[3]))  # y-axis, left bound
+        no_spawn_zone.append((self.bound[1]-spawn_threshold, self.bound[1], self.bound[2], self.bound[3]))  # y-axis, right bound
         # end of additional no spawn zone to account for aircraft don't spawn near the map boundaries
 
         # -------- end of add cloud -----------
@@ -3889,18 +3891,23 @@ class env_simulator:
         agent_to_remove = []
         one_step_reward = []
         check_goal = [False] * len(self.all_agents)
+        #--------------weights for each reward---------------
+        scale = 1  # reward scaling index
+        crash_penalty_wall = 20*scale
+        reach_target = 20*scale
+        dist_to_goal_coeff = 6*scale
+        near_building_penalty_coef = 3*scale
+        near_drone_penalty_coef = 10*scale
+
         # previous_ever_reached = [agent.reach_target for agent in self.all_agents.values()]
         reward_record_idx = 0  # this is used as a list index, increase with for loop. No need go with agent index, this index is also shared by done checking
         # crash_penalty_wall = 5
         # crash_penalty_wall = 15
-
         # crash_penalty_wall = 100
         # big_crash_penalty_wall = 200
         # crash_penalty_drone = 1
         # reach_target = 1
         # reach_target = 5
-        crash_penalty_wall = 20
-        reach_target = 20
         # survival_penalty = 0
         # move_after_reach = -2
 
@@ -4169,7 +4176,7 @@ class env_simulator:
             rew = 0
             # dist_to_goal_coeff = 1
             # dist_to_goal_coeff = 3
-            dist_to_goal_coeff = 6
+            # dist_to_goal_coeff = 6
             # dist_to_goal_coeff = 1
             # dist_to_goal_coeff = 0
             # dist_to_goal_coeff = 2
@@ -4277,7 +4284,7 @@ class env_simulator:
             # ------- end of reward for surrounding agents as a whole ----
 
             # ----- start of near drone penalty ----------------
-            near_drone_penalty_coef = 10
+            # near_drone_penalty_coef = 10
             # near_drone_penalty_coef = 5
             # near_drone_penalty_coef = 1
             # near_drone_penalty_coef = 3
@@ -4435,7 +4442,7 @@ class env_simulator:
             # ---linear building penalty ---
             # the distance is based on the minimum of the detected distance to surrounding buildings.
             # near_building_penalty_coef = 1
-            near_building_penalty_coef = 3
+            # near_building_penalty_coef = 3
             # near_building_penalty_coef = 0
             # near_building_penalty = near_building_penalty_coef*((1-(1/(1+math.exp(turningPtConst-min_dist))))*
             #
@@ -4558,6 +4565,7 @@ class env_simulator:
                 rew = rew + dist_to_goal - near_building_penalty  #1
                 # rew = rew + dist_to_goal - near_drone_penalty  #2
                 # rew = rew - near_building_penalty - near_drone_penalty  #3
+                # rew = rew + (dist_to_goal+0.05) - near_building_penalty - near_drone_penalty  #4 limit heading change
                 # rew = rew + dist_to_goal - near_building_penalty - near_drone_penalty  # total
 
                 # rew = rew + dist_to_goal - \
