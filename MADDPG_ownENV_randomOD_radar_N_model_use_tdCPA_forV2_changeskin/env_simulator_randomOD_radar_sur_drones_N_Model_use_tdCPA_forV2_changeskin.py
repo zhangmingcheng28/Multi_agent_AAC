@@ -568,9 +568,9 @@ class env_simulator:
 
         # ___SG air routes in an area of 200 x 200 nm ___
         sg_routes = {
-            'OD1': [(10, 53), (180, 190)],
-            'OD2': [(20, 145), (190, 10)],
-            'OD3': [(90, 10), (190, 88)],
+            'OD1': [(20, 53), (180, 190)],
+            'OD2': [(20, 145), (190, 20)],
+            'OD3': [(90, 20), (190, 88)],
         }
 
         AR_1_routes = {
@@ -652,7 +652,8 @@ class env_simulator:
 
         cloud_config = []
         no_spawn_zone = []
-        spawn_threshold = 30
+        spawn_threshold_cloud = 30
+        spawn_threshold_boundary = 10
         for cloud_idx, cloud_setting in enumerate(all_clouds):
             cloud_a = cloud_agent(cloud_idx)
             cloud_a.pos = Point(cloud_setting[0], cloud_setting[1])
@@ -661,14 +662,14 @@ class env_simulator:
             cloud_a.goal = Point(cloud_setting[2], cloud_setting[3])
             cloud_a.trajectory.append(cloud_a.pos)
             cloud_config.append(cloud_a)
-            no_spawn_zone.append((cloud_setting[0]-spawn_threshold, cloud_setting[0]+spawn_threshold,
-                                  cloud_setting[1]-spawn_threshold, cloud_setting[1]+spawn_threshold))
+            no_spawn_zone.append((cloud_setting[0]-spawn_threshold_cloud, cloud_setting[0]+spawn_threshold_cloud,
+                                  cloud_setting[1]-spawn_threshold_cloud, cloud_setting[1]+spawn_threshold_cloud))
 
         # additional no spawn zone to account for aircraft don't spawn near the map boundaries
-        no_spawn_zone.append((self.bound[0], self.bound[1], self.bound[2], self.bound[2]+spawn_threshold))  # x-axis, lower bound
-        no_spawn_zone.append((self.bound[0], self.bound[1], self.bound[3]-spawn_threshold, self.bound[3]))  # x-axis, upper bound
-        no_spawn_zone.append((self.bound[0], self.bound[0]+spawn_threshold, self.bound[2], self.bound[3]))  # y-axis, left bound
-        no_spawn_zone.append((self.bound[1]-spawn_threshold, self.bound[1], self.bound[2], self.bound[3]))  # y-axis, right bound
+        no_spawn_zone.append((self.bound[0], self.bound[1], self.bound[2], self.bound[2]+spawn_threshold_boundary))  # x-axis, lower bound
+        no_spawn_zone.append((self.bound[0], self.bound[1], self.bound[3]-spawn_threshold_boundary, self.bound[3]))  # x-axis, upper bound
+        no_spawn_zone.append((self.bound[0], self.bound[0]+spawn_threshold_boundary, self.bound[2], self.bound[3]))  # y-axis, left bound
+        no_spawn_zone.append((self.bound[1]-spawn_threshold_boundary, self.bound[1], self.bound[2], self.bound[3]))  # y-axis, right bound
         # end of additional no spawn zone to account for aircraft don't spawn near the map boundaries
 
         # -------- end of add cloud -----------
@@ -699,13 +700,22 @@ class env_simulator:
                     for current_route_value_numbering, each_agent_idx in enumerate(assigned_agents[routes]):
                         if current_route_value_numbering == 0:
                             continue
+                        # normal separation from 25 - 30 time steps between any two a/c
+                        u_normal = random.randint(25, 30)
+
+                        # ETA uncertainties
+                        # u_low =
+
+
+                        # uncertainty used in the model: u_normal, u_low, u_mid, u_high
+                        u = u_normal
                         if self.all_agents[assigned_agents[routes][current_route_value_numbering-1]].eta is None:
-                            self.all_agents[assigned_agents[routes][current_route_value_numbering]].eta = random.randint(25, 30)
+                            self.all_agents[assigned_agents[routes][current_route_value_numbering]].eta = u
                             self.all_agents[assigned_agents[routes][current_route_value_numbering]].ini_eta = \
                                 self.all_agents[assigned_agents[routes][current_route_value_numbering]].eta
                         else:  # this is to prevent the subsequent AC spawn too near to each other, if all use t=0 as the datum.
                             self.all_agents[assigned_agents[routes][current_route_value_numbering]].eta = \
-                                self.all_agents[assigned_agents[routes][current_route_value_numbering-1]].eta + random.randint(25, 30)
+                                self.all_agents[assigned_agents[routes][current_route_value_numbering-1]].eta + u
                             self.all_agents[assigned_agents[routes][current_route_value_numbering]].ini_eta = \
                                 self.all_agents[assigned_agents[routes][current_route_value_numbering]].eta
 
@@ -737,14 +747,14 @@ class env_simulator:
             random_end_pos = generate_random_circle_multiple_exclusions(self.bound, no_spawn_zone)
 
             if evaluation_by_fixed_ar:
-                with open(
-                        r'D:\MADDPG_2nd_jp\190824_15_17_16\interval_record_eps\4_AC_randomAR_3cL_randomOD_16000\_4AC_cur_eva_fixedAR_OD.pickle',
-                        'rb') as handle:
-                    OD_eta_record = pickle.load(handle)
-                result_to_repeat = OD_eta_record[31]
-                self.all_agents[agentIdx].ar = result_to_repeat[agentIdx][0]
-                self.all_agents[agentIdx].eta = result_to_repeat[agentIdx][1]
-                self.all_agents[agentIdx].ini_eta = result_to_repeat[agentIdx][1]
+                # with open(
+                #         r'D:\MADDPG_2nd_jp\190824_15_17_16\interval_record_eps\4_AC_randomAR_3cL_randomOD_16000\_4AC_cur_eva_fixedAR_OD.pickle',
+                #         'rb') as handle:
+                #     OD_eta_record = pickle.load(handle)
+                # result_to_repeat = OD_eta_record[31]
+                # self.all_agents[agentIdx].ar = result_to_repeat[agentIdx][0]
+                # self.all_agents[agentIdx].eta = result_to_repeat[agentIdx][1]
+                # self.all_agents[agentIdx].ini_eta = result_to_repeat[agentIdx][1]
 
                 # --------- start of FixedAR, with different time step, 5.3, part 1 -----------
                 # keys = list(AR_routes.keys())  # Get a list of STAR-keys
@@ -4562,10 +4572,10 @@ class env_simulator:
                 #           small_step_penalty + near_goal_reward - near_building_penalty + seg_reward-survival_penalty - near_drone_penalty
                 # else:
 
-                rew = rew + dist_to_goal - near_building_penalty  #1
+                # rew = rew + dist_to_goal - near_building_penalty  #1
                 # rew = rew + dist_to_goal - near_drone_penalty  #2
-                # rew = rew - near_building_penalty - near_drone_penalty  #3
-                # rew = rew + (dist_to_goal+0.05) - near_building_penalty - near_drone_penalty  #4 limit heading change
+                rew = rew - near_building_penalty - near_drone_penalty  #3
+                # rew = rew + dist_to_goal/2 - near_building_penalty - near_drone_penalty  #4 limit heading change
                 # rew = rew + dist_to_goal - near_building_penalty - near_drone_penalty  # total
 
                 # rew = rew + dist_to_goal - \
