@@ -35,6 +35,22 @@ from matplotlib.markers import MarkerStyle
 import math
 
 
+def get_model_files(directory, episode_to_check):
+    # List all files in the directory
+    all_files = os.listdir(directory)
+
+    # Filter files for the specific episode
+    episode_files = [f for f in all_files if f"episode_{episode_to_check}_" in f]
+
+    # Sort files by agent number (assuming filenames contain 'actor_#')
+    episode_files.sort(key=lambda x: int(x.split('_actor_')[1].split('_')[0]))
+
+    # Generate full paths for the files
+    file_paths = [os.path.join(directory, f) for f in episode_files]
+
+    return file_paths
+
+
 def obtain_euclidean_dist_list_all_AC(flight_ratio_per_eps_all_AC, trajectory_eachPlay, env):
     for agentIDX, agent in env.all_agents.items():
         if agent.reach_target == True:
@@ -325,7 +341,7 @@ def animate(frame_num, ax, env, trajectory_eachPlay):
     plt.axhline(y=env.bound[3], c="green")
     plt.xlabel("X axis")
     plt.ylabel("Y axis")
-    aircraft_svg_path = r'C:\Users\aiden.pang\Aircraft.svg'  # Replace with your SVG path
+    aircraft_svg_path = r'F:\githubClone\HotspotResolver_24\pictures\Aircraft.svg'  # Replace with your SVG path
     plane_img = load_svg_image(aircraft_svg_path)
     # Define colors with transparency (alpha)
     colors = [

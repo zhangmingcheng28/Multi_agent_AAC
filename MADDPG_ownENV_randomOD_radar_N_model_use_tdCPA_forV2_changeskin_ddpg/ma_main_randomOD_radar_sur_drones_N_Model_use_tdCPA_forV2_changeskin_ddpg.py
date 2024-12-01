@@ -105,8 +105,8 @@ def main(args):
     use_nearestN_neigh_wRadar = False
     N_neigh = 2
 
-    # include_other_AC = True  # used for change skin during training, whether include the surrounding ACs.
-    include_other_AC = False
+    include_other_AC = True  # used for change skin during training, whether include the surrounding ACs.
+    # include_other_AC = False
 
     save_cur_eva_OD = True
     # save_cur_eva_OD = False
@@ -318,11 +318,12 @@ def main(args):
         # args.max_episodes = 1
         # args.max_episodes = 250
         # args.max_episodes = 25
-        pre_fix = r'D:\MADDPG_2nd_jp\190824_15_17_16\interval_record_eps'
+        pre_fix = r'D:\MADDPG_2nd_jp\011224_11_39_01\interval_record_eps'
         # episode_to_check = str(10000)
         # pre_fix = r'F:\OneDrive_NTU_PhD\OneDrive - Nanyang Technological University\DDPG_2ndJournal\dim_8_transfer_learning'
         episode_to_check = str(16000)
         model_list = []
+        model_files = get_model_files(pre_fix, 10)
         if full_observable_critic_flag:
             for i in range(total_agentNum):
                 load_filepath = pre_fix + '\episode_' + episode_to_check + '_' + str(i)+ '_actor_net.pth'
@@ -330,14 +331,15 @@ def main(args):
             model.load_model(model_list, full_observable_critic_flag)
         else:
             # using one model, so we load all the same
-            load_filepath_0 = pre_fix + '\episode_' + episode_to_check + '_actor_net.pth'
-            load_filepath_1 = pre_fix + '\episode_' + episode_to_check + '_actor_net.pth'
-            load_filepath_2 = pre_fix + '\episode_' + episode_to_check + '_actor_net.pth'
+            # load_filepath_0 = pre_fix + '\episode_' + episode_to_check + '_actor_net.pth'
+            # load_filepath_1 = pre_fix + '\episode_' + episode_to_check + '_actor_net.pth'
+            # load_filepath_2 = pre_fix + '\episode_' + episode_to_check + '_actor_net.pth'
             # load_filepath_3 = pre_fix + '\episode_' + episode_to_check + '_agent_3actor_net.pth'
             # load_filepath_4 = pre_fix + '\episode_' + episode_to_check + '_agent_4actor_net.pth'
 
             # model.load_model([load_filepath_0, load_filepath_1, load_filepath_2, load_filepath_3, load_filepath_4])
-            model.load_model([load_filepath_0, load_filepath_1, load_filepath_2], full_observable_critic_flag)
+            # model.load_model([load_filepath_0, load_filepath_1, load_filepath_2], full_observable_critic_flag)
+            model.load_model(model_files, full_observable_critic_flag)
     else:
         if transfer_learning:
             pre_fix = r'F:\OneDrive_NTU_PhD\OneDrive - Nanyang Technological University\DDPG_2ndJournal\dim_8_transfer_learning'
@@ -786,12 +788,27 @@ def main(args):
                             all_drone_reach = all_drone_reach + 1
                             # print("There are no True values in the list.")
 
-                    if episode % 1000 == 0:  # every 100 episode we record the training performance (without evaluation)
-                        # if episode == 10:
-                        # After the loop, save the file once
-                        # writer.save()
-                        # print(f'Data saved to {excel_file_path}')
-                        # save a gif every 100 episode during training
+                    if episode % args.save_interval == 0:  # every 100 episode we record the training performance (without evaluation)
+                        with open(plot_file_name + '/Episode_'+str(episode)+'_reward.pickle', 'wb') as handle:
+                            pickle.dump(eps_reward_record, handle, protocol=pickle.HIGHEST_PROTOCOL)
+                        with open(plot_file_name + '/Episode_'+str(episode)+'_noise.pickle', 'wb') as handle:
+                            pickle.dump(eps_noise_record, handle, protocol=pickle.HIGHEST_PROTOCOL)
+                        with open(plot_file_name + '/Episode_'+str(episode)+'_time.pickle', 'wb') as handle:
+                            pickle.dump(eps_time_record, handle, protocol=pickle.HIGHEST_PROTOCOL)
+                        with open(plot_file_name + '/Episode_'+str(episode)+'_collision.pickle', 'wb') as handle:
+                            pickle.dump(eps_check_collision, handle, protocol=pickle.HIGHEST_PROTOCOL)
+                        with open(plot_file_name + '/Episode_'+str(episode)+'_OD.pickle', 'wb') as handle:
+                            pickle.dump(eps_OD_record, handle, protocol=pickle.HIGHEST_PROTOCOL)
+                        with open(file_name + '/GFG_'+str(episode)+'.csv', 'w', newline='') as f:
+                            # using csv.writer method from CSV package
+                            write = csv.writer(f)
+                            for item in score_history:
+                                write.writerow([item])
+                        with open(file_name + '/Eps_'+str(episode)+'_goal_reaching.csv', 'w') as f:
+                            write = csv.writer(f)
+                            for goal_item in goal_reach_history:
+                                write.writerow([goal_item])
+
                         episode_to_check = str(episode)
                         goal_reach_history.append(goal_reached)
                         print("For the previous 100 episode, the number of goal reaching count is {}".format(goal_reached))
@@ -1195,7 +1212,7 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--scenario', default="simple_spread", type=str)
-    parser.add_argument('--max_episodes', default=20000, type=int)  # run for a total of 50000 episodes
+    parser.add_argument('--max_episodes', default=50, type=int)  # run for a total of 50000 episodes
     parser.add_argument('--algo', default="maddpg", type=str, help="commnet/bicnet/maddpg")
     parser.add_argument('--mode', default="train", type=str, help="train/eval")
     parser.add_argument('--episode_length', default=500, type=int)  # maximum play per episode
@@ -1218,7 +1235,7 @@ if __name__ == '__main__':
     parser.add_argument('--ou_sigma', default=0.2, type=float)
     parser.add_argument('--epsilon_decay', default=10000, type=int)
     parser.add_argument('--tensorboard', default=True, action="store_true")
-    parser.add_argument("--save_interval", default=1000, type=int)  # save model for every 5000 episodes
+    parser.add_argument("--save_interval", default=10, type=int)  # save model for every 5000 episodes
     parser.add_argument("--model_episode", default=60000, type=int)
     parser.add_argument('--gru_history_length', default=10, type=int)  # original 1000
     parser.add_argument('--log_dir', default=datetime.datetime.now().strftime('%Y%m%d_%H%M%S'))

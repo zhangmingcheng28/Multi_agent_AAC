@@ -209,7 +209,9 @@ class MADDPG:
                     if full_observable_critic_flag:
                         self.actors[path_idx].load_state_dict(torch.load(path))
                     else:
-                        self.actors.load_state_dict(torch.load(path))
+                        # self.actors.load_state_dict(torch.load(path))
+                        self.actors[path_idx].load_state_dict(torch.load(path))
+
 
 
 
@@ -225,9 +227,9 @@ class MADDPG:
         if not os.path.exists(file_path):
             os.makedirs(file_path)
         if isinstance(self.actors, list):
-            for actor in self.actors:
+            for actor_idx, actor in enumerate(self.actors):
                 torch.save(actor.state_dict(),
-                           file_path + '/' + 'episode_' + str(episode) + '_' + 'actor_net.pth')
+                           file_path + '/' + 'episode_' + str(episode) + '_' + 'actor_'+str(actor_idx)+'_net.pth')
         else:
             torch.save(self.actors.state_dict(), file_path + '/' +'episode_'+str(episode)+'_' + 'actor_net.pth')
 
