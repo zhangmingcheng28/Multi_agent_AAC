@@ -221,12 +221,15 @@ def main(args):
         # args.max_episodes = 10  # only evaluate one episode during evaluation mode.
         # args.max_episodes = 5  # only evaluate one episode during evaluation mode.
         # args.max_episodes = 1000
-        args.max_episodes = 1000
+        # args.max_episodes = 1000
+        args.max_episodes = 100
         # args.max_episodes = 500
         # args.max_episodes = 20
-        # args.max_episodes = 100
+        # args.max_episodes = 1000
         episode_situation_holder = [None] * args.max_episodes
-        pre_fix = r'D:\MADDPG_2nd_jp\270524_09_00_23\interval_record_eps'
+        # pre_fix = r'D:\MADDPG_2nd_jp\270524_19_23_59\interval_record_eps'  #1GF, not along RP
+        pre_fix = r'D:\MADDPG_2nd_jp\270524_19_20_52\interval_record_eps'
+        # pre_fix = r'D:\MADDPG_2nd_jp\200524_19_53_30\interval_record_eps'
         episode_to_check = str(10000)
         load_filepath_0 = pre_fix + '\episode_' + episode_to_check + '_agent_0actor_net.pth'
         load_filepath_1 = pre_fix + '\episode_' + episode_to_check + '_agent_1actor_net.pth'
@@ -250,8 +253,19 @@ def main(args):
         indices = [i for i in range(len(env.world_map_2D_collection)) if i not in (3, 5)]
         # Select a random index from the list of indices
         # random_map_idx = random.choice(indices)
-        random_map_idx = 3  # this value is the previous fixed environment
-        cur_state, norm_cur_state = env.reset_world(total_agentNum, random_map_idx, use_reached, args, show=1)  # random map choose here
+        # random_map_idx = 5, 6, 1, 2
+        random_map_idx = 2
+        # random_map_idx = 5
+        # random_map_idx = random.choice([5])
+        # random_map_idx = 3  # this value is the previous fixed environment
+
+        geo_fence_spawn_step = random.randint(2, 9)
+        circular_obstacles_global = []
+        free_occupancy_dict = {(poly.centroid.x, poly.centroid.y): 0 for poly in
+                               env.world_map_2D_polyList_collection[random_map_idx][0][1]}
+
+
+        cur_state, norm_cur_state = env.reset_world(total_agentNum, random_map_idx, use_reached, args, show=0)  # random map choose here
 
         eps_reset_time_used = (time.time()-eps_reset_start_time)*1000
         # print("current episode {} reset time used is {} milliseconds".format(episode, eps_reset_time_used))  # need to + 1 here, or else will misrecord as the previous episode
@@ -276,7 +290,7 @@ def main(args):
 
         lstm_hist = None
         gru_hist = None
-
+        gf_to_create = 5
         while True:  # start of a step
             if args.mode == "train":
                 step_start_time = time.time()
@@ -683,6 +697,25 @@ def main(args):
                 noise_flag = False
                 # populate gru history
                 gru_history.append(np.array(norm_cur_state[0]))
+                #
+                if step == geo_fence_spawn_step:
+                    while len(circular_obstacles_global) < gf_to_create:
+                        valid_centre = spawn_obstacle(env.all_agents[0].pos, env.all_agents[0].goal[-1],
+                                                      free_occupancy_dict,
+                                                      spawn_distance=10, radius=5,
+                                                      candidate_points=None, obstacles_list=circular_obstacles_global)
+                        if valid_centre == None:
+                            # valid_centre = spawn_obstacle(env.all_agents[0].pos, env.all_agents[0].goal[-1],
+                            #                               free_occupancy_dict,
+                            #                               spawn_distance=15, radius=5,
+                            #                               candidate_points=None,
+                            #                               obstacles_list=circular_obstacles_global)
+                            break
+                        # designated_center = (valid_centre[0], valid_centre[1])
+                        # random_polygon = generate_random_polygon(designated_center, num_points=10, max_dim=10)
+                        circle_centre = Point(valid_centre[0], valid_centre[1])
+                        geo_fence = circle_centre.buffer(5)
+                        env.geo_fence_area.append(geo_fence)
 
                 # action, step_noise_val = model.choose_action(norm_cur_state, total_step, episode, step, eps_end, noise_start_level, gru_history, noisy=False) # noisy is false because we are using stochastic policy
                 # if use_LSTM_flag:
@@ -980,6 +1013,8 @@ def main(args):
 
                     if True in episode_goal_found:
                         # Count the number of reach cases
+                        if len(circular_obstacles_global) == gf_to_create:
+                            print("here")
                         num_true = sum(episode_goal_found)
                         # Determine the number of True values and print the appropriate response
                         if num_true == 1:
@@ -1024,6 +1059,8 @@ def main(args):
     else:
         # with open('GRU_7G_110524_16_13_03.pickle', 'wb') as handle:
         #     pickle.dump(episode_situation_holder, handle, protocol=pickle.HIGHEST_PROTOCOL)
+        # with open('0G_270524_19_23_59_random_5.pickle', 'wb') as handle:
+        #     pickle.dump(episode_situation_holder, handle, protocol=pickle.HIGHEST_PROTOCOL)
         print("total collision count is {}".format(collision_count))
         print("Collision due to bound is {}".format(crash_to_bound))
         print("Collision due to building is {}".format(crash_to_building))
@@ -1031,10 +1068,21 @@ def main(args):
         print("One goal reached count is {}".format(one_drone_reach))
         print("Two goal reached count is {}".format(two_drone_reach))
         print("All goal reached count is {}".format(all_drone_reach))
+        # generate_traj_GF(env, episode_situation_holder, random_map_idx, geo_fence_spawn_step)
         # generate_traj(env, episode_situation_holder, random_map_idx)
         # traj_info = [env.all_agents, env.geo_fence_area]
         # with open('GRU_7G_110524_16_13_03.pickle', 'wb') as handle:
         #     pickle.dump(traj_info, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+        # with open('FMGRU_exact_10G_270524_09_00_23_plot_with_time_no_spawn_refline.pickle', 'wb') as handle:
+        #     pickle.dump([env.world_map_2D_polyList_collection, env.buildingPolygons,
+        #                  env.geo_fence_area, env.all_agents, episode_situation_holder,
+        #                  random_map_idx, env.bound_collection, geo_fence_spawn_step], handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+        # with open('exact_10GF_270524_09_00_23_random_7_irregular.pickle', 'wb') as handle:
+        #     pickle.dump(episode_situation_holder, handle, protocol=pickle.HIGHEST_PROTOCOL)
+        # with open('exact_10GF_270524_09_00_23_fix_circle_away_from_refline.pickle', 'wb') as handle:
+        #     pickle.dump(episode_situation_holder, handle, protocol=pickle.HIGHEST_PROTOCOL)
     print(f'training finishes, time spent: {datetime.timedelta(seconds=int(time.time() - training_start_time))}')
     if args.mode == 'train':
         with open(plot_file_name + '/all_episode_reward.pickle', 'wb') as handle:

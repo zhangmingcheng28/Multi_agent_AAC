@@ -58,7 +58,7 @@ class env_simulator:
         self.allbuilding_centre_collection = {}
         self.bound_collection = bound_collection
         self.global_time = 0.0  # in sec
-        self.time_step = 0.5  # in second as well
+        self.time_step = 1  # in second as well
         self.all_agents = None
         self.cur_allAgentCoor_KD = None
         self.OU_noise = None
@@ -212,7 +212,7 @@ class env_simulator:
 
     def reset_world(self, total_agentNum, random_map_idx, use_reached, args, show):  # set initialize position and observation for all agents
         self.global_time = 0.0
-        # self.time_step = 0.1
+        # self.time_step = 1
         self.time_step = 0.5
         # reset OU_noise as well
         self.OU_noise.reset()
@@ -276,7 +276,24 @@ class env_simulator:
                     if all(np.linalg.norm(np.array(random_start_pos)-point) > self.all_agents[agentIdx].protectiveBound*2 for point in start_pos_memory):
                         break
 
-            random_end_pos = random.choice(self.target_pool_collection[random_map_idx][random_target_index])
+            # ---------------- Filter valid end positions ----------------
+            # valid_end_candidates = []
+            # # Iterate over each available target index (excluding the start index)
+            # for idx in numbers_left:
+            #     # Each entry in the target pool is a list of candidate positions.
+            #     for candidate in self.target_pool_collection[random_map_idx][idx]:
+            #         # Compute the distance between the candidate and the chosen start position.
+            #         if np.linalg.norm(np.array(candidate) - np.array(random_start_pos)) > 100:
+            #             valid_end_candidates.append(candidate)
+            #
+            # # Choose a random valid end position if available; otherwise, set to None.
+            # if valid_end_candidates:
+            #     random_end_pos = random.choice(valid_end_candidates)
+            # else:
+            #     print("debug, no end position leads to 100m away")
+            # random_end_pos = random.choice(valid_end_candidates) if valid_end_candidates else None
+
+            random_end_pos = random.choice(self.target_pool_collection[random_map_idx][random_target_index])  # original
             dist_between_se = np.linalg.norm(np.array(random_end_pos) - np.array(random_start_pos))
 
             # while dist_between_se >= 100:  # the distance between start & end point is more than a threshold, we reset SE pairs.
@@ -291,8 +308,11 @@ class env_simulator:
             if reached_OD_geo_fence is not None:
                 random_start_pos = load_random_OD_geo_fence[0:2]
                 random_end_pos = load_random_OD_geo_fence[2:4]
-
-            # with open(r'F:\githubClone\Multi_agent_AAC\single_drone_DDPG_changemap_GRU_LSTM_seqLength\GRUFM_3G_randomMap_No1_random_D.pickle', 'rb') as handle:
+            # random_start_pos = (550, 310)
+            # random_end_pos = (540, 350)
+            # with open(
+            #         r'F:\githubClone\Multi_agent_AAC\single_drone_DDPG_changemap_GRU_LSTM_seqLength\FMGRU_3G_200524_19_52_11_randomMap_figure_b.pickle',
+            #         'rb') as handle:
             #     stored_for_trajPlot = pickle.load(handle)
             # random_start_pos = tuple(stored_for_trajPlot[0][0].ini_pos)
             # random_end_pos = tuple(stored_for_trajPlot[0][0].goal[-1])
@@ -429,27 +449,28 @@ class env_simulator:
                 geo_fence = circle_centre.buffer(5)
                 self.geo_fence_area.append(geo_fence)
         else:
-            geo_fence_num = 10
+            # geo_fence_num = 10
+            geo_fence_num = 0
             distance_from_start = 7.5  # Distances from the start and end points of the LineString
             distance_from_end = 7.5  # we ensure the geo-fence will not cover the start and end point.
-            if (self.all_agents[0].ref_line.length > (distance_from_start + distance_from_end)) and len(
-                    filtered_centroids) > 0:
+            # if (self.all_agents[0].ref_line.length > (distance_from_start + distance_from_end)) and len(filtered_centroids) > 0:
+            if len(filtered_centroids) > 0:
                 gf_to_create = min(geo_fence_num, len(filtered_centroids))
                 sampled_points = random.sample(filtered_centroids, gf_to_create)
 
-                # if args.mode == "eval":
-                #     while len(sampled_points) < geo_fence_num:
-                #         # Randomly select a point
-                #         base_point = random.choice(sampled_points)
-                #         # Generate random angle and radius
-                #         angle = random.uniform(0, 2 * math.pi)
-                #         radius = random.uniform(0, 2.5)
-                #         # Convert polar coordinates to Cartesian coordinates
-                #         delta_x = radius * math.cos(angle)
-                #         delta_y = radius * math.sin(angle)
-                #         # Create new point by adding the offset
-                #         new_point = Point(base_point.x + delta_x, base_point.y + delta_y)
-                #         sampled_points.append(new_point)
+                if args.mode == "eval":   # this portion of code is to ensure we have exactly same number of geo-fences appear as we set
+                    while len(sampled_points) < geo_fence_num:
+                        # Randomly select a point
+                        base_point = random.choice(sampled_points)
+                        # Generate random angle and radius
+                        angle = random.uniform(0, 2 * math.pi)
+                        radius = random.uniform(0, 2.5)
+                        # Convert polar coordinates to Cartesian coordinates
+                        delta_x = radius * math.cos(angle)
+                        delta_y = radius * math.sin(angle)
+                        # Create new point by adding the offset
+                        new_point = Point(base_point.x + delta_x, base_point.y + delta_y)
+                        sampled_points.append(new_point)
 
                 for point_on_line in sampled_points:
                     # Fixed distance within which the point should be generated
@@ -460,11 +481,16 @@ class env_simulator:
                     # Calculate the random point's coordinates
                     random_point_x = point_on_line.x + random_distance_from_point * math.cos(random_bearing)
                     random_point_y = point_on_line.y + random_distance_from_point * math.sin(random_bearing)
-                    circle_centre = Point(random_point_x, random_point_y)
-                    geo_fence = circle_centre.buffer(5)
-                    self.geo_fence_area.append(geo_fence)
+                    designated_center = (random_point_x, random_point_y
+                                         )
+                    random_polygon = generate_random_polygon(designated_center, num_points=10, max_dim=10)
 
-        # self.geo_fence_area = stored_for_trajPlot[1]
+                    # circle_centre = Point(random_point_x, random_point_y) # original, before thesis revision
+                    # geo_fence = circle_centre.buffer(5) # original, before thesis revision
+                    self.geo_fence_area.append(random_polygon)
+
+        # self.geo_fence_area = [Point(550, 327).buffer(5)]
+        # self.geo_fence_area = []
 
         if args.mode == "eval":
             # create deviation circle by ref_path
@@ -476,10 +502,11 @@ class env_simulator:
                 small_circles_to_add, small_circle_coord = create_corrected_small_circles_outside(gf_circle.centroid, gf_circle.exterior, self.all_agents[0].protectiveBound, self.geo_fence_area, self.allbuildingSTR_wBound_collection[random_map_idx])
                 circle_by_geo_fences.extend(small_circles_to_add)
                 circle_by_geo_fences_coordinates.extend(small_circle_coord)
-            # self.deviation_circles = circle_by_refPath + circle_by_geo_fences
-            self.deviation_circles = circle_by_geo_fences
-            # self.deviation_circles_centre_KD = KDTree(np.array(circle_by_refPath_coordinates+circle_by_geo_fences_coordinates))
-            self.deviation_circles_centre_KD = KDTree(np.array(circle_by_geo_fences_coordinates))
+            if len(circle_by_geo_fences) > 0:
+                # self.deviation_circles = circle_by_refPath + circle_by_geo_fences
+                self.deviation_circles = circle_by_geo_fences
+                # self.deviation_circles_centre_KD = KDTree(np.array(circle_by_refPath_coordinates+circle_by_geo_fences_coordinates))
+                self.deviation_circles_centre_KD = KDTree(np.array(circle_by_geo_fences_coordinates))
 
 
         # for _ in range(1):  # we create 1 centre points for generate temporary geo-fence
@@ -519,8 +546,8 @@ class env_simulator:
             for agentIdx, agent in self.all_agents.items():
                 plt.plot(agent.pos[0], agent.pos[1], marker=MarkerStyle(">", fillstyle="right",
                                                                         transform=Affine2D().rotate_deg(
-                                                                            math.degrees(agent.heading))), color='y')
-                plt.text(agent.pos[0], agent.pos[1], agent.agent_name)
+                                                                            math.degrees(agent.heading))), color='k', zorder=10, markersize=15)
+                # plt.text(agent.pos[0], agent.pos[1], agent.agent_name)
                 # plot self_circle of the drone
                 self_circle = Point(agent.pos[0], agent.pos[1]).buffer(agent.protectiveBound, cap_style='round')
                 grid_mat_Scir = shapelypoly_to_matpoly(self_circle, False, 'k')
@@ -528,26 +555,39 @@ class env_simulator:
 
                 # plot drone's detection range
                 detec_circle = Point(agent.pos[0], agent.pos[1]).buffer(agent.detectionRange / 2, cap_style='round')
-                detec_circle_mat = shapelypoly_to_matpoly(detec_circle, False, 'r')
-                # ax.add_patch(detec_circle_mat)
+                xcoo, ycoo = detec_circle.exterior.coords.xy
+                detec_circle_mat = matPolygon(xy=list(zip(xcoo, ycoo)), fill=False, edgecolor='k', linestyle='--')
+                ax.add_patch(detec_circle_mat)
 
                 # link individual drone's starting position with its goal
                 ini = agent.ini_pos
                 for wp in agent.goal:
-                    plt.plot(wp[0], wp[1], marker='*', color='y', markersize=10)
-                    plt.plot([wp[0], ini[0]], [wp[1], ini[1]], '--', color='c')
-                    ini = wp
-                for wp in goalPt_withini:
                     # plt.plot(wp[0], wp[1], marker='*', color='y', markersize=10)
-                    # plt.text([wp[0], ini[0]], [wp[1], ini[1]], str((wp[0],wp[1])))
-                    plt.text(wp[0], wp[1]+1, str((wp[0], wp[1])))
-                plt.plot(agent.goal[-1][0], agent.goal[-1][1], marker='*', color='y', markersize=10)
-                plt.text(agent.goal[-1][0], agent.goal[-1][1], agent.agent_name)
+                    plt.plot([wp[0], ini[0]], [wp[1], ini[1]], color='#FFC000', linewidth=3)
+                    ini = wp
+                # for wp in goalPt_withini:
+                #     # plt.plot(wp[0], wp[1], marker='*', color='y', markersize=10)
+                #     # plt.text([wp[0], ini[0]], [wp[1], ini[1]], str((wp[0],wp[1])))
+                #     plt.text(wp[0], wp[1]+1, str((wp[0], wp[1])))
+                plt.plot(agent.goal[-1][0], agent.goal[-1][1], marker='*', color='red', markersize=15)
+                # plt.text(agent.goal[-1][0], agent.goal[-1][1], agent.agent_name)
+
+                # show probe
+                cur_pos = tuple(agent.pos)
+                collection_points = []
+                for list_ele in agent.observableSpace:
+                    collection_points.append((list_ele[2].x, list_ele[2].y))
+                # all_points = [cur_pos] + collection_points
+
+                for point in collection_points:
+                    x_coords = [cur_pos[0], point[0]]
+                    y_coords = [cur_pos[1], point[1]]
+                    plt.plot(x_coords, y_coords, marker='o', color='cyan', linewidth=1, alpha=0.5)
 
             # draw occupied_poly
             for one_poly in self.world_map_2D_polyList_collection[random_map_idx][0][0]:
-                one_poly_mat = shapelypoly_to_matpoly(one_poly, True, 'y', 'b')
-                # ax.add_patch(one_poly_mat)
+                one_poly_mat = shapelypoly_to_matpoly(one_poly, True, 'y', 'grey')
+                ax.add_patch(one_poly_mat)
             # draw non-occupied_poly
             for zero_poly in self.world_map_2D_polyList_collection[random_map_idx][0][1]:
                 zero_poly_mat = shapelypoly_to_matpoly(zero_poly, False, 'y')
@@ -556,7 +596,7 @@ class env_simulator:
             # show building obstacles
             for poly in self.buildingPolygons:
                 matp_poly = shapelypoly_to_matpoly(poly, False, 'red')  # the 3rd parameter is the edge color
-                # ax.add_patch(matp_poly)
+                ax.add_patch(matp_poly)
 
             # show geo-fence
             for fence in self.geo_fence_area:
@@ -566,59 +606,7 @@ class env_simulator:
             # show deviation_circle
             for cirs in self.deviation_circles:
                 cirs_plot = shapelypoly_to_matpoly(cirs, False, 'c')
-                ax.add_patch(cirs_plot)
-
-            # show the nearest building obstacles
-            # nearest_buildingPoly_mat = shapelypoly_to_matpoly(nearest_buildingPoly, True, 'g', 'k')
-            # ax.add_patch(nearest_buildingPoly_mat)
-
-            # # for demo purposes
-            # for poly in polygons_list:
-            #     if poly.geom_type == "Polygon":
-            #         matp_poly = shapelypoly_to_matpoly(poly, False, 'red')  # the 3rd parameter is the edge color
-            #         ax.add_patch(matp_poly)
-            #     else:
-            #         x, y = poly.xy
-            #         ax.plot(x, y, color='green', linewidth=2, solid_capstyle='round', zorder=3)
-            # # Plot each start point
-            # for point_deg, point_pos in st_points.items():
-            #     ax.plot(point_pos.x, point_pos.y, 'o', color='blue')
-            #
-            # # Plot each end point
-            # for point_deg, point_pos in ed_points.items():
-            #     ax.plot(point_pos.x, point_pos.y, 'o', color='green')
-            #
-            # # Plot the lines of the LineString
-            # for lines in line_collection:
-            #     x, y = lines.xy
-            #     ax.plot(x, y, color='blue', linewidth=2, solid_capstyle='round', zorder=2)
-            #
-            # # point_counter = 0
-            # # # Plot each intersection point
-            # # for point in intersection_point_list:
-            # #     for ea_pt in point.geoms:
-            # #         point_counter = point_counter + 1
-            # #         ax.plot(ea_pt.x, ea_pt.y, 'o', color='red')
-            #
-            # # plot minimum intersection point
-            # # for pt_dist, pt_pos in mini_intersection_list.items():
-            # for pt_pos in mini_intersection_list:
-            #     if pt_pos.type == 'MultiPoint':
-            #         for ea_pt in pt_pos.geoms:
-            #             ax.plot(ea_pt.x, ea_pt.y, 'o', color='yellow')
-            #     else:
-            #         ax.plot(pt_pos.x, pt_pos.y, 'o', color='red')
-
-
-
-            # for ele in self.spawn_area1_polymat:
-            #     ax.add_patch(ele)
-            # for ele2 in self.spawn_area2_polymat:
-            #     ax.add_patch(ele2)
-            # for ele3 in self.spawn_area3_polymat:
-            #     ax.add_patch(ele3)
-            # for ele4 in self.spawn_area4_polymat:
-            #     ax.add_patch(ele4)
+                # ax.add_patch(cirs_plot)
 
             # plt.axvline(x=self.bound[0], c="green")
             # plt.axvline(x=self.bound[1], c="green")
@@ -2682,6 +2670,10 @@ class env_simulator:
 
             nearest_pt = nearest_points(drone_obj.ref_line, curPoint)[0]
             # nearest_pt = drone_obj.ref_line.interpolate(drone_obj.ref_line.project(curPoint))
+
+            # cross_err_distance, x_error, y_error = self.cross_track_error_point(curPoint, nearest_pt)
+
+            # the cross_err_distance does not affects training or evaluation result, as it is not inside reward function
             if args.mode == 'train':
                 cross_err_distance, x_error, y_error = self.cross_track_error_point(curPoint, nearest_pt)
             else:
@@ -2701,6 +2693,7 @@ class env_simulator:
                         point_of_interest = self.all_agents[drone_idx].pos
                         # Query the KDTree for the nearest point
                         cross_err_distance, _ = self.deviation_circles_centre_KD.query(point_of_interest)
+                        # cross_err_distance_record, _ = self.deviation_circles_centre_KD.query(point_of_interest)
                     else:
                         cross_err_distance, x_error, y_error = self.cross_track_error_point(curPoint, nearest_pt)
 
@@ -2799,8 +2792,8 @@ class env_simulator:
             # coef_ref_line = 0
             # coef_ref_line = 1
 
-            norm_cross_track_deviation_x = x_error * self.normalizer.x_scale
-            norm_cross_track_deviation_y = y_error * self.normalizer.y_scale
+            # norm_cross_track_deviation_x = x_error * self.normalizer.x_scale
+            # norm_cross_track_deviation_y = y_error * self.normalizer.y_scale
             # dist_to_ref_line = coef_ref_line*math.sqrt(norm_cross_track_deviation_x ** 2 +
             #                                            norm_cross_track_deviation_y ** 2)
 

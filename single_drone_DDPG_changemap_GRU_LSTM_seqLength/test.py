@@ -290,31 +290,69 @@
 # plt.legend()
 # plt.show()
 
-import numpy as np
-from scipy.ndimage import distance_transform_edt
+# import numpy as np
+# from scipy.ndimage import distance_transform_edt
+#
+#
+# def min_corridor_width(grid):
+#     # Invert the grid: obstacles are 0, free space is 1.
+#     inverted_grid = 1 - grid
+#
+#     # Perform distance transform.
+#     distances = distance_transform_edt(inverted_grid)
+#
+#     # The corridor width is twice the minimum distance to an obstacle,
+#     # minus one to account for the center cell itself.
+#     # We're looking for the minimum corridor width, so we find the minimum distance.
+#     corridor_width = 2 * np.min(distances[grid == 0]) - 1
+#
+#     return corridor_width
+#
+#
+# # Example usage:
+# grid = np.array([
+#     [0, 0, 1, 0, 0],
+#     [0, 0, 1, 0, 0],
+#     [1, 1, 1, 1, 0],
+#     [0, 0, 0, 0, 0]
+# ])
+#
+# print(min_corridor_width(grid))
 
+import matplotlib.pyplot as plt
+from matplotlib.lines import Line2D
+from matplotlib.markers import MarkerStyle
+import os
+import matplotlib
 
-def min_corridor_width(grid):
-    # Invert the grid: obstacles are 0, free space is 1.
-    inverted_grid = 1 - grid
+os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
+matplotlib.use('TkAgg')
 
-    # Perform distance transform.
-    distances = distance_transform_edt(inverted_grid)
+# Create a figure and axis
+fig, ax = plt.subplots()
 
-    # The corridor width is twice the minimum distance to an obstacle,
-    # minus one to account for the center cell itself.
-    # We're looking for the minimum corridor width, so we find the minimum distance.
-    corridor_width = 2 * np.min(distances[grid == 0]) - 1
+# Custom legend elements
+# Create a custom half-filled green triangle for the legend
+# half_filled_marker = [
+#     Line2D([0], [0], marker=MarkerStyle(">", fillstyle="right"), color='w', markerfacecolor='g', markersize=15, markeredgewidth=0),
+#     Line2D([0], [0], marker=MarkerStyle(">", fillstyle="left"), color='w', markerfacecolor='w', markersize=15, markeredgewidth=0)
+# ]
 
-    return corridor_width
+# # Add the custom half-filled marker to the legend
+# ax.plot([], [], label='Origin', marker=MarkerStyle(">", fillstyle="right"), color='g', markersize=15)
+# ax.plot([], [], marker=MarkerStyle(">", fillstyle="left"), color='w', markersize=15, markeredgewidth=0)
 
+legend_elements = [
+    Line2D([0], [0], linestyle='None', marker=MarkerStyle(">", fillstyle="right"), color='g', label='Origin', markerfacecolor='g', markersize=15),
+    Line2D([0], [0], marker='*', color='w', label='Destination', markerfacecolor='r', markersize=15, linestyle='None'),
+    Line2D([0], [0], color='cyan', lw=2, linestyle='dotted', label='Reference Line')
+]
 
-# Example usage:
-grid = np.array([
-    [0, 0, 1, 0, 0],
-    [0, 0, 1, 0, 0],
-    [1, 1, 1, 1, 0],
-    [0, 0, 0, 0, 0]
-])
+# Add legend
+ax.legend(handles=legend_elements, loc='upper left')
 
-print(min_corridor_width(grid))
+# Remove axis
+ax.axis('off')
+
+# Show the plot
+plt.show()

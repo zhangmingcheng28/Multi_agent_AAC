@@ -6,8 +6,11 @@
 @Description: 
 @Package dependency:
 """
+from shapely.geometry import MultiPoint
 from matplotlib.patches import Polygon as matPolygon
 import torch as T
+import random
+from matplotlib.patches import Rectangle, Circle
 import matplotlib.patches as patches
 import numpy as np
 import torch
@@ -25,6 +28,28 @@ from openpyxl import Workbook
 from matplotlib.markers import MarkerStyle
 import math
 from matplotlib.lines import Line2D
+from matplotlib.legend_handler import HandlerPatch
+
+
+# Custom handler for the square patch
+class HandlerSquare(HandlerPatch):
+    def __init__(self, square_size_factor):
+        self.square_size_factor = square_size_factor
+        super().__init__()
+
+    def create_artists(self, legend, orig_handle, x0, y0, width, height, fontsize, trans):
+        square_size = self.square_size_factor * min(width, height)
+        square = plt.Rectangle((x0 + (width - square_size) / 2, y0 + (height - square_size) / 2), square_size, square_size, transform=trans, color='blue', alpha=0.9)
+        return [square]
+
+
+def generate_random_polygon(center, num_points=10, max_dim=10):
+    """
+    Randomly selects either the convex or nonconvex polygon generation function
+    and returns the generated polygon.
+    """
+    polygon_func = random.choice([generate_convex_polygon, generate_nonconvex_polygon])
+    return polygon_func(center, num_points, max_dim)
 
 
 def create_corrected_small_circles_outside(center, exterior_coords, small_circle_radius, geo_fence_areas, occupied_grid_lines_STRtree):
@@ -78,6 +103,315 @@ def create_adjusted_circles_along_line(line, radius, interval, geo_fence_areas):
 
 def grayscale_to_rgba(value):
     return (value, value, value, 1)
+
+
+def generate_convex_polygon(center, num_points=10, max_dim=10):
+    """
+    Generates a convex polygon around a designated center coordinate.
+
+    Parameters:
+        center (tuple): The designated center coordinate (x, y).
+        num_points (int): Total number of points to generate (including the center).
+        max_dim (float): Maximum dimension (side length) of the bounding square. Default is 10.
+
+    Returns:
+        shapely.geometry.Polygon: A convex polygon generated from the random points.
+    """
+    half_dim = max_dim / 2.0
+    # Always include the center to ensure it is inside the polygon.
+    points = [center]
+    # Generate the remaining points uniformly inside the square centered at 'center'
+    points.extend([
+        (
+            random.uniform(center[0] - half_dim, center[0] + half_dim),
+            random.uniform(center[1] - half_dim, center[1] + half_dim)
+        )
+        for _ in range(num_points - 1)
+    ])
+    # Compute the convex hull of the points.
+    convex_polygon = MultiPoint(points).convex_hull
+    return convex_polygon
+
+
+def generate_nonconvex_polygon(center, num_points=10, max_dim=10):
+    """
+    Generates a non-convex polygon around a designated center coordinate.
+
+    This function starts by generating a convex polygon around the center, then
+    perturbs its vertices to create indentations, resulting in a non-convex shape.
+
+    Parameters:
+        center (tuple): The designated center coordinate (x, y).
+        num_points (int): Total number of points to generate for the initial convex polygon.
+        max_dim (float): Maximum dimension (side length) of the bounding square. Default is 10.
+
+    Returns:
+        shapely.geometry.Polygon: A non-convex polygon.
+    """
+    # Generate a convex polygon around the center.
+    convex_poly = generate_convex_polygon(center, num_points, max_dim)
+    coords = list(convex_poly.exterior.coords)[:-1]  # Exclude the repeated last coordinate
+    centroid = convex_poly.centroid
+
+    new_coords = []
+    for (x, y) in coords:
+        # Compute the vector from the polygon's centroid to the vertex.
+        vec = np.array([x - centroid.x, y - centroid.y])
+        # Perturb the vertex inward or outward to create a concave effect.
+        factor = random.uniform(0.5, 1.0)
+        new_point = (centroid.x + vec[0] * factor, centroid.y + vec[1] * factor)
+        new_coords.append(new_point)
+
+    nonconvex_poly = Polygon(new_coords)
+    # If the result is still convex, force a concave indentation.
+    if nonconvex_poly.convex_hull.equals(nonconvex_poly):
+        mid_x = (new_coords[0][0] + new_coords[1][0]) / 2
+        mid_y = (new_coords[0][1] + new_coords[1][1]) / 2
+        new_coords.insert(1, (mid_x, mid_y))
+        nonconvex_poly = Polygon(new_coords)
+
+    return nonconvex_poly
+
+
+def spawn_obstacle(host_position, goal_position, occupancy_dict, spawn_distance=10, radius=5, candidate_points=None,
+                   obstacles_list=None):
+    """
+    Finds a valid obstacle center that satisfies the following conditions:
+      1. At least 'spawn_distance' away from the host UAV.
+      2. The full circular area (radius) around the candidate is free.
+      3. The candidate center is in front of the host UAV (toward goal_position).
+
+    If found, updates the occupancy_dict by marking grid cells within the circle as occupied and
+    optionally tracks the obstacle in obstacles_list.
+
+    Parameters:
+        host_position (tuple): (x, y) position of the host UAV.
+        goal_position (tuple): (x, y) position of the host UAV's goal.
+        occupancy_dict (dict): Occupancy grid with keys as (x, y, z) and values 0 (free) or 1 (occupied).
+        spawn_distance (float): Minimum distance from the host UAV (default: 10 m).
+        radius (float): Radius of the obstacle (default: 5 m).
+        candidate_points (list, optional): Pre-computed list of candidate (x, y) points.
+        obstacles_list (list, optional): List to track spawned obstacles.
+
+    Returns:
+        tuple or None: The valid obstacle center (x, y) if found and spawned; otherwise, None.
+    """
+    # Find a valid candidate center.
+    valid_center = generate_valid_obstacle_center(host_position, goal_position, occupancy_dict, spawn_distance, radius,
+                                                  candidate_points)
+    if valid_center is None:
+        print("No valid obstacle center found.")
+        return None
+
+    # Update the occupancy_dict: mark grid cells within the circle as occupied.
+    for key in list(occupancy_dict.keys()):
+        cell_x, cell_y = key
+        if (cell_x - valid_center[0]) ** 2 + (cell_y - valid_center[1]) ** 2 <= radius ** 2:
+            occupancy_dict[key] = 1
+
+    # Optionally track the obstacle.
+    if obstacles_list is not None:
+        obstacles_list.append({'center': valid_center, 'radius': radius})
+
+    print(f"Obstacle spawned at {valid_center} with radius {radius} m.")
+    return valid_center
+
+
+def generate_valid_obstacle_center(host_position, goal_position, occupancy_dict, spawn_distance=10, radius=5,
+                                   candidate_points=None):
+    """
+    Searches for a valid obstacle center that satisfies:
+
+    1. The center is at least 'spawn_distance' meters away from the host UAV.
+    2. The full circular area (with given 'radius') around the center is free (all grid cells unoccupied).
+    3. The candidate center is in front of the host UAV (in the direction of goal_position).
+
+    Parameters:
+        host_position (tuple): (x, y) position of the host UAV.
+        goal_position (tuple): (x, y) position of the host UAV's goal.
+        occupancy_dict (dict): Dictionary with keys as (x, y, z) and values 0 (free) or 1 (occupied).
+        spawn_distance (float): Minimum required distance from host UAV (default: 10 m).
+        radius (float): Radius of the circular area to check (default: 5 m).
+        candidate_points (list, optional): A list of candidate (x, y) points. If None, this list is generated
+                                           from occupancy_dict keys that are free.
+
+    Returns:
+        tuple or None: A valid (x, y) center if found; otherwise, None.
+    """
+    # Generate candidate points from occupancy_dict keys if not provided.
+    if candidate_points is None:
+        candidate_points = [(x, y) for (x, y) in occupancy_dict.keys() if occupancy_dict[(x, y)] == 0]
+
+    # Filter candidates that are at least spawn_distance away from the host UAV.
+    # valid_candidates = [
+    #     pt for pt in candidate_points
+    #     if math.hypot(pt[0] - host_position[0], pt[1] - host_position[1]) > spawn_distance
+    # ]
+
+    valid_candidates = [
+        pt for pt in candidate_points
+        if spawn_distance <= math.hypot(pt[0] - host_position[0], pt[1] - host_position[1]) <= spawn_distance+30
+    ]
+
+    # Shuffle to randomize the order.
+    random.shuffle(valid_candidates)
+
+    # Compute the vector from host to goal.
+    dx = goal_position[0] - host_position[0]
+    dy = goal_position[1] - host_position[1]
+    norm_sq = dx**2 + dy**2
+
+    for candidate in valid_candidates:
+        # Create the vector from host to candidate.
+        cx = candidate[0] - host_position[0]
+        cy = candidate[1] - host_position[1]
+        # Compute projection parameter t (0 means host, 1 means goal)
+        t = (cx * dx + cy * dy) / norm_sq if norm_sq != 0 else 0
+        # Candidate must be between the host and goal.
+        if t < 0 or t > 1:
+            continue
+
+        # Calculate the projection point on the host-goal line.
+        proj_x = host_position[0] + t * dx
+        proj_y = host_position[1] + t * dy
+
+        # Calculate the perpendicular deviation.
+        deviation = math.hypot(candidate[0] - proj_x, candidate[1] - proj_y)
+        if deviation > 10:
+            continue
+
+        # Condition 2: Check that the full circular area around the candidate is free.
+        full_circle_free = True
+        for key, occ in occupancy_dict.items():
+            cell_x, cell_y  = key  # Only x and y are needed.
+            if (cell_x - candidate[0]) ** 2 + (cell_y - candidate[1]) ** 2 <= radius ** 2:
+                if occ != 0:
+                    full_circle_free = False
+                    break
+        if full_circle_free:
+            return candidate
+
+    return None  # No valid candidate found.
+
+def generate_traj_GF(env, episode_situation_holder, random_map_idx, geo_fence_spawn_step):
+    os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
+    matplotlib.use('TkAgg')
+    fig, ax = plt.subplots(1, 1)
+    font_size = 15
+    # Define color thresholds
+    light_gray = 0.8  # Lightest gray (not white)
+    dark_gray = 0.2  # Darkest gray (almost black)
+
+    # plt.axvline(x=env.bound_collection[random_map_idx][0], c="green")
+    # plt.axvline(x=env.bound_collection[random_map_idx][1], c="green")
+    # plt.axhline(y=env.bound_collection[random_map_idx][2], c="green")
+    # plt.axhline(y=env.bound_collection[random_map_idx][3], c="green")
+
+
+    # draw occupied_poly
+    for one_poly in env.world_map_2D_polyList_collection[random_map_idx][0][0]:
+        one_poly_mat = shapelypoly_to_matpoly(one_poly, True, 'y', 'b')
+        ax.add_patch(one_poly_mat)
+    # draw non-occupied_poly
+    for zero_poly in env.world_map_2D_polyList_collection[random_map_idx][0][1]:
+        zero_poly_mat = shapelypoly_to_matpoly(zero_poly, False, 'y')
+        # ax.add_patch(zero_poly_mat)
+
+    # show building obstacles
+    for poly in env.buildingPolygons:
+        matp_poly = shapelypoly_to_matpoly(poly, False, 'red')  # the 3rd parameter is the edge color
+        ax.add_patch(matp_poly)
+
+    # show geo-fence
+    for geo_fence in env.geo_fence_area:
+        fence_poly = shapelypoly_to_matpoly(geo_fence, False, 'red')  # the 3rd parameter is the edge color
+        gf_x = geo_fence.centroid.x
+        gf_y = geo_fence.centroid.y
+        plt.text(gf_x, gf_y, f'{geo_fence_spawn_step} s')
+        ax.add_patch(fence_poly)
+
+    for agentIdx, agent in env.all_agents.items():
+        dx = agent.goal[0][0] - agent.ini_pos[0]
+        dy = agent.goal[0][1] - agent.ini_pos[1]
+        angle = math.atan2(dy, dx)
+        heading = math.degrees(angle)
+
+        plt.plot(agent.ini_pos[0], agent.ini_pos[1],
+                 marker=MarkerStyle(">",
+                                    fillstyle="right",
+                                    transform=Affine2D().rotate_deg(heading)),
+                 color='g', markersize=10, label='Origin')
+        # plt.text(agent.ini_pos[0], agent.ini_pos[1], 'Origin')
+        plt.plot(agent.goal[-1][0], agent.goal[-1][1], marker='*', color='r', markersize=10, label='Destination')
+        # plt.text(agent.goal[-1][0], agent.goal[-1][1], 'Destination')
+
+
+        # link individual drone's starting position with its goal
+        ini = agent.ini_pos
+        # for wp in agent.goal:
+        ic = 0
+        for wp in agent.ref_line.coords:
+            # plt.plot(wp[0], wp[1], marker='*', color='y', markersize=10)
+            if ic == 0:
+                plt.plot([wp[0], ini[0]], [wp[1], ini[1]], '--', color='c', label='Reference Line')
+            else:
+                plt.plot([wp[0], ini[0]], [wp[1], ini[1]], '--', color='c')
+            ic = ic + 1
+            ini = wp
+        trajectory = []
+        which_to_see = -1
+        for eps_time_step, ea_eps in enumerate(episode_situation_holder[which_to_see]):
+            t = eps_time_step
+            radius = 2.5
+            gray_value = light_gray - t * (light_gray - dark_gray) / (len(episode_situation_holder[which_to_see]) - 1)
+            color_value = grayscale_to_rgba(gray_value)
+            x = ea_eps[0][0]
+            y = ea_eps[0][1]
+            trajectory.append([x, y])
+            # ax.plot(x, y, 'o', color=plt.cm.gray(color_value), markersize=10)
+            # circle = patches.Circle((x, y), 2.5, color=color_value, ec='black')
+            circle = patches.Circle((x, y), radius, facecolor=color_value, edgecolor='white')
+            ax.add_patch(circle)
+            if eps_time_step == geo_fence_spawn_step:
+                ax.text(x, y + 0.3, f't={eps_time_step}', fontsize=9, ha='center', va='center', color='black')
+
+            # Plot large circle with dotted outline
+            # outline_circle = patches.Circle((x, y), 7.5, facecolor='none', edgecolor=color_value, linestyle='dotted')
+            # ax.add_patch(outline_circle)
+        # Draw lines between the points
+        trajectory = np.array(trajectory)
+        ax.plot(trajectory[:, 0], trajectory[:, 1], color='black', linestyle='-', linewidth=1)
+
+    # Adding titles and labels
+    ax.set_title('Drone Trajectory with 3 geo-fences',fontsize=font_size)
+    ax.set_xlabel('N-S direction (m)',fontsize=font_size)
+    # ax.set_ylabel('E-W direction (m)',fontsize=font_size, labelpad=-8)  # use for random figure a
+    ax.set_ylabel('E-W direction (m)',fontsize=font_size)
+    # Customize tick size
+    ax.tick_params(axis='both', which='major', labelsize=font_size)
+    # Custom legend
+    legend_elements = [
+        Line2D([0], [0], linestyle='None', marker=MarkerStyle(">", fillstyle="right"), color='g', label='Origin', markerfacecolor='g', markersize=10),
+        Line2D([0], [0], marker='*', color='w', label='Destination', markerfacecolor='r', markersize=15, linestyle='None'),
+        Line2D([0], [0], color='cyan', lw=2, linestyle='dotted', label='Reference Line'),
+        Line2D([0], [0], linestyle='None', marker='o', color='red', label='Geo-fence', markerfacecolor='none', markersize=10),
+        Line2D([0], [0], linestyle='None', marker='o', color='white', label='Drone', markerfacecolor='black',
+               markersize=10, alpha=0.5),
+        Rectangle((0, 0), 1, 1, color='blue', alpha=0.9, label='Building Grids')  # Blue grid square for legend
+    ]
+
+    # Add legend
+    # Variable to control the size of the square legend item
+    square_size_factor = 0.9  # Adjust this value as needed
+
+#     ax.legend(handles=legend_elements, loc='upper right', fontsize=font_size-2, borderpad=0.1, handler_map={
+#     Rectangle: HandlerSquare(square_size_factor=square_size_factor)
+# })
+
+    plt.xlim(env.bound_collection[random_map_idx][0], env.bound_collection[random_map_idx][1]-5)
+    plt.ylim(env.bound_collection[random_map_idx][2], env.bound_collection[random_map_idx][3])
+    # plt.savefig('drone_trajectory.png')
+    plt.show()
 
 
 def generate_traj(env, episode_situation_holder, random_map_idx):
@@ -142,10 +476,11 @@ def generate_traj(env, episode_situation_holder, random_map_idx):
             ic = ic + 1
             ini = wp
         trajectory = []
-        for eps_time_step, ea_eps in enumerate(episode_situation_holder[0]):
+        which_to_see = -1
+        for eps_time_step, ea_eps in enumerate(episode_situation_holder[which_to_see]):
             t = eps_time_step
             radius = 2.5
-            gray_value = light_gray - t * (light_gray - dark_gray) / (len(episode_situation_holder[0]) - 1)
+            gray_value = light_gray - t * (light_gray - dark_gray) / (len(episode_situation_holder[which_to_see]) - 1)
             color_value = grayscale_to_rgba(gray_value)
             x = ea_eps[0][0]
             y = ea_eps[0][1]
@@ -166,6 +501,7 @@ def generate_traj(env, episode_situation_holder, random_map_idx):
     # Adding titles and labels
     ax.set_title('Drone Trajectory with 3 geo-fences',fontsize=font_size)
     ax.set_xlabel('N-S direction (m)',fontsize=font_size)
+    # ax.set_ylabel('E-W direction (m)',fontsize=font_size, labelpad=-8)  # use for random figure a
     ax.set_ylabel('E-W direction (m)',fontsize=font_size)
     # Customize tick size
     ax.tick_params(axis='both', which='major', labelsize=font_size)
@@ -173,16 +509,24 @@ def generate_traj(env, episode_situation_holder, random_map_idx):
     legend_elements = [
         Line2D([0], [0], linestyle='None', marker=MarkerStyle(">", fillstyle="right"), color='g', label='Origin', markerfacecolor='g', markersize=10),
         Line2D([0], [0], marker='*', color='w', label='Destination', markerfacecolor='r', markersize=15, linestyle='None'),
-        Line2D([0], [0], color='cyan', lw=2, linestyle='dotted', label='Reference Line')
+        Line2D([0], [0], color='cyan', lw=2, linestyle='dotted', label='Reference Line'),
+        Line2D([0], [0], linestyle='None', marker='o', color='red', label='Geo-fence', markerfacecolor='none', markersize=10),
+        Line2D([0], [0], linestyle='None', marker='o', color='white', label='Drone', markerfacecolor='black',
+               markersize=10, alpha=0.5),
+        Rectangle((0, 0), 1, 1, color='blue', alpha=0.9, label='Building Grids')  # Blue grid square for legend
     ]
 
     # Add legend
-    # ax.legend(handles=legend_elements, loc='upper right', fontsize=font_size)
-    ax.legend(handles=legend_elements, loc='lower right', fontsize=font_size-2, borderpad=0.1)
+    # Variable to control the size of the square legend item
+    square_size_factor = 0.9  # Adjust this value as needed
+
+#     ax.legend(handles=legend_elements, loc='upper right', fontsize=font_size-2, borderpad=0.1, handler_map={
+#     Rectangle: HandlerSquare(square_size_factor=square_size_factor)
+# })
 
     plt.xlim(env.bound_collection[random_map_idx][0], env.bound_collection[random_map_idx][1]-5)
     plt.ylim(env.bound_collection[random_map_idx][2], env.bound_collection[random_map_idx][3])
-    plt.savefig('drone_trajectory.png')
+    # plt.savefig('drone_trajectory.png')
     plt.show()
 
 
