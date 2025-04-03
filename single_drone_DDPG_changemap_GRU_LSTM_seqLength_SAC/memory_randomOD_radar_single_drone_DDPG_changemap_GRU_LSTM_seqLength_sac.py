@@ -1,7 +1,7 @@
 from collections import namedtuple
 import random
 Experience = namedtuple('Experience',
-						('states','actions','next_states','rewards','dones','history_info','cur_hidden','next_hidden', 'lstm_hidden', 'gru_hidden'))
+						('states','actions','act_logprob','next_states','rewards','dones','history_info','cur_hidden','next_hidden', 'lstm_hidden', 'gru_hidden'))
 
 class ReplayMemory:
 	def __init__(self,capacity, history_length):
@@ -28,3 +28,9 @@ class ReplayMemory:
 	
 	def __len__(self):
 		return len(self.memory)
+
+	def clear(self):
+		"""Clears the replay memory and resets position and any auxiliary indexes."""
+		self.memory.clear()  # clear all stored experiences
+		self.position = 0  # reset the insertion position
+		self.sampling_indexes = None  # clear any sampling indexes

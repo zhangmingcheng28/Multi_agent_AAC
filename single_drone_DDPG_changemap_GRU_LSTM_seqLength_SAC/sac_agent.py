@@ -96,6 +96,18 @@ class SAC:
         self.episode_done = 0
 
 
+    def save_model(self, episode, file_path):
+        # if not os.path.exists("./trained_model_myenv/"):
+        #     os.mkdir("./trained_model_myenv/")
+        # if not os.path.exists("./trained_model/" + str(self.args.algo) + "/"):
+        #     # os.mkdir(r"F:\githubClone\MAProj_myversion\algo/trained_model/" + str(self.args.algo))
+        #     os.mkdir(r"D:\Multi_agent_AAC\old_framework_test\algo/trained_model/" + str(self.args.algo))
+        if not os.path.exists(file_path):
+            os.makedirs(file_path)
+        for i in range(self.n_agents):
+            torch.save(self.actors[i].state_dict(), file_path + '/' +'episode_'+str(episode)+'_'+'agent_'+ str(i) + 'actor_net.pth')
+
+
     def choose_action(self, OU_noise, state, cur_total_step, cur_episode, step, total_training_steps, noise_start_level, actor_hiddens, lstm_hist, gru_hist, use_LSTM_flag, stacking, feature_matching, noisy=True, use_GRU_flag=False):
         # ------------- MADDPG_test_181123_10_10_54 version noise -------------------
         obs = torch.from_numpy(np.stack(state[0])).float().to(device)

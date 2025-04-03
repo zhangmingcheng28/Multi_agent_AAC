@@ -20,6 +20,7 @@ from parameters_randomOD_radar_single_drone_DDPG_changemap_GRU_LSTM_seqLength_sa
 from maddpg_agent_randomOD_radar_single_drone_DDPG_changemap_GRU_LSTM_seqLength_sac import MADDPG
 from TD3_agent_single_drone_changemap_sac import TD3
 from sac_agent import SAC
+from ppo_agent import PPO
 from utils_randomOD_radar_single_drone_DDPG_changemap_GRU_LSTM_seqLength_sac import *
 from copy import deepcopy
 import matplotlib.pyplot as plt
@@ -186,7 +187,10 @@ def main(args):
         model = SAC(actor_dim, critic_dim, n_actions, actor_hidden_state, history_seq_length, n_agents, args,
                     criticNet_lr, actorNet_lr, GAMMA, TAU, full_observable_critic_flag, use_GRU_flag,
                     use_attention_flag, attention_only, use_LSTM_flag, stacking, feature_matching)
-
+    elif args.algo == 'ppo':
+        model = PPO(actor_dim, critic_dim, n_actions, actor_hidden_state, history_seq_length, n_agents, args,
+                    criticNet_lr, actorNet_lr, GAMMA, TAU, full_observable_critic_flag, use_GRU_flag,
+                    use_attention_flag, attention_only, use_LSTM_flag, stacking, feature_matching)
 
     episode = 0
     total_step = 0
@@ -324,7 +328,7 @@ def main(args):
                 #         norm_cur_state, total_step, episode, step, eps_end, noise_start_level, cur_actor_hiddens,
                 #         lstm_hist, gru_hist, use_LSTM_flag, noisy=noise_flag, use_GRU_flag=use_GRU_flag)  # noisy is false because we are using stochastic policy
 
-                action, step_noise_val, lstm_hist, gru_hist, cur_actor_hiddens, next_actor_hiddens = model.choose_action(env.OU_noise, norm_cur_state, total_step, episode, step, eps_end, noise_start_level, cur_actor_hiddens, lstm_hist, gru_hist, use_LSTM_flag, stacking, feature_matching, noisy=noise_flag, use_GRU_flag=use_GRU_flag)
+                action, actions_logprob, step_noise_val, lstm_hist, gru_hist, cur_actor_hiddens, next_actor_hiddens = model.choose_action(env.OU_noise, norm_cur_state, total_step, episode, step, eps_end, noise_start_level, cur_actor_hiddens, lstm_hist, gru_hist, use_LSTM_flag, stacking, feature_matching, noisy=noise_flag, use_GRU_flag=use_GRU_flag)
 
                 generate_action_time = (time.time() - step_obtain_action_time_start)*1000
                 # print("current step obtain action time used is {} milliseconds".format(generate_action_time))
@@ -459,6 +463,7 @@ def main(args):
                     # ------------------ end of store norm or non-norm state into experience replay --------------------
                     rw_tensor = torch.FloatTensor(np.array(reward_aft_action)).to(device)
                     ac_tensor = torch.FloatTensor(action).to(device)
+                    ac_logprob_tensor = torch.FloatTensor(actions_logprob).to(device)
                     done_tensor = torch.FloatTensor(done_aft_action).to(device)
                     # prepare hidden state information
                     history_tensor = torch.FloatTensor(np.array(gru_history)).to(device)
@@ -472,7 +477,7 @@ def main(args):
                     # else:  # here can be lstm_hist or gru_hist don't matter as when don't use lstm or gru, both lstm_hist and gru_hist equals to None
                     #     model.memory.push(obs, ac_tensor, next_obs, rw_tensor, done_tensor, history_tensor,
                     #                       cur_actor_hiddens, next_actor_hiddens, lstm_hist)
-                    model.memory.push(obs, ac_tensor, next_obs, rw_tensor, done_tensor, history_tensor,
+                    model.memory.push(obs, ac_tensor, ac_logprob_tensor, next_obs, rw_tensor, done_tensor, history_tensor,
                                       cur_actor_hiddens, next_actor_hiddens, lstm_hist, gru_hist)
 
                 # accum_reward = accum_reward + reward_aft_action[0]  # we just take the first agent's reward, because we are using a joint reward, so all agents obtain the same reward.
@@ -495,6 +500,13 @@ def main(args):
                 elif args.algo == 'sac':
                     _ = model.update_myown(episode, total_step, UPDATE_EVERY, single_eps_critic_cal_record, action,
                                            wandb, full_observable_critic_flag, use_GRU_flag)  # last working learning framework
+
+                elif args.algo == 'ppo':
+                    _ = model.update_myown(episode, total_step, UPDATE_EVERY, single_eps_critic_cal_record, action,
+                                           wandb, full_observable_critic_flag,
+                                           use_GRU_flag)  # last working learning framework
+
+
 
                 update_time_used = (time.time() - step_update_time_start)*1000
                 # print("current step update time used is {} milliseconds".format(update_time_used))
@@ -1104,20 +1116,20 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--scenario', default="simple_spread", type=str)
     parser.add_argument('--max_episodes', default=10000, type=int)  # run for a total of 50000 episodes
-    parser.add_argument('--algo', default="sac", type=str, help="commnet/bicnet/maddpg/TD3/sac")
+    parser.add_argument('--algo', default="ppo", type=str, help="commnet/bicnet/maddpg/TD3/sac/ppo")
     parser.add_argument('--mode', default="train", type=str, help="train/eval")
     parser.add_argument('--episode_length', default=100, type=int)  # maximum play per episode
     parser.add_argument('--memory_length', default=int(1e5), type=int)
     parser.add_argument('--seed', default=777, type=int)  # may choose to use 3407
-    parser.add_argument('--batch_size', default=256, type=int)  # original 512
-    # parser.add_argument('--batch_size', default=10, type=int)  # original 512
+    # parser.add_argument('--batch_size', default=256, type=int)  # 256 for SAC and DDPG
+    parser.add_argument('--batch_size', default=512, type=int)  # for ppo
     parser.add_argument('--render_flag', default=False, type=bool)
     parser.add_argument('--ou_theta', default=0.15, type=float)
     parser.add_argument('--ou_mu', default=0.0, type=float)
     parser.add_argument('--ou_sigma', default=0.2, type=float)
     parser.add_argument('--epsilon_decay', default=10000, type=int)
     parser.add_argument('--tensorboard', default=True, action="store_true")
-    parser.add_argument("--save_interval", default=1000, type=int)  # save model for every 5000 episodes
+    parser.add_argument("--save_interval", default=10, type=int)  # save model for every 5000  episodes
     parser.add_argument("--model_episode", default=60000, type=int)
     parser.add_argument('--gru_history_length', default=10, type=int)  # original 1000
     parser.add_argument('--log_dir', default=datetime.datetime.now().strftime('%Y%m%d_%H%M%S'))

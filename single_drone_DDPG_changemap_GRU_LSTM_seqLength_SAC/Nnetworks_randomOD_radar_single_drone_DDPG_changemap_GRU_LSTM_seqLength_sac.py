@@ -681,6 +681,61 @@ class sac_ActorNetwork_TwoPortion(nn.Module):
         return action, log_prob, z, mean, log_std
 
 
+class ppo_ActorNetwork_TwoPortion(nn.Module):
+    def __init__(self, actor_dim, n_actions):  # actor_obs consists of three parts 0 = own, 1 = own grid, 2 = surrounding drones
+        super(ppo_ActorNetwork_TwoPortion, self).__init__()
+        self.action_range = 8
+        self.log_std_min = -20
+        self.log_std_max = 2
+        self.init_w = 3e-3
+
+        # V2
+        self.own_fc = nn.Sequential(nn.Linear(actor_dim[0] + actor_dim[1], 128), nn.ReLU())
+        self.merge_feature = nn.Sequential(nn.Linear(64+64, 128), nn.ReLU())
+
+        self.mean_linear = nn.Linear(128, n_actions)
+        self.mean_linear.weight.data.uniform_(-self.init_w, self.init_w)
+        self.mean_linear.bias.data.uniform_(-self.init_w, self.init_w)
+
+        self.log_std_linear = nn.Linear(128, n_actions)
+        self.log_std_linear.weight.data.uniform_(-self.init_w, self.init_w)
+        self.log_std_linear.bias.data.uniform_(-self.init_w, self.init_w)
+
+    def forward(self, cur_state):
+        # V2
+        obs_grid = torch.cat((cur_state[0], cur_state[1]), dim=1)
+        merge_obs_grid = self.own_fc(obs_grid)
+        merge_feature = self.merge_feature(merge_obs_grid)
+        action = self.mean_linear(merge_feature)
+
+        return action
+
+    def evaluate(self, state, action_range, epsilon=1e-6):
+        '''
+        generate sampled action with state as input wrt the policy network;
+        deterministic evaluation provides better performance according to the original paper;
+        '''
+        mean, log_std = self.forward(state)
+        std = log_std.exp()  # no clip in evaluation, clip affects gradients flow
+
+        normal = Normal(0, 1)
+        z = normal.sample(mean.shape)
+        action_0 = torch.tanh(mean + std * z.to(device))  # TanhNormal distribution as actions; re-parameterization trick
+        action = action_range * action_0
+        ''' stochastic evaluation '''
+        log_prob = Normal(mean, std).log_prob(mean + std * z.to(device)) - torch.log(
+            1. - action_0.pow(2) + epsilon) - np.log(action_range)
+        ''' deterministic evaluation '''
+        # log_prob = Normal(mean, std).log_prob(mean) - torch.log(1. - torch.tanh(mean).pow(2) + epsilon) -  np.log(self.action_range)
+        '''
+         both dims of normal.log_prob and -log(1-a**2) are (N,dim_of_action); 
+         the Normal.log_prob outputs the same dim of input features instead of 1 dim probability, 
+         needs sum up across the features dim to get 1 dim prob; or else use Multivariate Normal.
+         '''
+        log_prob = log_prob.sum(dim=-1, keepdim=True)
+        return action, log_prob, z, mean, log_std
+
+
 class ActorNetwork_TwoPortionFM(nn.Module):
     def __init__(self, actor_dim, n_actions):  # actor_obs consists of three parts 0 = own, 1 = own grid, 2 = surrounding drones
         super(ActorNetwork_TwoPortionFM, self).__init__()
@@ -2562,6 +2617,25 @@ class critic_single_TwoPortion(nn.Module):
 class sac_critic_single_TwoPortion(nn.Module):
     def __init__(self, critic_obs, n_agents, n_actions, single_history, hidden_state_size):
         super(sac_critic_single_TwoPortion, self).__init__()
+        #V2.1
+        self.SA_fc = nn.Sequential(nn.Linear(critic_obs[0]+critic_obs[1], 256), nn.ReLU())
+        self.act = nn.Sequential(nn.Linear(n_actions, 64), nn.ReLU())
+        self.merge_fc_grid = nn.Sequential(nn.Linear(256+64, 512), nn.ReLU())
+        self.out_feature_q = nn.Sequential(nn.Linear(512, 256), nn.ReLU(), nn.Linear(256, 1))
+
+    def forward(self, single_state, single_action):
+        # V2.1
+        obsWgrid = torch.cat((single_state[0], single_state[1]), dim=1)
+        obsWgrid_feat = self.SA_fc(obsWgrid)
+        act_feat = self.act(single_action)
+        combine_feature = torch.cat((act_feat, obsWgrid_feat), dim=1)
+        merge_feature = self.merge_fc_grid(combine_feature)
+        q = self.out_feature_q(merge_feature)
+        return q
+
+class ppo_critic_single_TwoPortion(nn.Module):
+    def __init__(self, critic_obs, n_actions):
+        super(ppo_critic_single_TwoPortion, self).__init__()
         #V2.1
         self.SA_fc = nn.Sequential(nn.Linear(critic_obs[0]+critic_obs[1], 256), nn.ReLU())
         self.act = nn.Sequential(nn.Linear(n_actions, 64), nn.ReLU())
