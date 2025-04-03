@@ -210,6 +210,14 @@ class PPO:
         # ------------- end of MADDPG_test_181123_10_10_54 version noise -------------------
         return actions.data.cpu().numpy(), actions_logprob.data.cpu().numpy(), noise_value, lstm_hist, gru_hist, gru_history_input.squeeze(0).data.cpu(), act_hn.data.cpu()
 
+    def get_custom_linear_scaling_factor(self, episode, eps_end, start_scale=1, end_scale=0.05):
+        # Calculate the slope of the linear decrease only up to eps_end
+        if episode <= eps_end:
+            slope = (end_scale - start_scale) / (eps_end - 1)
+            current_scale = start_scale + slope * (episode - 1)
+        else:
+            current_scale = end_scale
+        return current_scale
 
     def update_myown(self, i_episode, total_step_count, UPDATE_EVERY, single_eps_critic_cal_record, action,
                      wandb=None, full_observable_critic_flag=False, use_GRU_flag=False):
@@ -217,8 +225,8 @@ class PPO:
         self.train_num = i_episode
 
         # if continuous action space; then decay action std of ouput action distribution
-        if self.policy.has_continuous_action_space and total_step_count % action_std_decay_freq == 0:
-            self.decay_action_std(action_std_decay_rate, min_action_std)
+        # if self.policy.has_continuous_action_space and total_step_count % action_std_decay_freq == 0:
+        self.decay_action_std(action_std_decay_rate, min_action_std, i_episode)
 
         if len(self.memory) <= self.batch_size:
             return None, None, single_eps_critic_cal_record
@@ -314,23 +322,24 @@ class PPO:
 
         return loss
 
-    def decay_action_std(self, action_std_decay_rate, min_action_std):
-        print("--------------------------------------------------------------------------------------------")
-
+    def decay_action_std(self, action_std_decay_rate, min_action_std, episode):
+        # print("--------------------------------------------------------------------------------------------")
         if has_continuous_action_space:
-            self.action_std = self.action_std - action_std_decay_rate
+            # self.action_std = self.action_std - action_std_decay_rate
+            self.action_std = self.get_custom_linear_scaling_factor(episode, 5000, start_scale=0.6, end_scale=0.1)
             self.action_std = round(self.action_std, 4)
             if (self.action_std <= min_action_std):
                 self.action_std = min_action_std
-                print("setting actor output action_std to min_action_std : ", self.action_std)
+                # print("current eps is : {} setting actor output action_std to min_action_std : {}".format(episode, self.action_std))
             else:
-                print("setting actor output action_std to : ", self.action_std)
+                pass
+                # print("current eps is : {} setting actor output action_std to min_action_std : {}".format(episode, self.action_std))
             self.set_action_std(self.action_std)
 
         else:
             print("WARNING : Calling PPO::decay_action_std() on discrete action space policy")
 
-        print("--------------------------------------------------------------------------------------------")
+        # print("--------------------------------------------------------------------------------------------")
 
     def set_action_std(self, new_action_std):
 
