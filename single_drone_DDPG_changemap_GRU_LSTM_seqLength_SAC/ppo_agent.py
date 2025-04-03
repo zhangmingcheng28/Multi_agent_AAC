@@ -6,8 +6,6 @@
 @Description: 
 @Package dependency:
 """
-from ray import state
-
 # from Nnetworks_MADDPGv3 import CriticNetwork_0724, ActorNetwork
 from Nnetworks_randomOD_radar_single_drone_DDPG_changemap_GRU_LSTM_seqLength_sac import *
 import torch
@@ -85,16 +83,16 @@ class ActorCritic(nn.Module):
             action_probs = self.actor(state)
             dist = Categorical(action_probs)
 
-        action = dist.sample()
+        # action = dist.sample()
+        action = torch.tanh(dist.sample())
         action_logprob = dist.log_prob(action)
 
         return action.detach(), action_logprob.detach()
 
-    def evaluate(self, state, action, ith_agent):
+    def evaluate(self, state, action, ith_agent, action_range):
 
         if self.has_continuous_action_space:
             action_mean = self.actor[ith_agent](state)
-
             action_var = self.action_var.expand_as(action_mean)
             cov_mat = torch.diag_embed(action_var).to(device)
             dist = MultivariateNormal(action_mean, cov_mat)
@@ -106,6 +104,7 @@ class ActorCritic(nn.Module):
         else:
             action_probs = self.actor(state)
             dist = Categorical(action_probs)
+
         action_logprobs = dist.log_prob(action)
         dist_entropy = dist.entropy()
         state_values = self.critic[ith_agent](state, action)
@@ -192,7 +191,8 @@ class PPO:
                     act, _ = self.actors[i]([sb.unsqueeze(0), sb_grid.unsqueeze(0)], use_random=False)
                 else:
                     action, action_logprob = self.policy_old.act([sb.unsqueeze(0), sb_grid.unsqueeze(0)], i)
-                    act = self.action_range * action
+                    # act = self.action_range * action
+                    act = action
                     # with/wo action range for logprob
                     # act_logprob = self.action_range * action_logprob
                     act_logprob = action_logprob
@@ -226,10 +226,10 @@ class PPO:
 
         # if continuous action space; then decay action std of ouput action distribution
         # if self.policy.has_continuous_action_space and total_step_count % action_std_decay_freq == 0:
-        self.decay_action_std(action_std_decay_rate, min_action_std, i_episode)
+        self.decay_action_std(action_std_decay_rate, min_action_std, i_episode, total_step_count)
 
         if len(self.memory) <= self.batch_size:
-            return None, None, single_eps_critic_cal_record
+            return None, None, None, None, None
 
         BoolTensor = torch.cuda.BoolTensor if self.use_cuda else torch.BoolTensor
         FloatTensor = torch.cuda.FloatTensor if self.use_cuda else torch.FloatTensor
@@ -292,13 +292,13 @@ class PPO:
                 # Evaluating old actions and values
                 logprobs, state_values, dist_entropy = self.policy.evaluate([stacked_elem_0[:, agent, :],
                                                                              stacked_elem_1[:, agent, :]],
-                                                                            action_batch[:, agent, :], agent)
+                                                                            action_batch[:, agent, :], agent, self.action_range)
 
                 # match state_values tensor dimensions with rewards tensor
                 # state_values = torch.squeeze(state_values)
 
                 # Finding the ratio (pi_theta / pi_theta__old)
-                ratios = torch.exp(logprobs - old_act_logprob_batch[:, 0, :].squeeze(1).detach())
+                ratios = torch.exp(logprobs - old_act_logprob_batch[:, agent, :].squeeze(1).detach())
 
                 # Finding Surrogate Loss
                 advantages = rewards_discounted - state_values.detach()
@@ -308,25 +308,39 @@ class PPO:
                 # final loss of clipped objective PPO
                 dist_entropy = dist_entropy.unsqueeze(1)
                 loss = -torch.min(surr1, surr2) + 0.5 * self.MseLoss(state_values, rewards_discounted) - 0.01 * dist_entropy
+                # loss = -torch.min(surr1, surr2) - 0.5 * self.MseLoss(state_values, rewards_discounted) + 0.01 * dist_entropy
 
                 # take gradient step
                 self.optimizer.zero_grad()
                 loss.mean().backward()
+                for name, param in self.policy.actor[agent].named_parameters():
+                    if param.grad is not None:
+                        if name == 'mean_linear.0.weight':
+                            actor_last_layer_weight = param.grad.norm()
+                        if name == 'mean_linear.0.bias':
+                            actor_last_layer_bias = param.grad.norm()
+                for name, param in self.policy.critic[agent].named_parameters():
+                    if param.grad is not None:
+                        if name == 'out_feature_q.0.weight':
+                            critic_last_layer_weight = param.grad.norm()
+                        if name == 'out_feature_q.0.bias':
+                            critic_last_layer_bias = param.grad.norm()
                 self.optimizer.step()
 
-            # Copy new weights into old policy
-            self.policy_old.load_state_dict(self.policy.state_dict())
+        # Copy new weights into old policy
+        self.policy_old.load_state_dict(self.policy.state_dict())
 
-            # clear buffer for PPO
-            self.memory.clear()
+        # clear buffer for PPO
+        self.memory.clear()
 
-        return loss
+        return loss, actor_last_layer_weight, actor_last_layer_bias, critic_last_layer_weight, critic_last_layer_bias
 
-    def decay_action_std(self, action_std_decay_rate, min_action_std, episode):
+    def decay_action_std(self, action_std_decay_rate, min_action_std, episode, total_step):
         # print("--------------------------------------------------------------------------------------------")
         if has_continuous_action_space:
-            # self.action_std = self.action_std - action_std_decay_rate
-            self.action_std = self.get_custom_linear_scaling_factor(episode, 5000, start_scale=0.6, end_scale=0.1)
+            if total_step % 8400 == 0:
+                self.action_std = self.action_std - action_std_decay_rate
+            # self.action_std = self.get_custom_linear_scaling_factor(episode, 5000, start_scale=0.6, end_scale=0.1)
             self.action_std = round(self.action_std, 4)
             if (self.action_std <= min_action_std):
                 self.action_std = min_action_std

@@ -692,14 +692,7 @@ class ppo_ActorNetwork_TwoPortion(nn.Module):
         # V2
         self.own_fc = nn.Sequential(nn.Linear(actor_dim[0] + actor_dim[1], 128), nn.ReLU())
         self.merge_feature = nn.Sequential(nn.Linear(64+64, 128), nn.ReLU())
-
-        self.mean_linear = nn.Linear(128, n_actions)
-        self.mean_linear.weight.data.uniform_(-self.init_w, self.init_w)
-        self.mean_linear.bias.data.uniform_(-self.init_w, self.init_w)
-
-        self.log_std_linear = nn.Linear(128, n_actions)
-        self.log_std_linear.weight.data.uniform_(-self.init_w, self.init_w)
-        self.log_std_linear.bias.data.uniform_(-self.init_w, self.init_w)
+        self.mean_linear = nn.Sequential(nn.Linear(128, n_actions))
 
     def forward(self, cur_state):
         # V2

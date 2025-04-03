@@ -3218,8 +3218,8 @@ class env_simulator:
             # ax = map_range(ax, coe_a)
             # ay = map_range(ay, coe_a)
 
-            # ax = ax * coe_a
-            # ay = ay * coe_a
+            ax = ax * coe_a
+            ay = ay * coe_a
 
             # check velocity limit
             curVelx = self.all_agents[drone_idx].vel[0] + ax * self.time_step

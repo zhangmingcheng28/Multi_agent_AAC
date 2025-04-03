@@ -70,8 +70,8 @@ def main(args):
         # initialize_excel_file(excel_file_path_time)
         # ------------ end of this portion is to save using excel instead of pickle -----------
 
-    use_wanDB = False
-    # use_wanDB = True
+    # use_wanDB = False
+    use_wanDB = True
 
     # get_evaluation_status = True  # have figure output
     get_evaluation_status = False  # no figure output, mainly obtain collision rate
@@ -159,9 +159,11 @@ def main(args):
     acc_range = [-4, 4]  # NOTE this we need to change
 
     # actorNet_lr = 0.001
-    actorNet_lr = 0.001/10
+    actorNet_lr = 0.001/10  # for ddpg and sac
+    # actorNet_lr = 0.0003
     # criticNet_lr = 0.001
-    criticNet_lr = 0.001/10
+    criticNet_lr = 0.001/10  # for ddpg and sac
+    # criticNet_lr = 0.001
 
     # noise parameter ini
     largest_Nsigma = 0.5
@@ -502,13 +504,24 @@ def main(args):
                                            wandb, full_observable_critic_flag, use_GRU_flag)  # last working learning framework
 
                 elif args.algo == 'ppo':
-                    _ = model.update_myown(episode, total_step, UPDATE_EVERY, single_eps_critic_cal_record, action,
+                    (loss, actor_last_layer_weight, actor_last_layer_bias,
+                     critic_last_layer_weight, critic_last_layer_bias) = model.update_myown(episode, total_step, UPDATE_EVERY, single_eps_critic_cal_record, action,
                                            wandb, full_observable_critic_flag,
                                            use_GRU_flag)  # last working learning framework
 
 
 
                 update_time_used = (time.time() - step_update_time_start)*1000
+
+                if args.algo == 'ppo':
+                    if use_wanDB:
+                        if loss is not None:
+                            wandb.log({'update_loss': float(loss.mean())})
+                            wandb.log({'actor_last_layer_weight': float(actor_last_layer_weight)})
+                            wandb.log({'actor_last_layer_bias': float(actor_last_layer_bias)})
+                            wandb.log({'critic_last_layer_weight': float(critic_last_layer_weight)})
+                            wandb.log({'critic_last_layer_bias': float(critic_last_layer_bias)})
+
                 # print("current step update time used is {} milliseconds".format(update_time_used))
                 cur_state = next_state
                 norm_cur_state = norm_next_state
@@ -658,14 +671,9 @@ def main(args):
 
                     # print("[Episode %05d] reward %6.4f time used is %.2f sec" % (episode, accum_reward, time_used))
                     print("[Episode %05d] reward %6.4f" % (episode, accum_reward))
-
                     if use_wanDB:
-                        wandb.log({'overall_reward': float(accum_reward)})
-                        if c_loss and a_loss:
-                            # wandb.log({'actor_loss': float(a_loss[0])})
-                            wandb.log({'actor_loss': a_loss[0]})
-                            # wandb.log({'critic_loss': float(c_loss[0])})
-                            wandb.log({'critic_loss': c_loss[0]})
+                        wandb.log({'step_reward': float(
+                            accum_reward)})  # overall_reward refers to reward at end of each episode
                         # if c_loss and a_loss:
                         #     for idx, val in enumerate(c_loss):
                         #         # print(" agent %s, a_loss %3.2f c_loss %3.2f" % (idx, a_loss[idx].item(), c_loss[idx].item()))
