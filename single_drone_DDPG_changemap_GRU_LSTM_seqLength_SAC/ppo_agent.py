@@ -229,7 +229,7 @@ class PPO:
         self.decay_action_std(action_std_decay_rate, min_action_std, i_episode, total_step_count)
 
         if len(self.memory) <= self.batch_size:
-            return None, None, None, None, None
+            return None, None, None, None, None, None
 
         BoolTensor = torch.cuda.BoolTensor if self.use_cuda else torch.BoolTensor
         FloatTensor = torch.cuda.FloatTensor if self.use_cuda else torch.FloatTensor
@@ -294,6 +294,9 @@ class PPO:
                                                                              stacked_elem_1[:, agent, :]],
                                                                             action_batch[:, agent, :], agent, self.action_range)
 
+                # Calculate average entropy for the minibatch
+                avg_entropy = dist_entropy.mean().item()
+
                 # match state_values tensor dimensions with rewards tensor
                 # state_values = torch.squeeze(state_values)
 
@@ -303,6 +306,16 @@ class PPO:
                 # Finding Surrogate Loss
                 advantages = rewards_discounted - state_values.detach()
                 surr1 = ratios.unsqueeze(1) * advantages
+
+                # and eps_clip is your clipping parameter
+                lower_bound = 1 - self.eps_clip
+                upper_bound = 1 + self.eps_clip
+                # Create a mask for samples that are outside the clipping bounds
+                clipped_mask = (ratios < lower_bound) | (ratios > upper_bound)
+                n_clipped = clipped_mask.sum().item()
+                fraction_clipped = n_clipped / ratios.numel()
+                print(f"Fraction of samples clipped: {fraction_clipped:.2%}")
+
                 surr2 = torch.clamp(ratios.unsqueeze(1), 1 - self.eps_clip, 1 + self.eps_clip) * advantages
 
                 # final loss of clipped objective PPO
@@ -333,12 +346,12 @@ class PPO:
         # clear buffer for PPO
         self.memory.clear()
 
-        return loss, actor_last_layer_weight, actor_last_layer_bias, critic_last_layer_weight, critic_last_layer_bias
+        return loss, actor_last_layer_weight, actor_last_layer_bias, critic_last_layer_weight, critic_last_layer_bias, avg_entropy
 
     def decay_action_std(self, action_std_decay_rate, min_action_std, episode, total_step):
         # print("--------------------------------------------------------------------------------------------")
         if has_continuous_action_space:
-            if total_step % 8400 == 0:
+            if total_step % 84000 == 0:
                 self.action_std = self.action_std - action_std_decay_rate
             # self.action_std = self.get_custom_linear_scaling_factor(episode, 5000, start_scale=0.6, end_scale=0.1)
             self.action_std = round(self.action_std, 4)
