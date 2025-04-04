@@ -83,8 +83,8 @@ class ActorCritic(nn.Module):
             action_probs = self.actor(state)
             dist = Categorical(action_probs)
 
-        # action = dist.sample()
-        action = torch.tanh(dist.sample())
+        action = dist.sample()
+        # action = torch.tanh(dist.sample())
         action_logprob = dist.log_prob(action)
 
         return action.detach(), action_logprob.detach()
@@ -285,7 +285,7 @@ class PPO:
 
             # Optionally, convert the list of rewards back to a tensor with shape (512, 1)
             rewards_discounted = torch.tensor(rewards, dtype=torch.float32).unsqueeze(1).to(device)
-
+            # rewards_discounted = (rewards_discounted - rewards_discounted.mean()) / (rewards_discounted.std() + 1e-7)
             # Optimize policy for K epochs
             for _ in range(self.K_epochs):
 

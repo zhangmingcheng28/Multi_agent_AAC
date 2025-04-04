@@ -522,6 +522,7 @@ def main(args):
                             wandb.log({'critic_last_layer_weight': float(critic_last_layer_weight)})
                             wandb.log({'critic_last_layer_bias': float(critic_last_layer_bias)})
                             wandb.log({'average_entropy': float(avg_entropy)})
+                            wandb.log({'total_steps': float(total_step)})
 
                 # print("current step update time used is {} milliseconds".format(update_time_used))
                 cur_state = next_state
