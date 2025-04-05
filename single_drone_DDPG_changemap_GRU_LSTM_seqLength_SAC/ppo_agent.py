@@ -305,6 +305,12 @@ class PPO:
 
                 # Finding Surrogate Loss
                 advantages = rewards_discounted - state_values.detach()
+
+                adv_mean = advantages.mean()
+                adv_variance = advantages.var()  # or .std() for standard deviation
+                print("Advantage Mean:", adv_mean.item())
+                print("Advantage Variance:", adv_variance.item())
+
                 surr1 = ratios.unsqueeze(1) * advantages
 
                 # and eps_clip is your clipping parameter
