@@ -506,7 +506,7 @@ def main(args):
 
                 elif args.algo == 'ppo':
                     (loss, actor_last_layer_weight, actor_last_layer_bias,
-                     critic_last_layer_weight, critic_last_layer_bias, avg_entropy) = model.update_myown(episode, total_step, UPDATE_EVERY, single_eps_critic_cal_record, action,
+                     critic_last_layer_weight, critic_last_layer_bias, avg_entropy, avg_ratios) = model.update_myown(episode, total_step, UPDATE_EVERY, single_eps_critic_cal_record, action,
                                            wandb, full_observable_critic_flag,
                                            use_GRU_flag)  # last working learning framework
 
@@ -523,6 +523,7 @@ def main(args):
                             wandb.log({'critic_last_layer_weight': float(critic_last_layer_weight)})
                             wandb.log({'critic_last_layer_bias': float(critic_last_layer_bias)})
                             wandb.log({'average_entropy': float(avg_entropy)})
+                            wandb.log({'avg_ratios': float(avg_ratios)})
                             wandb.log({'total_steps': float(total_step)})
 
                 # print("current step update time used is {} milliseconds".format(update_time_used))

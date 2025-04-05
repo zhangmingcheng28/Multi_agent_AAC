@@ -302,10 +302,10 @@ class PPO:
 
                 # Finding the ratio (pi_theta / pi_theta__old)
                 ratios = torch.exp(logprobs - old_act_logprob_batch[:, agent, :].squeeze(1).detach())
-
+                avg_ratios = ratios.mean().item()
                 # Finding Surrogate Loss
                 advantages = rewards_discounted - state_values.detach()
-
+                advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)  # normalize advantage
                 adv_mean = advantages.mean()
                 adv_variance = advantages.var()  # or .std() for standard deviation
                 print("Advantage Mean:", adv_mean.item())
@@ -352,7 +352,7 @@ class PPO:
             # clear buffer for PPO
             self.memory.clear()
 
-        return loss, actor_last_layer_weight, actor_last_layer_bias, critic_last_layer_weight, critic_last_layer_bias, avg_entropy
+        return loss, actor_last_layer_weight, actor_last_layer_bias, critic_last_layer_weight, critic_last_layer_bias, avg_entropy, avg_ratios
 
     def decay_action_std(self, action_std_decay_rate, min_action_std, episode, total_step):
         # print("--------------------------------------------------------------------------------------------")
