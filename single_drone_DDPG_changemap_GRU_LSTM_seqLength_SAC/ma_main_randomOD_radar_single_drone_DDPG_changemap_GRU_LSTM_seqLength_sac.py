@@ -336,7 +336,8 @@ def main(args):
                 # print("current step obtain action time used is {} milliseconds".format(generate_action_time))
 
                 # action = model.choose_action(cur_state, episode, noisy=True)
-
+                if args.algo=='ppo':
+                    actions = np.clip(actions, -1.0, 1.0)
                 one_step_transition_start = time.time()
                 next_state, norm_next_state, polygons_list, prob_display = env.step(action, step, random_map_idx)
                 step_transition_time = (time.time() - one_step_transition_start)*1000

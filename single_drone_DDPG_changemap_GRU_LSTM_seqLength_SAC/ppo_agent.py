@@ -346,11 +346,11 @@ class PPO:
                             critic_last_layer_bias = param.grad.norm()
                 self.optimizer.step()
 
-        # Copy new weights into old policy
-        self.policy_old.load_state_dict(self.policy.state_dict())
+            # Copy new weights into old policy
+            self.policy_old.load_state_dict(self.policy.state_dict())
 
-        # clear buffer for PPO
-        self.memory.clear()
+            # clear buffer for PPO
+            self.memory.clear()
 
         return loss, actor_last_layer_weight, actor_last_layer_bias, critic_last_layer_weight, critic_last_layer_bias, avg_entropy
 
