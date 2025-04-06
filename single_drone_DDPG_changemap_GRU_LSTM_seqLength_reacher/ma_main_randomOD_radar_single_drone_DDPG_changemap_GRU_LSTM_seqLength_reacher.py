@@ -4,6 +4,8 @@ import sys
 from openpyxl import load_workbook
 from openpyxl import Workbook
 from scipy.spatial.distance import cdist
+
+from personal.framework import newGame
 from reacher import Reacher
 import argparse
 import random
@@ -254,6 +256,21 @@ def main(args):
         # model.load_model([load_filepath_0, load_filepath_1, load_filepath_2])
         model.load_model([load_filepath_0])
 
+    print_running_episodes = 0
+    print_running_reward = 0
+
+    # print_avg_reward = 0
+    # NUM_JOINTS = 2
+    # LINK_LENGTH = [200, 140]
+    # INI_JOING_ANGLES = [0.1, 0.1]
+    # SCREEN_SIZE = 1000
+    # SPARSE_REWARD = False
+    # SCREEN_SHOT = False
+    # env = Reacher(screen_size=SCREEN_SIZE, num_joints=NUM_JOINTS, link_lengths=LINK_LENGTH, \
+    #               ini_joint_angles=INI_JOING_ANGLES, target_pos=[369, 430], render=True, change_goal=False)
+    # action_dim = env.num_actions
+    # state_dim = env.num_observations
+
     # while episode < args.max_episodes:
     while episode < args.max_episodes:  # start of an episode
 
@@ -261,36 +278,19 @@ def main(args):
         episode_start_time = time.time()
         episode += 1
         eps_reset_start_time = time.time()
-        # random_map_idx = random.randrange(len(env.world_map_2D_collection))
-        # Create a list of all indices excluding 3
-        # indices = [i for i in range(len(env.world_map_2D_collection)) if i not in (3, 5)]
-        # Select a random index from the list of indices
-        # random_map_idx = random.choice(indices)
-        # random_map_idx = 5, 6, 1, 2
-        # random_map_idx = 2
-        # random_map_idx = 5
-        # random_map_idx = random.choice([5])
+
         random_map_idx = 3  # this value is the previous fixed environment
 
         geo_fence_spawn_step = random.randint(2, 9)
         circular_obstacles_global = []
-        # free_occupancy_dict = {(poly.centroid.x, poly.centroid.y): 0 for poly in
-        #                        env.world_map_2D_polyList_collection[random_map_idx][0][1]}
+        free_occupancy_dict = {(poly.centroid.x, poly.centroid.y): 0 for poly in
+                               env.world_map_2D_polyList_collection[random_map_idx][0][1]}
 
-        NUM_JOINTS = 2
-        LINK_LENGTH = [200, 140]
-        INI_JOING_ANGLES = [0.1, 0.1]
-        SCREEN_SIZE = 1000
-        SPARSE_REWARD = False
-        SCREEN_SHOT = False
-        env = Reacher(screen_size=SCREEN_SIZE, num_joints=NUM_JOINTS, link_lengths=LINK_LENGTH, \
-                      ini_joint_angles=INI_JOING_ANGLES, target_pos=[369, 430], render=True, change_goal=False)
-        action_dim = env.num_actions
-        state_dim = env.num_observations
-        state = env.reset(SCREEN_SHOT)
-        cur_state = state
-        norm_cur_state = state
-        # cur_state, norm_cur_state = env.reset_world(total_agentNum, random_map_idx, use_reached, args, show=0)  # random map choose here
+
+        # state = env.reset(SCREEN_SHOT)
+        # cur_state = state
+        # norm_cur_state = state
+        cur_state, norm_cur_state = env.reset_world(total_agentNum, random_map_idx, use_reached, args, show=0)  # random map choose here
 
         eps_reset_time_used = (time.time()-eps_reset_start_time)*1000
         # print("current episode {} reset time used is {} milliseconds".format(episode, eps_reset_time_used))  # need to + 1 here, or else will misrecord as the previous episode
@@ -329,46 +329,38 @@ def main(args):
                 gru_history.append(np.array(norm_cur_state[0]))
 
                 step_obtain_action_time_start = time.time()
-                # action, step_noise_val = model.choose_action(norm_cur_state, total_step, episode, step, eps_end, noise_start_level, gru_history, noisy=False) # noisy is false because we are using stochastic policy
-                # if use_LSTM_flag:
-                #     action, step_noise_val, lstm_hist, cur_actor_hiddens, next_actor_hiddens = model.choose_action(
-                #         norm_cur_state, total_step, episode, step, eps_end, noise_start_level, cur_actor_hiddens,
-                #         lstm_hist, gru_hist, use_LSTM_flag, noisy=noise_flag, use_GRU_flag=use_GRU_flag)  # noisy is false because we are using stochastic policy
-                # elif use_GRU_flag:
-                #     action, step_noise_val, gru_hist, cur_actor_hiddens, next_actor_hiddens = model.choose_action(
-                #         norm_cur_state, total_step, episode, step, eps_end, noise_start_level, cur_actor_hiddens,
-                #         lstm_hist, gru_hist, use_LSTM_flag, noisy=noise_flag, use_GRU_flag=use_GRU_flag)
-                # else:
-                #     action, step_noise_val, cur_actor_hiddens, next_actor_hiddens = model.choose_action(
-                #         norm_cur_state, total_step, episode, step, eps_end, noise_start_level, cur_actor_hiddens,
-                #         lstm_hist, gru_hist, use_LSTM_flag, noisy=noise_flag, use_GRU_flag=use_GRU_flag)  # noisy is false because we are using stochastic policy
 
-                action, actions_logprob, step_noise_val, lstm_hist, gru_hist, cur_actor_hiddens, next_actor_hiddens = model.choose_action(norm_cur_state, total_step, episode, step, eps_end, noise_start_level, cur_actor_hiddens, lstm_hist, gru_hist, use_LSTM_flag, stacking, feature_matching, noisy=noise_flag, use_GRU_flag=use_GRU_flag)
-                action = action.squeeze()
+                (action, actions_logprob, step_noise_val, lstm_hist, gru_hist, cur_actor_hiddens,
+                 next_actor_hiddens) = model.choose_action(norm_cur_state, total_step, episode, step, eps_end,
+                                                           noise_start_level, cur_actor_hiddens, lstm_hist, gru_hist,
+                                                           use_LSTM_flag, stacking, feature_matching, noisy=noise_flag,
+                                                           use_GRU_flag=use_GRU_flag)
+                # action = action.squeeze()
                 generate_action_time = (time.time() - step_obtain_action_time_start)*1000
                 # print("current step obtain action time used is {} milliseconds".format(generate_action_time))
 
                 # action = model.choose_action(cur_state, episode, noisy=True)
                 if args.algo=='ppo':
                     action_env = np.clip(action, -1.0, 1.0)
-                    action_env = action*8
-                    action_env = action.squeeze()
+                    action_env = action_env*8
+                    # action_env = action_env.squeeze()
                 one_step_transition_start = time.time()
-                new_state, reward_aft_action, done_aft_action, _ = env.step(action_env)
-                next_state = new_state
-                norm_next_state = new_state
-                # next_state, norm_next_state, polygons_list, prob_display = env.step(action, step, random_map_idx)
+                # new_state, reward_aft_action, done_aft_action, _ = env.step(action_env)
+                # # saving reward and is_terminals
+                # model.buffer.rewards.append(reward_aft_action)
+                # model.buffer.is_terminals.append(done_aft_action)
+                # next_state = new_state
+                # norm_next_state = new_state
+                next_state, norm_next_state, polygons_list, prob_display = env.step(action_env, step, random_map_idx)
+
                 step_transition_time = (time.time() - one_step_transition_start)*1000
                 # print("current step transition time used is {} milliseconds".format(step_transition_time))
-
-                # reward_aft_action, done_aft_action, check_goal, step_reward_record, agents_added = env.get_step_reward_5_v3(step, step_reward_record)   # remove reached agent here
-                # reward_aft_action, done_aft_action, check_goal, step_reward_record = env.get_step_reward_5_v3(step, step_reward_record)   # remove reached agent here
 
                 one_step_reward_start = time.time()
                 # reward_aft_action, done_aft_action, check_goal, step_reward_record, eps_status_holder, \
                 # step_collision_record, bound_building_check = env.ss_reward(step, step_reward_record, step_collision_record, dummy_xy, full_observable_critic_flag, args, prob_display, random_map_idx)   # remove reached agent here
-                # reward_aft_action, done_aft_action, check_goal, step_reward_record, eps_status_holder, \
-                # step_collision_record, bound_building_check = env.ss_reward_v2(step, step_reward_record, step_collision_record, dummy_xy, full_observable_critic_flag, args, prob_display, random_map_idx)   # remove reached agent here
+                reward_aft_action, done_aft_action, check_goal, step_reward_record, eps_status_holder, \
+                step_collision_record, bound_building_check = env.ss_reward_v2(step, step_reward_record, step_collision_record, dummy_xy, full_observable_critic_flag, args, prob_display, random_map_idx)   # remove reached agent here
                 reward_generation_time = (time.time() - one_step_reward_start)*1000
                 # print("current step reward time used is {} milliseconds".format(reward_generation_time))
 
@@ -456,61 +448,65 @@ def main(args):
                 # trajectory_eachPlay.append([[each_agent_traj[0], each_agent_traj[1], reward_aft_action[each_agent_idx],
                 #                              eps_status_holder[each_agent_idx]] for each_agent_idx, each_agent_traj in
                 #                             enumerate(cur_state[0])])
-                if len(gru_history) >= history_seq_length:
-                    obs = []
-                    next_obs = []
-                    # ------------- to store norm or non-norm state into experience replay ---------------
-                    obs.append(torch.from_numpy(np.stack(norm_cur_state)).data.float().to(device))
-                    next_obs.append(torch.from_numpy(np.stack(norm_next_state)).data.float().to(device))
-                    # ------------------ end of store norm or non-norm state into experience replay --------------------
-                    rw_tensor = torch.FloatTensor(np.array(reward_aft_action)).to(device)
-                    ac_tensor = torch.FloatTensor(action).to(device)
-                    ac_logprob_tensor = torch.FloatTensor(actions_logprob).to(device)
-                    done_tensor = torch.FloatTensor([done_aft_action]).to(device)
-                    # prepare hidden state information
-                    history_tensor = torch.FloatTensor(np.array(gru_history)).to(device)
+                # if len(gru_history) >= history_seq_length:
+                # ------------- to store norm or non-norm state into experience replay ---------------
+                obs = []
+                next_obs = []
+                # ------------- to store norm or non-norm state into experience replay ---------------
+                for elementIdx, element in enumerate(norm_cur_state):
+                    # for elementIdx, element in enumerate(cur_state):
+                    if elementIdx != len(norm_cur_state) - 1:  # meaning is not the last element
+                        # if elementIdx != len(cur_state)-1:  # meaning is not the last element
+                        obs.append(torch.from_numpy(np.stack(element)).data.float().to(device))
+                    else:
+                        sur_agents = []
+                        for each_agent_list in element:
+                            sur_agents.append(torch.from_numpy(np.squeeze(np.array(each_agent_list), axis=1)).float())
+                        obs.append(sur_agents)
 
-                    # padded_tensor = torch.nn.functional.pad(hs_tensor, pad=(0, 0, 0, 0, 0, args.episode_length), mode='constant', value=0)
-                    # if use_LSTM_flag:
-                    #     model.memory.push(obs, ac_tensor, next_obs, rw_tensor, done_tensor, history_tensor, cur_actor_hiddens, next_actor_hiddens, lstm_hist)
-                    # elif use_GRU_flag:
-                    #     model.memory.push(obs, ac_tensor, next_obs, rw_tensor, done_tensor, history_tensor,
-                    #                       cur_actor_hiddens, next_actor_hiddens, gru_hist)
-                    # else:  # here can be lstm_hist or gru_hist don't matter as when don't use lstm or gru, both lstm_hist and gru_hist equals to None
-                    #     model.memory.push(obs, ac_tensor, next_obs, rw_tensor, done_tensor, history_tensor,
-                    #                       cur_actor_hiddens, next_actor_hiddens, lstm_hist)
-                    model.memory.push(obs, ac_tensor, ac_logprob_tensor, next_obs, rw_tensor, done_tensor, history_tensor,
-                                      cur_actor_hiddens, next_actor_hiddens, lstm_hist, gru_hist)
+                for elementIdx, element in enumerate(norm_next_state):
+                    # for elementIdx, element in enumerate(cur_state):
+                    if elementIdx != len(norm_next_state) - 1:  # meaning is not the last element
+                        # if elementIdx != len(cur_state)-1:  # meaning is not the last element
+                        next_obs.append(torch.from_numpy(np.stack(element)).data.float().to(device))
+                    else:
+                        sur_agents = []
+                        for each_agent_list in element:
+                            sur_agents.append(torch.from_numpy(np.squeeze(np.array(each_agent_list), axis=1)).float())
+                        next_obs.append(sur_agents)
+                # ------------------ end of store norm or non-norm state into experience replay --------------------
+                rw_tensor = torch.FloatTensor(np.array(reward_aft_action)).to(device)
+                ac_tensor = torch.FloatTensor(action).to(device)
+                ac_logprob_tensor = torch.FloatTensor(actions_logprob).to(device)
+                done_tensor = torch.FloatTensor([done_aft_action]).to(device)
+                # prepare hidden state information
+                history_tensor = torch.FloatTensor(np.array(gru_history)).to(device)
+
+
+                model.memory.push(obs, ac_tensor, ac_logprob_tensor, next_obs, rw_tensor, done_tensor, history_tensor,
+                                  cur_actor_hiddens, next_actor_hiddens, lstm_hist, gru_hist)
 
                 # accum_reward = accum_reward + reward_aft_action[0]  # we just take the first agent's reward, because we are using a joint reward, so all agents obtain the same reward.
-                # accum_reward = accum_reward + sum(reward_aft_action)
-                accum_reward = accum_reward + reward_aft_action
+                accum_reward = accum_reward + sum(reward_aft_action)
+                # accum_reward = accum_reward + reward_aft_action
+
+                # print("current step update time used is {} milliseconds".format(update_time_used))
+                cur_state = next_state
+                norm_cur_state = norm_next_state
+                cur_actor_hiddens = next_actor_hiddens
+                eps_reward.append(step_reward_record)
 
                 step_update_time_start = time.time()
-                if args.algo == "maddpg":
-                    c_loss, a_loss, single_eps_critic_cal_record = model.update_myown_ddpg(episode, total_step,
-                                                                                           UPDATE_EVERY,
-                                                                                           single_eps_critic_cal_record,
-                                                                                           action, use_LSTM_flag, stacking, feature_matching, wandb,
-                                                                                           full_observable_critic_flag,
-                                                                                           use_GRU_flag)  # last working learning framework
-                elif args.algo == 'TD3':
-                    c_loss, a_loss, single_eps_critic_cal_record = model.update_myown(episode, total_step, UPDATE_EVERY,
-                                                                                      single_eps_critic_cal_record,
-                                                                                      action, wandb,
-                                                                                      full_observable_critic_flag,
-                                                                                      use_GRU_flag)  # last working learning framework
-                elif args.algo == 'sac':
-                    _ = model.update_myown(episode, total_step, UPDATE_EVERY, single_eps_critic_cal_record, action,
-                                           wandb, full_observable_critic_flag, use_GRU_flag)  # last working learning framework
 
-                elif args.algo == 'ppo':
-                    (loss, actor_last_layer_weight, actor_last_layer_bias,
-                     critic_last_layer_weight, critic_last_layer_bias, avg_entropy, avg_ratios) = model.update_myown(episode, total_step, UPDATE_EVERY, single_eps_critic_cal_record, action,
-                                           wandb, full_observable_critic_flag,
-                                           use_GRU_flag)  # last working learning framework
-
-
+                if args.algo == 'ppo':
+                    if total_step % 400 == 0:
+                        (loss, actor_last_layer_weight, actor_last_layer_bias,
+                         critic_last_layer_weight, critic_last_layer_bias, avg_entropy, avg_ratios) = model.update_myown(episode, total_step, UPDATE_EVERY, single_eps_critic_cal_record, action,
+                                               wandb, full_observable_critic_flag,
+                                               use_GRU_flag)  # last working learning framework
+                    else:
+                        (loss, actor_last_layer_weight, actor_last_layer_bias,
+                         critic_last_layer_weight, critic_last_layer_bias, avg_entropy, avg_ratios) = None, None, None, None, None, None, None
 
                 update_time_used = (time.time() - step_update_time_start)*1000
 
@@ -526,153 +522,151 @@ def main(args):
                             wandb.log({'avg_ratios': float(avg_ratios)})
                             wandb.log({'total_steps': float(total_step)})
 
-                # print("current step update time used is {} milliseconds".format(update_time_used))
-                cur_state = next_state
-                norm_cur_state = norm_next_state
-                cur_actor_hiddens = next_actor_hiddens
-                eps_reward.append(step_reward_record)
                 whole_step_time = (time.time()-step_start_time)*1000
                 # print("current episode, one whole step time used is {} milliseconds".format(whole_step_time))
                 step_time_breakdown.append([generate_action_time, step_transition_time, reward_generation_time,
                                             update_time_used, whole_step_time])
+
+                if total_step % 1000 == 0:
+                    # print average reward till last episode
+                    print_avg_reward = print_running_reward / print_running_episodes
+                    print_avg_reward = round(print_avg_reward, 2)
+
+                    print("Episode : {} \t\t Timestep : {} \t\t Average Reward : {}".format(episode, total_step,
+                                                                                            print_avg_reward))
+                    print_running_reward = 0
+                    print_running_episodes = 0
+
+
                 if args.episode_length < step:
                     episode_decision[0] = True
                     print("Agents stuck in some places, maximum step in one episode reached, current episode {} ends, all {} steps used".format(episode, args.episode_length))
-                # elif any([agent.collision for agent_idx, agent in env.all_agents.items()]):
-                #     episode_decision[1] = True
-                #     print("Some agent triggers termination condition like collision, current episode {} ends at step {}".format(episode, step-1))  # we need to -1 here, because we perform step + 1 after each complete step. Just to be consistent with the step count inside the reward function.
-                # elif all([agent.reach_target for agent_idx, agent in env.all_agents.items()]):
-                #     episode_decision[2] = True
-                #     for agent_idx, agent in env.all_agents.items():
-                #         record_key = []
-                #         if agent.reach_target == True:
-                #             ini_pos = agent.ini_pos
-                #             goal_pos = np.array(agent.goal[-1])
-                #             record_key = [ini_pos[0], ini_pos[1], goal_pos[0], goal_pos[1]]
-                #             for geo_fence in env.geo_fence_area:
-                #                 record_key.append(geo_fence.centroid.x)
-                #                 record_key.append(geo_fence.centroid.y)
-                #         record_key = tuple(record_key)
-                #         all_OD_geo_fence_reach[record_key] = [len(env.geo_fence_area), random_map_idx]
-                #
-                #
-                #     print("All agents have reached their destinations, {} steps used, episode terminated.".format(step))
-                #     goal_reached = goal_reached + 1
-                #     # show termination condition in picture when termination condition reached.
-                #     # os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
-                #     # matplotlib.use('TkAgg')
-                #     # fig, ax = plt.subplots(1, 1)
-                #     # for agentIdx, agent in env.all_agents.items():
-                #     #     plt.plot(agent.pos[0], agent.pos[1], marker=MarkerStyle(">", fillstyle="right",
-                #     #                                                             transform=Affine2D().rotate_deg(
-                #     #                                                                 math.degrees(agent.heading))),
-                #     #              color='y')
-                #     #     plt.text(agent.pos[0], agent.pos[1], agent.agent_name)
-                #     #     # plot self_circle of the drone
-                #     #     self_circle = Point(agent.pos[0], agent.pos[1]).buffer(agent.protectiveBound, cap_style='round')
-                #     #     grid_mat_Scir = shapelypoly_to_matpoly(self_circle, False, 'k')
-                #     #     # ax.add_patch(grid_mat_Scir)
-                #     #
-                #     #     # plot drone's detection range
-                #     #     detec_circle = Point(agent.pos[0], agent.pos[1]).buffer(agent.detectionRange / 2, cap_style='round')
-                #     #     detec_circle_mat = shapelypoly_to_matpoly(detec_circle, False, 'r')
-                #     #     # ax.add_patch(detec_circle_mat)
-                #     #
-                #     #     ini = agent.pos
-                #     #     for wp in agent.goal:
-                #     #         plt.plot([wp[0], ini[0]], [wp[1], ini[1]], '--', color='c')
-                #     #         ini = wp
-                #     #
-                #     #     # for demo purposes
-                #     #     for poly in polygons_list:
-                #     #         if poly.geom_type == "Polygon":
-                #     #             matp_poly = shapelypoly_to_matpoly(poly, False,
-                #     #                                                'red')  # the 3rd parameter is the edge color
-                #     #             ax.add_patch(matp_poly)
-                #     #         else:
-                #     #             x, y = poly.xy
-                #     #             ax.plot(x, y, color='green', linewidth=2, solid_capstyle='round', zorder=3)
-                #     #     # Plot each start point
-                #     #     for point_deg, point_pos in all_agent_st_points[agentIdx].items():
-                #     #         ax.plot(point_pos.x, point_pos.y, 'o', color='blue')
-                #     #
-                #     #     # Plot each end point
-                #     #     for point_deg, point_pos in all_agent_ed_points[agentIdx].items():
-                #     #         ax.plot(point_pos.x, point_pos.y, 'o', color='green')
-                #     #
-                #     #     # Plot the lines of the LineString
-                #     #     for lines in all_agent_line_collection[agentIdx]:
-                #     #         x, y = lines.xy
-                #     #         ax.plot(x, y, color='blue', linewidth=2, solid_capstyle='round', zorder=2)
-                #     #
-                #     #     # point_counter = 0
-                #     #     # # Plot each intersection point
-                #     #     # for point in intersection_point_list:
-                #     #     #     for ea_pt in point.geoms:
-                #     #     #         point_counter = point_counter + 1
-                #     #     #         ax.plot(ea_pt.x, ea_pt.y, 'o', color='red')
-                #     #
-                #     #     # plot minimum intersection point
-                #     #     # for pt_dist, pt_pos in mini_intersection_list.items():
-                #     #     for pt_pos in all_agent_mini_intersection_list[agentIdx]:
-                #     #         if pt_pos.type == 'MultiPoint':
-                #     #             for ea_pt in pt_pos.geoms:
-                #     #                 ax.plot(ea_pt.x, ea_pt.y, 'o', color='yellow')
-                #     #         else:
-                #     #             ax.plot(pt_pos.x, pt_pos.y, 'o', color='red')
-                #     #
-                #     # # draw occupied_poly
-                #     # for one_poly in env.world_map_2D_polyList[0][0]:
-                #     #     one_poly_mat = shapelypoly_to_matpoly(one_poly, True, 'y', 'b')
-                #     #     # ax.add_patch(one_poly_mat)
-                #     # # draw non-occupied_poly
-                #     # for zero_poly in env.world_map_2D_polyList[0][1]:
-                #     #     zero_poly_mat = shapelypoly_to_matpoly(zero_poly, False, 'y')
-                #     #     ax.add_patch(zero_poly_mat)
-                #     #
-                #     # # show building obstacles
-                #     # for poly in env.buildingPolygons:
-                #     #     matp_poly = shapelypoly_to_matpoly(poly, False, 'red')  # the 3rd parameter is the edge color
-                #     #     # ax.add_patch(matp_poly)
-                #     #
-                #     # # show the nearest building obstacles
-                #     # # nearest_buildingPoly_mat = shapelypoly_to_matpoly(nearest_buildingPoly, True, 'g', 'k')
-                #     # # ax.add_patch(nearest_buildingPoly_mat)
-                #     #
-                #     # # for ele in self.spawn_area1_polymat:
-                #     # #     ax.add_patch(ele)
-                #     # # for ele2 in self.spawn_area2_polymat:
-                #     # #     ax.add_patch(ele2)
-                #     # # for ele3 in self.spawn_area3_polymat:
-                #     # #     ax.add_patch(ele3)
-                #     # # for ele4 in self.spawn_area4_polymat:
-                #     # #     ax.add_patch(ele4)
-                #     #
-                #     # # plt.axvline(x=self.bound[0], c="green")
-                #     # # plt.axvline(x=self.bound[1], c="green")
-                #     # # plt.axhline(y=self.bound[2], c="green")
-                #     # # plt.axhline(y=self.bound[3], c="green")
-                #     #
-                #     # plt.xlabel("X axis")
-                #     # plt.ylabel("Y axis")
-                #     # plt.axis('equal')
-                #     # plt.show()
+                elif any([agent.collision for agent_idx, agent in env.all_agents.items()]):
+                    episode_decision[1] = True
+                    print("Some agent triggers termination condition like collision, current episode {} ends at step {}".format(episode, step-1))  # we need to -1 here, because we perform step + 1 after each complete step. Just to be consistent with the step count inside the reward function.
+                elif all([agent.reach_target for agent_idx, agent in env.all_agents.items()]):
+                    episode_decision[2] = True
+                    for agent_idx, agent in env.all_agents.items():
+                        record_key = []
+                        if agent.reach_target == True:
+                            ini_pos = agent.ini_pos
+                            goal_pos = np.array(agent.goal[-1])
+                            record_key = [ini_pos[0], ini_pos[1], goal_pos[0], goal_pos[1]]
+                            for geo_fence in env.geo_fence_area:
+                                record_key.append(geo_fence.centroid.x)
+                                record_key.append(geo_fence.centroid.y)
+                        record_key = tuple(record_key)
+                        all_OD_geo_fence_reach[record_key] = [len(env.geo_fence_area), random_map_idx]
+
+
+                    print("All agents have reached their destinations, {} steps used, episode terminated.".format(step))
+                    goal_reached = goal_reached + 1
+                    # show termination condition in picture when termination condition reached.
+                    # os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
+                    # matplotlib.use('TkAgg')
+                    # fig, ax = plt.subplots(1, 1)
+                    # for agentIdx, agent in env.all_agents.items():
+                    #     plt.plot(agent.pos[0], agent.pos[1], marker=MarkerStyle(">", fillstyle="right",
+                    #                                                             transform=Affine2D().rotate_deg(
+                    #                                                                 math.degrees(agent.heading))),
+                    #              color='y')
+                    #     plt.text(agent.pos[0], agent.pos[1], agent.agent_name)
+                    #     # plot self_circle of the drone
+                    #     self_circle = Point(agent.pos[0], agent.pos[1]).buffer(agent.protectiveBound, cap_style='round')
+                    #     grid_mat_Scir = shapelypoly_to_matpoly(self_circle, False, 'k')
+                    #     # ax.add_patch(grid_mat_Scir)
+                    #
+                    #     # plot drone's detection range
+                    #     detec_circle = Point(agent.pos[0], agent.pos[1]).buffer(agent.detectionRange / 2, cap_style='round')
+                    #     detec_circle_mat = shapelypoly_to_matpoly(detec_circle, False, 'r')
+                    #     # ax.add_patch(detec_circle_mat)
+                    #
+                    #     ini = agent.pos
+                    #     for wp in agent.goal:
+                    #         plt.plot([wp[0], ini[0]], [wp[1], ini[1]], '--', color='c')
+                    #         ini = wp
+                    #
+                    #     # for demo purposes
+                    #     for poly in polygons_list:
+                    #         if poly.geom_type == "Polygon":
+                    #             matp_poly = shapelypoly_to_matpoly(poly, False,
+                    #                                                'red')  # the 3rd parameter is the edge color
+                    #             ax.add_patch(matp_poly)
+                    #         else:
+                    #             x, y = poly.xy
+                    #             ax.plot(x, y, color='green', linewidth=2, solid_capstyle='round', zorder=3)
+                    #     # Plot each start point
+                    #     for point_deg, point_pos in all_agent_st_points[agentIdx].items():
+                    #         ax.plot(point_pos.x, point_pos.y, 'o', color='blue')
+                    #
+                    #     # Plot each end point
+                    #     for point_deg, point_pos in all_agent_ed_points[agentIdx].items():
+                    #         ax.plot(point_pos.x, point_pos.y, 'o', color='green')
+                    #
+                    #     # Plot the lines of the LineString
+                    #     for lines in all_agent_line_collection[agentIdx]:
+                    #         x, y = lines.xy
+                    #         ax.plot(x, y, color='blue', linewidth=2, solid_capstyle='round', zorder=2)
+                    #
+                    #     # point_counter = 0
+                    #     # # Plot each intersection point
+                    #     # for point in intersection_point_list:
+                    #     #     for ea_pt in point.geoms:
+                    #     #         point_counter = point_counter + 1
+                    #     #         ax.plot(ea_pt.x, ea_pt.y, 'o', color='red')
+                    #
+                    #     # plot minimum intersection point
+                    #     # for pt_dist, pt_pos in mini_intersection_list.items():
+                    #     for pt_pos in all_agent_mini_intersection_list[agentIdx]:
+                    #         if pt_pos.type == 'MultiPoint':
+                    #             for ea_pt in pt_pos.geoms:
+                    #                 ax.plot(ea_pt.x, ea_pt.y, 'o', color='yellow')
+                    #         else:
+                    #             ax.plot(pt_pos.x, pt_pos.y, 'o', color='red')
+                    #
+                    # # draw occupied_poly
+                    # for one_poly in env.world_map_2D_polyList[0][0]:
+                    #     one_poly_mat = shapelypoly_to_matpoly(one_poly, True, 'y', 'b')
+                    #     # ax.add_patch(one_poly_mat)
+                    # # draw non-occupied_poly
+                    # for zero_poly in env.world_map_2D_polyList[0][1]:
+                    #     zero_poly_mat = shapelypoly_to_matpoly(zero_poly, False, 'y')
+                    #     ax.add_patch(zero_poly_mat)
+                    #
+                    # # show building obstacles
+                    # for poly in env.buildingPolygons:
+                    #     matp_poly = shapelypoly_to_matpoly(poly, False, 'red')  # the 3rd parameter is the edge color
+                    #     # ax.add_patch(matp_poly)
+                    #
+                    # # show the nearest building obstacles
+                    # # nearest_buildingPoly_mat = shapelypoly_to_matpoly(nearest_buildingPoly, True, 'g', 'k')
+                    # # ax.add_patch(nearest_buildingPoly_mat)
+                    #
+                    # # for ele in self.spawn_area1_polymat:
+                    # #     ax.add_patch(ele)
+                    # # for ele2 in self.spawn_area2_polymat:
+                    # #     ax.add_patch(ele2)
+                    # # for ele3 in self.spawn_area3_polymat:
+                    # #     ax.add_patch(ele3)
+                    # # for ele4 in self.spawn_area4_polymat:
+                    # #     ax.add_patch(ele4)
+                    #
+                    # # plt.axvline(x=self.bound[0], c="green")
+                    # # plt.axvline(x=self.bound[1], c="green")
+                    # # plt.axhline(y=self.bound[2], c="green")
+                    # # plt.axhline(y=self.bound[3], c="green")
+                    #
+                    # plt.xlabel("X axis")
+                    # plt.ylabel("Y axis")
+                    # plt.axis('equal')
+                    # plt.show()
 
                 if True in episode_decision:
-                    # end of an episode starts here
-
-                    # time_used = time.time() - start_time
-                    # print("update function used {} seconds to run".format(time_used))
-
-                    # # we normalize the final accumulated reward
-                    # if step == 0:
-                    #     accum_reward = accum_reward / 1
-                    # else:
-                    #     accum_reward = accum_reward / step
 
                     # here onwards is end of an episode's play
                     score_history.append(accum_reward)
-
+                    print_running_reward += accum_reward
+                    print_running_episodes += 1
                     # print("[Episode %05d] reward %6.4f time used is %.2f sec" % (episode, accum_reward, time_used))
                     print("[Episode %05d] reward %6.4f" % (episode, accum_reward))
                     if use_wanDB:
@@ -707,7 +701,7 @@ def main(args):
                     #     pickle.dump(episode_critic_loss_cal_record, handle, protocol=pickle.HIGHEST_PROTOCOL)
                     epsTime = time.time()-episode_start_time
                     eps_time_record.append([eps_reset_time_used, epsTime, step_time_breakdown])
-                    print("episode {} used time in calculation is  {} seconds".format(episode, epsTime))
+                    # print("episode {} used time in calculation is  {} seconds".format(episode, epsTime))
 
                     # --------- removed to save time ----------
                     # storage_time = time.time()  # storage time is too long, one episode is >= 150 milliseconds

@@ -33,6 +33,22 @@ action_std_decay_freq = int(84000)  # action_std decay frequency (in num timeste
 has_continuous_action_space = True
 
 
+class RolloutBuffer:
+    def __init__(self):
+        self.actions = []
+        self.states = []
+        self.logprobs = []
+        self.rewards = []
+        self.is_terminals = []
+
+    def clear(self):
+        del self.actions[:]
+        del self.states[:]
+        del self.logprobs[:]
+        del self.rewards[:]
+        del self.is_terminals[:]
+
+
 class ActorCritic(nn.Module):
     def __init__(self, state_dim, critic_dim, action_dim, has_continuous_action_space, action_std_init, n_agents):
         super(ActorCritic, self).__init__()
@@ -45,7 +61,7 @@ class ActorCritic(nn.Module):
 
         # actor
         if has_continuous_action_space:
-            self.actor = [ppo_ActorNetwork_TwoPortion(state_dim, action_dim) for _ in range(n_agents)]
+            self.actor = ppo_ActorNetwork_TwoPortion(state_dim, action_dim)
         else:
             self.actor = nn.Sequential(
                 nn.Linear(state_dim, 64),
@@ -57,9 +73,7 @@ class ActorCritic(nn.Module):
             )
 
         # critic
-        self.critic = [
-            ppo_critic_single_TwoPortion(critic_dim, action_dim) for
-            _ in range(n_agents)]
+        self.critic = ppo_critic_single_TwoPortion(critic_dim, action_dim)
 
     def set_action_std(self, new_action_std):
 
@@ -76,7 +90,7 @@ class ActorCritic(nn.Module):
     def act(self, state, ith_agent):
 
         if self.has_continuous_action_space:
-            action_mean = self.actor[ith_agent](state)
+            action_mean = self.actor(state)
             cov_mat = torch.diag(self.action_var).unsqueeze(dim=0)
             dist = MultivariateNormal(action_mean, cov_mat)
         else:
@@ -92,7 +106,7 @@ class ActorCritic(nn.Module):
     def evaluate(self, state, action, ith_agent, action_range):
 
         if self.has_continuous_action_space:
-            action_mean = self.actor[ith_agent](state)
+            action_mean = self.actor(state)
             action_var = self.action_var.expand_as(action_mean)
             cov_mat = torch.diag_embed(action_var).to(device)
             dist = MultivariateNormal(action_mean, cov_mat)
@@ -107,7 +121,7 @@ class ActorCritic(nn.Module):
 
         action_logprobs = dist.log_prob(action)
         dist_entropy = dist.entropy()
-        state_values = self.critic[ith_agent](state, action)
+        state_values = self.critic(state)
 
         return action_logprobs, state_values, dist_entropy
 
@@ -124,6 +138,7 @@ class PPO:
         self.n_actions = dim_act
         self.action_range = 8
         self.MseLoss = nn.MSELoss()
+        self.buffer = RolloutBuffer()
         self.eps_clip = 0.2
         self.K_epochs = 80
         self.memory = ReplayMemory(args.memory_length, gru_history_length)
@@ -134,10 +149,10 @@ class PPO:
         self.policy = ActorCritic(actor_dim, critic_dim, dim_act, has_continuous_action_space, action_std_init, n_agents).to(device)
         self.policy_old = ActorCritic(actor_dim, critic_dim, dim_act, has_continuous_action_space, action_std_init, n_agents).to(device)
         self.policy_old.load_state_dict(self.policy.state_dict())
-        self.optimizer = torch.optim.Adam(
-            [{'params': module.parameters(), 'lr': ac_lr} for module in self.policy.actor] +
-            [{'params': module.parameters(), 'lr': cr_lr} for module in self.policy.critic]
-        )
+        self.optimizer = torch.optim.Adam([
+                        {'params': self.policy.actor.parameters(), 'lr': ac_lr},
+                        {'params': self.policy.critic.parameters(), 'lr': cr_lr}
+                    ])
 
         self.GAMMA = gamma
         self.tau = tau
@@ -145,20 +160,19 @@ class PPO:
         self.var = [1.0 for i in range(n_agents)]
 
         if self.use_cuda:
-            self.policy.actor = [module.cuda() for module in self.policy.actor]
-            self.policy.critic = [module.cuda() for module in self.policy.critic]
+            self.policy.actor = self.policy.actor.cuda()
+            self.policy.critic = self.policy.critic.cuda()
 
-            self.policy_old.actor = [module.cuda() for module in self.policy_old.actor]
-            self.policy_old.critic = [module.cuda() for module in self.policy_old.critic]
+            self.policy_old.actor = self.policy_old.actor.cuda()
 
         self.steps_done = 0
         self.episode_done = 0
 
     def choose_action(self, state, cur_total_step, cur_episode, step, total_training_steps, noise_start_level, actor_hiddens, lstm_hist, gru_hist, use_LSTM_flag, stacking, feature_matching, noisy=True, use_GRU_flag=False):
-        # obs = torch.from_numpy(np.stack(state[0])).float().to(device)
-        # obs_grid = torch.from_numpy(np.stack(state[1])).float().to(device)
-        # noise_value = np.zeros(2)
-        noise_value = 0
+        obs = torch.from_numpy(np.stack(state[0])).float().to(device)
+        obs_grid = torch.from_numpy(np.stack(state[1])).float().to(device)
+        noise_value = np.zeros(2)
+        # noise_value = 0
         actions = torch.zeros(self.n_agents, self.n_actions)
         actions_logprob = torch.zeros(self.n_agents, 1)
         if use_GRU_flag:
@@ -173,8 +187,8 @@ class PPO:
         gru_history_input = torch.FloatTensor(actor_hiddens).unsqueeze(0).to(device)  # batch x no_agent x feature_length
 
         for i in range(self.n_agents):
-            # sb = obs[i]
-            # sb_grid = obs_grid[i]
+            sb = obs[i]
+            sb_grid = obs_grid[i]
 
             if use_GRU_flag:
                 if feature_matching:
@@ -190,10 +204,15 @@ class PPO:
                 if feature_matching:
                     act, _ = self.actors[i]([sb.unsqueeze(0), sb_grid.unsqueeze(0)], use_random=False)
                 else:
-                    state = torch.FloatTensor(state).to(device)
-                    action, action_logprob = self.policy_old.act(state, i)
+                    # state = torch.FloatTensor(state).to(device)
+                    # action, action_logprob = self.policy_old.act(state, i)
+                    action, action_logprob = self.policy_old.act([sb.unsqueeze(0), sb_grid.unsqueeze(0)], i)
                     act = action
                     act_logprob = action_logprob
+
+                    self.buffer.states.append(state)
+                    self.buffer.actions.append(action)
+                    self.buffer.logprobs.append(action_logprob)
 
             actions[i, :] = act
             actions_logprob[i, :] = act_logprob
@@ -226,8 +245,8 @@ class PPO:
         # if self.policy.has_continuous_action_space and total_step_count % action_std_decay_freq == 0:
         self.decay_action_std(action_std_decay_rate, min_action_std, i_episode, total_step_count)
 
-        if len(self.memory) <= self.batch_size:
-            return None, None, None, None, None, None, None
+        # if len(self.memory) <= self.batch_size:
+        #     return None, None, None, None, None, None, None
 
         BoolTensor = torch.cuda.BoolTensor if self.use_cuda else torch.BoolTensor
         FloatTensor = torch.cuda.FloatTensor if self.use_cuda else torch.FloatTensor
@@ -247,7 +266,7 @@ class PPO:
             agents_cur_hidden_state = torch.stack(batch.cur_hidden).type(FloatTensor)
         # stack tensors only once
         stacked_elem_0 = torch.stack([elem[0] for elem in batch.states]).to(device)
-        # stacked_elem_1 = torch.stack([elem[1] for elem in batch.states]).to(device)
+        stacked_elem_1 = torch.stack([elem[1] for elem in batch.states]).to(device)
         if full_observable_critic_flag == True:
             stacked_elem_0_combine = stacked_elem_0.view(self.batch_size, -1)  # own_state only
             # stacked_elem_1_combine = stacked_elem_1.view(self.batch_size, -1)  # own_state only
@@ -266,6 +285,10 @@ class PPO:
         # for done
         dones_stacked = torch.stack([three_agent_dones for three_agent_dones in batch.dones]).to(device)
 
+        # convert list to tensor
+        # old_states = torch.squeeze(torch.stack(self.buffer.states, dim=0)).detach().to(device)
+        # old_actions = torch.squeeze(torch.stack(self.buffer.actions, dim=0)).detach().to(device)
+        # old_logprobs = torch.stack(self.buffer.logprobs, dim=0).detach().to(device)
         for agent in range(self.n_agents):
             # Monte Carlo estimate of returns
 
@@ -276,6 +299,7 @@ class PPO:
             rewards = []
             discounted_reward = 0
             for reward, is_terminal in zip(reversed(rewards_squeeze_tensor), reversed(terminals_squeeze_tensor)):
+            # for reward, is_terminal in zip(reversed(self.buffer.rewards), reversed(self.buffer.is_terminals)):
                 if is_terminal:
                     discounted_reward = 0
                 discounted_reward = reward + (self.GAMMA * discounted_reward)
@@ -288,8 +312,8 @@ class PPO:
             for _ in range(self.K_epochs):
 
                 # Evaluating old actions and values
-                logprobs, state_values, dist_entropy = self.policy.evaluate(stacked_elem_0,
-                                                                            action_batch, agent, self.action_range)
+                logprobs, state_values, dist_entropy = self.policy.evaluate([stacked_elem_0[:,agent,:], stacked_elem_1[:,agent,:]],action_batch[:,agent,:], agent, self.action_range)
+                # logprobs, state_values, dist_entropy = self.policy.evaluate(old_states,old_actions, agent, self.action_range)
 
                 # Calculate average entropy for the minibatch
                 avg_entropy = dist_entropy.mean().item()
@@ -299,14 +323,15 @@ class PPO:
 
                 # Finding the ratio (pi_theta / pi_theta__old)
                 ratios = torch.exp(logprobs - old_act_logprob_batch[:, agent, :].squeeze(1).detach())
+                # ratios = torch.exp(logprobs - old_logprobs.squeeze(1).detach())
                 avg_ratios = ratios.mean().item()
                 # Finding Surrogate Loss
                 advantages = rewards_discounted - state_values.detach()
                 # advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)  # normalize advantage
                 adv_mean = advantages.mean()
                 adv_variance = advantages.var()  # or .std() for standard deviation
-                print("Advantage Mean:", adv_mean.item())
-                print("Advantage Variance:", adv_variance.item())
+                # print("Advantage Mean:", adv_mean.item())
+                # print("Advantage Variance:", adv_variance.item())
 
                 surr1 = ratios.unsqueeze(1) * advantages
 
@@ -329,13 +354,13 @@ class PPO:
                 # take gradient step
                 self.optimizer.zero_grad()
                 loss.mean().backward()
-                for name, param in self.policy.actor[agent].named_parameters():
+                for name, param in self.policy.actor.named_parameters():
                     if param.grad is not None:
                         if name == 'mean_linear.0.weight':
                             actor_last_layer_weight = param.grad.norm()
                         if name == 'mean_linear.0.bias':
                             actor_last_layer_bias = param.grad.norm()
-                for name, param in self.policy.critic[agent].named_parameters():
+                for name, param in self.policy.critic.named_parameters():
                     if param.grad is not None:
                         if name == 'out_feature_q.0.weight':
                             critic_last_layer_weight = param.grad.norm()
@@ -348,6 +373,9 @@ class PPO:
 
             # clear buffer for PPO
             self.memory.clear()
+
+            # clear buffer
+            self.buffer.clear()
 
         return loss, actor_last_layer_weight, actor_last_layer_bias, critic_last_layer_weight, critic_last_layer_bias, avg_entropy, avg_ratios
 
@@ -387,7 +415,7 @@ class PPO:
         if not os.path.exists(file_path):
             os.makedirs(file_path)
         for i in range(self.n_agents):
-            torch.save(self.policy_old.actor[i].state_dict(), file_path + '/' +'episode_'+str(episode)+'_'+'agent_'+ str(i) + 'actor_net.pth')
+            torch.save(self.policy_old.actor.state_dict(), file_path + '/' +'episode_'+str(episode)+'_'+'agent_'+ str(i) + 'actor_net.pth')
 
     def load_model(self, file_path):
         if self.args.model_episode:

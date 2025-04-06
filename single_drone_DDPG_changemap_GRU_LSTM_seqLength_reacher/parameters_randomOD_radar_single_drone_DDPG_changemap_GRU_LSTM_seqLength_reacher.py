@@ -26,7 +26,7 @@ def initialize_parameters():
     # BUFFER_SIZE = int(1e5)  # replay buffer size
     # BUFFER_SIZE = int(5e4)  # replay buffer size
     BATCH_SIZE = 256  # minibatch size
-    GAMMA = 0.90  # discount factor
+    GAMMA = 0.99  # discount factor
     # GAMMA = 0.99  # discount factor
     # GAMMA = 0.95  # discount factor
     TAU = 0.01  # for soft update of target parameters, 0.001, so 99.9% of the weights in the target network is

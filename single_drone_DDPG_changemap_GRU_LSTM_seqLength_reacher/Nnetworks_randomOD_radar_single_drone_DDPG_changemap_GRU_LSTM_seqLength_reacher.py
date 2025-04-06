@@ -684,21 +684,16 @@ class sac_ActorNetwork_TwoPortion(nn.Module):
 class ppo_ActorNetwork_TwoPortion(nn.Module):
     def __init__(self, actor_dim, n_actions):  # actor_obs consists of three parts 0 = own, 1 = own grid, 2 = surrounding drones
         super(ppo_ActorNetwork_TwoPortion, self).__init__()
-        self.action_range = 8
-        self.log_std_min = -20
-        self.log_std_max = 2
-        self.init_w = 3e-3
-
         # V2
-        # self.own_fc = nn.Sequential(nn.Linear(actor_dim[0] + actor_dim[1], 128), nn.ReLU())
-        self.own_fc = nn.Sequential(nn.Linear(8, 128), nn.ReLU())
-        self.merge_feature = nn.Sequential(nn.Linear(64+64, 128), nn.ReLU())
+        self.own_fc = nn.Sequential(nn.Linear(actor_dim[0] + actor_dim[1], 128), nn.ReLU())
+        # self.own_fc = nn.Sequential(nn.Linear(8, 64), nn.Tanh())
+        self.merge_feature = nn.Sequential(nn.Linear(128, 128), nn.Tanh())
         self.mean_linear = nn.Sequential(nn.Linear(128, n_actions))
 
     def forward(self, cur_state):
         # V2
-        # obs_grid = torch.cat((cur_state[0], cur_state[1]), dim=1)
-        merge_obs_grid = self.own_fc(cur_state)
+        obs_grid = torch.cat((cur_state[0], cur_state[1]), dim=1)
+        merge_obs_grid = self.own_fc(obs_grid)
         merge_feature = self.merge_feature(merge_obs_grid)
         action = self.mean_linear(merge_feature)
 
@@ -2631,17 +2626,16 @@ class ppo_critic_single_TwoPortion(nn.Module):
     def __init__(self, critic_obs, n_actions):
         super(ppo_critic_single_TwoPortion, self).__init__()
         #V2.1
-        self.SA_fc = nn.Sequential(nn.Linear(8, 256), nn.ReLU())
-        self.act = nn.Sequential(nn.Linear(n_actions, 64), nn.ReLU())
-        self.merge_fc_grid = nn.Sequential(nn.Linear(256+64, 512), nn.ReLU())
-        self.out_feature_q = nn.Sequential(nn.Linear(512, 256), nn.ReLU(), nn.Linear(256, 1))
+        # self.SA_fc = nn.Sequential(nn.Linear(8, 64), nn.Tanh())
+        self.SA_fc = nn.Sequential(nn.Linear(critic_obs[0] + critic_obs[1], 256), nn.ReLU())
+        self.merge_fc_grid = nn.Sequential(nn.Linear(256, 256), nn.ReLU())
+        self.out_feature_q = nn.Sequential(nn.Linear(256, 1))
 
-    def forward(self, single_state, single_action):
+    def forward(self, single_state):
         # V2.1
-        obsWgrid_feat = self.SA_fc(single_state)
-        act_feat = self.act(single_action)
-        combine_feature = torch.cat((act_feat, obsWgrid_feat), dim=1)
-        merge_feature = self.merge_fc_grid(combine_feature)
+        obsWgrid = torch.cat((single_state[0], single_state[1]), dim=1)
+        obsWgrid_feat = self.SA_fc(obsWgrid)
+        merge_feature = self.merge_fc_grid(obsWgrid_feat)
         q = self.out_feature_q(merge_feature)
         return q
 
