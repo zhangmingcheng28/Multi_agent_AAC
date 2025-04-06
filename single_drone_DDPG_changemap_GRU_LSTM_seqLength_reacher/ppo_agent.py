@@ -7,11 +7,11 @@
 @Package dependency:
 """
 # from Nnetworks_MADDPGv3 import CriticNetwork_0724, ActorNetwork
-from Nnetworks_randomOD_radar_single_drone_DDPG_changemap_GRU_LSTM_seqLength_sac import *
+from Nnetworks_randomOD_radar_single_drone_DDPG_changemap_GRU_LSTM_seqLength_reacher import *
 import torch
 from copy import deepcopy
 from torch.optim import Adam
-from memory_randomOD_radar_single_drone_DDPG_changemap_GRU_LSTM_seqLength_sac import ReplayMemory, Experience
+from memory_randomOD_radar_single_drone_DDPG_changemap_GRU_LSTM_seqLength_reacher import ReplayMemory, Experience
 # from random_process_MADDPGv3_randomOD import OrnsteinUhlenbeckProcess
 from torch.distributions import MultivariateNormal
 from torch.distributions import Categorical
@@ -21,8 +21,8 @@ import torch.nn as nn
 import time
 import numpy as np
 import torch as T
-from utils_randomOD_radar_single_drone_DDPG_changemap_GRU_LSTM_seqLength_sac import device
-from Utilities_own_randomOD_radar_single_drone_DDPG_changemap_GRU_LSTM_seqLength_sac import *
+from utils_randomOD_radar_single_drone_DDPG_changemap_GRU_LSTM_seqLength_reacher import device
+from Utilities_own_randomOD_radar_single_drone_DDPG_changemap_GRU_LSTM_seqLength_reacher import *
 import csv
 
 action_std_init = 0.6
@@ -125,7 +125,7 @@ class PPO:
         self.action_range = 8
         self.MseLoss = nn.MSELoss()
         self.eps_clip = 0.2
-        self.K_epochs = 3
+        self.K_epochs = 80
         self.memory = ReplayMemory(args.memory_length, gru_history_length)
         self.batch_size = args.batch_size
         self.use_cuda = torch.cuda.is_available()
@@ -154,11 +154,11 @@ class PPO:
         self.steps_done = 0
         self.episode_done = 0
 
-    def choose_action(self, OU_noise, state, cur_total_step, cur_episode, step, total_training_steps, noise_start_level, actor_hiddens, lstm_hist, gru_hist, use_LSTM_flag, stacking, feature_matching, noisy=True, use_GRU_flag=False):
-        obs = torch.from_numpy(np.stack(state[0])).float().to(device)
-        obs_grid = torch.from_numpy(np.stack(state[1])).float().to(device)
-        noise_value = np.zeros(2)
-
+    def choose_action(self, state, cur_total_step, cur_episode, step, total_training_steps, noise_start_level, actor_hiddens, lstm_hist, gru_hist, use_LSTM_flag, stacking, feature_matching, noisy=True, use_GRU_flag=False):
+        # obs = torch.from_numpy(np.stack(state[0])).float().to(device)
+        # obs_grid = torch.from_numpy(np.stack(state[1])).float().to(device)
+        # noise_value = np.zeros(2)
+        noise_value = 0
         actions = torch.zeros(self.n_agents, self.n_actions)
         actions_logprob = torch.zeros(self.n_agents, 1)
         if use_GRU_flag:
@@ -173,8 +173,8 @@ class PPO:
         gru_history_input = torch.FloatTensor(actor_hiddens).unsqueeze(0).to(device)  # batch x no_agent x feature_length
 
         for i in range(self.n_agents):
-            sb = obs[i]
-            sb_grid = obs_grid[i]
+            # sb = obs[i]
+            # sb_grid = obs_grid[i]
 
             if use_GRU_flag:
                 if feature_matching:
@@ -190,11 +190,9 @@ class PPO:
                 if feature_matching:
                     act, _ = self.actors[i]([sb.unsqueeze(0), sb_grid.unsqueeze(0)], use_random=False)
                 else:
-                    action, action_logprob = self.policy_old.act([sb.unsqueeze(0), sb_grid.unsqueeze(0)], i)
-                    # act = self.action_range * action
+                    state = torch.FloatTensor(state).to(device)
+                    action, action_logprob = self.policy_old.act(state, i)
                     act = action
-                    # with/wo action range for logprob
-                    # act_logprob = self.action_range * action_logprob
                     act_logprob = action_logprob
 
             actions[i, :] = act
@@ -249,10 +247,10 @@ class PPO:
             agents_cur_hidden_state = torch.stack(batch.cur_hidden).type(FloatTensor)
         # stack tensors only once
         stacked_elem_0 = torch.stack([elem[0] for elem in batch.states]).to(device)
-        stacked_elem_1 = torch.stack([elem[1] for elem in batch.states]).to(device)
+        # stacked_elem_1 = torch.stack([elem[1] for elem in batch.states]).to(device)
         if full_observable_critic_flag == True:
             stacked_elem_0_combine = stacked_elem_0.view(self.batch_size, -1)  # own_state only
-            stacked_elem_1_combine = stacked_elem_1.view(self.batch_size, -1)  # own_state only
+            # stacked_elem_1_combine = stacked_elem_1.view(self.batch_size, -1)  # own_state only
 
         # use the stacked tensors
         # current_state in the form of list of length of agents in the environments, then, batchNo X individual Feature length
@@ -260,10 +258,10 @@ class PPO:
 
         # for next state
         next_stacked_elem_0 = torch.stack([elem[0] for elem in batch.next_states]).to(device)
-        next_stacked_elem_1 = torch.stack([elem[1] for elem in batch.next_states]).to(device)
+        # next_stacked_elem_1 = torch.stack([elem[1] for elem in batch.next_states]).to(device)
         if full_observable_critic_flag == True:
             next_stacked_elem_0_combine = next_stacked_elem_0.view(self.batch_size, -1)
-            next_stacked_elem_1_combine = next_stacked_elem_1.view(self.batch_size, -1)
+            # next_stacked_elem_1_combine = next_stacked_elem_1.view(self.batch_size, -1)
 
         # for done
         dones_stacked = torch.stack([three_agent_dones for three_agent_dones in batch.dones]).to(device)
@@ -272,7 +270,7 @@ class PPO:
             # Monte Carlo estimate of returns
 
             # Squeeze the tensors to have shape (512,) for easier iteration
-            rewards_squeeze_tensor = reward_batch.squeeze(1)
+            rewards_squeeze_tensor = reward_batch
             terminals_squeeze_tensor = dones_stacked.squeeze(1)
 
             rewards = []
@@ -290,9 +288,8 @@ class PPO:
             for _ in range(self.K_epochs):
 
                 # Evaluating old actions and values
-                logprobs, state_values, dist_entropy = self.policy.evaluate([stacked_elem_0[:, agent, :],
-                                                                             stacked_elem_1[:, agent, :]],
-                                                                            action_batch[:, agent, :], agent, self.action_range)
+                logprobs, state_values, dist_entropy = self.policy.evaluate(stacked_elem_0,
+                                                                            action_batch, agent, self.action_range)
 
                 # Calculate average entropy for the minibatch
                 avg_entropy = dist_entropy.mean().item()
@@ -305,7 +302,7 @@ class PPO:
                 avg_ratios = ratios.mean().item()
                 # Finding Surrogate Loss
                 advantages = rewards_discounted - state_values.detach()
-                advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)  # normalize advantage
+                # advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)  # normalize advantage
                 adv_mean = advantages.mean()
                 adv_variance = advantages.var()  # or .std() for standard deviation
                 print("Advantage Mean:", adv_mean.item())
