@@ -140,7 +140,8 @@ class PPO:
         self.MseLoss = nn.MSELoss()
         self.buffer = RolloutBuffer()
         self.eps_clip = 0.2
-        self.K_epochs = 80
+        self.lambda_ = 0.98
+        self.K_epochs = 10
         self.memory = ReplayMemory(args.memory_length, gru_history_length)
         self.batch_size = args.batch_size
         self.use_cuda = torch.cuda.is_available()
@@ -277,7 +278,7 @@ class PPO:
 
         # for next state
         next_stacked_elem_0 = torch.stack([elem[0] for elem in batch.next_states]).to(device)
-        # next_stacked_elem_1 = torch.stack([elem[1] for elem in batch.next_states]).to(device)
+        next_stacked_elem_1 = torch.stack([elem[1] for elem in batch.next_states]).to(device)
         if full_observable_critic_flag == True:
             next_stacked_elem_0_combine = next_stacked_elem_0.view(self.batch_size, -1)
             # next_stacked_elem_1_combine = next_stacked_elem_1.view(self.batch_size, -1)
@@ -315,6 +316,35 @@ class PPO:
                 logprobs, state_values, dist_entropy = self.policy.evaluate([stacked_elem_0[:,agent,:], stacked_elem_1[:,agent,:]],action_batch[:,agent,:], agent, self.action_range)
                 # logprobs, state_values, dist_entropy = self.policy.evaluate(old_states,old_actions, agent, self.action_range)
 
+                _, next_state_values, _ = self.policy.evaluate(
+                    [next_stacked_elem_0[:, agent, :], next_stacked_elem_1[:, agent, :]],
+                    action_batch[:, agent, :], agent, self.action_range)
+
+                # advantage via gae
+                # Initialize the advantage tensor and the variable for accumulating GAE.
+                advantages = []
+                gae = 0
+                T = len(reward_batch)  # Number of timesteps in the batch
+
+                # Traverse backwards to accumulate advantage:
+                for t in reversed(range(T)):
+                    # For the last time step, if the episode ended, there is no next state value.
+                    if t == T - 1:
+                        # If terminal, next state value is effectively 0.
+                        next_value = 0.0 if terminals_squeeze_tensor.squeeze()[t] == 1.0 else next_state_values.squeeze()[t]
+                    else:
+                        # Use the already computed state value for the next timestep.
+                        next_value = state_values.squeeze()[t + 1]
+
+                    # Compute the TD error (delta)
+                    delta = rewards_squeeze_tensor.squeeze()[t] + self.GAMMA * next_value * (1 - terminals_squeeze_tensor.squeeze()[t]) - state_values.squeeze()[t]
+                    # Recursively accumulate the GAE advantage.
+                    gae = delta + self.GAMMA * self.lambda_ * (1 - terminals_squeeze_tensor.squeeze()[t]) * gae
+                    advantages.insert(0, gae)
+
+                # Convert the list of advantages to a tensor and reshape to (T, 1)
+                advantages = torch.stack(advantages).unsqueeze(1)
+
                 # Calculate average entropy for the minibatch
                 avg_entropy = dist_entropy.mean().item()
 
@@ -326,7 +356,7 @@ class PPO:
                 # ratios = torch.exp(logprobs - old_logprobs.squeeze(1).detach())
                 avg_ratios = ratios.mean().item()
                 # Finding Surrogate Loss
-                advantages = rewards_discounted - state_values.detach()
+                # advantages = rewards_discounted - state_values.detach()  # advantage w/o gae
                 # advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)  # normalize advantage
                 adv_mean = advantages.mean()
                 adv_variance = advantages.var()  # or .std() for standard deviation
