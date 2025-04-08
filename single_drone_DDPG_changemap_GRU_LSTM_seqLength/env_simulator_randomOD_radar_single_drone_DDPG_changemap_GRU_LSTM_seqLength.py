@@ -449,8 +449,8 @@ class env_simulator:
                 geo_fence = circle_centre.buffer(5)
                 self.geo_fence_area.append(geo_fence)
         else:
-            # geo_fence_num = 10
-            geo_fence_num = 0
+            geo_fence_num = 3
+            # geo_fence_num = 0
             distance_from_start = 7.5  # Distances from the start and end points of the LineString
             distance_from_end = 7.5  # we ensure the geo-fence will not cover the start and end point.
             # if (self.all_agents[0].ref_line.length > (distance_from_start + distance_from_end)) and len(filtered_centroids) > 0:
@@ -475,6 +475,7 @@ class env_simulator:
                 for point_on_line in sampled_points:
                     # Fixed distance within which the point should be generated
                     fixed_distance = 2.5  # don't deviate from ref line too far
+                    # fixed_distance = 10
                     # Generate a random bearing and distance
                     random_bearing = random.uniform(0, 2 * math.pi)  # Angle in radians
                     random_distance_from_point = random.uniform(0, fixed_distance)
@@ -483,11 +484,11 @@ class env_simulator:
                     random_point_y = point_on_line.y + random_distance_from_point * math.sin(random_bearing)
                     designated_center = (random_point_x, random_point_y
                                          )
-                    random_polygon = generate_random_polygon(designated_center, num_points=10, max_dim=10)
-
-                    # circle_centre = Point(random_point_x, random_point_y) # original, before thesis revision
-                    # geo_fence = circle_centre.buffer(5) # original, before thesis revision
-                    self.geo_fence_area.append(random_polygon)
+                    # random_polygon = generate_random_polygon(designated_center, num_points=10, max_dim=10)
+                    # self.geo_fence_area.append(random_polygon)
+                    circle_centre = Point(random_point_x, random_point_y) # original, before thesis revision
+                    geo_fence = circle_centre.buffer(5) # original, before thesis revision
+                    self.geo_fence_area.append(geo_fence)
 
         # self.geo_fence_area = [Point(550, 327).buffer(5)]
         # self.geo_fence_area = []
@@ -3177,6 +3178,12 @@ class env_simulator:
         return status_holder
 
     def step(self, actions, current_ts, random_map_idx):
+        # with uncertainty
+        std_x = 2.28
+        std_y = 2.28
+        # Sample from Gaussian distributions
+        uncertainty_x = np.random.normal(loc=0, scale=std_x)
+        uncertainty_y = np.random.normal(loc=0, scale=std_y)
         next_combine_state = []
         agentCoorKD_list_update = []
         agentRefer_dict = {}  # A dictionary to use agent's current pos as key, their agent name (idx) as value
@@ -3250,8 +3257,11 @@ class env_simulator:
             self.all_agents[drone_idx].heading = counterCheck_heading
             # ------------- end of acceleration in x and acceleration in y state transition control ---------------#
 
-            self.all_agents[drone_idx].pos = np.array([self.all_agents[drone_idx].pos[0] + delta_x,
-                                                       self.all_agents[drone_idx].pos[1] + delta_y])
+            # self.all_agents[drone_idx].pos = np.array([self.all_agents[drone_idx].pos[0] + delta_x,
+            #                                            self.all_agents[drone_idx].pos[1] + delta_y])
+
+            self.all_agents[drone_idx].pos = np.array([self.all_agents[drone_idx].pos[0] + delta_x+uncertainty_x,
+                                                       self.all_agents[drone_idx].pos[1] + delta_y+uncertainty_y])
 
             # cur_circle = Point(self.all_agents[drone_idx].pos[0],
             #                    self.all_agents[drone_idx].pos[1]).buffer(self.all_agents[drone_idx].protectiveBound,

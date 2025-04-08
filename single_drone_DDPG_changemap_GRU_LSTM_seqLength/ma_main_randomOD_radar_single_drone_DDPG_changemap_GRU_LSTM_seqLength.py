@@ -44,7 +44,7 @@ else:
     device = torch.device('cpu')
     print('Using CPU')
 
-device = torch.device('cpu')
+# device = torch.device('cpu')
 
 def main(args):
 
@@ -68,8 +68,8 @@ def main(args):
         # initialize_excel_file(excel_file_path_time)
         # ------------ end of this portion is to save using excel instead of pickle -----------
 
-    use_wanDB = False
-    # use_wanDB = True
+    # use_wanDB = False
+    use_wanDB = True
 
     # get_evaluation_status = True  # have figure output
     get_evaluation_status = False  # no figure output, mainly obtain collision rate
@@ -254,10 +254,10 @@ def main(args):
         # Select a random index from the list of indices
         # random_map_idx = random.choice(indices)
         # random_map_idx = 5, 6, 1, 2
-        random_map_idx = 2
+        # random_map_idx = 2
         # random_map_idx = 5
         # random_map_idx = random.choice([5])
-        # random_map_idx = 3  # this value is the previous fixed environment
+        random_map_idx = 3  # this value is the previous fixed environment
 
         geo_fence_spawn_step = random.randint(2, 9)
         circular_obstacles_global = []
@@ -1096,7 +1096,7 @@ if __name__ == '__main__':
     parser.add_argument('--scenario', default="simple_spread", type=str)
     parser.add_argument('--max_episodes', default=10000, type=int)  # run for a total of 50000 episodes
     parser.add_argument('--algo', default="maddpg", type=str, help="commnet/bicnet/maddpg/TD3")
-    parser.add_argument('--mode', default="eval", type=str, help="train/eval")
+    parser.add_argument('--mode', default="train", type=str, help="train/eval")
     parser.add_argument('--episode_length', default=100, type=int)  # maximum play per episode
     parser.add_argument('--memory_length', default=int(1e5), type=int)
     parser.add_argument('--seed', default=777, type=int)  # may choose to use 3407
